@@ -42,29 +42,30 @@ export function useRadaStore() {
 
   // 2. Action: Add Spot (Saves to state )
   const addSpot = async (newSpot: Omit<SpotItem, 'id'>) => {
-  const payload = {
-    title: newSpot.title?.trim() || 'Untitled Spot',
-    category: newSpot.category?.trim() || 'General',
-    neighborhood: newSpot.neighborhood?.trim() || 'Nairobi',
-  };
+  try {
+    const payload = {
+      title: newSpot.title?.trim() || 'Untitled Spot',
+      category: newSpot.category?.trim() || 'General',
+      neighborhood: newSpot.neighborhood?.trim() || 'Nairobi',
+    };
 
-  const { data, error } = await supabase
-    .from('spots')
-    .insert([payload])
-    .select();
+    console.log('Sending payload to Supabase:', payload);
 
-  if (error) {
-    alert(`Supabase Error: ${error.message}`);
-    console.error('Error inserting spot:', error);
-    return;
-  }
+    const { data, error } = await supabase
+      .from('spots')
+      .insert([payload])
+      .select();
 
-  alert('Successfully added spot to Supabase!');
+    if (error) {
+      alert(`Supabase Error: ${error.message} (Code: ${error.code})`);
+      console.error('Supabase insert error:', error);
+      return;
+    }
 
-  if (data && data.length > 0) {
-    const updated = { ...store, spots: [data[0], ...store.spots] };
-    setStore(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    console.log('Successfully inserted into Supabase:', data);
+  } catch (err: any) {
+    alert(`Unexpected JavaScript Error: ${err?.message || err}`);
+    console.error('Unexpected error during addSpot:', err);
   }
 };
 
