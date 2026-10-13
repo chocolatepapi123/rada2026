@@ -42,15 +42,22 @@ export function useRadaStore() {
 
   // 2. Action: Add Spot (Saves to state + Supabase)
   const addSpot = async (newSpot: Omit<SpotItem, 'id'>) => {
-    const tempId = 'spot_' + Date.now();
-    const itemWithId = { ...newSpot, id: tempId };
+  const { data, error } = await supabase
+    .from('spots')
+    .insert([newSpot])
+    .select();
 
-    const updated = { ...store, spots: [itemWithId, ...store.spots] };
+  if (error) {
+    console.error('Error inserting spot to Supabase:', error);
+    return;
+  }
+
+  if (data && data.length > 0) {
+    const updated = { ...store, spots: [data[0], ...store.spots] };
     setStore(updated);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-
-    await supabase.from('spots').insert([newSpot]);
-  };
+  }
+};
 
   // 3. Action: Add Event (Saves to state + Supabase)
   const addEvent = async (newEvent: Omit<EventItem, 'id'>) => {
