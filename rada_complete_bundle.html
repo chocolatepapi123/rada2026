@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RADA - Where to go, what to wear, and who to go with</title>
+
+  <!-- Tailwind CSS CDN with custom config -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brandTerracotta: '#E0533C',
+            brandSage: '#2D6A4F',
+            brandAmber: '#E9C46A',
+            darkBg: '#121113',
+            darkSurface: '#1C1A1E',
+            lightBg: '#FFFFFF',
+            lightSurface: '#F8F8F6'
+          },
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <!-- Leaflet CSS & JS for Interactive Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
+    .spot-title { color: #E0533C !important; }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .card-swipe-pass { transform: translateX(-120%) rotate(-15deg); opacity: 0; transition: all 0.3s ease-out; }
+    .card-swipe-like { transform: translateX(120%) rotate(15deg); opacity: 0; transition: all 0.3s ease-out; }
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translateY(20px); }
+      15% { opacity: 1; transform: translateY(0); }
+      85% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(20px); }
+    }
+    .toast-notification {
+      animation: fadeInOut 2.8s ease-in-out forwards;
+    }
+    #locationModalMap { height: 260px; width: 100%; border-radius: 1rem; z-index: 10; }
+  </style>
+</head>
+<body class="bg-white text-slate-900 dark:bg-darkBg dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-200 antialiased selection:bg-brandTerracotta selection:text-white">
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center gap-2"></div>
+
+  <!-- Header -->
+  <header class="sticky top-0 z-40 bg-white/95 dark:bg-darkBg/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-xs">
+    <div class="max-w-lg mx-auto w-full px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <h1 onclick="switchTab('home')" class="text-2xl font-black tracking-tight text-brandTerracotta cursor-pointer hover:opacity-90 transition">RADA</h1>
+        <span class="text-xs bg-lightSurface dark:bg-darkSurface text-slate-700 dark:text-slate-300 font-semibold px-2.5 py-1 rounded-full flex items-center gap-1.5 border border-slate-200 dark:border-slate-800">
+          <i class="fa-solid fa-location-dot text-brandTerracotta text-[11px]"></i> <span>Westlands, Nairobi</span>
+        </span>
+      </div>
+      
+      <div class="flex items-center gap-1.5">
+        <!-- Quick Theme Switcher Button (Defaults to White) -->
+        <button onclick="toggleTheme()" id="themeToggleBtn" title="Toggle Light/Dark Theme" class="w-9 h-9 rounded-full bg-lightSurface dark:bg-darkSurface border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center hover:scale-105 transition">
+          <i class="fa-regular fa-moon text-sm"></i>
+        </button>
+
+        <!-- Wagwan AI Icon Button -->
+        <button onclick="openWagwanAI()" title="Wagwan AI Hangout Recommender" class="w-9 h-9 rounded-full bg-gradient-to-r from-brandTerracotta to-brandAmber text-white flex items-center justify-center text-sm shadow-md hover:scale-105 transition">
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
+        </button>
+
+        <!-- 3-Dot Overflow Menu -->
+        <div class="relative">
+          <button onclick="toggleThreeDotMenu()" class="w-9 h-9 flex items-center justify-center rounded-full bg-lightSurface dark:bg-darkSurface border border-slate-200 dark:border-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 transition text-slate-700 dark:text-slate-200">
+            <i class="fa-solid fa-ellipsis-vertical text-base"></i>
+          </button>
+          
+          <div id="threeDotMenu" class="hidden absolute right-0 mt-2 w-64 bg-white dark:bg-darkSurface border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+            <!-- PRIMARY: Business & Merchant Hub -->
+            <button onclick="openOverlay('businessHubOverlay')" class="w-full text-left px-4 py-3 text-xs font-bold hover:bg-amber-50/70 dark:hover:bg-amber-950/30 flex items-start gap-3 text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800/80 group transition">
+              <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-brandTerracotta to-brandAmber text-white flex items-center justify-center shrink-0 shadow-xs">
+                <i class="fa-solid fa-store text-xs"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <span class="font-black text-brandTerracotta">Business Hub</span>
+                  <span class="text-[9px] bg-red-100 dark:bg-red-950/80 text-brandTerracotta font-black px-1.5 py-0.5 rounded uppercase">PRO</span>
+                </div>
+                <p class="text-[10px] text-slate-500 truncate mt-0.5">Manage spots, menus, events & thrift fits</p>
+              </div>
+            </button>
+
+            <!-- Emergency & SOS -->
+            <button onclick="openOverlay('sosOverlay')" class="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-3 text-red-600 dark:text-red-400 border-b border-slate-100 dark:border-slate-800/80">
+              <i class="fa-solid fa-shield-halved text-brandTerracotta text-sm w-4"></i> Emergency & SOS Hub
+            </button>
+
+            <!-- Settings & Appearance -->
+            <button onclick="openOverlay('settingsOverlay')" class="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-3 text-slate-700 dark:text-slate-200">
+              <i class="fa-solid fa-gear text-brandSage text-sm w-4"></i> Settings & Appearance
+            </button>
+
+            <!-- Account & Security -->
+            <button onclick="openOverlay('youOverlay')" class="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-3 text-slate-700 dark:text-slate-200">
+              <i class="fa-solid fa-user-lock text-brandAmber text-sm w-4"></i> Account & Security
+            </button>
+
+            <!-- Profile & Safety Hub -->
+            <button onclick="openOverlay('profileOverlay')" class="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-3 text-slate-700 dark:text-slate-200 border-t border-slate-100 dark:border-slate-800/80">
+              <i class="fa-solid fa-id-card text-brandTerracotta text-sm w-4"></i> Profile & Safety Hub
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Viewports -->
+  <main class="flex-1 pb-24 max-w-lg mx-auto w-full relative px-4">
+
+    <!-- ================= TAB 1: HOME ================= -->
+    <section id="tab-home" class="tab-content py-4 space-y-6">
+      <div class="space-y-3">
+        <div class="relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+          <input type="text" id="homeSearchInput" oninput="filterHomeSearch()" placeholder="Search events, venues, vibes in Nairobi..." class="w-full pl-10 pr-4 py-3 bg-lightSurface dark:bg-darkSurface border border-slate-200 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-brandTerracotta shadow-xs">
+        </div>
+        <div class="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+          <button onclick="filterVibe('all', this)" class="vibe-pill px-4 py-2 rounded-full text-xs font-bold bg-brandTerracotta text-white shrink-0 shadow-sm">All Vibes</button>
+          <button onclick="filterVibe('concerts', this)" class="vibe-pill px-4 py-2 rounded-full text-xs font-semibold bg-lightSurface dark:bg-darkSurface text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 shrink-0">Concerts</button>
+          <button onclick="filterVibe('nightlife', this)" class="vibe-pill px-4 py-2 rounded-full text-xs font-semibold bg-lightSurface dark:bg-darkSurface text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 shrink-0">Nightlife</button>
+          <button onclick="filterVibe('cinemas', this)" class="vibe-pill px-4 py-2 rounded-full text-xs font-semibold bg-lightSurface dark:bg-darkSurface text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 shrink-0">Cinemas</button>
+          <button onclick="filterVibe('art', this)" class="vibe-pill px-4 py-2 rounded-full text-xs font-semibold bg-lightSurface dark:bg-darkSurface text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 shrink-0">Art & Culture</button>
+        </div>
+      </div>
+
+      <!-- Featured Trending Events Carousel -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-brandTerracotta animate-pulse"></span>
+            <span>Featured Trending Events</span>
+          </h2>
+          <span onclick="openDedicatedViewAll('Featured Trending Events')" class="text-[11px] font-bold text-brandTerracotta cursor-pointer hover:underline">View All</span>
+        </div>
+        <div id="eventsFeedCarousel" class="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+
+      <!-- Century Cinemax Showings -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-film text-brandSage text-sm"></i>
+            <h2 class="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400">Century Cinemax Showings</h2>
+          </div>
+          <span onclick="openDedicatedViewAll('Century Cinemax Movies')" class="text-[11px] font-bold text-brandTerracotta cursor-pointer hover:underline">View All</span>
+        </div>
+
+        <div class="space-y-2">
+          <div class="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+            <button onclick="filterCinemaLocation('all', this)" class="cinema-loc-pill px-3 py-1.5 rounded-full text-xs font-bold bg-brandSage text-white shrink-0">All Locations</button>
+            <button onclick="filterCinemaLocation('gardencity', this)" class="cinema-loc-pill px-3 py-1.5 rounded-full text-xs font-semibold bg-lightSurface dark:bg-darkSurface text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 shrink-0">Garden City IMAX</button>
+            <button onclick="filterCinemaLocation('sarit', this)" class="cinema-loc-pill px-3 py-1.5 rounded-full text-xs font-semibold bg-lightSurface dark:bg-darkSurface text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 shrink-0">Sarit Centre</button>
+            <button onclick="filterCinemaLocation('junction', this)" class="cinema-loc-pill px-3 py-1.5 rounded-full text-xs font-semibold bg-lightSurface dark:bg-darkSurface text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 shrink-0">Junction Mall</button>
+          </div>
+
+          <div class="flex items-center justify-between bg-lightSurface dark:bg-darkSurface p-2.5 rounded-xl text-xs border border-slate-200 dark:border-slate-800">
+            <span class="font-bold text-slate-500"><i class="fa-solid fa-calendar-day text-brandTerracotta"></i> Sort by Date:</span>
+            <select id="cinemaDateSortSelect" onchange="sortCinemaMoviesByDate()" class="bg-white dark:bg-darkBg font-bold px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 focus:outline-none text-[11px]">
+              <option value="all">All Dates</option>
+              <option value="2026-10-13">Tue, 13 Oct 2026</option>
+              <option value="2026-10-14">Wed, 14 Oct 2026</option>
+              <option value="2026-10-15">Thu, 15 Oct 2026</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="centuryCinemaxList" class="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+
+      <!-- Live Community Status Feed -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400">Where Are You At Today/Night?</h2>
+          <span id="gpsBroadcastBadge" class="hidden text-[10px] bg-red-100 text-red-600 font-black px-2 py-0.5 rounded-md flex items-center gap-1 animate-pulse">
+            <i class="fa-solid fa-location-arrow"></i> GPS Active
+          </span>
+        </div>
+
+        <div class="bg-lightSurface dark:bg-darkSurface border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 shadow-xs space-y-3">
+          <textarea id="statusInput" rows="2" placeholder="Post your current location, vibe, or party status..." class="w-full p-3 bg-white dark:bg-darkBg border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brandTerracotta resize-none"></textarea>
+          
+          <div id="mediaPreviewContainer" class="hidden relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 max-h-48">
+            <div id="mediaPreviewContent"></div>
+            <button onclick="removeMediaUpload()" class="absolute top-2 right-2 w-7 h-7 bg-black/75 text-white rounded-full text-xs flex items-center justify-center font-bold">&times;</button>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <label class="cursor-pointer w-10 h-10 rounded-full bg-white dark:bg-darkBg border border-slate-200 dark:border-slate-800 text-brandTerracotta hover:bg-slate-100 flex items-center justify-center text-sm shadow-xs transition" title="Attach Photo">
+              <i class="fa-solid fa-camera"></i>
+              <input type="file" id="statusMediaInput" accept="image/*,video/*" class="hidden" onchange="handleMediaUpload(event)">
+            </label>
+            <button onclick="postStatus()" class="px-4 py-2 bg-brandTerracotta hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition shadow-xs">Post Status</button>
+          </div>
+        </div>
+
+        <div id="liveFeedContainer" class="space-y-3 pt-1">
+          <!-- Live Status Cards -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 2: SPOTS ================= -->
+    <section id="tab-spots" class="tab-content hidden py-4 space-y-6">
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400">Nairobi Spots & Hangouts</h2>
+          <span class="text-[11px] font-bold text-brandTerracotta" id="spotsCountBadge">4 Spots Active</span>
+        </div>
+
+        <div class="relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+          <input type="text" id="spotsSearchInput" oninput="filterSpotsSearch()" placeholder="Search Nairobi spots & neighborhoods..." class="w-full pl-10 pr-4 py-3 bg-lightSurface dark:bg-darkSurface border border-slate-200 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-brandTerracotta shadow-xs">
+        </div>
+        <div class="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+          <button onclick="filterNeighborhood('all', this)" class="neighborhood-pill px-4 py-2 rounded-full text-xs font-bold bg-slate-900 text-white dark:bg-white dark:text-slate-900 shrink-0">All Neighborhoods</button>
+          <button onclick="filterNeighborhood('westlands', this)" class="neighborhood-pill px-4 py-2 rounded-full text-xs font-semibold bg-lightSurface dark:bg-darkSurface text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 shrink-0">Westlands</button>
+          <button onclick="filterNeighborhood('kilimani', this)" class="neighborhood-pill px-4 py-2 rounded-full text-xs font-semibold bg-lightSurface dark:bg-darkSurface text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 shrink-0">Kilimani</button>
+          <button onclick="filterNeighborhood('cbd', this)" class="neighborhood-pill px-4 py-2 rounded-full text-xs font-semibold bg-lightSurface dark:bg-darkSurface text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 shrink-0">CBD</button>
+          <button onclick="filterNeighborhood('karen', this)" class="neighborhood-pill px-4 py-2 rounded-full text-xs font-semibold bg-lightSurface dark:bg-darkSurface text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 shrink-0">Karen</button>
+        </div>
+      </div>
+
+      <!-- Spots Carousels (Top Map Removed, Each Card has View Location Button) -->
+      <div class="space-y-6">
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-utensils text-brandTerracotta"></i> <span>Restaurants & Dining</span>
+            </h3>
+            <span onclick="openDedicatedViewAll('Restaurants Catalog')" class="text-[11px] font-bold text-brandTerracotta cursor-pointer hover:underline">View All</span>
+          </div>
+          <div id="restaurantsSpotList" class="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+            <!-- Rendered dynamically with multiple images carousel & reviews & view location -->
+          </div>
+        </div>
+
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-champagne-glasses text-brandSage"></i> <span>Nightlife & Clubs</span>
+            </h3>
+            <span onclick="openDedicatedViewAll('Nightlife & Clubs')" class="text-[11px] font-bold text-brandTerracotta cursor-pointer hover:underline">View All</span>
+          </div>
+          <div id="nightlifeSpotList" class="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-mug-saucer text-brandAmber"></i> <span>Cafes & Bakeries</span>
+            </h3>
+            <span onclick="openDedicatedViewAll('Cafes & Bakeries')" class="text-[11px] font-bold text-brandTerracotta cursor-pointer hover:underline">View All</span>
+          </div>
+          <div id="cafesSpotList" class="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 3: LUKU ================= -->
+    <section id="tab-luku" class="tab-content hidden py-4 space-y-6">
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400">Thrift Visual Search Engine</h2>
+          <span class="text-[10px] bg-emerald-100 text-brandSage dark:bg-emerald-950/80 dark:text-emerald-300 font-extrabold px-2 py-0.5 rounded-md flex items-center gap-1">
+            <i class="fa-solid fa-circle-check"></i> Verified Sellers Only
+          </span>
+        </div>
+        <div class="flex gap-2">
+          <input type="text" id="thriftQuery" placeholder="Search clothes e.g. Vintage Graphic Tee, Leather Puffer..." class="flex-1 px-4 py-3 bg-lightSurface dark:bg-darkSurface border border-slate-200 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-brandTerracotta">
+          <button onclick="searchThriftVerified()" class="px-4 py-3 bg-brandSage hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition shadow-xs">Search</button>
+        </div>
+        
+        <div id="thriftResults" class="grid grid-cols-2 gap-3 pt-2">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+
+      <div class="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+        <h2 class="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400">Verified App Sellers Directory</h2>
+        <div id="thriftSellersList" class="space-y-2.5">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 4: SOCIALS ================= -->
+    <section id="tab-socials" class="tab-content hidden py-4 space-y-4">
+      <div class="grid grid-cols-4 gap-1 bg-lightSurface dark:bg-darkSurface p-1 rounded-2xl text-center shadow-inner text-xs">
+        <button onclick="switchSocialSubtab('discover', this)" class="social-subtab py-2 rounded-xl font-black bg-white dark:bg-darkBg text-slate-900 dark:text-white shadow-xs">Discover</button>
+        <button onclick="switchSocialSubtab('queue', this)" class="social-subtab py-2 rounded-xl font-semibold text-slate-600 dark:text-slate-400">Requests</button>
+        <button onclick="switchSocialSubtab('chats', this)" class="social-subtab py-2 rounded-xl font-semibold text-slate-600 dark:text-slate-400">Chats</button>
+        <button onclick="switchSocialSubtab('search', this)" class="social-subtab py-2 rounded-xl font-semibold text-slate-600 dark:text-slate-400">Search</button>
+      </div>
+
+      <div id="social-discover" class="social-subview space-y-4">
+        <div id="datingCardContainer"></div>
+      </div>
+
+      <div id="social-queue" class="social-subview hidden space-y-4">
+        <div class="space-y-3">
+          <h3 class="text-xs font-black uppercase tracking-wider text-slate-500">Pending Requests</h3>
+          <div id="requestQueueList" class="space-y-2"></div>
+        </div>
+        <div class="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+          <h3 class="text-xs font-black uppercase tracking-wider text-slate-500">Sent Requests</h3>
+          <div id="sentRequestsList" class="space-y-2"></div>
+        </div>
+      </div>
+
+      <div id="social-chats" class="social-subview hidden space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-black uppercase tracking-wider text-slate-500">Active Conversations</h3>
+          <button onclick="openGroupCreationModal()" class="text-xs font-bold text-brandSage hover:underline flex items-center gap-1"><i class="fa-solid fa-users"></i> Create Group</button>
+        </div>
+        <div id="chatsListContainer" class="space-y-2"></div>
+      </div>
+
+      <div id="social-search" class="social-subview hidden space-y-3">
+        <div class="relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+          <input type="text" id="socialSearchInput" oninput="filterSocialsSearch()" placeholder="Search users by @handle or name..." class="w-full pl-10 pr-4 py-3 bg-lightSurface dark:bg-darkSurface border border-slate-200 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-brandTerracotta">
+        </div>
+        <div id="socialUsersList" class="space-y-2 pt-1"></div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 5: VAULT ================= -->
+    <section id="tab-vault" class="tab-content hidden py-4 space-y-6">
+      <div class="bg-lightSurface dark:bg-darkSurface border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-xs space-y-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <select id="vaultMonthSelect" onchange="renderVaultCalendar()" class="bg-white dark:bg-darkBg border border-slate-200 dark:border-slate-800 font-black text-xs px-2.5 py-1.5 rounded-xl focus:outline-none">
+              <option value="9" selected>October</option>
+              <option value="10">November</option>
+              <option value="11">December</option>
+            </select>
+            <select id="vaultYearSelect" onchange="renderVaultCalendar()" class="bg-white dark:bg-darkBg border border-slate-200 dark:border-slate-800 font-black text-xs px-2.5 py-1.5 rounded-xl focus:outline-none">
+              <option value="2026" selected>2026</option>
+              <option value="2027">2027</option>
+            </select>
+          </div>
+          <p class="text-[10px] text-slate-400 font-black uppercase tracking-wider">Outings Vault</p>
+        </div>
+
+        <div class="grid grid-cols-7 text-center text-[10px] font-black text-slate-400 uppercase">
+          <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+        </div>
+
+        <div id="vaultDaysGrid" class="grid grid-cols-7 gap-1.5 text-center text-xs"></div>
+      </div>
+
+      <div class="space-y-3">
+        <h2 class="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400">Digital Wallet Passes & Synced Outings</h2>
+        <div id="vaultTicketsContainer" class="space-y-3"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= BOTTOM NAVIGATION BAR ================= -->
+  <nav class="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-white/95 dark:bg-darkBg/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-2 py-2 flex items-center justify-around z-40 shadow-lg">
+    <button onclick="switchTab('home')" class="nav-btn flex flex-col items-center gap-1 text-brandTerracotta flex-1 py-1 font-black">
+      <i class="fa-solid fa-house text-lg"></i>
+      <span class="text-[10px]">Home</span>
+    </button>
+    <button onclick="switchTab('spots')" class="nav-btn flex flex-col items-center gap-1 text-slate-400 flex-1 py-1 font-medium">
+      <i class="fa-solid fa-map-location-dot text-lg"></i>
+      <span class="text-[10px]">Spots</span>
+    </button>
+    <button onclick="switchTab('luku')" class="nav-btn flex flex-col items-center gap-1 text-slate-400 flex-1 py-1 font-medium">
+      <i class="fa-solid fa-shirt text-lg"></i>
+      <span class="text-[10px]">Luku</span>
+    </button>
+    <button onclick="switchTab('socials')" class="nav-btn flex flex-col items-center gap-1 text-slate-400 flex-1 py-1 font-medium">
+      <i class="fa-solid fa-user-group text-lg"></i>
+      <span class="text-[10px]">Socials</span>
+    </button>
+    <button onclick="switchTab('vault')" class="nav-btn flex flex-col items-center gap-1 text-slate-400 flex-1 py-1 font-medium">
+      <i class="fa-solid fa-wallet text-lg"></i>
+      <span class="text-[10px]">Vault</span>
+    </button>
+  </nav>
+
+  <!-- ================= LOCATION MAP MODAL (Opened from "View Location" button) ================= -->
+  <div id="locationMapModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-darkSurface w-full max-w-md rounded-3xl p-4 space-y-4 shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-150">
+      <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+        <div class="flex items-center gap-2 min-w-0">
+          <div class="w-8 h-8 rounded-full bg-red-100 dark:bg-red-950/80 text-brandTerracotta flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-map-pin"></i>
+          </div>
+          <div class="min-w-0">
+            <h3 id="locModalSpotTitle" class="font-black text-sm text-brandTerracotta truncate">Spot Name</h3>
+            <p id="locModalSpotAddress" class="text-[10px] text-slate-500 truncate">Neighborhood, Address</p>
+          </div>
+        </div>
+        <button onclick="closeLocationMapModal()" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center hover:bg-slate-200">
+          &times;
+        </button>
+      </div>
+
+      <!-- Leaflet Map Container -->
+      <div id="locationModalMap" class="shadow-inner border border-slate-200 dark:border-slate-800 overflow-hidden"></div>
+
+      <!-- Ride Actions -->
+      <div class="grid grid-cols-2 gap-2">
+        <button onclick="requestUberRide()" class="py-2.5 bg-black text-white hover:bg-slate-800 font-black rounded-xl text-xs transition flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-car"></i> <span>Uber Ride</span>
+        </button>
+        <button onclick="requestBoltRide()" class="py-2.5 bg-emerald-600 text-white hover:bg-emerald-700 font-black rounded-xl text-xs transition flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-taxi"></i> <span>Bolt Ride</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= BUSINESS & MERCHANT HUB OVERLAY ================= -->
+  <div id="businessHubOverlay" class="fixed inset-0 z-50 bg-white dark:bg-darkBg hidden flex flex-col overflow-y-auto">
+    <div class="sticky top-0 z-20 bg-white/95 dark:bg-darkBg/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+      <div class="max-w-lg mx-auto w-full px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-brandTerracotta to-brandAmber text-white flex items-center justify-center font-black shadow-xs">
+            <i class="fa-solid fa-store"></i>
+          </div>
+          <div>
+            <h3 class="font-black text-sm uppercase tracking-wide text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+              <span>RADA Business Hub</span>
+              <span class="text-[9px] bg-emerald-100 text-brandSage font-black px-1.5 py-0.5 rounded">PRO</span>
+            </h3>
+            <p class="text-[10px] text-slate-500">Active Business: <strong id="activeBizNameText" class="text-brandTerracotta">Ink & Drink Westlands</strong></p>
+          </div>
+        </div>
+        <button onclick="closeOverlay('businessHubOverlay')" class="w-8 h-8 rounded-full bg-lightSurface dark:bg-darkSurface text-slate-700 dark:text-slate-200 flex items-center justify-center text-lg">&times;</button>
+      </div>
+    </div>
+
+    <div class="max-w-lg mx-auto w-full p-4 space-y-5 flex-1 text-xs pb-16">
+      <!-- Business Switcher -->
+      <div class="bg-lightSurface dark:bg-darkSurface border border-slate-200 dark:border-slate-800 rounded-2xl p-3 flex items-center justify-between gap-2 shadow-xs">
+        <div class="min-w-0">
+          <h4 class="font-black text-xs text-slate-900 dark:text-slate-100 truncate">Manage Official Merchant Profile</h4>
+          <p class="text-[10px] text-slate-500">Upload info, menus, events & access real-time analytics</p>
+        </div>
+        <button onclick="toggleBizRegistrationForm()" class="px-3 py-1.5 bg-brandTerracotta text-white font-bold rounded-xl text-xs flex items-center gap-1 shrink-0">
+          <i class="fa-solid fa-plus text-[10px]"></i> <span>New Biz</span>
+        </button>
+      </div>
+
+      <!-- Registration Form -->
+      <div id="bizRegistrationForm" class="hidden bg-white dark:bg-darkSurface border-2 border-brandTerracotta/40 rounded-3xl p-4 space-y-3 shadow-md animate-in slide-in-from-top-4 duration-200">
+        <h4 class="font-black text-xs uppercase tracking-wider text-brandTerracotta border-b pb-2">Register Business Account</h4>
+        <input type="text" id="newBizNameInput" placeholder="Business Name e.g. Westgate Rooftop" class="w-full p-2.5 bg-lightSurface dark:bg-darkBg border rounded-xl text-xs">
+        <select id="newBizCatInput" class="w-full p-2.5 bg-lightSurface dark:bg-darkBg border rounded-xl text-xs">
+          <option value="hospitality">Spot / Venue / Bar / Cafe</option>
+          <option value="event_organizer">Event Promoter / Organizer</option>
+          <option value="thrift_store">Thrift Store / Luku Stall</option>
+        </select>
+        <input type="text" id="newBizPhoneInput" placeholder="WhatsApp Number (+254)" class="w-full p-2.5 bg-lightSurface dark:bg-darkBg border rounded-xl text-xs">
+        <button onclick="submitNewBusinessProfile()" class="w-full py-2.5 bg-brandTerracotta text-white font-black rounded-xl">Register Business & Unlock Hub</button>
+      </div>
+
+      <!-- 4 Hub Tabs: Spots, Events, Thrift, Analytics -->
+      <div class="grid grid-cols-4 gap-1 bg-lightSurface dark:bg-darkSurface p-1 rounded-2xl text-center shadow-inner">
+        <button onclick="switchBizHubTab('spots', this)" class="biz-hub-pill py-2 rounded-xl text-xs font-bold bg-white dark:bg-darkBg text-slate-900 dark:text-white shadow-xs">
+          <i class="fa-solid fa-store text-brandTerracotta"></i> <span>Spots</span>
+        </button>
+        <button onclick="switchBizHubTab('events', this)" class="biz-hub-pill py-2 rounded-xl text-xs font-semibold text-slate-500">
+          <i class="fa-solid fa-calendar-check text-brandSage"></i> <span>Events</span>
+        </button>
+        <button onclick="switchBizHubTab('thrift', this)" class="biz-hub-pill py-2 rounded-xl text-xs font-semibold text-slate-500">
+          <i class="fa-solid fa-shirt text-brandAmber"></i> <span>Thrift</span>
+        </button>
+        <button onclick="switchBizHubTab('analytics', this)" class="biz-hub-pill py-2 rounded-xl text-xs font-semibold text-slate-500 flex items-center justify-center gap-1">
+          <i class="fa-solid fa-chart-simple text-brandTerracotta"></i> <span>Analytics</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+        </button>
+      </div>
+
+      <!-- BIZ SUBVIEW 1: SPOTS & MENUS -->
+      <div id="bizHubView-spots" class="biz-hub-content space-y-4">
+        <div class="bg-lightSurface dark:bg-darkSurface border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-xs space-y-3">
+          <h3 class="font-black text-xs uppercase tracking-wider text-slate-900 dark:text-slate-100">Upload Spot Profile & Menu</h3>
+          <div class="space-y-2">
+            <label class="font-bold">Spot Name</label>
+            <input type="text" id="bizSpotTitleInput" value="Ink & Drink Westlands" class="w-full p-2.5 bg-white dark:bg-darkBg border rounded-xl">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="font-bold">Category</label>
+                <select id="bizSpotCatInput" class="w-full p-2.5 bg-white dark:bg-darkBg border rounded-xl">
+                  <option value="restaurants">Restaurants</option>
+                  <option value="nightlife">Nightlife & Clubs</option>
+                  <option value="cafes">Cafes & Bakeries</option>
+                </select>
+              </div>
+              <div>
+                <label class="font-bold">Price Tier</label>
+                <select id="bizSpotPriceInput" class="w-full p-2.5 bg-white dark:bg-darkBg border rounded-xl">
+                  <option value="KES $$">KES $$</option>
+                  <option value="KES $$$">KES $$$</option>
+                </select>
+              </div>
+            </div>
+            <label class="font-bold">Address / Street</label>
+            <input type="text" id="bizSpotAddressInput" value="Mpaka Road, Westlands, Nairobi" class="w-full p-2.5 bg-white dark:bg-darkBg border rounded-xl">
+            
+            <label class="font-bold">Upload Menu Item (Dish or Cocktail)</label>
+            <div class="grid grid-cols-2 gap-2">
+              <input type="text" id="bizMenuItemName" placeholder="Item Name e.g. Dawa Cocktail" class="p-2 bg-white dark:bg-darkBg border rounded-lg text-xs">
+              <input type="text" id="bizMenuItemPrice" placeholder="Price e.g. KES 950" class="p-2 bg-white dark:bg-darkBg border rounded-lg text-xs">
+            </div>
+            <button onclick="addSpotMenuItemToList()" class="w-full py-2 bg-brandSage text-white font-bold rounded-xl text-xs">+ Add Dish/Drink to Menu</button>
+            <div id="bizCurrentMenuList" class="space-y-1.5 pt-1"></div>
+
+            <button onclick="publishSpotMerchantChanges()" class="w-full py-3 bg-brandTerracotta text-white font-black rounded-xl shadow-md mt-2">Publish Spot & Menu to RADA</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- BIZ SUBVIEW 2: EVENTS -->
+      <div id="bizHubView-events" class="biz-hub-content hidden space-y-4">
+        <div class="bg-lightSurface dark:bg-darkSurface border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-xs space-y-3">
+          <h3 class="font-black text-xs uppercase tracking-wider text-slate-900 dark:text-slate-100">Create & Fill Event Details</h3>
+          <div class="space-y-2">
+            <label class="font-bold">Event Title</label>
+            <input type="text" id="bizEventTitleInput" placeholder="e.g. Afrobeats Rooftop Night" class="w-full p-2.5 bg-white dark:bg-darkBg border rounded-xl">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="font-bold">Date</label>
+                <input type="date" id="bizEventDateInput" value="2026-11-06" class="w-full p-2.5 bg-white dark:bg-darkBg border rounded-xl">
+              </div>
+              <div>
+                <label class="font-bold">Price (KES)</label>
+                <input type="text" id="bizEventPriceInput" value="KES 2,000" class="w-full p-2.5 bg-white dark:bg-darkBg border rounded-xl">
+              </div>
+            </div>
+            <label class="font-bold">Venue & Location</label>
+            <input type="text" id="bizEventLocationInput" value="Village Market, Westlands" class="w-full p-2.5 bg-white dark:bg-darkBg border rounded-xl">
+            <label class="font-bold">Dress Code / What to wear</label>
+            <input type="text" id="bizEventDressInput" value="Spooky Chic / All Black" class="w-full p-2.5 bg-white dark:bg-darkBg border rounded-xl">
+            <button onclick="publishNewEventListing()" class="w-full py-3 bg-brandSage text-white font-black rounded-xl shadow-md mt-2">Publish Event to Home Feed</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- BIZ SUBVIEW 3: THRIFT -->
+      <div id="bizHubView-thrift" class="biz-hub-content hidden space-y-4">
+        <div class="bg-lightSurface dark:bg-darkSurface border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-xs space-y-3">
+          <h3 class="font-black text-xs uppercase tracking-wider text-brandAmber">Step 1: Register Thrift Store</h3>
+          <div class="space-y-2">
+            <input type="text" id="thriftStoreNameReg" value="Gikomba Stall 4B & 9C Vintage" placeholder="Store Name" class="w-full p-2.5 bg-white dark:bg-darkBg border rounded-xl">
+            <input type="text" id="thriftStoreLocationReg" value="Gikomba Market, Lane 3, Stall 4B" class="w-full p-2.5 bg-white dark:bg-darkBg border rounded-xl">
+            <button onclick="confirmThriftStoreReg()" class="w-full py-2 bg-brandAmber text-slate-900 font-black rounded-xl">Register Store & Unlock Fits</button>
+          </div>
+        </div>
+
+        <div id="thriftFitsUploadBox" class="bg-lightSurface dark:bg-darkSurface border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-xs space-y-3">
+          <h3 class="font-black text-xs uppercase tracking-wider text-brandTerracotta">Step 2: Upload Single Fit to Catalog</h3>
+          <div class="space-y-2">
+            <input type="text" id="thriftFitTitle" placeholder="Fit Title e.g. 90s Carhartt Detroit Jacket" class="w-full p-2.5 bg-white dark:bg-darkBg border rounded-xl">
+            <div class="grid grid-cols-2 gap-2">
+              <input type="text" id="thriftFitPrice" placeholder="Price e.g. KES 2,500" class="p-2.5 bg-white dark:bg-darkBg border rounded-xl">
+              <select id="thriftFitCat" class="p-2.5 bg-white dark:bg-darkBg border rounded-xl">
+                <option value="Jackets & Coats">Jackets & Coats</option>
+                <option value="Tees & Tops">Tees & Tops</option>
+                <option value="Pants & Jeans">Pants & Jeans</option>
+              </select>
+            </div>
+            <button onclick="publishThriftFitItem()" class="w-full py-3 bg-brandTerracotta text-white font-black rounded-xl shadow-md">Publish Fit to Luku Catalog</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- BIZ SUBVIEW 4: UNLOCKED ANALYTICS & METRICS -->
+      <div id="bizHubView-analytics" class="biz-hub-content hidden space-y-4">
+        <!-- Live Metrics Cards -->
+        <div class="bg-gradient-to-r from-emerald-500/10 via-amber-500/10 to-red-500/10 border border-emerald-500/30 rounded-2xl p-3 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-circle-check text-brandSage text-base"></i>
+            <div>
+              <h4 class="font-black text-xs">Analytics Unlocked for Verified Merchant</h4>
+              <p class="text-[10px] text-slate-500">Real-time impressions, ride clicks & WhatsApp leads</p>
+            </div>
+          </div>
+          <span class="text-[9px] bg-emerald-100 text-brandSage font-black px-2 py-0.5 rounded-full">LIVE</span>
+        </div>
+
+        <div class="grid grid-cols-4 gap-2 text-center">
+          <div class="bg-lightSurface dark:bg-darkSurface p-2.5 rounded-2xl border">
+            <span class="text-[9px] text-slate-400 font-black uppercase">Views</span>
+            <p class="text-base font-black text-brandTerracotta mt-0.5">3,420</p>
+            <span class="text-[8px] text-brandSage font-bold">+24% wk</span>
+          </div>
+          <div class="bg-lightSurface dark:bg-darkSurface p-2.5 rounded-2xl border">
+            <span class="text-[9px] text-slate-400 font-black uppercase">Rides</span>
+            <p class="text-base font-black text-slate-900 dark:text-slate-100 mt-0.5">418</p>
+            <span class="text-[8px] text-brandSage font-bold">Uber/Bolt</span>
+          </div>
+          <div class="bg-lightSurface dark:bg-darkSurface p-2.5 rounded-2xl border">
+            <span class="text-[9px] text-slate-400 font-black uppercase">Tickets</span>
+            <p class="text-base font-black text-brandSage mt-0.5">342</p>
+            <span class="text-[8px] text-slate-400">RSVPs</span>
+          </div>
+          <div class="bg-lightSurface dark:bg-darkSurface p-2.5 rounded-2xl border">
+            <span class="text-[9px] text-slate-400 font-black uppercase">Orders</span>
+            <p class="text-base font-black text-brandAmber mt-0.5">76</p>
+            <span class="text-[8px] text-brandSage font-bold">WhatsApp</span>
+          </div>
+        </div>
+
+        <!-- Weekly Footfall Traffic Chart -->
+        <div class="bg-lightSurface dark:bg-darkSurface border rounded-3xl p-4 space-y-2">
+          <div class="flex items-center justify-between">
+            <h4 class="font-black text-xs uppercase">Weekly Customer Traffic Trend</h4>
+            <span class="text-[10px] text-brandTerracotta font-bold">Peak: Fri & Sat 9PM-2AM</span>
+          </div>
+          <div class="grid grid-cols-7 gap-2 items-end h-24 pt-3 border-b pb-1 text-center">
+            <div><div class="bg-slate-300 dark:bg-slate-700 rounded-t h-8"></div><span class="text-[9px] font-bold">Mon</span></div>
+            <div><div class="bg-slate-300 dark:bg-slate-700 rounded-t h-10"></div><span class="text-[9px] font-bold">Tue</span></div>
+            <div><div class="bg-slate-300 dark:bg-slate-700 rounded-t h-12"></div><span class="text-[9px] font-bold">Wed</span></div>
+            <div><div class="bg-slate-300 dark:bg-slate-700 rounded-t h-16"></div><span class="text-[9px] font-bold">Thu</span></div>
+            <div><div class="bg-brandTerracotta rounded-t h-20 shadow"></div><span class="text-[9px] font-bold text-brandTerracotta">Fri</span></div>
+            <div><div class="bg-brandTerracotta rounded-t h-18 shadow"></div><span class="text-[9px] font-bold text-brandTerracotta">Sat</span></div>
+            <div><div class="bg-slate-300 dark:bg-slate-700 rounded-t h-11"></div><span class="text-[9px] font-bold">Sun</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ENRICHED SPOT HUB & REVIEWS VIEW MODAL ================= -->
+  <div id="fullSpotView" class="fixed inset-0 z-50 bg-white dark:bg-darkBg overflow-y-auto hidden flex flex-col">
+    <div class="sticky top-0 z-20 bg-white/95 dark:bg-darkBg/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+      <div class="max-w-lg mx-auto w-full px-4 py-3 flex items-center justify-between">
+        <button onclick="closeSpotFullView()" class="w-9 h-9 rounded-full bg-lightSurface dark:bg-darkSurface flex items-center justify-center text-slate-700 dark:text-slate-200">
+          <i class="fa-solid fa-arrow-left"></i>
+        </button>
+        <h3 class="font-black text-sm uppercase tracking-wider text-slate-500">Spot Details & Reviews</h3>
+        <div class="w-9"></div>
+      </div>
+    </div>
+
+    <div class="max-w-lg mx-auto w-full p-4 space-y-5 flex-1 text-xs pb-20">
+      <!-- Spot Multiple Photos Gallery -->
+      <div class="space-y-2">
+        <div id="spotHeroImg" class="h-64 rounded-3xl bg-cover bg-center relative shadow-md">
+          <span id="spotPriceTag" class="absolute top-3 right-3 bg-black/75 backdrop-blur-md text-white text-xs font-black px-3 py-1 rounded-full">KES $$$</span>
+        </div>
+        <!-- Thumbnails Strip -->
+        <div id="spotThumbnailsStrip" class="flex gap-2 overflow-x-auto hide-scrollbar py-1"></div>
+      </div>
+
+      <div class="space-y-1">
+        <div class="flex items-center justify-between">
+          <h2 id="spotTitle" class="spot-title text-2xl font-black">Ink & Drink</h2>
+          <span id="spotRatingBadge" class="bg-amber-100 text-amber-900 font-black px-2.5 py-1 rounded-lg text-xs">★ 4.8</span>
+        </div>
+        <p id="spotNeighborhood" class="text-xs text-slate-500 font-bold">Westlands</p>
+        <p id="spotAddress" class="text-xs font-medium text-slate-600 dark:text-slate-400">Mpaka Road, Westlands, Nairobi</p>
+      </div>
+
+      <!-- Rides -->
+      <div class="grid grid-cols-2 gap-2">
+        <button onclick="requestUberRide()" class="py-3 bg-black text-white hover:bg-slate-800 font-black rounded-2xl shadow-md transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-car"></i> <span>Request Uber</span>
+        </button>
+        <button onclick="requestBoltRide()" class="py-3 bg-emerald-600 text-white hover:bg-emerald-700 font-black rounded-2xl shadow-md transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-taxi"></i> <span>Request Bolt</span>
+        </button>
+      </div>
+
+      <button onclick="planDirectHangoutFromSpot()" class="w-full py-3.5 bg-brandTerracotta hover:bg-orange-700 text-white font-black rounded-2xl shadow-md transition flex items-center justify-center gap-2">
+        <i class="fa-solid fa-calendar-plus"></i> <span>Plan Hangout / Date at This Spot</span>
+      </button>
+
+      <!-- COMMUNITY REVIEWS & POST REVIEW WITH IMAGE FORM -->
+      <div class="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+        <div class="flex items-center justify-between">
+          <h4 class="font-black text-slate-900 dark:text-slate-100 uppercase text-[11px] tracking-wider">
+            <i class="fa-solid fa-comments text-brandTerracotta"></i> Customer Reviews (<span id="spotReviewCountText">2</span>)
+          </h4>
+          <button onclick="toggleReviewForm()" class="px-3 py-1.5 bg-brandTerracotta text-white font-bold rounded-xl text-xs hover:bg-orange-700 transition">+ Write Review</button>
+        </div>
+
+        <!-- Review Form -->
+        <div id="newReviewFormBox" class="hidden bg-lightSurface dark:bg-darkSurface border-2 border-brandTerracotta/40 rounded-3xl p-4 space-y-3 shadow-md animate-in slide-in-from-top-2 duration-150">
+          <div class="flex items-center justify-between border-b pb-2">
+            <span class="font-black text-xs text-brandTerracotta">Rate Your Experience</span>
+            <div class="flex items-center gap-1 text-amber-400 text-sm">
+              <span onclick="setRatingStars(1)" class="cursor-pointer">★</span>
+              <span onclick="setRatingStars(2)" class="cursor-pointer">★</span>
+              <span onclick="setRatingStars(3)" class="cursor-pointer">★</span>
+              <span onclick="setRatingStars(4)" class="cursor-pointer">★</span>
+              <span onclick="setRatingStars(5)" class="cursor-pointer">★</span>
+              <span id="ratingStarsNum" class="text-xs font-black text-slate-700 dark:text-slate-300 ml-1">5 Stars</span>
+            </div>
+          </div>
+          <textarea id="reviewTextInput" rows="2" placeholder="Write about the cocktails, food, ambiance, music..." class="w-full p-2.5 bg-white dark:bg-darkBg border rounded-xl text-xs resize-none"></textarea>
+          
+          <label class="cursor-pointer py-2 px-3 bg-white dark:bg-darkBg border border-dashed rounded-xl hover:border-brandTerracotta flex items-center justify-center gap-1.5 transition">
+            <i class="fa-solid fa-image text-brandTerracotta"></i>
+            <span class="text-[11px] font-bold text-brandTerracotta">Attach Photo to Review</span>
+            <input type="file" id="reviewPhotoInput" accept="image/*" class="hidden" onchange="handleReviewImageUpload(event)">
+          </label>
+          <div id="reviewPhotoPreview" class="hidden h-20 rounded-xl bg-cover bg-center"></div>
+
+          <button onclick="submitUserReview()" class="w-full py-2.5 bg-brandTerracotta text-white font-black rounded-xl text-xs shadow-md">Publish Review with Photo</button>
+        </div>
+
+        <!-- Reviews List with Images -->
+        <div id="spotReviewsContainer" class="space-y-2.5">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= WAGWAN AI MODAL ================= -->
+  <div id="wagwanAiModal" class="fixed inset-0 z-50 bg-white dark:bg-darkBg hidden flex flex-col p-4 overflow-y-auto">
+    <div class="max-w-lg mx-auto w-full flex-1 flex flex-col">
+      <div class="flex items-center justify-between pb-3 border-b">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-full bg-gradient-to-r from-brandTerracotta to-brandAmber text-white flex items-center justify-center font-bold text-xs"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+          <div>
+            <h3 class="font-black text-sm uppercase tracking-wider text-slate-900 dark:text-slate-100">Wagwan AI</h3>
+            <p class="text-[10px] text-slate-400">Personalized Nairobi Hangout Recommender</p>
+          </div>
+        </div>
+        <button onclick="closeWagwanAI()" class="text-lg font-bold">&times;</button>
+      </div>
+
+      <div class="py-4 space-y-4 flex-1 text-xs flex flex-col">
+        <div id="wagwanChatBox" class="flex-1 space-y-3 overflow-y-auto min-h-[280px] p-3 bg-lightSurface dark:bg-darkSurface border rounded-2xl">
+          <div class="flex justify-start">
+            <div class="max-w-[85%] bg-white dark:bg-darkBg border p-3 rounded-2xl text-xs space-y-1 shadow-xs">
+              <span class="font-black text-brandTerracotta block">Wagwan! 👋</span>
+              <p class="text-slate-600 dark:text-slate-300">Tell me your mood, who you are with (date, crew, solo), budget, or neighborhood and I'll find exact spots for you!</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <div class="flex gap-2">
+            <input type="text" id="wagwanInput" placeholder="e.g. Quiet cafe for a coffee date in Westlands..." class="flex-1 p-3 bg-lightSurface dark:bg-darkSurface border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brandTerracotta">
+            <button onclick="processWagwanPrompt()" class="px-4 py-3 bg-brandTerracotta text-white font-bold rounded-xl hover:bg-orange-700 transition shadow-md">Ask</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT APP LOGIC -->
+  <script>
+    // Theme logic - Defaults to white / light
+    let isDarkTheme = false;
+    function initTheme() {
+      const saved = localStorage.getItem('rada_theme');
+      isDarkTheme = saved === 'dark';
+      document.documentElement.classList.toggle('dark', isDarkTheme);
+      updateThemeIcon();
+    }
+    function toggleTheme() {
+      isDarkTheme = !isDarkTheme;
+      document.documentElement.classList.toggle('dark', isDarkTheme);
+      localStorage.setItem('rada_theme', isDarkTheme ? 'dark' : 'light');
+      updateThemeIcon();
+      showToast(isDarkTheme ? 'Dark theme enabled.' : 'Switched to Light theme (Default White).');
+    }
+    function updateThemeIcon() {
+      const btn = document.getElementById('themeToggleBtn');
+      if (btn) {
+        btn.innerHTML = isDarkTheme ? '<i class="fa-solid fa-sun text-amber-400"></i>' : '<i class="fa-regular fa-moon text-slate-600"></i>';
+      }
+    }
+
+    // Spot Data with Multiple Images & Reviews with Photos
+    let spotsData = [
+      {
+        id: 1,
+        title: "Ink & Drink",
+        category: "restaurants",
+        neighborhood: "Westlands",
+        lat: -1.2675, lng: 36.8115,
+        rating: "4.8",
+        price: "KES $$$",
+        address: "Mpaka Road, Westlands, Nairobi",
+        img: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop",
+        images: [
+          "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop",
+          "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop",
+          "https://images.unsplash.com/photo-1544025162-d76694265947?w=800&auto=format&fit=crop",
+          "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=800&auto=format&fit=crop"
+        ],
+        reviews: [
+          {
+            userName: "Amina Mwangi",
+            userHandle: "@amina_m",
+            userAvatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&auto=format&fit=crop",
+            rating: 5,
+            date: "2 days ago",
+            comment: "Hands down the best cocktails on Mpaka Road! The passionfruit Dawa paired with brisket sliders is unmatched. Outdoor terrace vibe is 10/10.",
+            images: ["https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=600&auto=format&fit=crop"]
+          },
+          {
+            userName: "Brian Kiprop",
+            userHandle: "@brian_k",
+            userAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop",
+            rating: 5,
+            date: "1 week ago",
+            comment: "Great date spot in Westlands. The lighting is super intimate and the playlist is top tier Afro-fusion.",
+            images: ["https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&auto=format&fit=crop"]
+          }
+        ]
+      },
+      {
+        id: 2,
+        title: "Urban Gourmet",
+        category: "restaurants",
+        neighborhood: "Kilimani",
+        lat: -1.2921, lng: 36.7820,
+        rating: "4.6",
+        price: "KES $$",
+        address: "Adlife Plaza, Kilimani, Nairobi",
+        img: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop",
+        images: [
+          "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop",
+          "https://images.unsplash.com/photo-1550547660-d9450f859349?w=800&auto=format&fit=crop",
+          "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=800&auto=format&fit=crop"
+        ],
+        reviews: [
+          {
+            userName: "Sharon Wanjiku",
+            userHandle: "@sharon_w",
+            userAvatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop",
+            rating: 4,
+            date: "3 days ago",
+            comment: "Best smash burgers in Kilimani. Massive portions and quick service!",
+            images: ["https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=600&auto=format&fit=crop"]
+          }
+        ]
+      },
+      {
+        id: 3,
+        title: "The Alchemist",
+        category: "nightlife",
+        neighborhood: "Westlands",
+        lat: -1.2635, lng: 36.8025,
+        rating: "4.9",
+        price: "KES $$$",
+        address: "Parklands Road, Westlands, Nairobi",
+        img: "https://images.unsplash.com/photo-1566737236500-c8ac43014a67?w=800&auto=format&fit=crop",
+        images: [
+          "https://images.unsplash.com/photo-1566737236500-c8ac43014a67?w=800&auto=format&fit=crop",
+          "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop",
+          "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&auto=format&fit=crop"
+        ],
+        reviews: [
+          {
+            userName: "Alex Moringa",
+            userHandle: "@alex_moringa",
+            userAvatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop",
+            rating: 5,
+            date: "Yesterday",
+            comment: "Nairobi night energy at its finest! The music lineup never disappoints.",
+            images: ["https://images.unsplash.com/photo-1566737236500-c8ac43014a67?w=600&auto=format&fit=crop"]
+          }
+        ]
+      },
+      {
+        id: 4,
+        title: "Artcaffé Market",
+        category: "cafes",
+        neighborhood: "Westlands",
+        lat: -1.2642, lng: 36.8041,
+        rating: "4.7",
+        price: "KES $$",
+        address: "Westgate Mall, Westlands, Nairobi",
+        img: "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800&auto=format&fit=crop",
+        images: [
+          "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800&auto=format&fit=crop",
+          "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800&auto=format&fit=crop"
+        ],
+        reviews: [
+          {
+            userName: "Chloe Ouma",
+            userHandle: "@chloe_o",
+            userAvatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=200&auto=format&fit=crop",
+            rating: 5,
+            date: "4 days ago",
+            comment: "My go-to spot for remote work in Westlands. Reliable wifi and great flat whites.",
+            images: ["https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&auto=format&fit=crop"]
+          }
+        ]
+      }
+    ];
+
+    let currentSelectedSpot = spotsData[0];
+    let locationModalMap = null;
+    let reviewImageBase64 = null;
+    let selectedRatingStars = 5;
+
+    // View Location Modal (Map only on modal)
+    function openLocationMap(spotId) {
+      const spot = spotsData.find(s => s.id === spotId) || spotsData[0];
+      currentSelectedSpot = spot;
+
+      document.getElementById('locModalSpotTitle').innerText = spot.title;
+      document.getElementById('locModalSpotAddress').innerText = `${spot.neighborhood} • ${spot.address}`;
+      document.getElementById('locationMapModal').classList.remove('hidden');
+
+      setTimeout(() => {
+        if (!locationModalMap) {
+          locationModalMap = L.map('locationModalMap').setView([spot.lat, spot.lng], 15);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap'
+          }).addTo(locationModalMap);
+        } else {
+          locationModalMap.setView([spot.lat, spot.lng], 15);
+        }
+
+        locationModalMap.eachLayer((layer) => {
+          if (layer instanceof L.Marker) locationModalMap.removeLayer(layer);
+        });
+
+        const marker = L.marker([spot.lat, spot.lng]).addTo(locationModalMap);
+        marker.bindPopup(`<b>${spot.title}</b><br>${spot.address}`).openPopup();
+        locationModalMap.invalidateSize();
+      }, 150);
+    }
+
+    function closeLocationMapModal() {
+      document.getElementById('locationMapModal').classList.add('hidden');
+    }
+
+    // Spot Full View & Reviews
+    function openSpotFullView(id) {
+      const spot = spotsData.find(s => s.id === id) || spotsData[0];
+      currentSelectedSpot = spot;
+
+      document.getElementById('spotTitle').innerText = spot.title;
+      document.getElementById('spotNeighborhood').innerText = spot.neighborhood;
+      document.getElementById('spotAddress').innerText = spot.address;
+      document.getElementById('spotPriceTag').innerText = spot.price;
+      document.getElementById('spotRatingBadge').innerText = `★ ${spot.rating}`;
+      document.getElementById('spotHeroImg').style.backgroundImage = `url('${spot.img}')`;
+
+      // Thumbnails strip
+      const strip = document.getElementById('spotThumbnailsStrip');
+      strip.innerHTML = spot.images.map((img, idx) => `
+        <div onclick="document.getElementById('spotHeroImg').style.backgroundImage = 'url(\\'${img}\\')'" class="w-16 h-12 rounded-xl bg-cover bg-center shrink-0 border-2 border-slate-200 cursor-pointer hover:border-brandTerracotta transition" style="background-image: url('${img}')"></div>
+      `).join('');
+
+      renderSpotReviews(spot);
+      document.getElementById('fullSpotView').classList.remove('hidden');
+    }
+
+    function closeSpotFullView() {
+      document.getElementById('fullSpotView').classList.add('hidden');
+    }
+
+    function renderSpotReviews(spot) {
+      const container = document.getElementById('spotReviewsContainer');
+      document.getElementById('spotReviewCountText').innerText = spot.reviews.length;
+      container.innerHTML = spot.reviews.map(r => `
+        <div class="p-3 bg-lightSurface dark:bg-darkSurface border rounded-2xl space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-full bg-cover bg-center shrink-0 border" style="background-image: url('${r.userAvatar}')"></div>
+              <div>
+                <h5 class="font-bold text-xs">${r.userName}</h5>
+                <span class="text-[10px] text-slate-400">${r.userHandle} • ${r.date}</span>
+              </div>
+            </div>
+            <span class="text-amber-400 text-xs font-black">★ ${r.rating}.0</span>
+          </div>
+          <p class="text-xs text-slate-600 dark:text-slate-300">${r.comment}</p>
+          ${r.images && r.images.length > 0 ? `
+            <div class="flex gap-2 overflow-x-auto pt-1">
+              ${r.images.map(img => `<img src="${img}" class="w-20 h-20 rounded-xl object-cover border shrink-0">`).join('')}
+            </div>
+          ` : ''}
+        </div>
+      `).join('');
+    }
+
+    function toggleReviewForm() {
+      document.getElementById('newReviewFormBox').classList.toggle('hidden');
+    }
+
+    function setRatingStars(num) {
+      selectedRatingStars = num;
+      document.getElementById('ratingStarsNum').innerText = `${num} Stars`;
+    }
+
+    function handleReviewImageUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        reviewImageBase64 = e.target.result;
+        const prev = document.getElementById('reviewPhotoPreview');
+        prev.style.backgroundImage = `url('${reviewImageBase64}')`;
+        prev.classList.remove('hidden');
+        showToast('Photo attached to review!');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function submitUserReview() {
+      const text = document.getElementById('reviewTextInput').value.trim();
+      if (!text) { showToast('Please enter your review text.'); return; }
+
+      const newReview = {
+        userName: "Wayne Waweru",
+        userHandle: "@lowk3yFX",
+        userAvatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop",
+        rating: selectedRatingStars,
+        date: "Just now",
+        comment: text,
+        images: reviewImageBase64 ? [reviewImageBase64] : []
+      };
+
+      currentSelectedSpot.reviews.unshift(newReview);
+      if (reviewImageBase64) currentSelectedSpot.images.push(reviewImageBase64);
+
+      renderSpotReviews(currentSelectedSpot);
+      document.getElementById('reviewTextInput').value = '';
+      document.getElementById('reviewPhotoPreview').classList.add('hidden');
+      document.getElementById('newReviewFormBox').classList.add('hidden');
+      reviewImageBase64 = null;
+      renderSpotsFeed();
+      showToast('Review and photo published! Rating updated.');
+    }
+
+    // Render Spots Feed
+    function renderSpotsFeed() {
+      const restaurants = spotsData.filter(s => s.category === 'restaurants');
+      const nightlife = spotsData.filter(s => s.category === 'nightlife');
+      const cafes = spotsData.filter(s => s.category === 'cafes');
+
+      const createSpotCardHtml = (s) => `
+        <div onclick="openSpotFullView(${s.id})" class="w-72 bg-white dark:bg-darkSurface border rounded-3xl p-3 shrink-0 shadow-xs flex flex-col justify-between cursor-pointer hover:border-brandTerracotta transition">
+          <div>
+            <div class="h-44 rounded-2xl bg-cover bg-center mb-2.5 relative" style="background-image: url('${s.img}');">
+              <span class="absolute top-2.5 right-2.5 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">${s.price}</span>
+              <span class="absolute top-2.5 left-2.5 bg-black/60 text-white text-[9px] font-bold px-2 py-0.5 rounded-md">${s.images.length} photos</span>
+            </div>
+            <div class="flex items-center justify-between text-xs mb-1">
+              <span class="spot-title font-black text-sm">${s.title}</span>
+              <span class="bg-amber-100 text-amber-900 font-black px-2 py-0.5 rounded-md text-[11px]">★ ${s.rating}</span>
+            </div>
+            <p class="text-xs text-slate-500">${s.neighborhood} • ${s.reviews.length} reviews</p>
+          </div>
+          <div class="pt-3 mt-2 border-t grid grid-cols-2 gap-2">
+            <button onclick="event.stopPropagation(); openLocationMap(${s.id})" class="py-2 px-2 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 hover:bg-slate-200 transition">
+              <i class="fa-solid fa-location-dot text-brandTerracotta"></i> <span>View Location</span>
+            </button>
+            <button onclick="event.stopPropagation(); openSpotFullView(${s.id})" class="py-2 px-2 bg-brandTerracotta text-white rounded-xl text-[11px] font-bold flex items-center justify-center gap-1">
+              <i class="fa-solid fa-comments"></i> <span>Reviews</span>
+            </button>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('restaurantsSpotList').innerHTML = restaurants.map(createSpotCardHtml).join('');
+      document.getElementById('nightlifeSpotList').innerHTML = nightlife.map(createSpotCardHtml).join('');
+      document.getElementById('cafesSpotList').innerHTML = cafes.map(createSpotCardHtml).join('');
+    }
+
+    // Rides
+    function requestUberRide() {
+      const dest = currentSelectedSpot ? currentSelectedSpot.title : "Nairobi Spot";
+      showToast(`Requesting Uber to ${dest}...`);
+      window.open(`https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${encodeURIComponent(dest)}`, '_blank');
+    }
+    function requestBoltRide() {
+      showToast('Opening Bolt...');
+      window.open('https://bolt.eu/', '_blank');
+    }
+
+    // Toast Notifications
+    function showToast(msg) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast-notification bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-black px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 border';
+      toast.innerHTML = `<span class="w-2 h-2 rounded-full bg-brandSage animate-ping"></span> <span>${msg}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 2800);
+    }
+
+    // Navigation Switcher
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.getElementById('tab-' + tabId).classList.remove('hidden');
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('text-brandTerracotta', 'font-black');
+        btn.classList.add('text-slate-400', 'font-medium');
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Business Hub Tabs
+    function switchBizHubTab(subTabId, btn) {
+      document.querySelectorAll('.biz-hub-content').forEach(el => el.classList.add('hidden'));
+      document.getElementById('bizHubView-' + subTabId).classList.remove('hidden');
+      document.querySelectorAll('.biz-hub-pill').forEach(b => {
+        b.className = 'biz-hub-pill py-2 rounded-xl text-xs font-semibold text-slate-500';
+      });
+      btn.className = 'biz-hub-pill py-2 rounded-xl text-xs font-bold bg-white dark:bg-darkBg text-slate-900 dark:text-white shadow-xs';
+    }
+
+    function toggleBizRegistrationForm() {
+      document.getElementById('bizRegistrationForm').classList.toggle('hidden');
+    }
+    function submitNewBusinessProfile() {
+      const name = document.getElementById('newBizNameInput').value.trim() || 'My Nairobi Business';
+      document.getElementById('activeBizNameText').innerText = name;
+      document.getElementById('bizRegistrationForm').classList.add('hidden');
+      showToast(`Business profile "${name}" registered! Hub unlocked.`);
+    }
+
+    function toggleThreeDotMenu() { document.getElementById('threeDotMenu').classList.toggle('hidden'); }
+    function openOverlay(id) { document.getElementById(id).classList.remove('hidden'); document.getElementById('threeDotMenu').classList.add('hidden'); }
+    function closeOverlay(id) { document.getElementById(id).classList.add('hidden'); }
+    function openWagwanAI() { document.getElementById('wagwanAiModal').classList.remove('hidden'); }
+    function closeWagwanAI() { document.getElementById('wagwanAiModal').classList.add('hidden'); }
+
+    // Init on load
+    window.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      renderSpotsFeed();
+    });
+  </script>
+</body>
+</html>
