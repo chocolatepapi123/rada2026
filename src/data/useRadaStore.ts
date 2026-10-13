@@ -40,11 +40,9 @@ export function useRadaStore() {
     syncWithSupabase();
   }, []);
 
-  // 2. Action: Add Spot (Saves to state + Supabase)
- const addSpot = async (newSpot: Omit<SpotItem, 'id'>) => {
-  // Ensure non-nullable fields always have default text values
+  // 2. Action: Add Spot (Saves to state )
+  const addSpot = async (newSpot: Omit<SpotItem, 'id'>) => {
   const payload = {
-    ...newSpot,
     title: newSpot.title?.trim() || 'Untitled Spot',
     category: newSpot.category?.trim() || 'General',
     neighborhood: newSpot.neighborhood?.trim() || 'Nairobi',
@@ -56,9 +54,12 @@ export function useRadaStore() {
     .select();
 
   if (error) {
-    console.error('Error inserting spot to Supabase:', error);
+    alert(`Supabase Error: ${error.message}`);
+    console.error('Error inserting spot:', error);
     return;
   }
+
+  alert('Successfully added spot to Supabase!');
 
   if (data && data.length > 0) {
     const updated = { ...store, spots: [data[0], ...store.spots] };
