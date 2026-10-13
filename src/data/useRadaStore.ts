@@ -41,10 +41,18 @@ export function useRadaStore() {
   }, []);
 
   // 2. Action: Add Spot (Saves to state + Supabase)
-  const addSpot = async (newSpot: Omit<SpotItem, 'id'>) => {
+ const addSpot = async (newSpot: Omit<SpotItem, 'id'>) => {
+  // Ensure non-nullable fields always have default text values
+  const payload = {
+    ...newSpot,
+    title: newSpot.title?.trim() || 'Untitled Spot',
+    category: newSpot.category?.trim() || 'General',
+    neighborhood: newSpot.neighborhood?.trim() || 'Nairobi',
+  };
+
   const { data, error } = await supabase
     .from('spots')
-    .insert([newSpot])
+    .insert([payload])
     .select();
 
   if (error) {
@@ -58,6 +66,7 @@ export function useRadaStore() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   }
 };
+
 
   // 3. Action: Add Event (Saves to state + Supabase)
   const addEvent = async (newEvent: Omit<EventItem, 'id'>) => {
