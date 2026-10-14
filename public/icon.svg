@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="128" fill="#E0533C"/>
+  <text x="50%" y="54%" font-family="'Plus Jakarta Sans', system-ui, sans-serif" font-weight="900" font-size="160" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central" letter-spacing="-4">RADA</text>
+  <circle cx="410" cy="110" r="28" fill="#E9C46A"/>
+</svg>

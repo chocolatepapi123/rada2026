@@ -23,7 +23,7 @@ import {
   Check,
   Store
 } from 'lucide-react';
-import { EventItem, CinemaMovie, StatusPost, UserProfile, BusinessOffer, OfferCategory } from '../types.ts';
+import { EventItem, CinemaMovie, StatusPost, UserProfile, BusinessOffer, OfferCategory, SpotItem } from '../types.ts';
 import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
 
 interface HomeTabProps {
@@ -31,6 +31,8 @@ interface HomeTabProps {
   cinemaMovies: CinemaMovie[];
   statuses: StatusPost[];
   offers?: BusinessOffer[];
+  spots?: SpotItem[];
+  onOpenSpotDetails?: (spot: SpotItem) => void;
   onOpenEventDetails: (event: EventItem) => void;
   onBookCinema: (movie: CinemaMovie) => void;
   onPostStatus: (text: string, mediaUrl?: string, locationName?: string) => void;
@@ -47,6 +49,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   cinemaMovies,
   statuses,
   offers = [],
+  spots = [],
+  onOpenSpotDetails,
   onOpenEventDetails,
   onBookCinema,
   onPostStatus,
@@ -65,14 +69,30 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
   // Offers state
   const [selectedOfferCategory, setSelectedOfferCategory] = useState<'all' | OfferCategory>('all');
-  const [copiedOfferId, setCopiedOfferId] = useState<string | null>(null);
 
-  const handleCopyOfferCode = (offerId: string, code?: string) => {
-    if (!code) return;
-    navigator.clipboard.writeText(code);
-    setCopiedOfferId(offerId);
-    showToast(`Claim code "${code}" copied! Present at venue or checkout.`);
-    setTimeout(() => setCopiedOfferId(null), 2500);
+  const handleVisitSpot = (offer: BusinessOffer) => {
+    // 1. Check if there is a corresponding spot in spots
+    const matchingSpot = spots.find(
+      s => (s.businessId && s.businessId === offer.businessId) ||
+           s.title.toLowerCase().trim() === offer.businessName.toLowerCase().trim() ||
+           offer.businessName.toLowerCase().includes(s.title.toLowerCase()) ||
+           s.title.toLowerCase().includes(offer.businessName.toLowerCase())
+    );
+
+    if (matchingSpot && onOpenSpotDetails) {
+      onOpenSpotDetails(matchingSpot);
+      showToast(`Showing location & directions for ${matchingSpot.title}`);
+      return;
+    }
+
+    // 2. Open merchant storefront profile (shows physical address, bus stop/directions, contact & catalog)
+    if (onOpenBusinessProfile) {
+      onOpenBusinessProfile(offer.businessId);
+      showToast(`Viewing venue details for ${offer.businessName}`);
+      return;
+    }
+
+    showToast(`Viewing details for ${offer.businessName}`);
   };
 
   // Status creation state
@@ -331,18 +351,13 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           ======================================================== */}
       {filteredOffers.length > 0 && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-[#E0533C] to-amber-400 flex items-center justify-center text-white shadow-xs">
-                <Flame className="w-3 h-3 fill-white" />
-              </div>
-              <h2 className="text-xs font-black tracking-wider uppercase text-slate-800 dark:text-slate-200">
-                Running Offers & Promotions
-              </h2>
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-[#E0533C] to-amber-400 flex items-center justify-center text-white shadow-xs">
+              <Flame className="w-3 h-3 fill-white" />
             </div>
-            <span className="text-[10px] font-bold text-[#E0533C] bg-red-50 dark:bg-red-950/40 px-2 py-0.5 rounded-full border border-red-200 dark:border-red-900/40">
-              Live Verified Deals
-            </span>
+            <h2 className="text-xs font-black tracking-wider uppercase text-slate-800 dark:text-slate-200">
+              Running Offers & Promotions
+            </h2>
           </div>
 
           {/* Offer Category Filter System */}
@@ -419,38 +434,25 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     </p>
                   </div>
 
-                  {/* Claim Button & Code */}
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
-                    <div className="text-[10px] font-mono font-bold bg-[#F8F8F6] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 px-2 py-1 rounded-lg text-slate-700 dark:text-slate-300 truncate">
-                      {offer.claimCode || 'RADADEAL'}
-                    </div>
+                  {/* Visit Spot Primary Action Button */}
+                  <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
+                    <button
+                      onClick={() => handleVisitSpot(offer)}
+                      className="flex-1 py-2 px-3 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98]"
+                      title={`Visit ${offer.businessName}`}
+                    >
+                      <MapPin className="w-3.5 h-3.5 shrink-0" />
+                      <span>Visit Spot</span>
+                      <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+                    </button>
 
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        onClick={() => handleCopyOfferCode(offer.id, offer.claimCode || 'RADADEAL')}
-                        className="px-2.5 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1 cursor-pointer"
-                      >
-                        {copiedOfferId === offer.id ? (
-                          <>
-                            <Check className="w-3 h-3" />
-                            <span>Copied</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3 h-3" />
-                            <span>Claim</span>
-                          </>
-                        )}
-                      </button>
-
-                      <button
-                        onClick={() => onOpenBusinessProfile && onOpenBusinessProfile(offer.businessId)}
-                        className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 transition"
-                        title="View Merchant Profile"
-                      >
-                        <Store className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => onOpenBusinessProfile && onOpenBusinessProfile(offer.businessId)}
+                      className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-800 transition shrink-0"
+                      title="View Merchant Profile"
+                    >
+                      <Store className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               </div>

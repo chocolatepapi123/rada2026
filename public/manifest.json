@@ -3,14 +3,9 @@
   "name": "RADA - Nairobi Discovery & Luku Hub",
   "icons": [
     {
-      "src": "pwa-192x192.png",
-      "type": "image/png",
-      "sizes": "192x192"
-    },
-    {
-      "src": "pwa-512x512.png",
-      "type": "image/png",
-      "sizes": "512x512"
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512 any"
     }
   ],
   "start_url": "/",

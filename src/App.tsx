@@ -245,6 +245,25 @@ export default function App() {
     localStorage.setItem('rada_offers', JSON.stringify(offers));
   }, [offers]);
 
+  // Lock body scroll and handle Escape key for Business Hub modal
+  useEffect(() => {
+    if (isBusinessHubOpen) {
+      document.body.style.overflow = 'hidden';
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          setIsBusinessHubOpen(false);
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.body.style.overflow = 'unset';
+        window.removeEventListener('keydown', handleKeyDown);
+      };
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+  }, [isBusinessHubOpen]);
+
   // Active business reference
   const currentBusiness = businesses.find(b => b.id === activeBusinessId) || businesses[0];
 
@@ -629,6 +648,8 @@ export default function App() {
             cinemaMovies={cinemaMovies}
             statuses={statuses}
             offers={offers}
+            spots={spots}
+            onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
             onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
             onBookCinema={handleBookCinema}
             onPostStatus={handlePostStatus}
