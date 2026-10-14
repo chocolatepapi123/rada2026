@@ -1,3 +1,4 @@
+import { supabase } from '../lib/supabase.ts'; // Adjust path if needed based on your folder structure
 import React, { useState } from 'react';
 import { 
   Building2, 
@@ -180,11 +181,58 @@ export const BusinessHubModal: React.FC<BusinessHubModalProps> = ({
     setMenuItemsList(prev => prev.filter(m => m.id !== id));
   };
 
-  const handlePublishSpot = () => {
+    const handlePublishSpot = async () => {
     if (!spotTitle.trim()) {
       showToast('Please enter a spot title.');
       return;
     }
+
+    const payload = {
+      title: spotTitle.trim(),
+      category: spotCategory,
+      neighborhood: spotNeighborhood,
+      lat: -1.2675 + (Math.random() - 0.5) * 0.02,
+      lng: 36.8115 + (Math.random() - 0.5) * 0.02,
+      rating: '4.8',
+      price: spotPrice,
+      address: spotAddress,
+      img: spotImg,
+      description: spotDescription,
+      phone: currentBiz?.phone || '+254 700 000 000',
+      openingHours: spotHours,
+      businessId: currentBiz?.id,
+      menuImages: [spotImg],
+      menuItems: menuItemsList
+    };
+
+    // 1. Insert directly into Supabase database
+    const { data, error } = await supabase
+      .from('spots')
+      .insert([payload])
+      .select();
+
+    if (error) {
+      console.error('Supabase Error:', error);
+      showToast(`Database Error: ${error.message}`);
+      return;
+    }
+
+    // 2. Update local state
+    const publishedSpot = data && data.length > 0 ? data[0] : { id: Date.now(), ...payload };
+    onAddOrUpdateSpot(publishedSpot);
+
+    // 3. Trigger success modal
+    setSuccessModalData({
+      title: 'Successful! Spot Uploaded',
+      message: `Your spot "${spotTitle}" and digital menu (${menuItemsList.length} items) are successfully uploaded and published live!`,
+      listingName: spotTitle,
+      categoryBadge: 'Spot Upload Successful',
+      subDetails: 'Customers can now view location, discover directions, view food/drink items, and post reviews.'
+    });
+
+    showToast(`Upload Successful! Spot "${spotTitle}" is live in Supabase.`);
+  };
+
     const spot: SpotItem = {
       id: Date.now(),
       title: spotTitle.trim(),
