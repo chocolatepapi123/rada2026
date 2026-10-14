@@ -21,7 +21,8 @@ import {
   Flame,
   Copy,
   Check,
-  Store
+  Store,
+  ShoppingBag
 } from 'lucide-react';
 import { EventItem, CinemaMovie, StatusPost, UserProfile, BusinessOffer, OfferCategory, SpotItem } from '../types.ts';
 import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
@@ -66,6 +67,10 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   const [selectedGenre, setSelectedGenre] = useState('all');
   const [selectedCinemaLoc, setSelectedCinemaLoc] = useState('all');
   const [isListening, setIsListening] = useState(false);
+
+  // Featured Events Advanced Filters
+  const [eventGenreFilter, setEventGenreFilter] = useState('all');
+  const [eventDateFilter, setEventDateFilter] = useState('');
 
   // Offers state
   const [selectedOfferCategory, setSelectedOfferCategory] = useState<'all' | OfferCategory>('all');
@@ -179,12 +184,26 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     setReplyInputText('');
   };
 
-  // Filter events with real-time natural query and genre
+  // Filter events with real-time query, vibe, genre, and date
   const filteredEvents = events.filter(e => {
     const matchesVibe = selectedVibe === 'all' || e.category === selectedVibe;
     const matchesGenre = selectedGenre === 'all' || (e.genre && e.genre.toLowerCase().includes(selectedGenre.toLowerCase()));
+    const matchesEventGenre = eventGenreFilter === 'all' || (e.genre && e.genre.toLowerCase().includes(eventGenreFilter.toLowerCase()));
+
+    // Date filtering (e.g. 2026-10-25 -> "25 Oct")
+    let matchesDate = true;
+    if (eventDateFilter) {
+      const parts = eventDateFilter.split('-');
+      if (parts.length === 3) {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const mIdx = parseInt(parts[1], 10) - 1;
+        const dNum = parseInt(parts[2], 10);
+        const searchPattern = `${dNum} ${months[mIdx]}`;
+        matchesDate = e.date.toLowerCase().includes(searchPattern.toLowerCase());
+      }
+    }
     
-    if (!matchesVibe || !matchesGenre) return false;
+    if (!matchesVibe || !matchesGenre || !matchesEventGenre || !matchesDate) return false;
 
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
@@ -237,7 +256,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search events, cinema showtimes, DJs in Nairobi..."
+            placeholder="Search Nairobi events, venues, movies, or DJs..."
             className="w-full pl-10 pr-24 py-3 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] shadow-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
           />
 
@@ -434,17 +453,72 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     </p>
                   </div>
 
-                  {/* Visit Spot Primary Action Button */}
+                  {/* Customized CTA Button: View Tickets, Visit Shop, or Visit Spot */}
                   <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
-                    <button
-                      onClick={() => handleVisitSpot(offer)}
-                      className="flex-1 py-2 px-3 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98]"
-                      title={`Visit ${offer.businessName}`}
-                    >
-                      <MapPin className="w-3.5 h-3.5 shrink-0" />
-                      <span>Visit Spot</span>
-                      <ArrowRight className="w-3.5 h-3.5 shrink-0" />
-                    </button>
+                    {(() => {
+                      const isEventOffer = offer.category === 'Tickets' || offer.businessCategory === 'event_organizer';
+                      const isThriftOffer = offer.category === 'Apparel' || offer.businessCategory === 'thrift_store';
+
+                      if (isEventOffer) {
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const matchingEvent = events.find(
+                                e => e.businessId === offer.businessId || 
+                                     e.title.toLowerCase().includes(offer.title.toLowerCase()) ||
+                                     offer.title.toLowerCase().includes(e.title.toLowerCase())
+                              );
+                              if (matchingEvent) {
+                                onOpenEventDetails(matchingEvent);
+                              } else {
+                                onOpenDedicatedViewAll('Featured Trending Events', 'events');
+                              }
+                            }}
+                            className="flex-1 py-2 px-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98]"
+                            title={`View Tickets: ${offer.title}`}
+                          >
+                            <Ticket className="w-3.5 h-3.5 shrink-0" />
+                            <span>View Tickets</span>
+                            <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+                          </button>
+                        );
+                      }
+
+                      if (isThriftOffer) {
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (onOpenBusinessProfile) {
+                                onOpenBusinessProfile(offer.businessId);
+                              } else {
+                                onOpenDedicatedViewAll('Streetwear & Fits', 'thrift');
+                              }
+                            }}
+                            className="flex-1 py-2 px-3 bg-[#2D6A4F] hover:bg-emerald-800 text-white rounded-xl text-xs font-extrabold shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98]"
+                            title={`Visit Shop: ${offer.businessName}`}
+                          >
+                            <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
+                            <span>Visit Shop</span>
+                            <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+                          </button>
+                        );
+                      }
+
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => handleVisitSpot(offer)}
+                          className="flex-1 py-2 px-3 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98]"
+                          title={`Visit Spot: ${offer.businessName}`}
+                        >
+                          <MapPin className="w-3.5 h-3.5 shrink-0" />
+                          <span>Visit Spot</span>
+                          <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+                        </button>
+                      );
+                    })()}
 
                     <button
                       onClick={() => onOpenBusinessProfile && onOpenBusinessProfile(offer.businessId)}
@@ -475,6 +549,61 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             >
               View All ({filteredEvents.length})
             </button>
+          </div>
+
+          {/* ADVANCED EVENT FILTERS: Genre Pills & Date/Month Date-Picker */}
+          <div className="space-y-2 bg-[#F8F8F6] dark:bg-[#1C1A1E] p-2.5 rounded-2xl border border-slate-200 dark:border-slate-800">
+            {/* Genre Pills Row */}
+            <div className="flex gap-1.5 overflow-x-auto hide-scrollbar pb-1">
+              {[
+                { id: 'all', label: 'All Genres' },
+                { id: 'amapiano', label: 'Amapiano' },
+                { id: 'afrobeats', label: 'Afrobeats' },
+                { id: 'house', label: 'House & Techno' },
+                { id: 'live', label: 'Live Bands' },
+                { id: 'food', label: 'Food & Wine' },
+                { id: 'art', label: 'Visual Arts' },
+                { id: 'fashion', label: 'Fashion & Pop-ups' },
+                { id: 'jazz', label: 'Live Jazz' }
+              ].map(genre => (
+                <button
+                  key={genre.id}
+                  onClick={() => setEventGenreFilter(genre.id)}
+                  className={`px-3 py-1 rounded-full text-[11px] font-bold shrink-0 transition ${
+                    eventGenreFilter === genre.id
+                      ? 'bg-[#E0533C] text-white shadow-xs'
+                      : 'bg-white dark:bg-[#121113] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
+                  }`}
+                >
+                  {genre.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Date/Month Filter */}
+            <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/70 dark:border-slate-800/70 text-xs">
+              <div className="flex items-center gap-1.5 text-slate-500">
+                <Calendar className="w-3.5 h-3.5 text-[#E0533C]" />
+                <span className="text-[10px] font-bold uppercase tracking-wider">Date / Month Filter:</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="date"
+                  value={eventDateFilter}
+                  onChange={(e) => setEventDateFilter(e.target.value)}
+                  className="bg-white dark:bg-[#121113] text-slate-800 dark:text-slate-200 text-xs px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-1 focus:ring-[#E0533C]"
+                />
+                {eventDateFilter && (
+                  <button
+                    type="button"
+                    onClick={() => setEventDateFilter('')}
+                    className="text-[10px] text-red-500 font-bold hover:underline px-1"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">

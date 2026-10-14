@@ -28,6 +28,8 @@ import {
 } from '../types.ts';
 import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
 
+import { shareContent } from '../utils/shareUtils.ts';
+
 interface PublicBusinessProfileModalProps {
   business: BusinessAccount | null;
   onClose: () => void;
@@ -71,6 +73,16 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
     setTimeout(() => setCopiedCodeId(null), 2500);
   };
 
+  const handleShareProfile = () => {
+    shareContent({
+      title: `${business.name} on RADA`,
+      text: `Check out ${business.name} in ${business.neighborhood}, Nairobi! ${business.bio}`,
+      url: window.location.href,
+      onSuccess: showToast,
+      onError: showToast
+    });
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150">
       <div className="bg-white dark:bg-[#1C1A1E] text-slate-900 dark:text-slate-100 w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 animate-in slide-in-from-bottom duration-200 overflow-hidden">
@@ -84,13 +96,25 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
           
-          <button 
-            onClick={onClose}
-            className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/60 backdrop-blur-md text-white flex items-center justify-center hover:bg-black transition"
-            aria-label="Close"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="absolute top-3 right-3 flex items-center gap-2">
+            <button 
+              type="button"
+              onClick={handleShareProfile}
+              className="w-8 h-8 rounded-full bg-black/60 backdrop-blur-md text-white flex items-center justify-center hover:bg-black transition cursor-pointer"
+              title="Share Profile / Link"
+              aria-label="Share Profile"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+            </button>
+            <button 
+              type="button"
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-black/60 backdrop-blur-md text-white flex items-center justify-center hover:bg-black transition cursor-pointer"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
 
           {/* Business Type Badge */}
           <div className="absolute top-3 left-3">

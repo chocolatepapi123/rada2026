@@ -9,12 +9,8 @@ import {
   MapPin,
   IdCard,
   Sun,
-  Moon,
-  Check,
-  RotateCcw,
-  Navigation as NavigationIcon
+  Moon
 } from 'lucide-react';
-import { DynamicLocationSelector } from './DynamicLocationSelector.tsx';
 
 interface HeaderProps {
   onOpenOverlay: (overlayId: string) => void;
@@ -22,7 +18,7 @@ interface HeaderProps {
   onSwitchTab: (tabId: string) => void;
   currentLocation: string;
   isGpsActive?: boolean;
-  onUpdateLocation: (newLocation: string, isGps: boolean) => void;
+  onUpdateLocation?: (newLocation: string, isGps: boolean) => void;
   hasBusinessAccount: boolean;
   businessName?: string;
   isDarkMode: boolean;
@@ -35,28 +31,13 @@ export const Header: React.FC<HeaderProps> = ({
   onSwitchTab,
   currentLocation,
   isGpsActive = true,
-  onUpdateLocation,
   hasBusinessAccount,
   businessName,
   isDarkMode,
   onToggleTheme
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [isEditingLocation, setIsEditingLocation] = useState(false);
-  const [locationInput, setLocationInput] = useState(currentLocation);
   const menuRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setLocationInput(currentLocation);
-  }, [currentLocation]);
-
-  useEffect(() => {
-    if (isEditingLocation && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [isEditingLocation]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -73,32 +54,6 @@ export const Header: React.FC<HeaderProps> = ({
     onOpenOverlay(overlayId);
   };
 
-  const handleSaveLocation = () => {
-    const trimmed = locationInput.trim();
-    if (trimmed) {
-      onUpdateLocation(trimmed, false);
-    }
-    setIsEditingLocation(false);
-  };
-
-  const handleResetToGps = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsEditingLocation(false);
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          onUpdateLocation('Westlands, Nairobi', true);
-        },
-        () => {
-          onUpdateLocation('Nairobi, Kenya', true);
-        },
-        { timeout: 5000 }
-      );
-    } else {
-      onUpdateLocation('Westlands, Nairobi', true);
-    }
-  };
-
   return (
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-[#121113]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-xs transition-colors duration-200">
       <div className="max-w-lg mx-auto w-full px-4 py-3 flex items-center justify-between">
@@ -110,46 +65,18 @@ export const Header: React.FC<HeaderProps> = ({
             RADA
           </button>
 
-          {/* Interactive Location Badge: GPS by default, clickable to search/select location */}
-          <div className="flex items-center gap-1 min-w-0">
-            <button
-              onClick={() => setIsEditingLocation(true)}
-              title="Click to search or change location (Overrides GPS)"
-              className="text-xs bg-[#F8F8F6] dark:bg-[#1C1A1E] hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold px-2.5 py-1 rounded-full flex items-center gap-1.5 border border-slate-200 dark:border-slate-800 transition cursor-pointer group truncate max-w-[170px]"
-            >
-              <MapPin className={`w-3.5 h-3.5 shrink-0 ${isGpsActive ? 'text-emerald-500 animate-pulse' : 'text-[#E0533C]'}`} />
-              <span className="truncate">{currentLocation}</span>
-              <span className="text-[9px] text-slate-400 group-hover:text-[#E0533C] underline shrink-0 font-normal ml-0.5">
-                edit
-              </span>
-            </button>
-
-            {!isGpsActive && (
-              <button
-                onClick={handleResetToGps}
-                title="Reset to Device GPS Location"
-                className="w-6 h-6 rounded-full bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-emerald-600 flex items-center justify-center transition shrink-0"
-              >
-                <NavigationIcon className="w-3 h-3" />
-              </button>
-            )}
+          {/* Dynamic Detected Current Location Pill (Locked & Fixed - Non-Editable) */}
+          <div 
+            className="text-xs bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 font-semibold px-2.5 py-1 rounded-full flex items-center gap-1.5 border border-slate-200 dark:border-slate-800 select-none max-w-[190px] cursor-default shadow-2xs"
+            title={`Physical Location: ${currentLocation}`}
+          >
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <MapPin className="w-3.5 h-3.5 shrink-0 text-[#E05328]" />
+            <span className="truncate text-[11px] font-bold">{currentLocation}</span>
           </div>
-
-          {/* Dynamic Map Search Location Selector Modal */}
-          <DynamicLocationSelector
-            isModalMode={true}
-            isOpen={isEditingLocation}
-            onClose={() => setIsEditingLocation(false)}
-            value={currentLocation}
-            onChange={(newLoc, isGps) => {
-              onUpdateLocation(newLoc, isGps || false);
-              setIsEditingLocation(false);
-            }}
-            showGpsReset={true}
-            onResetGps={() => handleResetToGps({ stopPropagation: () => {} } as any)}
-            label="Search Nairobi Location"
-            placeholder="Search neighborhood, landmark, or bus stop..."
-          />
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">

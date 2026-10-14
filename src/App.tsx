@@ -16,6 +16,7 @@ import { VaultTab } from './components/VaultTab.tsx';
 import { Overlays } from './components/Overlays.tsx';
 import { LocationMapModal } from './components/LocationMapModal.tsx';
 import { UserProfileModal } from './components/UserProfileModal.tsx';
+import { SplashScreen } from './components/SplashScreen.tsx';
 
 import {
   initialBusinesses,
@@ -48,7 +49,10 @@ import {
 } from './types.ts';
 
 export default function App() {
-  // Theme State: Default to pure white / light mode as requested!
+  // Animated Splash Screen state (Immediately displays upon app load)
+  const [showSplash, setShowSplash] = useState<boolean>(true);
+
+  // Theme State: Default to pure white / light mode
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('rada_theme');
     return saved === 'dark';
@@ -77,27 +81,51 @@ export default function App() {
   // Business Hub State
   const [businesses, setBusinesses] = useState<BusinessAccount[]>(() => {
     const saved = localStorage.getItem('rada_businesses');
-    return saved ? JSON.parse(saved) : initialBusinesses;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length >= 5) return parsed;
+      } catch (e) {}
+    }
+    return initialBusinesses;
   });
   const [activeBusinessId, setActiveBusinessId] = useState<string>(() => {
     return businesses[0]?.id || 'biz-1';
   });
   const [isBusinessHubOpen, setIsBusinessHubOpen] = useState(false);
 
-  // Core Data State
+  // Core Data State (Ensures at least 10 items for every category)
   const [spots, setSpots] = useState<SpotItem[]>(() => {
     const saved = localStorage.getItem('rada_spots');
-    return saved ? JSON.parse(saved) : initialSpots;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length >= 10) return parsed;
+      } catch (e) {}
+    }
+    return initialSpots;
   });
 
   const [events, setEvents] = useState<EventItem[]>(() => {
     const saved = localStorage.getItem('rada_events');
-    return saved ? JSON.parse(saved) : initialEvents;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length >= 10) return parsed;
+      } catch (e) {}
+    }
+    return initialEvents;
   });
 
   const [thriftItems, setThriftItems] = useState<ThriftItem[]>(() => {
     const saved = localStorage.getItem('rada_thrift');
-    return saved ? JSON.parse(saved) : initialThriftItems;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length >= 10) return parsed;
+      } catch (e) {}
+    }
+    return initialThriftItems;
   });
 
   const [statuses, setStatuses] = useState<StatusPost[]>(() => {
@@ -120,10 +148,16 @@ export default function App() {
     return saved ? JSON.parse(saved) : initialContacts;
   });
 
-  // Independent Offers & Promotions State (SPEC 4)
+  // Independent Offers & Promotions State (10 items)
   const [offers, setOffers] = useState<BusinessOffer[]>(() => {
     const saved = localStorage.getItem('rada_offers');
-    return saved ? JSON.parse(saved) : initialOffers;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length >= 10) return parsed;
+      } catch (e) {}
+    }
+    return initialOffers;
   });
 
   // Public Business Profile View Modal State
@@ -150,25 +184,51 @@ export default function App() {
   const [viewAllTitle, setViewAllTitle] = useState<string | null>(null);
   const [viewAllCategory, setViewAllCategory] = useState<string | null>(null);
 
-  // User location & GPS override state (SPEC 2)
+  // Dynamic Header Location: Automatically detects and defaults to user's physical location (locked/fixed)
   const [currentLocation, setCurrentLocation] = useState<string>(() => {
     return localStorage.getItem('rada_current_location') || 'Westlands, Nairobi';
   });
-  const [isGpsActive, setIsGpsActive] = useState<boolean>(() => {
-    const saved = localStorage.getItem('rada_gps_active');
-    return saved !== null ? saved === 'true' : true;
-  });
+  const [isGpsActive, setIsGpsActive] = useState<boolean>(true);
+
+  // Auto-detect physical location on startup
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          let detected = 'Westlands, Nairobi';
+          // Approximate Nairobi / Kiambu geographic clustering
+          if (latitude > -1.22 && latitude < -1.0) {
+            detected = 'Kiambu / Thika';
+          } else if (latitude >= -1.28 && latitude <= -1.24 && longitude >= 36.78 && longitude <= 36.83) {
+            detected = 'Westlands, Nairobi';
+          } else if (latitude >= -1.31 && latitude <= -1.28 && longitude >= 36.76 && longitude <= 36.81) {
+            detected = 'Kilimani, Nairobi';
+          } else if (latitude >= -1.30 && latitude <= -1.27 && longitude >= 36.81 && longitude <= 36.84) {
+            detected = 'Nairobi CBD';
+          } else if (latitude >= -1.36 && latitude <= -1.31) {
+            detected = 'Karen, Nairobi';
+          } else {
+            detected = 'Westlands, Nairobi';
+          }
+          setCurrentLocation(detected);
+          localStorage.setItem('rada_current_location', detected);
+          setIsGpsActive(true);
+        },
+        () => {
+          // Fallback to Westlands, Nairobi
+          setCurrentLocation('Westlands, Nairobi');
+          setIsGpsActive(true);
+        },
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    }
+  }, []);
 
   const handleUpdateLocation = (newLoc: string, isGps: boolean) => {
     setCurrentLocation(newLoc);
     setIsGpsActive(isGps);
     localStorage.setItem('rada_current_location', newLoc);
-    localStorage.setItem('rada_gps_active', String(isGps));
-    if (isGps) {
-      showToast(`Device GPS active: ${newLoc}`);
-    } else {
-      showToast(`Location set to: ${newLoc}`);
-    }
   };
 
   // GPS Broadcast
@@ -609,6 +669,13 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-white text-slate-900 dark:bg-[#121113] dark:text-slate-100 flex flex-col transition-colors duration-200 antialiased overflow-x-hidden">
+      {/* Animated Splash Screen with Brand Orange Background & 2-Second Logo Effect */}
+      {showSplash && (
+        <SplashScreen
+          durationMs={2000}
+          onDismiss={() => setShowSplash(false)}
+        />
+      )}
       
       {/* Toast Notification Container */}
       <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center gap-2">
@@ -749,6 +816,7 @@ export default function App() {
           <VaultTab
             tickets={tickets}
             onShowQrCode={(title) => setQrPassTitle(title)}
+            showToast={showToast}
           />
         )}
       </main>

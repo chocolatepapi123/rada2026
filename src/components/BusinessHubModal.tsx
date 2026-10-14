@@ -174,7 +174,6 @@ export const BusinessHubModal: React.FC<BusinessHubModalProps> = ({
     'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
     'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop'
   ]);
-  const [newImageInputUrl, setNewImageInputUrl] = useState('');
 
   // Menus: image upload AND typed text entry (dish items: Name, Price, Description ONLY)
   const [menuFlyerImages, setMenuFlyerImages] = useState<string[]>([

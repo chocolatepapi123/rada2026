@@ -56,6 +56,7 @@ import {
   UserProfile
 } from '../types.ts';
 import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
+import { shareContent } from '../utils/shareUtils.ts';
 
 interface OverlaysProps {
   // Overlays state
@@ -172,17 +173,18 @@ export const Overlays: React.FC<OverlaysProps> = ({
   onToggleTheme,
   showToast
 }) => {
-  // Wagwan AI Chat State (SPEC 6: Fix Wagwan AI functionality)
+  // Wagwan AI Chat State (SPEC 6: Fix Wagwan AI functionality to process custom typed text & suggested chips)
   const [wagwanInput, setWagwanInput] = useState('');
   const [wagwanMessages, setWagwanMessages] = useState<Array<{ 
     sender: 'user' | 'ai'; 
     text: string; 
     spotMatch?: SpotItem;
     eventMatch?: EventItem;
+    thriftMatch?: ThriftItem;
   }>>([
     { 
       sender: 'ai', 
-      text: 'Wagwan! 👋 I am your Nairobi concierge. Ask me for the best spots, cocktail bars, amapiano parties, romantic date hideouts, budget bites, or weekend lodges!' 
+      text: 'Wagwan! 👋 I am your Nairobi concierge. You can tap suggested chips below or type any custom request in your own words: "where can I get vintage jeans in CBD", "best rooftop in Westlands", "quiet romantic dinner in Karen", "amapiano rave this weekend", or "budget choma in Ruiru"!' 
     }
   ]);
 
@@ -193,50 +195,168 @@ export const Overlays: React.FC<OverlaysProps> = ({
     setWagwanMessages(prev => [...prev, { sender: 'user', text: q }]);
     setWagwanInput('');
 
-    // Contextual matching across spots and events
     const qLower = q.toLowerCase();
-    
-    // Check if query is looking for an event
-    const eventMatch = events.find(e => 
-      e.title.toLowerCase().includes(qLower) || 
-      (e.genre && e.genre.toLowerCase().includes(qLower)) ||
-      (qLower.includes('party') && e.category === 'nightlife') ||
-      (qLower.includes('rave') && e.category === 'concerts')
-    );
 
-    // Check spots matching
-    const matched = spots.find(s => 
-      s.title.toLowerCase().includes(qLower) || 
-      s.neighborhood.toLowerCase().includes(qLower) ||
-      (s.exactLocationTag && s.exactLocationTag.toLowerCase().includes(qLower)) ||
-      (qLower.includes('date') && (s.category === 'date_spots' || parseFloat(s.rating) >= 4.8)) ||
-      (qLower.includes('cocktail') && s.menuItems?.some(m => m.name.toLowerCase().includes('cocktail') || m.description.toLowerCase().includes('cocktail'))) ||
-      (qLower.includes('choma') && s.title.toLowerCase().includes('choma')) ||
-      (qLower.includes('coffee') && s.category === 'cafes') ||
-      (qLower.includes('hotel') && s.category === 'hotels') ||
-      (qLower.includes('vacation') && s.category === 'vacation')
-    ) || spots[0];
+    // 1. Detect if query is asking about clothes / streetwear / vintage / thrift
+    const isThriftQuery = 
+      qLower.includes('thrift') || 
+      qLower.includes('luku') || 
+      qLower.includes('streetwear') || 
+      qLower.includes('vintage') || 
+      qLower.includes('denim') || 
+      qLower.includes('jean') || 
+      qLower.includes('jacket') || 
+      qLower.includes('hoodie') || 
+      qLower.includes('bomber') || 
+      qLower.includes('cargo') || 
+      qLower.includes('sneaker') || 
+      qLower.includes('kicks') || 
+      qLower.includes('gikomba') || 
+      qLower.includes('toi') || 
+      qLower.includes('wear') || 
+      qLower.includes('fit');
+
+    // 2. Detect if query is looking for an event / party / concert / tickets
+    const isEventQuery = 
+      qLower.includes('party') || 
+      qLower.includes('event') || 
+      qLower.includes('rave') || 
+      qLower.includes('concert') || 
+      qLower.includes('ticket') || 
+      qLower.includes('festival') || 
+      qLower.includes('amapiano') || 
+      qLower.includes('afro-tech') || 
+      qLower.includes('tonight') || 
+      qLower.includes('weekend') ||
+      qLower.includes('blankets');
+
+    // 3. Detect general platform / help questions
+    const isHelpQuery = 
+      qLower.includes('what is rada') || 
+      qLower.includes('how does rada work') || 
+      qLower.includes('register business') || 
+      qLower.includes('how to post') || 
+      qLower.includes('sos') || 
+      qLower.includes('emergency');
 
     setTimeout(() => {
-      if (eventMatch && (qLower.includes('party') || qLower.includes('event') || qLower.includes('tonight'))) {
+      if (isHelpQuery) {
+        if (qLower.includes('register') || qLower.includes('post')) {
+          setWagwanMessages(prev => [
+            ...prev,
+            {
+              sender: 'ai',
+              text: 'RADA Business Hub empowers venue owners, event promoters, and thrift stores to verify their brand, publish listings, sell passes, and drop running offers! Tap the Business Hub icon at top right to register or manage your business profile.'
+            }
+          ]);
+        } else if (qLower.includes('sos') || qLower.includes('emergency')) {
+          setWagwanMessages(prev => [
+            ...prev,
+            {
+              sender: 'ai',
+              text: 'Safety first in Nairobi! Tap the red SOS shield on the top menu to view your designated emergency contacts, local helpline numbers, or broadcast your live GPS beacon to friends.'
+            }
+          ]);
+        } else {
+          setWagwanMessages(prev => [
+            ...prev,
+            {
+              sender: 'ai',
+              text: 'RADA is Nairobi\'s premier lifestyle guide — Where to go (Spots), What to wear (LUKU Thrift), and Who to go with (Socials & Matches). Everything includes direct verified links, tickets, and interactive maps!'
+            }
+          ]);
+        }
+        return;
+      }
+
+      if (isThriftQuery && thriftItems.length > 0) {
+        const thriftMatch = thriftItems.find(t => 
+          t.name.toLowerCase().includes(qLower) ||
+          t.category.toLowerCase().includes(qLower) ||
+          t.condition.toLowerCase().includes(qLower) ||
+          t.seller.toLowerCase().includes(qLower) ||
+          t.location.toLowerCase().includes(qLower) ||
+          (qLower.includes('jean') && t.category === 'Denim') ||
+          (qLower.includes('jacket') && t.category === 'Jackets') ||
+          (qLower.includes('sneaker') && t.category === 'Sneakers') ||
+          (qLower.includes('tee') && t.category === 'Tees') ||
+          (qLower.includes('hoodie') && t.category === 'Hoodies')
+        ) || thriftItems[0];
+
         setWagwanMessages(prev => [
           ...prev,
           {
             sender: 'ai',
-            text: `Vibe check: "${eventMatch.title}" at ${eventMatch.location} on ${eventMatch.date}! ${eventMatch.goingCount} people going with primary ticketing verified.`,
+            text: `LUKU fit recommendation: "${thriftMatch.name}" from ${thriftMatch.seller} (${thriftMatch.location}) for ${thriftMatch.price}! Quality: ${thriftMatch.condition}. You can reach the merchant directly below.`,
+            thriftMatch
+          }
+        ]);
+        return;
+      }
+
+      if (isEventQuery && events.length > 0) {
+        const eventMatch = events.find(e => 
+          e.title.toLowerCase().includes(qLower) || 
+          (e.genre && e.genre.toLowerCase().includes(qLower)) ||
+          e.location.toLowerCase().includes(qLower) ||
+          e.description.toLowerCase().includes(qLower) ||
+          (qLower.includes('amapiano') && (e.title.toLowerCase().includes('amapiano') || e.genre?.toLowerCase().includes('amapiano'))) ||
+          (qLower.includes('concert') && e.category === 'concerts') ||
+          (qLower.includes('party') && e.category === 'nightlife')
+        ) || events[0];
+
+        setWagwanMessages(prev => [
+          ...prev,
+          {
+            sender: 'ai',
+            text: `Turn up! "${eventMatch.title}" at ${eventMatch.location} on ${eventMatch.date}! ${eventMatch.goingCount} people going with verified primary ticketing.`,
             eventMatch
           }
         ]);
-      } else {
-        setWagwanMessages(prev => [
-          ...prev,
-          {
-            sender: 'ai',
-            text: `For this vibe, I recommend checking out ${matched.title} in ${matched.neighborhood}! Rating ★${matched.rating} with verified customer reviews and digital menu.`,
-            spotMatch: matched
-          }
-        ]);
+        return;
       }
+
+      // Default to Spots matching with multi-criteria scoring
+      const spotScores = spots.map(s => {
+        let score = 0;
+        const titleLower = s.title.toLowerCase();
+        const neighLower = s.neighborhood.toLowerCase();
+        const descLower = (s.description || '').toLowerCase();
+        const catLower = s.category.toLowerCase();
+        const tagLower = (s.exactLocationTag || '').toLowerCase();
+
+        if (titleLower.includes(qLower)) score += 10;
+        if (neighLower.includes(qLower)) score += 8;
+        if (tagLower.includes(qLower)) score += 6;
+        if (catLower.includes(qLower)) score += 5;
+        if (descLower.includes(qLower)) score += 3;
+
+        // Keyword heuristics
+        if ((qLower.includes('date') || qLower.includes('romantic')) && (s.category === 'date_spots' || parseFloat(s.rating) >= 4.8)) score += 6;
+        if ((qLower.includes('cocktail') || qLower.includes('drinks')) && (s.category === 'bars' || s.category === 'clubs')) score += 5;
+        if ((qLower.includes('choma') || qLower.includes('nyama') || qLower.includes('meat')) && titleLower.includes('choma')) score += 8;
+        if ((qLower.includes('coffee') || qLower.includes('cafe') || qLower.includes('work') || qLower.includes('wifi')) && s.category === 'cafes') score += 7;
+        if (qLower.includes('rooftop') && (titleLower.includes('rooftop') || descLower.includes('rooftop'))) score += 7;
+        if (qLower.includes('westlands') && neighLower.includes('westlands')) score += 7;
+        if (qLower.includes('kilimani') && neighLower.includes('kilimani')) score += 7;
+        if (qLower.includes('karen') && neighLower.includes('karen')) score += 7;
+        if (qLower.includes('cbd') && (neighLower.includes('cbd') || s.address.toLowerCase().includes('cbd'))) score += 7;
+        if ((qLower.includes('kiambu') || qLower.includes('thika') || qLower.includes('ruiru')) && (neighLower.includes('kiambu') || neighLower.includes('ruiru') || neighLower.includes('thika'))) score += 8;
+
+        return { spot: s, score };
+      });
+
+      spotScores.sort((a, b) => b.score - a.score);
+      const matched = (spotScores[0]?.score > 0 ? spotScores[0].spot : spots[0]) || spots[0];
+
+      setWagwanMessages(prev => [
+        ...prev,
+        {
+          sender: 'ai',
+          text: `For "${q}", I recommend ${matched.title} in ${matched.neighborhood}! Rating ★${matched.rating} (${matched.price}). Exact spot: ${matched.address}. Vibe: ${matched.description || 'Verified Nairobi hangout.'}`,
+          spotMatch: matched
+        }
+      ]);
     }, 350);
   };
 
@@ -408,6 +528,25 @@ export const Overlays: React.FC<OverlaysProps> = ({
                           </button>
                         </div>
                       )}
+                      {msg.thriftMatch && (
+                        <div className="p-2.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 mt-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <img src={msg.thriftMatch.img} alt={msg.thriftMatch.name} className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                            <div className="min-w-0">
+                              <h5 className="font-black text-xs text-[#2D6A4F] truncate">{msg.thriftMatch.name}</h5>
+                              <p className="text-[10px] text-slate-500 truncate">{msg.thriftMatch.price} • {msg.thriftMatch.seller}</p>
+                            </div>
+                          </div>
+                          <a
+                            href={`https://wa.me/${(msg.thriftMatch.whatsapp || '+254700000000').replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi! I saw "${msg.thriftMatch.name}" on RADA Nairobi. Is it still available?`)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2.5 py-1 bg-[#2D6A4F] text-white font-bold rounded-lg text-[10px] shadow-xs shrink-0"
+                          >
+                            Inquire Fit
+                          </a>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -477,7 +616,22 @@ export const Overlays: React.FC<OverlaysProps> = ({
               <h3 className="font-black text-sm uppercase tracking-wider text-slate-500">
                 Spot Hub & Reviews
               </h3>
-              <div className="w-9" />
+              <button
+                type="button"
+                onClick={() => {
+                  shareContent({
+                    title: `RADA Spot: ${selectedSpot.title}`,
+                    text: `Check out ${selectedSpot.title} (${selectedSpot.category}) in ${selectedSpot.address} on RADA Nairobi! Rating: ★${selectedSpot.rating}.`,
+                    url: window.location.href,
+                    onSuccess: showToast,
+                    onError: showToast
+                  });
+                }}
+                title="Share Spot Link"
+                className="w-9 h-9 rounded-full bg-[#F8F8F6] dark:bg-[#1C1A1E] flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-[#E0533C] transition cursor-pointer"
+              >
+                <Share2 className="w-4 h-4" />
+              </button>
             </div>
           </div>
 

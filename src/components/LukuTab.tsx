@@ -14,10 +14,12 @@ import {
   MapPin,
   Phone,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Share2
 } from 'lucide-react';
 import { ThriftItem, BusinessAccount } from '../types.ts';
 import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
+import { shareContent } from '../utils/shareUtils.ts';
 
 interface LukuTabProps {
   thriftItems: ThriftItem[];
@@ -36,6 +38,8 @@ export const LukuTab: React.FC<LukuTabProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCondition, setSelectedCondition] = useState('all');
+  const [selectedPriceRange, setSelectedPriceRange] = useState('all');
   const [isListening, setIsListening] = useState(false);
   const [activeStoreModal, setActiveStoreModal] = useState<BusinessAccount | null>(null);
   const [activeImageIndices, setActiveImageIndices] = useState<Record<number, number>>({});
@@ -97,12 +101,20 @@ export const LukuTab: React.FC<LukuTabProps> = ({
 
   const filteredItems = thriftItems.filter(item => {
     const matchesCat = selectedCategory === 'all' || item.category.toLowerCase().includes(selectedCategory.toLowerCase());
+    const matchesCondition = selectedCondition === 'all' || (item.condition && item.condition.toLowerCase().includes(selectedCondition.toLowerCase()));
+
+    let matchesPrice = true;
+    const numPrice = parseInt(item.price.replace(/[^0-9]/g, ''), 10) || 0;
+    if (selectedPriceRange === 'under2k') matchesPrice = numPrice < 2000;
+    else if (selectedPriceRange === '2k-3.5k') matchesPrice = numPrice >= 2000 && numPrice <= 3500;
+    else if (selectedPriceRange === '3.5k+') matchesPrice = numPrice > 3500;
+
     const matchesQuery = !searchQuery.trim() || 
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.seller.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (item.condition && item.condition.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesCat && matchesQuery;
+    return matchesCat && matchesCondition && matchesPrice && matchesQuery;
   });
 
   const handleInquireWhatsApp = (item: ThriftItem) => {
@@ -140,7 +152,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search fits e.g. Vintage Graphic Tee, Leather Puffer, Baggy Denim..."
+            placeholder="Search fits, streetwear, vintage tees, jackets, sneakers..."
             className="w-full pl-10 pr-20 py-3 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
           />
 
@@ -170,7 +182,8 @@ export const LukuTab: React.FC<LukuTabProps> = ({
             { id: 'tees', label: 'Tees & Tops' },
             { id: 'jackets', label: 'Jackets & Coats' },
             { id: 'pants', label: 'Pants & Denim' },
-            { id: 'shoes', label: 'Footwear' }
+            { id: 'footwear', label: 'Footwear & Sneakers' },
+            { id: 'accessories', label: 'Accessories & Caps' }
           ].map(cat => (
             <button
               key={cat.id}
@@ -182,6 +195,49 @@ export const LukuTab: React.FC<LukuTabProps> = ({
               }`}
             >
               {cat.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Condition & Price Range Filter Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-1 text-xs">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Condition:</span>
+          {[
+            { id: 'all', label: 'All' },
+            { id: 'mint', label: 'Mint Condition' },
+            { id: 'grade a', label: 'Grade A Vintage' },
+            { id: 'like new', label: 'Like New' }
+          ].map(c => (
+            <button
+              key={c.id}
+              onClick={() => setSelectedCondition(c.id)}
+              className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold shrink-0 transition ${
+                selectedCondition === c.id
+                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                  : 'bg-[#F1F1EE] dark:bg-[#1C1A1E] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800'
+              }`}
+            >
+              {c.label}
+            </button>
+          ))}
+
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0 ml-2">Budget:</span>
+          {[
+            { id: 'all', label: 'All' },
+            { id: 'under2k', label: '< KES 2K' },
+            { id: '2k-3.5k', label: 'KES 2K-3.5K' },
+            { id: '3.5k+', label: 'KES 3.5K+' }
+          ].map(p => (
+            <button
+              key={p.id}
+              onClick={() => setSelectedPriceRange(p.id)}
+              className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold shrink-0 transition ${
+                selectedPriceRange === p.id
+                  ? 'bg-[#2D6A4F] text-white'
+                  : 'bg-[#F1F1EE] dark:bg-[#1C1A1E] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800'
+              }`}
+            >
+              {p.label}
             </button>
           ))}
         </div>
@@ -296,11 +352,27 @@ export const LukuTab: React.FC<LukuTabProps> = ({
                 </button>
                 <button
                   onClick={() => handleInquireWhatsApp(item)}
-                  className="py-1.5 px-2.5 bg-[#2D6A4F] hover:bg-emerald-800 text-white rounded-xl text-[10px] font-bold transition flex items-center justify-center gap-1 shadow-xs"
+                  className="py-1.5 px-2 bg-[#2D6A4F] hover:bg-emerald-800 text-white rounded-xl text-[10px] font-bold transition flex items-center justify-center gap-1 shadow-xs"
                   title="Direct WhatsApp"
                 >
                   <MessageCircle className="w-3 h-3" />
                   <span>Inquire</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    shareContent({
+                      title: `RADA LUKU: ${item.name}`,
+                      text: `🔥 Check out "${item.name}" by ${item.seller} on RADA LUKU (${item.price}, Size ${item.size}, ${item.storeLocation})!`,
+                      url: window.location.href,
+                      onSuccess: showToast,
+                      onError: showToast
+                    });
+                  }}
+                  className="py-1.5 px-2 bg-white dark:bg-[#121113] hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-xl transition flex items-center justify-center shadow-xs"
+                  title="Share Fit"
+                >
+                  <Share2 className="w-3 h-3 text-[#E0533C]" />
                 </button>
               </div>
             </div>
@@ -462,6 +534,22 @@ export const LukuTab: React.FC<LukuTabProps> = ({
                 >
                   <MessageCircle className="w-4 h-4" />
                   <span>Contact on WhatsApp</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    shareContent({
+                      title: `Thrift Store: ${activeStoreModal.name}`,
+                      text: `Check out ${activeStoreModal.name} at ${activeStoreModal.address} on RADA LUKU! ${activeStoreModal.bio}`,
+                      url: window.location.href,
+                      onSuccess: showToast,
+                      onError: showToast
+                    });
+                  }}
+                  className="p-2.5 bg-[#F1F1EE] dark:bg-[#121113] hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-xl transition flex items-center justify-center shadow-xs"
+                  title="Share Store Link"
+                >
+                  <Share2 className="w-4 h-4 text-[#E0533C]" />
                 </button>
                 <button
                   onClick={() => setActiveStoreModal(null)}

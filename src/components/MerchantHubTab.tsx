@@ -796,7 +796,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                   {/* Profile Logo / Picture */}
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Profile Picture / Logo URL
+                      Profile Picture / Logo *
                     </label>
                     <div className="flex items-center gap-3">
                       <img 
@@ -804,15 +804,42 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                         alt="Logo Preview" 
                         className="w-14 h-14 rounded-2xl object-cover border border-slate-200 dark:border-slate-700 shadow-xs shrink-0" 
                       />
-                      <div className="flex-1">
-                        <input 
-                          type="url"
-                          placeholder="Paste image URL or pick preset below"
-                          value={onboardLogo}
-                          onChange={(e) => setOnboardLogo(e.target.value)}
-                          className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 focus:outline-none focus:border-[#E0533C]"
-                        />
-                        <div className="flex items-center gap-1.5 mt-2">
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <label className="cursor-pointer px-3 py-1.5 bg-[#E0533C] hover:bg-[#d04630] text-white text-xs font-bold rounded-xl transition inline-flex items-center gap-1.5 shadow-xs">
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>Upload Photo</span>
+                            <input 
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onload = (event) => {
+                                    if (event.target?.result) {
+                                      setOnboardLogo(event.target.result as string);
+                                      showToast('Profile photo selected!');
+                                    }
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                          </label>
+                          {onboardLogo && (
+                            <button
+                              type="button"
+                              onClick={() => setOnboardLogo('')}
+                              className="px-2.5 py-1.5 text-xs text-red-500 hover:text-red-600 font-bold border border-red-200 dark:border-red-900/50 rounded-xl"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-slate-400">Or pick preset:</span>
                           {presetLogos.map((preset, idx) => (
                             <button
                               key={idx}
@@ -3571,14 +3598,66 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold mb-1">Promotional Poster URL</label>
-                <input 
-                  type="url" 
-                  value={offerPosterUrl} 
-                  onChange={(e) => setOfferPosterUrl(e.target.value)} 
-                  placeholder="High quality banner image URL"
-                  className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 focus:outline-none"
-                />
+                <label className="block text-xs font-bold mb-1.5 text-slate-800 dark:text-slate-200">
+                  Promotional Poster Image *
+                </label>
+                {offerPosterUrl ? (
+                  <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 group h-36 bg-slate-900">
+                    <img 
+                      src={offerPosterUrl} 
+                      alt="Offer Poster Preview" 
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
+                      <label className="cursor-pointer px-3 py-1.5 bg-white text-slate-900 text-xs font-black rounded-xl shadow-md flex items-center gap-1">
+                        <Upload className="w-3.5 h-3.5 text-[#E0533C]" /> Change
+                        <input 
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (event) => {
+                                if (event.target?.result) setOfferPosterUrl(event.target.result as string);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setOfferPosterUrl('')}
+                        className="px-3 py-1.5 bg-red-600 text-white text-xs font-black rounded-xl shadow-md flex items-center gap-1"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Remove
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer bg-[#FBFBF9] dark:bg-[#121113] transition text-center">
+                    <Upload className="w-5 h-5 text-[#E0533C]" />
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Upload Promotional Poster</span>
+                    <span className="text-[10px] text-slate-400">Select promo flyer or banner from device</span>
+                    <input 
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            if (event.target?.result) setOfferPosterUrl(event.target.result as string);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">

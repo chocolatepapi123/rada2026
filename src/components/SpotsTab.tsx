@@ -38,6 +38,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedNeighborhood, setSelectedNeighborhood] = useState<string>('all');
+  const [selectedPriceTier, setSelectedPriceTier] = useState<string>('all');
   const [activeImageIndices, setActiveImageIndices] = useState<Record<number, number>>({});
   const [isListening, setIsListening] = useState(false);
   const [customNeighborhoodInput, setCustomNeighborhoodInput] = useState('');
@@ -50,8 +51,10 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     'Karen',
     'Lavington',
     'Parklands',
-    'Gigiri',
-    'Naivasha / Outskirts'
+    'Mombasa Rd',
+    'Ruiru',
+    'Kiambu Town',
+    'Thika'
   ]);
 
   const handlePrevImage = (e: React.MouseEvent, spotId: number, maxImages: number) => {
@@ -137,7 +140,10 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     const matchesNeigh = selectedNeighborhood === 'all' || 
       s.neighborhood.toLowerCase().includes(selectedNeighborhood.toLowerCase());
 
-    if (!matchesCategory || !matchesNeigh) return false;
+    // Price Tier filter
+    const matchesPrice = selectedPriceTier === 'all' || s.price === selectedPriceTier;
+
+    if (!matchesCategory || !matchesNeigh || !matchesPrice) return false;
 
     if (!searchQuery.trim()) return true;
 
@@ -338,7 +344,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder='Try natural queries: "Sushi in Westlands", "quiet cafe", "cocktail bar"...'
+            placeholder="Search spots, food, bars, cafes, or neighborhoods in Nairobi & Kiambu..."
             className="w-full pl-10 pr-24 py-3 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 shadow-xs"
           />
 
@@ -397,6 +403,29 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               </button>
             );
           })}
+        </div>
+
+        {/* Price Tier Selector Filter */}
+        <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-1">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1">Price:</span>
+          {[
+            { id: 'all', label: 'All Prices' },
+            { id: '$', label: '$ Budget' },
+            { id: '$$', label: '$$ Mid-Range' },
+            { id: '$$$', label: '$$$ Fine & Luxury' }
+          ].map((tier) => (
+            <button
+              key={tier.id}
+              onClick={() => setSelectedPriceTier(tier.id)}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 transition-all ${
+                selectedPriceTier === tier.id
+                  ? 'bg-[#2D6A4F] text-white shadow-xs'
+                  : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800'
+              }`}
+            >
+              {tier.label}
+            </button>
+          ))}
         </div>
 
         {/* Neighborhood Filter & Searchable Typeahead with Custom Additions */}
