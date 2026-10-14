@@ -198,6 +198,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
           </span>
         </div>
 
+        <div className="grid grid-cols-2 gap-3">
           {filteredItems.map((item) => {
             const itemImages = [item.img, ...(item.images || [])].filter((v, i, a) => a.indexOf(v) === i);
             const activeIdx = (activeImageIndices[item.id] || 0) % itemImages.length;
@@ -302,8 +303,9 @@ export const LukuTab: React.FC<LukuTabProps> = ({
                   <span>Inquire</span>
                 </button>
               </div>
-            );
-          })}
+            </div>
+          );
+        })}
 
           {/* Empty Search Result State */}
           {filteredItems.length === 0 && (
