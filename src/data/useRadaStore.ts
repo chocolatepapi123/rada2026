@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { initialSpots, initialEvents, initialThrift } from './initialData';
+import { initialSpots, initialEvents, initialThriftItems as initialThrift } from './initialData';
 import { RadaStore, SpotItem, EventItem, ThriftItem } from '../types';
 
 const STORAGE_KEY = 'rada_app_persistent_store';
@@ -57,23 +57,21 @@ export function useRadaStore() {
       .select();
 
     if (error) {
-      alert(`Supabase Error: ${error.message} (Code: ${error.code})`);
-      console.error('Supabase insert error:', error);
+      console.error(`Supabase Error: ${error.message} (Code: ${error.code})`);
       return;
     }
 
     console.log('Successfully inserted into Supabase:', data);
   } catch (err: any) {
-    alert(`Unexpected JavaScript Error: ${err?.message || err}`);
-    console.error('Unexpected error during addSpot:', err);
+    console.error(`Unexpected error during addSpot: ${err?.message || err}`);
   }
 };
 
 
   // 3. Action: Add Event (Saves to state + Supabase)
   const addEvent = async (newEvent: Omit<EventItem, 'id'>) => {
-    const tempId = 'event_' + Date.now();
-    const itemWithId = { ...newEvent, id: tempId };
+    const tempId = Date.now();
+    const itemWithId: EventItem = { ...newEvent, id: tempId };
 
     const updated = { ...store, events: [itemWithId, ...store.events] };
     setStore(updated);
@@ -84,8 +82,8 @@ export function useRadaStore() {
 
   // 4. Action: Add Luku Thrift Item (Saves to state + Supabase)
   const addThriftItem = async (newItem: Omit<ThriftItem, 'id'>) => {
-    const tempId = 'thrift_' + Date.now();
-    const itemWithId = { ...newItem, id: tempId };
+    const tempId = Date.now();
+    const itemWithId: ThriftItem = { ...newItem, id: tempId };
 
     const updated = { ...store, thrift: [itemWithId, ...store.thrift] };
     setStore(updated);

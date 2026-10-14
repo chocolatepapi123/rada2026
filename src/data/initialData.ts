@@ -27,6 +27,20 @@ export const initialBusinesses: BusinessAccount[] = [
     verified: true,
     instagram: '@inkanddrinkke',
     createdDate: '2026-08-10',
+    discography: [
+      'Sunset Sessions Vol. 4 (Live Afro-House Set)',
+      'Mpaka Nights: Amapiano Lounge Edition',
+      'The Dawa Mixology Masterclass Series'
+    ],
+    pinnedImages: [
+      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=800&auto=format&fit=crop'
+    ],
+    specialOffers: [
+      { id: 'so-1', title: 'Happy Hour Dawa 2-for-1', discount: 'BUY 1 GET 1', description: 'Weekdays 5:00 PM - 8:00 PM on signature cocktails' },
+      { id: 'so-2', title: 'Brisket & Brews Sunday', discount: '20% OFF', description: 'Order any 2 sliders and get 20% off craft beer buckets' }
+    ]
   },
   {
     id: 'biz-2',
@@ -43,6 +57,18 @@ export const initialBusinesses: BusinessAccount[] = [
     verified: true,
     instagram: '@vibecraft_ke',
     createdDate: '2026-07-20',
+    discography: [
+      'Halloween Masquerade Official Aftermovie',
+      'Rooftop Soundscapes 2026 Live Recording',
+      'Nairobi Indie Art & Beats Compilation'
+    ],
+    pinnedImages: [
+      'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&auto=format&fit=crop'
+    ],
+    specialOffers: [
+      { id: 'so-3', title: 'Early Bird Crew Pass', discount: '15% OFF', description: 'Group booking of 4+ tickets gets VIP fast-track entry' }
+    ]
   },
   {
     id: 'biz-3',
@@ -59,6 +85,18 @@ export const initialBusinesses: BusinessAccount[] = [
     verified: true,
     instagram: '@gikombastall4b',
     createdDate: '2026-09-01',
+    discography: [
+      'Spring 2026 Japanese Carpenter Denim Lookbook',
+      'Rare 90s Graphic Band Tees Archive',
+      'Heavyweight Varsity Drop - Look 01'
+    ],
+    pinnedImages: [
+      'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=800&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1544441893-675973e31985?w=800&auto=format&fit=crop'
+    ],
+    specialOffers: [
+      { id: 'so-4', title: 'Bundle & Save Fit Offer', discount: 'BUY 2 GET 1', description: 'Buy any tee & jeans combo, get vintage cap free' }
+    ]
   }
 ];
 
@@ -248,6 +286,121 @@ export const initialSpots: SpotItem[] = [
         ]
       }
     ]
+  },
+  {
+    id: 5,
+    title: 'Great Rift Valley Lodge',
+    category: 'vacation',
+    neighborhood: 'Naivasha / Outskirts',
+    exactLocationTag: 'Green Park, Naivasha / Rift Valley Escarpment',
+    landmark: 'Green Park Airstrip Gate',
+    lat: -0.7172,
+    lng: 36.3275,
+    rating: '4.9',
+    reviewCount: 220,
+    price: 'KES $$$$',
+    address: 'Moi South Lake Rd, Naivasha',
+    img: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&auto=format&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=800&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&auto=format&fit=crop'
+    ],
+    description: 'Perched high on the Eburru Mountain escarpment with panoramic views of Lake Naivasha. Features championship golf, bush picnics, heated pools and starry bonfire nights.',
+    phone: '+254 722 203 900',
+    openingHours: '24/7 Concierge & Reception',
+    menuItems: [
+      { id: 'm10', name: 'Escarpment Bush Breakfast Buffet', price: 'KES 2,800', description: 'Fresh highland juices, gourmet omelette station, pastries and Kenya tea' },
+      { id: 'm11', name: 'Char-Grilled Rift Valley Lamb Cutlets', price: 'KES 2,400', description: 'Succulent lamb cutlets infused with fresh rosemary and mint chimichurri' }
+    ],
+    specialOffers: [
+      { id: 'so-10', title: 'Weekend Escarpment Escape', discount: '20% OFF', description: 'All-inclusive weekend stay with golf round & spa pass' }
+    ]
+  },
+  {
+    id: 6,
+    title: 'Villa Rosa Kempinski',
+    category: 'hotels',
+    neighborhood: 'Westlands',
+    exactLocationTag: 'Chiromo Road, Westlands, Opposite PrideInn',
+    landmark: 'Chiromo Stage',
+    lat: -1.2688,
+    lng: 36.8080,
+    rating: '4.9',
+    reviewCount: 450,
+    price: 'KES $$$$',
+    address: 'Chiromo Road, Westlands, Nairobi',
+    img: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&auto=format&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800&auto=format&fit=crop'
+    ],
+    description: 'Iconic 5-star European luxury destination. Celebrated for 88 Pan-Asian cuisine, Tambourin rooftop mezze lounge, Roman indoor heated pool, and bespoke suites.',
+    phone: '+254 703 049 000',
+    openingHours: '24/7 Hotel Services',
+    menuItems: [
+      { id: 'm12', name: 'Tambourin Mezze Platter', price: 'KES 2,200', description: 'Fresh hummus, baba ganoush, falafel, lamb kibbeh and warm zaatar pita' },
+      { id: 'm13', name: '88 Crispy Peking Duck', price: 'KES 3,500', description: 'Slow-roasted duck served with steamed lotus buns, hoisin and cucumber ribbons' }
+    ]
+  },
+  {
+    id: 7,
+    title: 'Talisman Restaurant & Garden',
+    category: 'date_spots',
+    neighborhood: 'Karen',
+    exactLocationTag: '320 Ngong Road, Karen, Near Karen Roundabout',
+    landmark: 'Karen Cross Roads Stage',
+    lat: -1.3204,
+    lng: 36.7118,
+    rating: '4.9',
+    reviewCount: 380,
+    price: 'KES $$$',
+    address: '320 Ngong Road, Karen, Nairobi',
+    img: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop'
+    ],
+    description: 'Nairobi\'s premier candlelit date spot with lush tropical gardens, carved outdoor fireplaces, Afghan carpets, world fusion cuisine and signature elderflower cocktails.',
+    phone: '+254 705 999 997',
+    openingHours: '11:00 AM - 11:30 PM',
+    menuItems: [
+      { id: 'm14', name: 'Feta & Coriander Samosas', price: 'KES 900', description: 'World-famous Talisman crispy samosas with homemade sweet chilli ginger dip' },
+      { id: 'm15', name: 'Zanzibar Seafood Platter', price: 'KES 2,600', description: 'Fresh lobster tails, king prawns and calamari in creamy coconut Swahili curry' }
+    ],
+    specialOffers: [
+      { id: 'so-11', title: 'Couples Candlelit Dinner Set', discount: 'SPECIAL KES 5,500', description: '3-course meal for two with complimentary sparkling wine' }
+    ]
+  },
+  {
+    id: 8,
+    title: 'Choma Zone & Grill Hurlingham',
+    category: 'restaurants',
+    neighborhood: 'Hurlingham',
+    exactLocationTag: 'Hurlingham, Petrol Station (TotalEnergies)',
+    landmark: 'TotalEnergies Hurlingham Petrol Station',
+    lat: -1.2945,
+    lng: 36.7912,
+    rating: '4.7',
+    reviewCount: 88,
+    price: 'KES $$',
+    address: 'Argwings Kodhek Rd, Next to Petrol Station, Hurlingham, Nairobi',
+    img: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=800&auto=format&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1544025162-d76694265947?w=800&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop'
+    ],
+    description: 'Famous prime Mbuzi choma, kachumbari, ugali and cold Tusker by the patio. A favorite community hangout in Hurlingham.',
+    phone: '+254 722 888 222',
+    openingHours: '11:00 AM - Midnight',
+    isUserUploaded: true,
+    menuItems: [
+      { id: 'm16', name: 'Prime Mbuzi Choma (1/2 kg)', price: 'KES 900', description: 'Tender flame-grilled goat meat with fresh kachumbari & roasted chili' },
+      { id: 'm17', name: 'Traditional Ugali & Sukuma Wiki', price: 'KES 250', description: 'Steaming hot white cornmeal ugali with sauteed collard greens' }
+    ],
+    specialOffers: [
+      { id: 'so-12', title: 'Thursday Choma Platter Special', discount: '15% OFF', description: 'Order 1kg mbuzi and get free side of fries and kachumbari' }
+    ]
   }
 ];
 
@@ -256,6 +409,7 @@ export const initialEvents: EventItem[] = [
     id: 1,
     title: 'Halloween Fright Night',
     category: 'concerts',
+    genre: 'Afrobeats & Electronic',
     date: 'Sat, 31 Oct 2026',
     time: '08:00 PM - 04:00 AM',
     location: 'Village Market, Westlands, Nairobi',
@@ -263,8 +417,7 @@ export const initialEvents: EventItem[] = [
     lng: 36.8124,
     img: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop',
     goingCount: 342,
-    url: 'https://hustlesasa.shop/',
-    dressCode: 'Spooky Costume / Horror Glam (Prize for Best Dressed)',
+    url: 'https://hustlesasa.com/',
     description: 'Nairobi\'s biggest annual Halloween masquerade rave. 2 stages, horror maze, themed cocktail potions, and 6 guest DJs.',
     businessId: 'biz-2',
     artists: [
@@ -282,6 +435,7 @@ export const initialEvents: EventItem[] = [
     id: 2,
     title: 'Sensory Halloween Showcase',
     category: 'nightlife',
+    genre: 'Amapiano & Deep House',
     date: 'Fri, 30 Oct 2026',
     time: '07:00 PM - 03:00 AM',
     location: 'Karel T-Lounge, Kilimani, Nairobi',
@@ -289,8 +443,7 @@ export const initialEvents: EventItem[] = [
     lng: 36.7820,
     img: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&auto=format&fit=crop',
     goingCount: 189,
-    url: 'https://www.ticketsasa.com/',
-    dressCode: 'Chic Monochrome / Black & Gold',
+    url: 'https://tikiti.co.ke/',
     description: 'An immersive acoustic & electronic fusion night exploring soundscapes, 3D projections, and gourmet tapas pairings.',
     artists: [
       { name: 'Sauti Sol', role: 'Special Guest Performance', img: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop' }
@@ -305,6 +458,7 @@ export const initialEvents: EventItem[] = [
     id: 3,
     title: 'Nairobi Underground Art Showcase',
     category: 'art',
+    genre: 'Live Bands & Acoustic',
     date: 'Fri, 30 Oct 2026',
     time: '04:00 PM - 10:00 PM',
     location: 'Kilimani Warehouse, Nairobi',
@@ -312,8 +466,7 @@ export const initialEvents: EventItem[] = [
     lng: 36.7850,
     img: 'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=800&auto=format&fit=crop',
     goingCount: 512,
-    url: 'https://hustlesasa.shop/',
-    dressCode: 'Indie Casual / Y2K Expression',
+    url: 'https://kenyabuzz.com/events',
     description: 'Exhibition of over 30 independent Nairobi illustrators, street painters, fashion designers, and beatmakers.',
     artists: [
       { name: 'Underground Collective', role: 'Live Performers', img: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&auto=format&fit=crop' }
@@ -389,47 +542,63 @@ export const initialThriftItems: ThriftItem[] = [
 export const cinemaMovies: CinemaMovie[] = [
   {
     id: 101,
-    title: 'Avengers: Endgame Encore',
+    title: 'Dune: Part Two',
+    genre: 'Sci-Fi / Adventure',
     location: 'gardencity',
     locationName: 'Garden City IMAX',
-    date: '2026-10-13',
+    date: '2026-10-14',
     times: '12:00, 15:30, 18:30, 21:45',
     format: 'IMAX 3D / ATMOS',
-    img: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=600&auto=format&fit=crop',
+    img: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop',
     url: 'https://centurycinemax.co.ke/movies/garden-city'
   },
   {
     id: 102,
-    title: 'Spider-Man: Brand New Day',
+    title: 'Gladiator II',
+    genre: 'Action / Epic',
     location: 'sarit',
     locationName: 'Sarit Centre',
-    date: '2026-10-13',
+    date: '2026-10-14',
     times: '13:00, 16:15, 19:15, 22:00',
     format: '2D DOLBY ATMOS',
-    img: 'https://images.unsplash.com/photo-1635805737707-575885ab0820?w=600&auto=format&fit=crop',
+    img: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=600&auto=format&fit=crop',
     url: 'https://centurycinemax.co.ke/movies/sarit'
   },
   {
     id: 103,
-    title: 'The Odyssey 2D',
-    location: 'gardencity',
-    locationName: 'Garden City IMAX',
+    title: 'Deadpool & Wolverine',
+    genre: 'Action / Comedy',
+    location: 'tworivers',
+    locationName: 'Two Rivers Mall',
     date: '2026-10-14',
     times: '14:30, 17:45, 21:00',
     format: 'IMAX 2D',
-    img: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop',
-    url: 'https://centurycinemax.co.ke/movies/garden-city'
+    img: 'https://images.unsplash.com/photo-1635805737707-575885ab0820?w=600&auto=format&fit=crop',
+    url: 'https://centurycinemax.co.ke/movies/two-rivers'
   },
   {
     id: 104,
-    title: 'Dune: Part Three',
+    title: 'Wicked',
+    genre: 'Fantasy / Musical',
     location: 'junction',
     locationName: 'Junction Mall',
-    date: '2026-10-15',
+    date: '2026-10-14',
     times: '14:00, 17:15, 20:30',
     format: '2D ATMOS',
-    img: 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=600&auto=format&fit=crop',
+    img: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop',
     url: 'https://centurycinemax.co.ke/movies/junction'
+  },
+  {
+    id: 105,
+    title: 'Inside Out 2',
+    genre: 'Animation / Family',
+    location: 'sarit',
+    locationName: 'Sarit Centre',
+    date: '2026-10-14',
+    times: '11:30, 14:00, 16:45',
+    format: '2D DOLBY',
+    img: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=600&auto=format&fit=crop',
+    url: 'https://centurycinemax.co.ke/movies/sarit'
   }
 ];
 
@@ -513,11 +682,26 @@ export const initialConversations: ChatConversation[] = [
     name: 'Jane Doe',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop',
     type: 'direct',
+    theme: 'terracotta',
     lastMessage: 'Let\'s lock in that coffee date for Ink & Drink!',
     messages: [
       { id: 'm-1', sender: 'them', text: 'Hey Alex! Saw your profile on RADA. How\'s your week going?', time: '18:20' },
       { id: 'm-2', sender: 'me', text: 'Wagwan Jane! Going great, just checking out spots for the weekend.', time: '18:22' },
-      { id: 'm-3', sender: 'them', text: 'Let\'s lock in that coffee date for Ink & Drink!', time: '18:25' }
+      { 
+        id: 'm-voice', 
+        sender: 'them', 
+        text: 'Voice note (0:14)', 
+        audioUrl: 'mock-audio',
+        audioDuration: 14,
+        time: '18:24' 
+      },
+      { 
+        id: 'm-3', 
+        sender: 'them', 
+        text: 'Let\'s lock in that coffee date for Ink & Drink!', 
+        time: '18:25',
+        replyTo: { id: 'm-2', sender: 'Alex', text: 'Wagwan Jane! Going great, just checking out spots for the weekend.' }
+      }
     ]
   }
 ];

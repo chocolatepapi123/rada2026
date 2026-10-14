@@ -1,5 +1,13 @@
 export type BusinessCategory = 'hospitality' | 'event_organizer' | 'thrift_store';
 
+export interface SpecialOffer {
+  id: string;
+  title: string;
+  discount: string;
+  description: string;
+  expires?: string;
+}
+
 export interface BusinessAccount {
   id: string;
   name: string;
@@ -15,12 +23,15 @@ export interface BusinessAccount {
   verified: boolean;
   instagram?: string;
   createdDate: string;
+  discography?: string[];
+  pinnedImages?: string[];
+  specialOffers?: SpecialOffer[];
 }
 
 export interface MenuItem {
   id: string;
   name: string;
-  category: string;
+  category?: string;
   price: string;
   description: string;
   isSpecial?: boolean;
@@ -37,11 +48,15 @@ export interface Review {
   images?: string[];
 }
 
+export type SpotCategory = 'restaurants' | 'nightlife' | 'cafes' | 'vacation' | 'hotels' | 'date_spots';
+
 export interface SpotItem {
   id: number;
   title: string;
-  category: 'restaurants' | 'nightlife' | 'cafes';
+  category: SpotCategory;
   neighborhood: string;
+  exactLocationTag?: string;
+  landmark?: string;
   lat: number;
   lng: number;
   rating: string;
@@ -54,7 +69,9 @@ export interface SpotItem {
   description?: string;
   menuImages?: string[];
   menuItems?: MenuItem[];
+  specialOffers?: SpecialOffer[];
   businessId?: string;
+  isUserUploaded?: boolean;
   phone?: string;
   openingHours?: string;
 }
@@ -75,6 +92,7 @@ export interface EventItem {
   id: number;
   title: string;
   category: 'concerts' | 'nightlife' | 'art' | 'cinemas';
+  genre?: string;
   date: string;
   time?: string;
   location: string;
@@ -109,6 +127,7 @@ export interface ThriftItem {
 export interface CinemaMovie {
   id: number;
   title: string;
+  genre?: string;
   location: 'gardencity' | 'sarit' | 'junction' | 'tworivers';
   locationName: string;
   date: string;
@@ -166,6 +185,14 @@ export interface ChatMessage {
   sender: 'me' | 'them' | 'system';
   text: string;
   time: string;
+  replyTo?: {
+    id: string;
+    sender: string;
+    text: string;
+  };
+  audioUrl?: string;
+  audioDuration?: number;
+  videoNoteUrl?: string;
   dateInvite?: {
     spotTitle: string;
     address: string;
@@ -175,12 +202,15 @@ export interface ChatMessage {
   };
 }
 
+export type ChatTheme = 'terracotta' | 'midnight' | 'emerald' | 'sunset' | 'cyberpunk';
+
 export interface ChatConversation {
   id: string;
   name: string;
   avatar: string;
   type: 'direct' | 'group';
   lastMessage: string;
+  theme?: ChatTheme;
   members?: string[];
   messages: ChatMessage[];
 }
@@ -198,4 +228,10 @@ export interface EmergencyContact {
   id: string;
   name: string;
   phone: string;
+}
+
+export interface RadaStore {
+  spots: SpotItem[];
+  events: EventItem[];
+  thrift: ThriftItem[];
 }

@@ -1,5 +1,5 @@
-import { supabase } from '../lib/supabase.ts'; // Adjust path if needed based on your folder structure
-import React, { useState } from 'react';
+import { supabase } from '../lib/supabase.ts';
+import React, { useState, useEffect } from 'react';
 import { 
   Building2, 
   X, 
@@ -20,15 +20,24 @@ import {
   Clock,
   DollarSign,
   Users,
-  Star
+  Star,
+  Edit3,
+  ShieldCheck,
+  Disc3,
+  Image as ImageIcon,
+  Check,
+  Percent,
+  Compass
 } from 'lucide-react';
 import { 
   BusinessAccount, 
   BusinessCategory, 
   SpotItem, 
+  SpotCategory,
   EventItem, 
   ThriftItem, 
   MenuItem, 
+  SpecialOffer,
   Artist, 
   TicketTier 
 } from '../types.ts';
@@ -66,7 +75,7 @@ export const BusinessHubModal: React.FC<BusinessHubModalProps> = ({
   thriftItems,
   showToast
 }) => {
-  const [activeTab, setActiveTab] = useState<'spots' | 'events' | 'thrift' | 'analytics' | 'account'>('spots');
+  const [activeTab, setActiveTab] = useState<'spots' | 'manage_spots' | 'events' | 'thrift' | 'profile' | 'analytics'>('spots');
   const [isRegisteringAccount, setIsRegisteringAccount] = useState(false);
 
   // Success Confirmation Popup State
@@ -112,62 +121,175 @@ export const BusinessHubModal: React.FC<BusinessHubModalProps> = ({
       address: regAddress || `${regNeighborhood}, Nairobi`,
       bio: regBio || 'Official verified partner on RADA.',
       logo: regLogo || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=200&auto=format&fit=crop',
+      coverImage: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
       verified: true,
       instagram: regInstagram,
-      createdDate: new Date().toISOString().split('T')[0]
+      createdDate: new Date().toISOString().split('T')[0],
+      discography: [
+        `${regName.trim()} Launch Lookbook / Showcase`,
+        'Curated Resident Selections 2026'
+      ],
+      pinnedImages: [
+        'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop'
+      ],
+      specialOffers: [
+        { id: `so-${Date.now()}`, title: 'Welcome Launch Offer', discount: '10% OFF', description: 'Mention RADA for 10% off your first order!' }
+      ]
     };
 
     onCreateBusiness(newBiz);
     setIsRegisteringAccount(false);
 
-    // Explicit "Successful" upload confirmation for the merchant
     setSuccessModalData({
-      title: 'Successful! Business Uploaded & Live',
-      message: `Your business account "${newBiz.name}" has been successfully uploaded to RADA. Your profile is live, verified, and ready for customers!`,
+      title: 'Successful! Business Profile Live',
+      message: `Your verified business account "${newBiz.name}" is now live on RADA with full profile, verified badge, and analytics unlocked.`,
       listingName: newBiz.name,
-      categoryBadge: 'Registration Successful',
-      subDetails: 'Analytics unlocked! Real-time visitor impressions, clicks, and menu views are now live.'
+      categoryBadge: 'Verified Partner Active',
+      subDetails: 'You can now publish spots, events, or luku fits, manage multiple photos, and claim community spots.'
     });
 
-    showToast(`Upload Successful! "${newBiz.name}" is now live on RADA.`);
-    
-    // Auto switch to relevant tab
-    if (newBiz.category === 'hospitality') setActiveTab('spots');
-    else if (newBiz.category === 'event_organizer') setActiveTab('events');
-    else setActiveTab('thrift');
+    showToast(`Upload Successful! "${newBiz.name}" is live on RADA.`);
   };
 
   // ----------------------------------------------------
-  // SPOT & MENU FORM STATE
+  // SPOT & MENU EDITING STATE (SPEC 1: Re-edit, Multiple Images, Exact Location & Dynamic Landmarks)
   // ----------------------------------------------------
+  const [editingSpotId, setEditingSpotId] = useState<number | null>(null);
   const [spotTitle, setSpotTitle] = useState(currentBiz?.name || 'Ink & Drink Westlands');
-  const [spotCategory, setSpotCategory] = useState<'restaurants' | 'nightlife' | 'cafes'>('restaurants');
+  const [spotCategory, setSpotCategory] = useState<SpotCategory>('restaurants');
   const [spotNeighborhood, setSpotNeighborhood] = useState(currentBiz?.neighborhood || 'Westlands');
+  const [spotExactLocationTag, setSpotExactLocationTag] = useState('Hurlingham, Petrol Station');
+  const [spotLandmark, setSpotLandmark] = useState('TotalEnergies Hurlingham Petrol Station');
+  const [isCustomLandmark, setIsCustomLandmark] = useState(false);
+  const [customLandmarkInput, setCustomLandmarkInput] = useState('');
   const [spotAddress, setSpotAddress] = useState(currentBiz?.address || 'Mpaka Road, Westlands, Nairobi');
   const [spotPrice, setSpotPrice] = useState('KES $$$');
   const [spotHours, setSpotHours] = useState('12:00 PM - 02:00 AM');
-  const [spotDescription, setSpotDescription] = useState('Cocktails, tapas, and vibrant ambiance.');
-  const [spotImg, setSpotImg] = useState('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop');
+  const [spotDescription, setSpotDescription] = useState('Cocktails, artisanal dining, and vibrant Nairobi ambiance.');
   
-  // Dynamic menu items
+  // SPEC 1: Allow business merchants to upload/remove multiple images
+  const [spotImagesList, setSpotImagesList] = useState<string[]>([
+    'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop'
+  ]);
+  const [newImageInputUrl, setNewImageInputUrl] = useState('');
+
+  // Menus: image upload AND typed text entry (dish items: Name, Price, Description ONLY)
+  const [menuFlyerImages, setMenuFlyerImages] = useState<string[]>([
+    'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&auto=format&fit=crop'
+  ]);
   const [menuItemsList, setMenuItemsList] = useState<MenuItem[]>([
-    { id: 'm-sample1', name: 'Signature Dawa Cocktail', category: 'Cocktails', price: 'KES 950', description: 'Fresh lime, honey & premium vodka' },
-    { id: 'm-sample2', name: 'Slow-Smoked Brisket Sliders', category: 'Mains', price: 'KES 1,450', description: 'Trio of tender beef brisket sliders' },
+    { id: 'm-sample1', name: 'Signature Dawa Cocktail', price: 'KES 950', description: 'Fresh lime, honey & premium vodka' },
+    { id: 'm-sample2', name: 'Slow-Smoked Brisket Sliders', price: 'KES 1,450', description: 'Trio of tender beef brisket sliders with chimichurri' },
   ]);
   const [newMenuItemName, setNewMenuItemName] = useState('');
-  const [newMenuItemCategory, setNewMenuItemCategory] = useState('Cocktails');
   const [newMenuItemPrice, setNewMenuItemPrice] = useState('KES 850');
   const [newMenuItemDesc, setNewMenuItemDesc] = useState('');
 
+  // Offers & Specials section for profiles
+  const [specialOffersList, setSpecialOffersList] = useState<SpecialOffer[]>([
+    { id: 'so-sample-1', title: 'Happy Hour Dawa 2-for-1', discount: 'BUY 1 GET 1', description: 'Weekdays 5:00 PM - 8:00 PM on signature cocktails' }
+  ]);
+  const [newOfferTitle, setNewOfferTitle] = useState('');
+  const [newOfferDiscount, setNewOfferDiscount] = useState('BUY 1 GET 1');
+  const [newOfferDesc, setNewOfferDesc] = useState('');
+
+  // Dynamic landmark and bus stop dictionary based on neighborhood
+  const landmarkOptionsByNeighborhood: Record<string, string[]> = {
+    'Hurlingham': [
+      'TotalEnergies Hurlingham Petrol Station',
+      'Yaya Matatu Stage',
+      'Chaka Place Stage',
+      'Argwings Kodhek Matatu Stop',
+      'Four Points by Sheraton Stage'
+    ],
+    'Westlands': [
+      'Sarit Bus Stage',
+      'Westgate Mall Stage',
+      'Mpaka Road Shell Station',
+      'Curio Market Bus Stop',
+      'Sankara Stage'
+    ],
+    'Kilimani': [
+      'Yaya Centre Main Stage',
+      'Adlife Plaza Stage',
+      'Prestige Plaza Stage',
+      'Dennis Pritt Matatu Stage',
+      'Wood Avenue Stage'
+    ],
+    'CBD': [
+      'Kencom Bus Stage',
+      'Ambassadeur Stage',
+      'National Archives',
+      'Odeon Cinema Stage',
+      'Railways Bus Terminus'
+    ],
+    'Karen': [
+      'Karen Cross Roads Stage',
+      'The Hub Karen Stage',
+      'Karen Roundabout Petrol Station',
+      'Hardy Shopping Centre Stage'
+    ],
+    'Lavington': [
+      'Lavington Mall Stage',
+      'Jaffery Sports Club Stage',
+      'James Gichuru Shell Station'
+    ],
+    'Naivasha / Outskirts': [
+      'Green Park Airstrip Gate',
+      'Buffalo Mall Naivasha Stage',
+      'Moi South Lake Junction',
+      'Delamere Stage'
+    ]
+  };
+
+  const currentLandmarkOptions = landmarkOptionsByNeighborhood[spotNeighborhood] || [
+    'Main Stage / Petrol Station',
+    'Roundabout Bus Stop',
+    'Commercial Mall Stage'
+  ];
+
+  // Update dynamic landmark when neighborhood changes
+  useEffect(() => {
+    if (!editingSpotId) {
+      const opts = landmarkOptionsByNeighborhood[spotNeighborhood];
+      if (opts && opts.length > 0) {
+        setSpotLandmark(opts[0]);
+      }
+    }
+  }, [spotNeighborhood]);
+
+  const handleAddSpotImage = (url: string) => {
+    if (!url.trim()) return;
+    setSpotImagesList(prev => [...prev, url.trim()]);
+    setNewImageInputUrl('');
+    showToast('Photo added to spot images gallery!');
+  };
+
+  const handleRemoveSpotImage = (index: number) => {
+    if (spotImagesList.length <= 1) {
+      showToast('Spots must have at least one primary image.');
+      return;
+    }
+    setSpotImagesList(prev => prev.filter((_, i) => i !== index));
+    showToast('Image removed.');
+  };
+
+  const handleSetCoverSpotImage = (index: number) => {
+    const selected = spotImagesList[index];
+    const rest = spotImagesList.filter((_, i) => i !== index);
+    setSpotImagesList([selected, ...rest]);
+    showToast('Cover photo updated!');
+  };
+
   const handleAddMenuItem = () => {
     if (!newMenuItemName.trim()) {
-      showToast('Enter menu item name.');
+      showToast('Enter dish or drink name.');
       return;
     }
     const item: MenuItem = {
       id: `m-${Date.now()}`,
       name: newMenuItemName.trim(),
-      category: newMenuItemCategory,
       price: newMenuItemPrice.trim().startsWith('KES') ? newMenuItemPrice.trim() : `KES ${newMenuItemPrice.trim()}`,
       description: newMenuItemDesc.trim() || 'Prepared fresh with local Nairobi ingredients'
     };
@@ -181,131 +303,117 @@ export const BusinessHubModal: React.FC<BusinessHubModalProps> = ({
     setMenuItemsList(prev => prev.filter(m => m.id !== id));
   };
 
-      const handlePublishSpot = async () => {
+  const handleAddSpecialOffer = () => {
+    if (!newOfferTitle.trim()) {
+      showToast('Enter special offer title.');
+      return;
+    }
+    const offer: SpecialOffer = {
+      id: `so-${Date.now()}`,
+      title: newOfferTitle.trim(),
+      discount: newOfferDiscount.trim(),
+      description: newOfferDesc.trim() || 'Exclusive special for RADA customers'
+    };
+    setSpecialOffersList(prev => [...prev, offer]);
+    setNewOfferTitle('');
+    setNewOfferDesc('');
+    showToast(`Added offer "${offer.title}"!`);
+  };
+
+  const handleRemoveSpecialOffer = (id: string) => {
+    setSpecialOffersList(prev => prev.filter(o => o.id !== id));
+  };
+
+  const handleLoadSpotForEditing = (spot: SpotItem) => {
+    setEditingSpotId(spot.id);
+    setSpotTitle(spot.title);
+    setSpotCategory(spot.category);
+    setSpotNeighborhood(spot.neighborhood);
+    setSpotExactLocationTag(spot.exactLocationTag || `${spot.neighborhood}, Petrol Station`);
+    setSpotLandmark(spot.landmark || currentLandmarkOptions[0]);
+    setSpotAddress(spot.address);
+    setSpotPrice(spot.price);
+    setSpotHours(spot.openingHours || '12:00 PM - 02:00 AM');
+    setSpotDescription(spot.description || '');
+    setSpotImagesList(spot.images && spot.images.length > 0 ? spot.images : [spot.img]);
+    setMenuItemsList(spot.menuItems || []);
+    setMenuFlyerImages(spot.menuImages || []);
+    setSpecialOffersList(spot.specialOffers || []);
+    setActiveTab('spots');
+    showToast(`Editing "${spot.title}". Make changes and click Update!`);
+  };
+
+  const handleResetSpotForm = () => {
+    setEditingSpotId(null);
+    setSpotTitle(currentBiz?.name || '');
+    setSpotNeighborhood(currentBiz?.neighborhood || 'Westlands');
+    setSpotAddress(currentBiz?.address || 'Westlands, Nairobi');
+    setSpotPrice('KES $$$');
+    setSpotHours('12:00 PM - 02:00 AM');
+    setSpotDescription('Cocktails, dining and relaxed ambiance.');
+    setSpotImagesList(['https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop']);
+    setMenuItemsList([]);
+    setSpecialOffersList([]);
+  };
+
+  const handlePublishSpot = async () => {
     if (!spotTitle.trim()) {
       showToast('Please enter a spot title.');
       return;
     }
 
-    const payload = {
-      title: spotTitle.trim(),
-      category: spotCategory,
-      neighborhood: spotNeighborhood,
-      lat: -1.2675 + (Math.random() - 0.5) * 0.02,
-      lng: 36.8115 + (Math.random() - 0.5) * 0.02,
-      rating: '4.8',
-      price: spotPrice,
-      address: spotAddress,
-      img: spotImg,
-      description: spotDescription,
-      phone: currentBiz?.phone || '+254 700 000 000',
-      opening_hours: spotHours,
-      business_id: currentBiz?.id || null,
-      menu_images: [spotImg],
-      menu_items: menuItemsList
-    };
-
-    // 1. Send to Supabase Database
-    const { data, error } = await supabase
-      .from('spots')
-      .insert([payload])
-      .select();
-
-    // 2. If Supabase fails, SHOW THE ERROR ON YOUR PHONE SCREEN
-    if (error) {
-      alert(`SUPABASE ERROR: ${error.message} (Details: ${error.details || 'None'})`);
-      return;
-    }
-
-    // 3. Update local state & show success
-    const publishedSpot = data && data.length > 0 ? data[0] : { id: Date.now(), ...payload };
-    onAddOrUpdateSpot(publishedSpot);
-
-    setSuccessModalData({
-      title: 'Successful! Spot Uploaded',
-      message: `Your spot "${spotTitle}" is live in Supabase!`,
-      listingName: spotTitle,
-      categoryBadge: 'Spot Upload Successful',
-      subDetails: 'Customers can now view location, menus, and reviews.'
-    });
-
-    showToast(`Upload Successful! Spot "${spotTitle}" is live in Supabase.`);
-  };
-
-
-    const payload = {
-      title: spotTitle.trim(),
-      category: spotCategory,
-      neighborhood: spotNeighborhood,
-      lat: -1.2675 + (Math.random() - 0.5) * 0.02,
-      lng: 36.8115 + (Math.random() - 0.5) * 0.02,
-      rating: '4.8',
-      price: spotPrice,
-      address: spotAddress,
-      img: spotImg,
-      description: spotDescription,
-      phone: currentBiz?.phone || '+254 700 000 000',
-      openingHours: spotHours,
-      businessId: currentBiz?.id,
-      menuImages: [spotImg],
-      menuItems: menuItemsList
-    };
-
-    // 1. Insert directly into Supabase database
-    const { data, error } = await supabase
-      .from('spots')
-      .insert([payload])
-      .select();
-
-    if (error) {
-      console.error('Supabase Error:', error);
-      showToast(`Database Error: ${error.message}`);
-      return;
-    }
-
-    // 2. Update local state
-    const publishedSpot = data && data.length > 0 ? data[0] : { id: Date.now(), ...payload };
-    onAddOrUpdateSpot(publishedSpot);
-
-    // 3. Trigger success modal
-    setSuccessModalData({
-      title: 'Successful! Spot Uploaded',
-      message: `Your spot "${spotTitle}" and digital menu (${menuItemsList.length} items) are successfully uploaded and published live!`,
-      listingName: spotTitle,
-      categoryBadge: 'Spot Upload Successful',
-      subDetails: 'Customers can now view location, discover directions, view food/drink items, and post reviews.'
-    });
-
-    showToast(`Upload Successful! Spot "${spotTitle}" is live in Supabase.`);
-  };
+    const landmarkValue = isCustomLandmark && customLandmarkInput.trim() 
+      ? customLandmarkInput.trim() 
+      : spotLandmark;
 
     const spot: SpotItem = {
-      id: Date.now(),
+      id: editingSpotId || Date.now(),
       title: spotTitle.trim(),
       category: spotCategory,
       neighborhood: spotNeighborhood,
+      exactLocationTag: spotExactLocationTag.trim(),
+      landmark: landmarkValue,
       lat: -1.2675 + (Math.random() - 0.5) * 0.02,
       lng: 36.8115 + (Math.random() - 0.5) * 0.02,
       rating: '4.8',
       price: spotPrice,
       address: spotAddress,
-      img: spotImg,
+      img: spotImagesList[0] || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
+      images: spotImagesList,
       description: spotDescription,
       phone: currentBiz?.phone || '+254 700 000 000',
       openingHours: spotHours,
       businessId: currentBiz?.id,
-      menuImages: [spotImg],
-      menuItems: menuItemsList
+      isUserUploaded: false,
+      menuImages: menuFlyerImages,
+      menuItems: menuItemsList,
+      specialOffers: specialOffersList
     };
+
     onAddOrUpdateSpot(spot);
+
     setSuccessModalData({
-      title: 'Successful! Spot Uploaded',
-      message: `Your spot "${spot.title}" and digital menu (${menuItemsList.length} items) are successfully uploaded and published live on RADA!`,
+      title: editingSpotId ? 'Successful! Spot Re-edited & Saved' : 'Successful! Spot Uploaded Live',
+      message: `Your spot "${spot.title}" with ${spotImagesList.length} photos, digital menu (${menuItemsList.length} dishes), and offers is published live!`,
       listingName: spot.title,
-      categoryBadge: 'Spot Upload Successful',
-      subDetails: 'Customers can now view location, discover directions, view food/drink items, and post reviews.'
+      categoryBadge: editingSpotId ? 'Spot Updated' : 'Spot Live on Map',
+      subDetails: `Exact location tagged: ${spot.exactLocationTag} • Landmark: ${spot.landmark}`
     });
-    showToast(`Upload Successful! Spot "${spot.title}" is live on RADA.`);
+
+    showToast(editingSpotId ? `Spot "${spot.title}" updated successfully!` : `Upload Successful! "${spot.title}" is live on RADA.`);
+    handleResetSpotForm();
+  };
+
+  // SPEC 1: Claim user-uploaded spots
+  const handleClaimSpot = (spotToClaim: SpotItem) => {
+    const updatedSpot: SpotItem = {
+      ...spotToClaim,
+      businessId: currentBiz?.id,
+      isUserUploaded: false,
+      phone: currentBiz?.phone || spotToClaim.phone
+    };
+    onAddOrUpdateSpot(updatedSpot);
+    showToast(`Claimed "${spotToClaim.title}" as official merchant! You can now edit its menu and photos.`);
   };
 
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>, setter: (url: string) => void) => {
@@ -323,27 +431,25 @@ export const BusinessHubModal: React.FC<BusinessHubModalProps> = ({
   };
 
   // ----------------------------------------------------
-  // EVENT CREATION FORM STATE
+  // EVENT CREATION FORM STATE (Dresscode removed, Primary links only)
   // ----------------------------------------------------
   const [eventTitle, setEventTitle] = useState('');
   const [eventCategory, setEventCategory] = useState<'concerts' | 'nightlife' | 'art' | 'cinemas'>('concerts');
+  const [eventGenre, setEventGenre] = useState('Afrobeats & Live');
   const [eventDate, setEventDate] = useState('2026-11-06');
   const [eventTime, setEventTime] = useState('08:00 PM - 04:00 AM');
   const [eventLocation, setEventLocation] = useState('Village Market, Westlands, Nairobi');
   const [eventPrice, setEventPrice] = useState('KES 1,500');
-  const [eventDressCode, setEventDressCode] = useState('Dress to Impress / Casual Chic');
   const [eventDescription, setEventDescription] = useState('The ultimate weekend party vibe in Nairobi.');
   const [eventBannerImg, setEventBannerImg] = useState('https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop');
-  const [eventTicketUrl, setEventTicketUrl] = useState('https://hustlesasa.shop/');
+  const [eventTicketUrl, setEventTicketUrl] = useState('https://hustlesasa.com/');
 
-  // Lineup state
   const [artistsList, setArtistsList] = useState<Artist[]>([
     { name: 'DJ Joe Mfalme', role: 'Headliner DJ', img: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&auto=format&fit=crop' }
   ]);
   const [newArtistName, setNewArtistName] = useState('');
   const [newArtistRole, setNewArtistRole] = useState('Guest DJ');
 
-  // Ticket Tiers state
   const [ticketTiersList, setTicketTiersList] = useState<TicketTier[]>([
     { name: 'Early Bird Pass', price: 'KES 1,500', perks: 'Free welcome drink' },
     { name: 'VIP Lounge Pass', price: 'KES 4,000', perks: 'Fast-track entry & VIP deck' }
@@ -384,6 +490,7 @@ export const BusinessHubModal: React.FC<BusinessHubModalProps> = ({
       id: Date.now(),
       title: eventTitle.trim(),
       category: eventCategory,
+      genre: eventGenre,
       date: new Date(eventDate).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }),
       time: eventTime,
       location: eventLocation,
@@ -391,8 +498,7 @@ export const BusinessHubModal: React.FC<BusinessHubModalProps> = ({
       lng: 36.8124 + (Math.random() - 0.5) * 0.02,
       img: eventBannerImg,
       goingCount: 1,
-      url: eventTicketUrl || 'https://hustlesasa.shop/',
-      dressCode: eventDressCode,
+      url: eventTicketUrl || 'https://hustlesasa.com/',
       description: eventDescription,
       businessId: currentBiz?.id,
       artists: artistsList.length > 0 ? artistsList : [{ name: 'Featured Nairobi DJs', role: 'Main Stage', img: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&auto=format&fit=crop' }],
@@ -403,372 +509,1194 @@ export const BusinessHubModal: React.FC<BusinessHubModalProps> = ({
     setEventTitle('');
     setSuccessModalData({
       title: 'Successful! Event Uploaded',
-      message: `Your event "${event.title}" has been successfully uploaded to the RADA Home Feed with artist lineups and ticket tiers!`,
+      message: `Your event "${event.title}" has been successfully uploaded to the RADA Home Feed with official primary ticketing links!`,
       listingName: event.title,
-      categoryBadge: 'Event Upload Successful',
-      subDetails: 'Real-time attendee clicks, "I\'m Going" counts, and ticket links are active in your Analytics.'
+      categoryBadge: 'Event Live on RADA',
+      subDetails: `Genre: ${event.genre} • Lineup: ${artistsList.length} artists`
     });
-    showToast(`Upload Successful! Event "${event.title}" is live on RADA.`);
+    showToast(`Upload Successful! "${event.title}" is live on RADA.`);
   };
 
   // ----------------------------------------------------
-  // THRIFT STORE & FITS FORM STATE
+  // THRIFT LUKU FORM STATE
   // ----------------------------------------------------
-  const [thriftStoreName, setThriftStoreName] = useState(currentBiz?.name || 'Gikomba Stall 4B & 9C Vintage');
-  const [thriftStoreMarket, setThriftStoreMarket] = useState('Gikomba Market, Nairobi');
-  const [thriftStoreStall, setThriftStoreStall] = useState('Stall 4B');
-  const [thriftWhatsapp, setThriftWhatsapp] = useState(currentBiz?.whatsapp || '+254711554433');
-  const [thriftStoreRegistered, setThriftStoreRegistered] = useState(currentBiz?.category === 'thrift_store');
-
-  // Single Fit Upload
   const [fitName, setFitName] = useState('');
-  const [fitPrice, setFitPrice] = useState('1,500');
-  const [fitCategory, setFitCategory] = useState('Jackets & Coats');
+  const [fitPrice, setFitPrice] = useState('KES 1,500');
+  const [fitCategory, setFitCategory] = useState('Tees & Tops');
   const [fitCondition, setFitCondition] = useState('Vintage Wash');
-  const [fitSize, setFitSize] = useState('XL (Oversized Fit)');
+  const [fitSize, setFitSize] = useState('XL (Oversized)');
   const [fitImg, setFitImg] = useState('https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=600&auto=format&fit=crop');
-
-  const handleRegisterThriftStore = () => {
-    if (!thriftStoreName.trim()) {
-      showToast('Enter thrift store name.');
-      return;
-    }
-    setThriftStoreRegistered(true);
-    setSuccessModalData({
-      title: 'Successful! Thrift Store Registered',
-      message: `Store "${thriftStoreName}" has been successfully registered and verified on RADA Luku!`,
-      listingName: thriftStoreName,
-      categoryBadge: 'Store Registration Successful',
-      subDetails: 'Your seller profile and stall details are now verified for shoppers across Nairobi.'
-    });
-    showToast(`Registration Successful! "${thriftStoreName}" verified on Luku.`);
-  };
 
   const handlePublishThriftFit = () => {
     if (!fitName.trim()) {
-      showToast('Please enter an item title / fit name.');
+      showToast('Please enter item name.');
       return;
     }
     const item: ThriftItem = {
       id: Date.now(),
       name: fitName.trim(),
-      price: fitPrice.startsWith('KES') ? fitPrice : `KES ${fitPrice}`,
-      seller: thriftStoreName,
-      storeLocation: thriftStoreMarket,
-      stallNumber: thriftStoreStall,
+      price: fitPrice.trim().startsWith('KES') ? fitPrice.trim() : `KES ${fitPrice.trim()}`,
+      seller: currentBiz?.name || 'Gikomba Vault',
+      storeLocation: currentBiz?.address || 'Gikomba Market, Nairobi',
+      stallNumber: 'Official Stall',
       category: fitCategory,
       condition: fitCondition,
       size: fitSize,
       img: fitImg,
       verified: true,
       businessId: currentBiz?.id,
-      whatsapp: thriftWhatsapp
+      whatsapp: currentBiz?.whatsapp || '+254711554433'
     };
 
     onAddThriftItem(item);
     setFitName('');
     setSuccessModalData({
-      title: 'Successful! Thrift Item Uploaded',
-      message: `"${item.name}" is successfully uploaded to the Luku feed with verified seller badge and direct WhatsApp checkout!`,
+      title: 'Successful! Fit Uploaded',
+      message: `Your piece "${item.name}" has been uploaded to the RADA Luku catalog with store account integration!`,
       listingName: item.name,
-      categoryBadge: 'Thrift Upload Successful',
-      subDetails: 'Direct buyer inquiries will route straight to your WhatsApp number.'
+      categoryBadge: 'Luku Fit Live',
+      subDetails: `Store: ${item.seller} • WhatsApp leads connected.`
     });
-    showToast(`Upload Successful! "${item.name}" published to Luku Catalog.`);
+    showToast(`Fit "${item.name}" uploaded to LUKU!`);
   };
+
+  // Authored spots by this merchant
+  const myAuthoredSpots = spots.filter(s => s.businessId === currentBiz?.id || s.title.toLowerCase().includes(currentBiz?.name?.toLowerCase() || ''));
+  // User-uploaded / claimable spots
+  const claimableCommunitySpots = spots.filter(s => s.isUserUploaded || !s.businessId);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#FBFBF9] dark:bg-[#121113] flex flex-col overflow-y-auto animate-in fade-in duration-200">
-      {/* Top App Header */}
-      <div className="sticky top-0 z-20 bg-[#FBFBF9]/95 dark:bg-[#121113]/95 backdrop-blur-md px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] text-white flex items-center justify-center font-black shadow-sm">
-            <Building2 className="w-4 h-4" />
-          </div>
-          <div>
-            <h2 className="font-black text-sm uppercase tracking-wide text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-              <span>RADA Business & Merchant Hub</span>
-              <span className="text-[9px] bg-emerald-100 text-[#2D6A4F] dark:bg-emerald-950/80 dark:text-emerald-300 font-extrabold px-1.5 py-0.5 rounded">
-                PRO
-              </span>
-            </h2>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400">
-              Active: <strong className="text-[#E0533C]">{currentBiz ? currentBiz.name : 'No Business Selected'}</strong>
-            </p>
-          </div>
-        </div>
-
-        <button 
-          onClick={onClose} 
-          className="w-8 h-8 rounded-full bg-[#F1F1EE] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-800 transition"
-        >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
-
-      <div className="max-w-lg mx-auto w-full p-4 space-y-5 flex-1 pb-16">
-        
-        {/* Business Selector / Account Switcher Bar */}
-        <div className="bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 flex items-center justify-between gap-2 shadow-sm">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div 
-              className="w-10 h-10 rounded-xl bg-cover bg-center shrink-0 border border-slate-300 dark:border-slate-700"
-              style={{ backgroundImage: `url('${currentBiz?.logo || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=200&auto=format&fit=crop'}')` }}
-            />
-            <div className="min-w-0">
-              <div className="flex items-center gap-1">
-                <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">
-                  {currentBiz?.name}
+    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+      <div 
+        className="bg-white dark:bg-[#121113] text-slate-900 dark:text-slate-100 rounded-3xl max-w-xl w-full overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[92vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-[#F8F8F6] dark:bg-[#1C1A1E]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#E0533C] to-[#E9C46A] text-white flex items-center justify-center shadow-sm">
+              <Building2 className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <h2 className="font-black text-sm uppercase tracking-wider text-slate-900 dark:text-slate-100">
+                  Business & Merchant Hub
+                </h2>
+                <span className="text-[9px] bg-red-100 text-[#E0533C] font-black px-1.5 py-0.5 rounded uppercase">
+                  Verified
                 </span>
-                <CheckCircle2 className="w-3.5 h-3.5 text-[#2D6A4F] shrink-0" />
               </div>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-                {currentBiz?.category === 'hospitality' ? 'Restaurant & Bar Venue' : currentBiz?.category === 'event_organizer' ? 'Events & Nightlife Organizer' : 'Thrift & Fashion Merchant'} • {currentBiz?.neighborhood}
+              <p className="text-[11px] text-slate-500 font-medium">
+                Managing: <strong className="text-[#E0533C]">{currentBiz?.name || 'Official Account'}</strong>
               </p>
             </div>
           </div>
-
-          <div className="flex items-center gap-1.5 shrink-0">
-            <select
-              value={activeBusinessId}
-              onChange={(e) => onSelectBusiness(e.target.value)}
-              className="text-[11px] font-bold bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#E0533C]"
-            >
-              {businesses.map(b => (
-                <option key={b.id} value={b.id}>{b.name}</option>
-              ))}
-            </select>
-
-            <button
-              onClick={() => setIsRegisteringAccount(!isRegisteringAccount)}
-              className="p-1.5 bg-[#E0533C] text-white rounded-xl text-xs font-bold hover:bg-orange-700 transition"
-              title="Create new business profile"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:scale-105 transition"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* REGISTER NEW BUSINESS DROPDOWN / FORM */}
-        {isRegisteringAccount && (
-          <form onSubmit={handleRegisterBusiness} className="bg-white dark:bg-[#1C1A1E] border-2 border-[#E0533C]/40 rounded-3xl p-4 space-y-3.5 shadow-md animate-in slide-in-from-top-4 duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-              <div className="flex items-center gap-2 text-[#E0533C]">
-                <Building2 className="w-4 h-4" />
-                <h3 className="font-black text-xs uppercase tracking-wider">Register New Business on RADA</h3>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setIsRegisteringAccount(false)}
-                className="text-slate-400 hover:text-slate-600 text-xs font-bold"
+        {/* Navigation Tabs */}
+        <div className="flex gap-1 overflow-x-auto hide-scrollbar p-2 bg-[#F1F1EE] dark:bg-[#1C1A1E] border-b border-slate-200 dark:border-slate-800 text-xs">
+          {[
+            { id: 'spots', label: editingSpotId ? '✏️ Edit Spot' : 'Upload Spot', icon: Store },
+            { id: 'manage_spots', label: 'My Spots & Claim', icon: Compass },
+            { id: 'events', label: 'Events', icon: CalendarDays },
+            { id: 'thrift', label: 'Thrift Luku', icon: Shirt },
+            { id: 'profile', label: 'Business Profile', icon: ShieldCheck },
+            { id: 'analytics', label: 'Analytics', icon: BarChart3 }
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isSel = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`px-3 py-2 rounded-xl font-bold shrink-0 transition flex items-center gap-1.5 ${
+                  isSel
+                    ? 'bg-white dark:bg-[#121113] text-slate-900 dark:text-white shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
               >
-                Cancel
+                <Icon className={`w-3.5 h-3.5 ${isSel ? 'text-[#E0533C]' : ''}`} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Scrollable Content Body */}
+        <div className="p-4 flex-1 overflow-y-auto space-y-5 text-xs">
+
+          {/* ======================================================== */}
+          {/* TAB 1: SPOTS UPLOAD & RE-EDIT (SPEC 1) */}
+          {/* ======================================================== */}
+          {activeTab === 'spots' && (
+            <div className="space-y-4">
+              <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-xs space-y-3.5">
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                  <div>
+                    <h3 className="font-black text-xs uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                      <Store className="w-4 h-4 text-[#E0533C]" />
+                      <span>{editingSpotId ? `Re-edit Spot: ${spotTitle}` : 'Create & Publish Spot Profile'}</span>
+                    </h3>
+                    <p className="text-[10px] text-slate-500">Official verified spot with multiple photos, digital menu & offers</p>
+                  </div>
+                  {editingSpotId && (
+                    <button
+                      type="button"
+                      onClick={handleResetSpotForm}
+                      className="text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-1 rounded-lg font-bold"
+                    >
+                      Cancel Edit
+                    </button>
+                  )}
+                </div>
+
+                {/* Spot Name */}
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 dark:text-slate-300">Spot Name *</label>
+                  <input 
+                    type="text" 
+                    value={spotTitle} 
+                    onChange={(e) => setSpotTitle(e.target.value)}
+                    placeholder="e.g. Ink & Drink Westlands"
+                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E0533C]"
+                  />
+                </div>
+
+                {/* Category & Neighborhood */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-700 dark:text-slate-300">Category *</label>
+                    <select 
+                      value={spotCategory}
+                      onChange={(e) => setSpotCategory(e.target.value as SpotCategory)}
+                      className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
+                    >
+                      <option value="restaurants">Restaurants & Dining</option>
+                      <option value="nightlife">Nightlife, Clubs & Lounges</option>
+                      <option value="cafes">Cafes & Bakeries</option>
+                      <option value="date_spots">Romantic Date Spots</option>
+                      <option value="hotels">Hotels & Luxury Stays</option>
+                      <option value="vacation">Vacation Spots & Escapes</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-700 dark:text-slate-300">Neighborhood *</label>
+                    <select 
+                      value={spotNeighborhood}
+                      onChange={(e) => setSpotNeighborhood(e.target.value)}
+                      className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
+                    >
+                      <option value="Hurlingham">Hurlingham</option>
+                      <option value="Westlands">Westlands</option>
+                      <option value="Kilimani">Kilimani</option>
+                      <option value="CBD">CBD</option>
+                      <option value="Karen">Karen</option>
+                      <option value="Lavington">Lavington</option>
+                      <option value="Naivasha / Outskirts">Naivasha / Outskirts</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* SPEC 1: Exact Location Tagging & Dynamic Landmark / Bus Stop Selector */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 rounded-2xl">
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1 text-[11px]">
+                      <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
+                      <span>Exact Location Tagging (Required)</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      value={spotExactLocationTag} 
+                      onChange={(e) => setSpotExactLocationTag(e.target.value)}
+                      placeholder="e.g. Hurlingham, Petrol Station"
+                      className="w-full p-2 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none font-medium"
+                    />
+                    <span className="text-[10px] text-slate-400">e.g. Hurlingham, Petrol Station (TotalEnergies)</span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between text-[11px]">
+                      <span>Dynamic Bus Stop / Landmark</span>
+                      <button 
+                        type="button" 
+                        onClick={() => setIsCustomLandmark(!isCustomLandmark)}
+                        className="text-[9px] text-[#E0533C] font-bold hover:underline"
+                      >
+                        {isCustomLandmark ? 'Pick Pre-set' : '+ Custom'}
+                      </button>
+                    </label>
+
+                    {isCustomLandmark ? (
+                      <input 
+                        type="text" 
+                        value={customLandmarkInput} 
+                        onChange={(e) => setCustomLandmarkInput(e.target.value)}
+                        placeholder="Type custom bus stop / landmark..."
+                        className="w-full p-2 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
+                      />
+                    ) : (
+                      <select 
+                        value={spotLandmark}
+                        onChange={(e) => setSpotLandmark(e.target.value)}
+                        className="w-full p-2 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
+                      >
+                        {currentLandmarkOptions.map((lm, i) => (
+                          <option key={i} value={lm}>{lm}</option>
+                        ))}
+                      </select>
+                    )}
+                    <span className="text-[10px] text-slate-400">Auto-updates based on {spotNeighborhood}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-700 dark:text-slate-300">Price Tier</label>
+                    <select 
+                      value={spotPrice}
+                      onChange={(e) => setSpotPrice(e.target.value)}
+                      className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
+                    >
+                      <option value="KES $">Budget (KES $)</option>
+                      <option value="KES $$">Moderate (KES $$)</option>
+                      <option value="KES $$$">Upscale (KES $$$)</option>
+                      <option value="KES $$$$">Fine Dining / VIP (KES $$$$)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-700 dark:text-slate-300">Opening Hours</label>
+                    <input 
+                      type="text" 
+                      value={spotHours} 
+                      onChange={(e) => setSpotHours(e.target.value)}
+                      placeholder="e.g. 12:00 PM - 02:00 AM"
+                      className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 dark:text-slate-300">Physical Address / Street</label>
+                  <input 
+                    type="text" 
+                    value={spotAddress} 
+                    onChange={(e) => setSpotAddress(e.target.value)}
+                    placeholder="e.g. Argwings Kodhek Rd, Hurlingham, Nairobi"
+                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 dark:text-slate-300">Spot Description</label>
+                  <textarea 
+                    rows={2}
+                    value={spotDescription} 
+                    onChange={(e) => setSpotDescription(e.target.value)}
+                    placeholder="Describe the atmosphere, signature dishes, cocktails, seating..."
+                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none resize-none"
+                  />
+                </div>
+
+                {/* SPEC 1: Allow business merchants to upload/remove MULTIPLE images */}
+                <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-black text-xs uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                        <ImageIcon className="w-3.5 h-3.5 text-[#E0533C]" />
+                        <span>Merchant Photos Gallery ({spotImagesList.length})</span>
+                      </h4>
+                      <p className="text-[10px] text-slate-400">Merchants can upload and manage multiple venue photos</p>
+                    </div>
+                  </div>
+
+                  {/* Thumbnail gallery */}
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    {spotImagesList.map((imgUrl, idx) => (
+                      <div key={idx} className="relative rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700 group h-24">
+                        <img src={imgUrl} alt={`Photo ${idx}`} className="w-full h-full object-cover" />
+                        {idx === 0 && (
+                          <span className="absolute top-1 left-1 bg-[#E0533C] text-white text-[8px] font-black px-1.5 py-0.5 rounded">
+                            Cover
+                          </span>
+                        )}
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center gap-1 p-1">
+                          {idx !== 0 && (
+                            <button
+                              type="button"
+                              onClick={() => handleSetCoverSpotImage(idx)}
+                              className="text-[9px] bg-white text-slate-900 px-1.5 py-0.5 rounded font-bold"
+                            >
+                              Make Cover
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSpotImage(idx)}
+                            className="text-[9px] bg-red-600 text-white px-1.5 py-0.5 rounded font-bold"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Add Image Card */}
+                    <label className="h-24 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] cursor-pointer flex flex-col items-center justify-center p-2 text-center transition">
+                      <Upload className="w-4 h-4 text-[#E0533C] mb-1" />
+                      <span className="text-[10px] font-bold text-[#E0533C]">+ Upload Photo</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              if (event.target?.result) handleAddSpotImage(event.target.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* SPEC 1: MENUS (Image Upload AND Typed Text Entry. Dish items: Name, Price, Description ONLY) */}
+              <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-xs space-y-3.5">
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                  <div>
+                    <h3 className="font-black text-xs uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                      <Tag className="w-4 h-4 text-[#2D6A4F]" />
+                      <span>Digital Menu (Image Flyers + Typed Text Entry)</span>
+                    </h3>
+                    <p className="text-[10px] text-slate-500">Dish items require Name, Price, and Description only</p>
+                  </div>
+                  <span className="text-[10px] bg-emerald-100 text-[#2D6A4F] font-bold px-2 py-0.5 rounded-md">
+                    {menuItemsList.length} items
+                  </span>
+                </div>
+
+                {/* Menu Flyer Image Upload */}
+                <div className="p-3 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[11px]">Upload Menu Board / Flyer Image</span>
+                    <label className="cursor-pointer text-[10px] bg-[#2D6A4F] text-white px-2.5 py-1 rounded-lg font-bold flex items-center gap-1">
+                      <Upload className="w-3 h-3" /> Add Menu Image
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              const res = event.target?.result;
+                              if (res) {
+                                setMenuFlyerImages(prev => [...prev, res as string]);
+                                showToast('Menu flyer uploaded!');
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                  {menuFlyerImages.length > 0 && (
+                    <div className="flex gap-2 overflow-x-auto py-1">
+                      {menuFlyerImages.map((mImg, i) => (
+                        <div key={i} className="relative w-20 h-24 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 shrink-0">
+                          <img src={mImg} alt={`Menu ${i}`} className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setMenuFlyerImages(prev => prev.filter((_, idx) => idx !== i))}
+                            className="absolute top-1 right-1 w-4 h-4 bg-black/80 text-white rounded-full flex items-center justify-center text-[9px]"
+                          >
+                            &times;
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Typed Menu Items List */}
+                <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                  {menuItemsList.map(item => (
+                    <div key={item.id} className="p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between gap-2 shadow-xs">
+                      <div className="min-w-0">
+                        <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate block">{item.name}</span>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{item.description}</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="font-extrabold text-xs text-[#E0533C]">{item.price}</span>
+                        <button 
+                          type="button" 
+                          onClick={() => handleRemoveMenuItem(item.id)}
+                          className="text-slate-400 hover:text-red-500 p-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Typed Entry Form: Name, Price, and Description ONLY (No Price Tier) */}
+                <div className="p-3 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2">
+                  <p className="font-extrabold text-[11px] text-slate-700 dark:text-slate-300">Typed Dish Item (Name, Price, Description only)</p>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <input 
+                      type="text" 
+                      value={newMenuItemName}
+                      onChange={(e) => setNewMenuItemName(e.target.value)}
+                      placeholder="Dish Name (e.g. Prime Mbuzi Choma)" 
+                      className="p-2 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none"
+                    />
+                    <input 
+                      type="text" 
+                      value={newMenuItemPrice}
+                      onChange={(e) => setNewMenuItemPrice(e.target.value)}
+                      placeholder="Price (e.g. KES 900)" 
+                      className="p-2 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none"
+                    />
+                  </div>
+
+                  <input 
+                    type="text" 
+                    value={newMenuItemDesc}
+                    onChange={(e) => setNewMenuItemDesc(e.target.value)}
+                    placeholder="Description (e.g. Flame-grilled goat meat served with kachumbari)" 
+                    className="w-full p-2 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none"
+                  />
+
+                  <button 
+                    type="button" 
+                    onClick={handleAddMenuItem}
+                    className="w-full py-2 bg-[#2D6A4F] text-white font-bold rounded-xl text-xs hover:bg-emerald-800 transition flex items-center justify-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Dish to Menu
+                  </button>
+                </div>
+              </div>
+
+              {/* SPEC 1: OFFERS & SPECIALS SECTION */}
+              <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-xs space-y-3.5">
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                  <div>
+                    <h3 className="font-black text-xs uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                      <Percent className="w-4 h-4 text-[#E0533C]" />
+                      <span>Offers & Specials Section</span>
+                    </h3>
+                    <p className="text-[10px] text-slate-500">Showcase happy hours, brunch packages, discount perks on your profile</p>
+                  </div>
+                  <span className="text-[10px] bg-red-100 text-[#E0533C] font-bold px-2 py-0.5 rounded-md">
+                    {specialOffersList.length} specials
+                  </span>
+                </div>
+
+                <div className="space-y-1.5">
+                  {specialOffersList.map(o => (
+                    <div key={o.id} className="p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between text-xs">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-black text-[#E0533C]">{o.discount}</span>
+                          <span className="font-bold text-slate-900 dark:text-slate-100">• {o.title}</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500">{o.description}</p>
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={() => handleRemoveSpecialOffer(o.id)}
+                        className="text-slate-400 hover:text-red-500 p-1"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="p-3 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <input 
+                      type="text" 
+                      value={newOfferTitle}
+                      onChange={(e) => setNewOfferTitle(e.target.value)}
+                      placeholder="Offer Title (e.g. Friday Pizza Night)" 
+                      className="p-2 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none"
+                    />
+                    <input 
+                      type="text" 
+                      value={newOfferDiscount}
+                      onChange={(e) => setNewOfferDiscount(e.target.value)}
+                      placeholder="Discount Tag (e.g. 20% OFF / BUY 1 GET 1)" 
+                      className="p-2 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none"
+                    />
+                  </div>
+                  <input 
+                    type="text" 
+                    value={newOfferDesc}
+                    onChange={(e) => setNewOfferDesc(e.target.value)}
+                    placeholder="Offer description (e.g. Buy any 2 large pizzas and get free garlic bread)" 
+                    className="w-full p-2 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none"
+                  />
+                  <button 
+                    type="button" 
+                    onClick={handleAddSpecialOffer}
+                    className="w-full py-2 bg-[#E0533C] text-white font-bold rounded-xl text-xs hover:bg-orange-700 transition"
+                  >
+                    + Add Special Offer
+                  </button>
+                </div>
+              </div>
+
+              {/* Submit / Publish Button */}
+              <button 
+                type="button"
+                onClick={handlePublishSpot}
+                className="w-full py-3.5 bg-gradient-to-r from-[#E0533C] to-orange-600 text-white font-black rounded-2xl shadow-md hover:opacity-95 transition flex items-center justify-center gap-2 text-xs"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{editingSpotId ? 'Update & Save Spot Changes' : 'Publish Spot & Menus to RADA'}</span>
               </button>
             </div>
+          )}
 
-            <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Business or Merchant Name *</label>
-              <input 
-                type="text" 
-                required
-                value={regName}
-                onChange={(e) => setRegName(e.target.value)}
-                placeholder="e.g. Nairobi Rooftop Lounge / Toi Vintage Vault" 
-                className="w-full p-2.5 bg-[#F1F1EE] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C]"
-              />
+          {/* ======================================================== */}
+          {/* TAB 2: MANAGE SPOTS, RE-EDIT, REMOVE & CLAIM USER SPOTS (SPEC 1) */}
+          {/* ======================================================== */}
+          {activeTab === 'manage_spots' && (
+            <div className="space-y-5">
+              {/* My Authored Spots Section */}
+              <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-xs space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                  <div>
+                    <h3 className="font-black text-xs uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                      <Store className="w-4 h-4 text-[#E0533C]" />
+                      <span>My Authored Spots ({myAuthoredSpots.length})</span>
+                    </h3>
+                    <p className="text-[10px] text-slate-500">Edit, re-edit, or remove spots managed by your official business</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      handleResetSpotForm();
+                      setActiveTab('spots');
+                    }}
+                    className="px-2.5 py-1 bg-[#E0533C] text-white rounded-lg text-[10px] font-bold"
+                  >
+                    + New Spot
+                  </button>
+                </div>
+
+                {myAuthoredSpots.length === 0 ? (
+                  <p className="text-slate-400 py-3 text-center">No spots authored yet. Click "+ New Spot" to add one!</p>
+                ) : (
+                  <div className="space-y-2">
+                    {myAuthoredSpots.map((spot) => (
+                      <div
+                        key={spot.id}
+                        className="p-3 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between gap-3 shadow-xs"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div 
+                            className="w-12 h-12 rounded-xl bg-cover bg-center shrink-0 border border-slate-300 dark:border-slate-700"
+                            style={{ backgroundImage: `url('${spot.img}')` }}
+                          />
+                          <div className="min-w-0">
+                            <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate flex items-center gap-1">
+                              <span>{spot.title}</span>
+                              <span className="text-[9px] bg-red-100 text-[#E0533C] px-1.5 py-0.2 rounded font-bold">{spot.category}</span>
+                            </h4>
+                            <p className="text-[10px] text-slate-500 truncate">
+                              {spot.neighborhood} • {spot.price} • ★{spot.rating}
+                            </p>
+                            {spot.exactLocationTag && (
+                              <p className="text-[9px] text-[#E0533C] font-semibold truncate">
+                                📍 {spot.exactLocationTag}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleLoadSpotForEditing(spot)}
+                            className="px-2.5 py-1.5 bg-[#2D6A4F] hover:bg-emerald-800 text-white rounded-xl text-[10px] font-bold flex items-center gap-1 shadow-xs"
+                            title="Edit / Re-edit spot"
+                          >
+                            <Edit3 className="w-3 h-3" />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onDeleteListing('spot', spot.id)}
+                            className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg transition"
+                            title="Remove spot"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* SPEC 1: Claim User-Uploaded Spots */}
+              <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-xs space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                  <div>
+                    <h3 className="font-black text-xs uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                      <ShieldCheck className="w-4 h-4 text-[#2D6A4F]" />
+                      <span>Claim Community & User-Uploaded Spots ({claimableCommunitySpots.length})</span>
+                    </h3>
+                    <p className="text-[10px] text-slate-500">Official accounts can claim user-uploaded listings to manage menus & photos</p>
+                  </div>
+                </div>
+
+                {claimableCommunitySpots.length === 0 ? (
+                  <p className="text-slate-400 py-3 text-center">All spots in your area are claimed by official merchants.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {claimableCommunitySpots.map((spot) => (
+                      <div
+                        key={spot.id}
+                        className="p-3 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between gap-3 shadow-xs"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div 
+                            className="w-12 h-12 rounded-xl bg-cover bg-center shrink-0 border border-slate-300 dark:border-slate-700"
+                            style={{ backgroundImage: `url('${spot.img}')` }}
+                          />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">{spot.title}</h4>
+                              <span className="text-[8px] bg-amber-100 text-amber-800 px-1 rounded font-bold uppercase">Community Upload</span>
+                            </div>
+                            <p className="text-[10px] text-slate-500 truncate">
+                              {spot.neighborhood} • {spot.address}
+                            </p>
+                            {spot.exactLocationTag && (
+                              <p className="text-[9px] text-[#2D6A4F] font-semibold truncate">
+                                📍 {spot.exactLocationTag}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleClaimSpot(spot)}
+                          className="px-3 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-[10px] font-black shrink-0 shadow-sm transition flex items-center gap-1"
+                        >
+                          <Check className="w-3 h-3" />
+                          <span>Claim Spot</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
+          )}
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Category Type</label>
-                <select
-                  value={regCategory}
-                  onChange={(e) => setRegCategory(e.target.value as BusinessCategory)}
-                  className="w-full p-2.5 bg-[#F1F1EE] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none"
+          {/* ======================================================== */}
+          {/* TAB 3: EVENTS LISTINGS (SPEC 3: Primary Links, No Dresscode) */}
+          {/* ======================================================== */}
+          {activeTab === 'events' && (
+            <div className="space-y-4">
+              <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-xs space-y-3.5">
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                  <div>
+                    <h3 className="font-black text-xs uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                      <CalendarDays className="w-4 h-4 text-[#2D6A4F]" />
+                      <span>Create & Publish Event Listing</span>
+                    </h3>
+                    <p className="text-[10px] text-slate-500">Direct links to official primary ticketing portals only (no affiliate tracking)</p>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 dark:text-slate-300">Event Title *</label>
+                  <input 
+                    type="text" 
+                    value={eventTitle}
+                    onChange={(e) => setEventTitle(e.target.value)}
+                    placeholder="e.g. Halloween Fright Night 2026" 
+                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-700 dark:text-slate-300">Category</label>
+                    <select
+                      value={eventCategory}
+                      onChange={(e) => setEventCategory(e.target.value as any)}
+                      className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
+                    >
+                      <option value="concerts">Concerts & Live</option>
+                      <option value="nightlife">Nightlife & Rave</option>
+                      <option value="art">Art & Cultural Showcase</option>
+                      <option value="cinemas">Cinema Special Screening</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-700 dark:text-slate-300">Genre</label>
+                    <input 
+                      type="text" 
+                      value={eventGenre}
+                      onChange={(e) => setEventGenre(e.target.value)}
+                      placeholder="e.g. Afrobeats / Amapiano / Acoustic"
+                      className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-700 dark:text-slate-300">Date</label>
+                    <input 
+                      type="date" 
+                      value={eventDate}
+                      onChange={(e) => setEventDate(e.target.value)}
+                      className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-700 dark:text-slate-300">Time</label>
+                    <input 
+                      type="text" 
+                      value={eventTime}
+                      onChange={(e) => setEventTime(e.target.value)}
+                      placeholder="08:00 PM - 04:00 AM" 
+                      className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 dark:text-slate-300">Location Venue</label>
+                  <input 
+                    type="text" 
+                    value={eventLocation}
+                    onChange={(e) => setEventLocation(e.target.value)}
+                    placeholder="e.g. Village Market Courtyard, Westlands" 
+                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
+                  />
+                </div>
+
+                {/* Event Poster Upload */}
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 dark:text-slate-300">Event Poster / Cover</label>
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className="w-20 h-24 rounded-xl bg-cover bg-center shrink-0 border border-slate-300 dark:border-slate-700 shadow-sm"
+                      style={{ backgroundImage: `url('${eventBannerImg}')` }}
+                    />
+                    <label className="flex-1 cursor-pointer py-3 px-3 bg-white dark:bg-[#121113] border border-dashed border-slate-300 dark:border-slate-700 rounded-xl hover:border-[#2D6A4F] text-center transition">
+                      <span className="text-[11px] font-bold text-[#2D6A4F] flex items-center justify-center gap-1.5">
+                        <Upload className="w-3.5 h-3.5" /> Upload Event Artwork
+                      </span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={(e) => handleImageFileChange(e, setEventBannerImg)}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {/* Primary Ticketing Portal Link */}
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 dark:text-slate-300">Official Primary Ticketing Site Link *</label>
+                  <input 
+                    type="text" 
+                    value={eventTicketUrl}
+                    onChange={(e) => setEventTicketUrl(e.target.value)}
+                    placeholder="e.g. https://hustlesasa.com/ OR https://kenyabuzz.com/events" 
+                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none font-medium"
+                  />
+                  <span className="text-[10px] text-slate-400">Direct official ticketing only (no affiliate codes or redirects)</span>
+                </div>
+
+                {/* Artists and Tiers */}
+                <div className="p-3 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2">
+                  <span className="font-extrabold text-[11px]">Performing Artists ({artistsList.length})</span>
+                  <div className="flex gap-2 overflow-x-auto py-1">
+                    {artistsList.map((a, idx) => (
+                      <div key={idx} className="bg-[#F1F1EE] dark:bg-[#1C1A1E] px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 shrink-0 flex items-center gap-2">
+                        <span className="font-bold text-xs">{a.name}</span>
+                        <span className="text-[9px] text-slate-400">({a.role})</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      value={newArtistName}
+                      onChange={(e) => setNewArtistName(e.target.value)}
+                      placeholder="Artist / DJ Name" 
+                      className="flex-1 p-2 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none"
+                    />
+                    <button 
+                      type="button" 
+                      onClick={handleAddArtist}
+                      className="px-3 bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold rounded-lg text-xs"
+                    >
+                      + Add
+                    </button>
+                  </div>
+                </div>
+
+                <button 
+                  type="button"
+                  onClick={handlePublishEvent}
+                  className="w-full py-3.5 bg-gradient-to-r from-[#2D6A4F] to-emerald-700 text-white font-black rounded-2xl shadow-md hover:opacity-95 transition flex items-center justify-center gap-2"
                 >
-                  <option value="hospitality">Spot / Venue / Bar / Cafe</option>
-                  <option value="event_organizer">Event Promoter / Organizer</option>
-                  <option value="thrift_store">Thrift Store / Luku Vendor</option>
-                </select>
+                  <CheckCircle2 className="w-4 h-4" /> Publish Event to RADA
+                </button>
               </div>
+            </div>
+          )}
 
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Neighborhood</label>
-                <select
-                  value={regNeighborhood}
-                  onChange={(e) => setRegNeighborhood(e.target.value)}
-                  className="w-full p-2.5 bg-[#F1F1EE] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none"
+          {/* ======================================================== */}
+          {/* TAB 4: THRIFT LUKU (SPEC 4) */}
+          {/* ======================================================== */}
+          {activeTab === 'thrift' && (
+            <div className="space-y-4">
+              <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-xs space-y-3.5">
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                  <div>
+                    <h3 className="font-black text-xs uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                      <Shirt className="w-4 h-4 text-[#E9C46A]" />
+                      <span>Post Item to LUKU: What to wear</span>
+                    </h3>
+                    <p className="text-[10px] text-slate-500">Streetwear & vintage catalog item with store discography linkage</p>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 dark:text-slate-300">Piece Name *</label>
+                  <input 
+                    type="text" 
+                    value={fitName}
+                    onChange={(e) => setFitName(e.target.value)}
+                    placeholder="e.g. 90s Carhartt Carpenter Pant" 
+                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-700 dark:text-slate-300">Price</label>
+                    <input 
+                      type="text" 
+                      value={fitPrice}
+                      onChange={(e) => setFitPrice(e.target.value)}
+                      placeholder="KES 2,000" 
+                      className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-700 dark:text-slate-300">Category</label>
+                    <select
+                      value={fitCategory}
+                      onChange={(e) => setFitCategory(e.target.value)}
+                      className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
+                    >
+                      <option value="Tees & Tops">Tees & Tops</option>
+                      <option value="Jackets & Coats">Jackets & Coats</option>
+                      <option value="Pants & Denim">Pants & Denim</option>
+                      <option value="Footwear">Footwear</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-700 dark:text-slate-300">Condition</label>
+                    <input 
+                      type="text" 
+                      value={fitCondition}
+                      onChange={(e) => setFitCondition(e.target.value)}
+                      placeholder="e.g. Mint Condition / Vintage Wash" 
+                      className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-700 dark:text-slate-300">Size</label>
+                    <input 
+                      type="text" 
+                      value={fitSize}
+                      onChange={(e) => setFitSize(e.target.value)}
+                      placeholder="e.g. XL (Oversized)" 
+                      className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Photo Upload */}
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 dark:text-slate-300">Item Photo</label>
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className="w-16 h-20 rounded-xl bg-cover bg-center shrink-0 border border-slate-300 dark:border-slate-700 shadow-sm"
+                      style={{ backgroundImage: `url('${fitImg}')` }}
+                    />
+                    <label className="flex-1 cursor-pointer py-3 px-3 bg-white dark:bg-[#121113] border border-dashed border-slate-300 dark:border-slate-700 rounded-xl hover:border-[#E0533C] text-center transition">
+                      <span className="text-[11px] font-bold text-[#E0533C] flex items-center justify-center gap-1.5">
+                        <Upload className="w-3.5 h-3.5" /> Upload Fit Image
+                      </span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={(e) => handleImageFileChange(e, setFitImg)}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <button 
+                  type="button"
+                  onClick={handlePublishThriftFit}
+                  className="w-full py-3.5 bg-gradient-to-r from-[#2D6A4F] to-[#E0533C] text-white font-black rounded-2xl shadow-md hover:opacity-95 transition flex items-center justify-center gap-2"
                 >
-                  <option value="Westlands">Westlands</option>
-                  <option value="Kilimani">Kilimani</option>
-                  <option value="CBD">CBD / Central</option>
-                  <option value="Karen">Karen</option>
-                  <option value="Lavington">Lavington</option>
-                  <option value="Gikomba">Gikomba Market</option>
-                  <option value="Toi Market">Toi Market</option>
-                  <option value="Ngara">Ngara</option>
-                </select>
+                  <CheckCircle2 className="w-4 h-4" /> Publish Fit to LUKU
+                </button>
               </div>
             </div>
+          )}
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">WhatsApp / Inquiries (+254)</label>
-                <input 
-                  type="text" 
-                  value={regWhatsapp}
-                  onChange={(e) => setRegWhatsapp(e.target.value)}
-                  placeholder="+254 700 000 000" 
-                  className="w-full p-2.5 bg-[#F1F1EE] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none"
-                />
+          {/* ======================================================== */}
+          {/* TAB 5: OFFICIAL VERIFIED BUSINESS PROFILE (SPEC 1) */}
+          {/* ======================================================== */}
+          {activeTab === 'profile' && (
+            <div className="space-y-4">
+              <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-[#2D6A4F]" />
+                    <div>
+                      <h3 className="font-black text-xs uppercase tracking-wider text-slate-900 dark:text-slate-100">
+                        Official Verified Business Profile
+                      </h3>
+                      <p className="text-[10px] text-slate-500">Name, Bio, Profile Pic, Discography & Pinned Images</p>
+                    </div>
+                  </div>
+                  <span className="bg-emerald-100 dark:bg-emerald-950/80 text-[#2D6A4F] font-black text-[10px] px-2.5 py-1 rounded-full flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> Verified Badge
+                  </span>
+                </div>
+
+                {/* Profile Pic & Cover */}
+                <div className="relative">
+                  <div 
+                    className="h-28 rounded-2xl bg-cover bg-center border border-slate-300 dark:border-slate-700"
+                    style={{ backgroundImage: `url('${currentBiz?.coverImage || currentBiz?.logo}')` }}
+                  />
+                  <div className="absolute -bottom-4 left-4 flex items-end gap-3">
+                    <div 
+                      className="w-16 h-16 rounded-2xl bg-cover bg-center border-4 border-white dark:border-[#1C1A1E] shadow-md"
+                      style={{ backgroundImage: `url('${currentBiz?.logo}')` }}
+                    />
+                    <div className="mb-4">
+                      <h3 className="font-black text-sm text-slate-900 dark:text-slate-100 flex items-center gap-1">
+                        <span>{currentBiz?.name}</span>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[#2D6A4F]" />
+                      </h3>
+                      <span className="text-[10px] text-slate-500">{currentBiz?.category} • {currentBiz?.neighborhood}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 space-y-2">
+                  <label className="font-bold text-slate-700 dark:text-slate-300">Official Bio</label>
+                  <p className="p-3 bg-white dark:bg-[#121113] rounded-xl border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                    {currentBiz?.bio}
+                  </p>
+                </div>
+
+                {/* Discography */}
+                <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                  <h4 className="font-black text-xs uppercase tracking-wider text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                    <Disc3 className="w-3.5 h-3.5 text-[#E0533C]" />
+                    <span>Business Discography & Showcase Media</span>
+                  </h4>
+                  <div className="space-y-1.5">
+                    {(currentBiz?.discography && currentBiz.discography.length > 0 ? currentBiz.discography : [
+                      'Official Opening Showcase Vol. 1',
+                      'Nairobi Weekend Resident Set',
+                      'Curated Lookbook 2026'
+                    ]).map((disco, i) => (
+                      <div key={i} className="p-2.5 bg-white dark:bg-[#121113] rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+                        <span className="font-semibold">{disco}</span>
+                        <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-600 px-2 py-0.5 rounded font-bold">Discography</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Pinned Images */}
+                <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                  <h4 className="font-black text-xs uppercase tracking-wider text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                    <ImageIcon className="w-3.5 h-3.5 text-[#2D6A4F]" />
+                    <span>Pinned Showcase Photos</span>
+                  </h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(currentBiz?.pinnedImages && currentBiz.pinnedImages.length > 0 ? currentBiz.pinnedImages : [
+                      currentBiz?.logo || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop'
+                    ]).map((pImg, i) => (
+                      <div key={i} className="h-20 rounded-xl bg-cover bg-center border border-slate-300 dark:border-slate-700" style={{ backgroundImage: `url('${pImg}')` }} />
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsRegisteringAccount(true)}
+                  className="w-full py-2.5 bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold rounded-xl text-xs hover:opacity-90 transition"
+                >
+                  Register Another Business Account
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          {/* TAB 6: ANALYTICS & METRICS */}
+          {/* ======================================================== */}
+          {activeTab === 'analytics' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-center shadow-xs">
+                  <span className="text-[10px] text-slate-400 uppercase font-black">Spot Impressions</span>
+                  <p className="text-xl font-black text-[#E0533C] mt-0.5">3,420</p>
+                  <span className="text-[9px] text-[#2D6A4F] font-bold">+24% this week</span>
+                </div>
+                <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-center shadow-xs">
+                  <span className="text-[10px] text-slate-400 uppercase font-black">Uber & Bolt Hails</span>
+                  <p className="text-xl font-black text-slate-900 dark:text-slate-100 mt-0.5">418</p>
+                  <span className="text-[9px] text-[#2D6A4F] font-bold">Rides booked</span>
+                </div>
+                <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-center shadow-xs">
+                  <span className="text-[10px] text-slate-400 uppercase font-black">Ticket Passes</span>
+                  <p className="text-xl font-black text-[#2D6A4F] mt-0.5">342</p>
+                  <span className="text-[9px] text-slate-400">Synced to Vault</span>
+                </div>
+                <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-center shadow-xs">
+                  <span className="text-[10px] text-slate-400 uppercase font-black">WhatsApp Orders</span>
+                  <p className="text-xl font-black text-[#E9C46A] mt-0.5">76</p>
+                  <span className="text-[9px] text-[#2D6A4F] font-bold">Customer inquiries</span>
+                </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Instagram Handle</label>
-                <input 
-                  type="text" 
-                  value={regInstagram}
-                  onChange={(e) => setRegInstagram(e.target.value)}
-                  placeholder="@yourbusiness_ke" 
-                  className="w-full p-2.5 bg-[#F1F1EE] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none"
-                />
+              {/* Weekly Footfall Trend */}
+              <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-black text-xs uppercase tracking-wider text-slate-900 dark:text-slate-100">
+                    Nairobi Customer Activity (Last 7 Days)
+                  </h4>
+                  <span className="text-[10px] font-bold text-[#E0533C]">Peak: Fri & Sat</span>
+                </div>
+                <div className="grid grid-cols-7 gap-2 items-end h-28 pt-4 pb-1 px-1 border-b border-slate-200 dark:border-slate-800">
+                  {[
+                    { day: 'Mon', count: 180, pct: '35%' },
+                    { day: 'Tue', count: 240, pct: '45%' },
+                    { day: 'Wed', count: 390, pct: '60%' },
+                    { day: 'Thu', count: 520, pct: '75%' },
+                    { day: 'Fri', count: 980, pct: '100%', highlight: true },
+                    { day: 'Sat', count: 860, pct: '90%', highlight: true },
+                    { day: 'Sun', count: 410, pct: '50%' }
+                  ].map((item, idx) => (
+                    <div key={idx} className="flex flex-col items-center gap-1.5 h-full justify-end">
+                      <span className="text-[9px] font-bold text-slate-400">{item.count}</span>
+                      <div 
+                        className={`w-full rounded-t-lg transition-all ${
+                          item.highlight 
+                            ? 'bg-gradient-to-t from-[#E0533C] to-[#E9C46A]' 
+                            : 'bg-slate-300 dark:bg-slate-700'
+                        }`}
+                        style={{ height: item.pct }}
+                      />
+                      <span className="text-[10px] font-extrabold text-slate-600 dark:text-slate-300">{item.day}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
+          )}
 
-            <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Exact Street Address or Stall Number</label>
-              <input 
-                type="text" 
-                value={regAddress}
-                onChange={(e) => setRegAddress(e.target.value)}
-                placeholder="e.g. Mpaka Road, Westlands OR Gikomba Lane 3 Stall 4B" 
-                className="w-full p-2.5 bg-[#F1F1EE] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Short Bio / Description</label>
-              <textarea 
-                rows={2}
-                value={regBio}
-                onChange={(e) => setRegBio(e.target.value)}
-                placeholder="Tell Nairobi partygoers & shoppers what makes your spot or store iconic..." 
-                className="w-full p-2.5 bg-[#F1F1EE] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none resize-none"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-3 bg-gradient-to-r from-[#E0533C] to-[#E9C46A] text-white font-black text-xs rounded-xl shadow-md hover:opacity-95 transition"
-            >
-              Confirm & Create Business Profile
-            </button>
-          </form>
-        )}
-
-        {/* 4 PRIMARY SECTIONS TABS */}
-        <div className="grid grid-cols-4 gap-1 bg-[#F1F1EE] dark:bg-[#1C1A1E] p-1 rounded-2xl text-center shadow-inner text-xs">
-          <button
-            onClick={() => setActiveTab('spots')}
-            className={`py-2 rounded-xl font-bold flex items-center justify-center gap-1 transition ${
-              activeTab === 'spots'
-                ? 'bg-white dark:bg-[#121113] text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Store className="w-3.5 h-3.5 text-[#E0533C]" />
-            <span>Spots & Menus</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('events')}
-            className={`py-2 rounded-xl font-bold flex items-center justify-center gap-1 transition ${
-              activeTab === 'events'
-                ? 'bg-white dark:bg-[#121113] text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <CalendarDays className="w-3.5 h-3.5 text-[#2D6A4F]" />
-            <span>Events</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('thrift')}
-            className={`py-2 rounded-xl font-bold flex items-center justify-center gap-1 transition ${
-              activeTab === 'thrift'
-                ? 'bg-white dark:bg-[#121113] text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Shirt className="w-3.5 h-3.5 text-[#E9C46A]" />
-            <span>Thrift Luku</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('analytics')}
-            className={`py-2 rounded-xl font-bold flex items-center justify-center gap-1 transition ${
-              activeTab === 'analytics'
-                ? 'bg-white dark:bg-[#121113] text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <BarChart3 className="w-3.5 h-3.5 text-[#E0533C]" />
-            <span>Analytics</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-          </button>
         </div>
 
-        {/* ======================================================== */}
-        {/* SUB-VIEW 1: SPOTS & MENUS UPLOAD */}
-        {/* ======================================================== */}
-        {activeTab === 'spots' && (
-          <div className="space-y-4 text-xs">
-            <div className="bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-sm space-y-3.5">
-              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
-                <div>
-                  <h3 className="font-black text-xs uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                    <Store className="w-4 h-4 text-[#E0533C]" />
-                    <span>Upload Spot Profile & Location</span>
-                  </h3>
-                  <p className="text-[10px] text-slate-500">Add your restaurant, bar, club, or cafe to RADA Spots & map</p>
-                </div>
-                <span className="text-[10px] bg-red-100 text-[#E0533C] font-extrabold px-2 py-0.5 rounded-md">Live Preview</span>
+        {/* ACCOUNT REGISTRATION POPUP MODAL */}
+        {isRegisteringAccount && (
+          <div className="fixed inset-0 z-60 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
+            <form 
+              onSubmit={handleRegisterBusiness}
+              className="bg-white dark:bg-[#1C1A1E] text-slate-900 dark:text-slate-100 rounded-3xl max-w-md w-full p-5 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-3"
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+                <h3 className="font-black text-xs uppercase tracking-wider text-[#E0533C]">Register Business on RADA</h3>
+                <button type="button" onClick={() => setIsRegisteringAccount(false)} className="text-slate-400 hover:text-slate-600">✕</button>
               </div>
 
               <div className="space-y-1">
-                <label className="font-bold text-slate-700 dark:text-slate-300">Spot Name</label>
+                <label className="text-[11px] font-bold">Business Name *</label>
                 <input 
                   type="text" 
-                  value={spotTitle} 
-                  onChange={(e) => setSpotTitle(e.target.value)}
-                  placeholder="e.g. Ink & Drink"
-                  className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E0533C]"
+                  required
+                  value={regName}
+                  onChange={(e) => setRegName(e.target.value)}
+                  placeholder="e.g. Hurlingham Choma Hub" 
+                  className="w-full p-2 bg-[#F1F1EE] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Category</label>
-                  <select 
-                    value={spotCategory}
-                    onChange={(e) => setSpotCategory(e.target.value as any)}
-                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
+                  <label className="text-[11px] font-bold">Category</label>
+                  <select
+                    value={regCategory}
+                    onChange={(e) => setRegCategory(e.target.value as BusinessCategory)}
+                    className="w-full p-2 bg-[#F1F1EE] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none"
                   >
-                    <option value="restaurants">Restaurants & Dining</option>
-                    <option value="nightlife">Nightlife, Clubs & Lounges</option>
-                    <option value="cafes">Cafes & Bakeries</option>
+                    <option value="hospitality">Spot / Venue / Bar / Cafe</option>
+                    <option value="event_organizer">Event Promoter / Organizer</option>
+                    <option value="thrift_store">Thrift Store / Luku Vendor</option>
                   </select>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Neighborhood</label>
-                  <select 
-                    value={spotNeighborhood}
-                    onChange={(e) => setSpotNeighborhood(e.target.value)}
-                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
+                  <label className="text-[11px] font-bold">Neighborhood</label>
+                  <select
+                    value={regNeighborhood}
+                    onChange={(e) => setRegNeighborhood(e.target.value)}
+                    className="w-full p-2 bg-[#F1F1EE] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none"
                   >
+                    <option value="Hurlingham">Hurlingham</option>
                     <option value="Westlands">Westlands</option>
                     <option value="Kilimani">Kilimani</option>
                     <option value="CBD">CBD</option>
@@ -778,876 +1706,55 @@ export const BusinessHubModal: React.FC<BusinessHubModalProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Price Tier</label>
-                  <select 
-                    value={spotPrice}
-                    onChange={(e) => setSpotPrice(e.target.value)}
-                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
-                  >
-                    <option value="KES $">Budget (KES $)</option>
-                    <option value="KES $$">Moderate (KES $$)</option>
-                    <option value="KES $$$">Upscale (KES $$$)</option>
-                    <option value="KES $$$$">Fine Dining / VIP (KES $$$$)</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Hours</label>
-                  <input 
-                    type="text" 
-                    value={spotHours} 
-                    onChange={(e) => setSpotHours(e.target.value)}
-                    placeholder="e.g. 12:00 PM - 02:00 AM"
-                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-bold text-slate-700 dark:text-slate-300">Exact Address / Directions</label>
-                <input 
-                  type="text" 
-                  value={spotAddress} 
-                  onChange={(e) => setSpotAddress(e.target.value)}
-                  placeholder="e.g. Mpaka Road, Westlands, Nairobi"
-                  className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
-                />
-              </div>
-
-              {/* Photo Upload for Spot */}
-              <div className="space-y-1.5">
-                <label className="font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                  <span>Spot Cover Photo</span>
-                  <span className="text-[10px] text-slate-400">JPG, PNG or photo upload</span>
-                </label>
-                <div className="flex items-center gap-3">
-                  <div 
-                    className="w-20 h-16 rounded-xl bg-cover bg-center shrink-0 border border-slate-300 dark:border-slate-700 shadow-sm"
-                    style={{ backgroundImage: `url('${spotImg}')` }}
-                  />
-                  <label className="flex-1 cursor-pointer py-2.5 px-3 bg-white dark:bg-[#121113] border border-dashed border-slate-300 dark:border-slate-700 rounded-xl hover:border-[#E0533C] text-center transition">
-                    <span className="text-[11px] font-bold text-[#E0533C] flex items-center justify-center gap-1.5">
-                      <Upload className="w-3.5 h-3.5" /> Upload Spot Image
-                    </span>
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      className="hidden" 
-                      onChange={(e) => handleImageFileChange(e, setSpotImg)}
-                    />
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            {/* MENUS & SPECIALS SECTION */}
-            <div className="bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-sm space-y-3.5">
-              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
-                <div>
-                  <h3 className="font-black text-xs uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                    <Tag className="w-4 h-4 text-[#2D6A4F]" />
-                    <span>Digital Menu & Price Catalog</span>
-                  </h3>
-                  <p className="text-[10px] text-slate-500">Customers can browse your drinks, cocktails & dishes</p>
-                </div>
-                <span className="text-[10px] bg-emerald-100 text-[#2D6A4F] font-bold px-2 py-0.5 rounded-md">
-                  {menuItemsList.length} items
-                </span>
-              </div>
-
-              {/* Existing items list */}
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                {menuItemsList.map(item => (
-                  <div key={item.id} className="p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between gap-2 shadow-xs">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">{item.name}</span>
-                        <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded font-semibold">{item.category}</span>
-                      </div>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{item.description}</p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="font-extrabold text-xs text-[#E0533C]">{item.price}</span>
-                      <button 
-                        type="button" 
-                        onClick={() => handleRemoveMenuItem(item.id)}
-                        className="text-slate-400 hover:text-red-500 p-1"
-                        title="Remove item"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Add New Menu Item Form */}
-              <div className="p-3 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2.5">
-                <p className="font-extrabold text-[11px] text-slate-700 dark:text-slate-300">Add New Dish or Drink</p>
-                
-                <div className="grid grid-cols-2 gap-2">
-                  <input 
-                    type="text" 
-                    value={newMenuItemName}
-                    onChange={(e) => setNewMenuItemName(e.target.value)}
-                    placeholder="Item Name (e.g. Dawa, Ribeye)" 
-                    className="p-2 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none"
-                  />
-                  <select
-                    value={newMenuItemCategory}
-                    onChange={(e) => setNewMenuItemCategory(e.target.value)}
-                    className="p-2 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none"
-                  >
-                    <option value="Cocktails">Cocktails & Drinks</option>
-                    <option value="Mains">Main Courses</option>
-                    <option value="Tapas">Tapas & Starters</option>
-                    <option value="Wine">Wine & Beer</option>
-                    <option value="Coffee">Coffee & Bakery</option>
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <input 
-                    type="text" 
-                    value={newMenuItemPrice}
-                    onChange={(e) => setNewMenuItemPrice(e.target.value)}
-                    placeholder="Price (e.g. KES 950)" 
-                    className="p-2 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none"
-                  />
-                  <input 
-                    type="text" 
-                    value={newMenuItemDesc}
-                    onChange={(e) => setNewMenuItemDesc(e.target.value)}
-                    placeholder="Short description / ingredients" 
-                    className="p-2 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none"
-                  />
-                </div>
-
-                <button 
-                  type="button" 
-                  onClick={handleAddMenuItem}
-                  className="w-full py-2 bg-[#2D6A4F] text-white font-bold rounded-xl text-xs hover:bg-emerald-800 transition flex items-center justify-center gap-1.5"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Add Item to Menu
-                </button>
-              </div>
-
-              <button 
-                type="button"
-                onClick={handlePublishSpot}
-                className="w-full py-3.5 bg-gradient-to-r from-[#E0533C] to-orange-600 text-white font-black rounded-2xl shadow-md hover:opacity-95 transition flex items-center justify-center gap-2"
-              >
-                <CheckCircle2 className="w-4 h-4" /> Publish Spot & Menu to RADA
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ======================================================== */}
-        {/* SUB-VIEW 2: EVENTS & NIGHTLIFE CREATION */}
-        {/* ======================================================== */}
-        {activeTab === 'events' && (
-          <div className="space-y-4 text-xs">
-            <div className="bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-sm space-y-3.5">
-              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
-                <div>
-                  <h3 className="font-black text-xs uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                    <CalendarDays className="w-4 h-4 text-[#2D6A4F]" />
-                    <span>Create & Publish Event Listing</span>
-                  </h3>
-                  <p className="text-[10px] text-slate-500">All details required to sell tickets and hype Nairobi partygoers</p>
-                </div>
-                <span className="text-[10px] bg-emerald-100 text-[#2D6A4F] font-extrabold px-2 py-0.5 rounded-md">Event Hub</span>
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-bold text-slate-700 dark:text-slate-300">Event Title *</label>
-                <input 
-                  type="text" 
-                  value={eventTitle}
-                  onChange={(e) => setEventTitle(e.target.value)}
-                  placeholder="e.g. Afrobeats Night Out Nairobi / Halloween Masquerade" 
-                  className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E0533C]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Category / Vibe</label>
-                  <select 
-                    value={eventCategory}
-                    onChange={(e) => setEventCategory(e.target.value as any)}
-                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
-                  >
-                    <option value="concerts">Concerts & Festivals</option>
-                    <option value="nightlife">Nightlife & Club Nights</option>
-                    <option value="art">Art & Cultural Pop-ups</option>
-                    <option value="cinemas">Cinema & Screenings</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Event Date</label>
-                  <input 
-                    type="date" 
-                    value={eventDate}
-                    onChange={(e) => setEventDate(e.target.value)}
-                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Hours / Time</label>
-                  <input 
-                    type="text" 
-                    value={eventTime}
-                    onChange={(e) => setEventTime(e.target.value)}
-                    placeholder="e.g. 08:00 PM - 04:00 AM" 
-                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Starting Price</label>
-                  <input 
-                    type="text" 
-                    value={eventPrice}
-                    onChange={(e) => setEventPrice(e.target.value)}
-                    placeholder="e.g. KES 1,500" 
-                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-bold text-slate-700 dark:text-slate-300">Venue & Location Address</label>
-                <input 
-                  type="text" 
-                  value={eventLocation}
-                  onChange={(e) => setEventLocation(e.target.value)}
-                  placeholder="e.g. Village Market, Limuru Road, Westlands, Nairobi" 
-                  className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-bold text-slate-700 dark:text-slate-300">Dress Code / "What To Wear"</label>
-                <input 
-                  type="text" 
-                  value={eventDressCode}
-                  onChange={(e) => setEventDressCode(e.target.value)}
-                  placeholder="e.g. Spooky Glam / All Black / 90s Streetwear" 
-                  className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
-                />
-              </div>
-
-              {/* Event Banner Upload */}
-              <div className="space-y-1.5">
-                <label className="font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                  <span>Event Banner Flyer</span>
-                  <span className="text-[10px] text-slate-400">High-resolution poster</span>
-                </label>
-                <div className="flex items-center gap-3">
-                  <div 
-                    className="w-24 h-16 rounded-xl bg-cover bg-center shrink-0 border border-slate-300 dark:border-slate-700 shadow-sm"
-                    style={{ backgroundImage: `url('${eventBannerImg}')` }}
-                  />
-                  <label className="flex-1 cursor-pointer py-2.5 px-3 bg-white dark:bg-[#121113] border border-dashed border-slate-300 dark:border-slate-700 rounded-xl hover:border-[#2D6A4F] text-center transition">
-                    <span className="text-[11px] font-bold text-[#2D6A4F] flex items-center justify-center gap-1.5">
-                      <Upload className="w-3.5 h-3.5" /> Upload Event Poster
-                    </span>
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      className="hidden" 
-                      onChange={(e) => handleImageFileChange(e, setEventBannerImg)}
-                    />
-                  </label>
-                </div>
-              </div>
-
-              {/* Performing Lineup Sub-section */}
-              <div className="p-3 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-[11px] text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                    <Users className="w-3.5 h-3.5 text-[#E0533C]" /> Performing Artists & DJs
-                  </span>
-                  <span className="text-[10px] text-slate-400">{artistsList.length} headliners</span>
-                </div>
-
-                <div className="flex gap-2 overflow-x-auto hide-scrollbar py-1">
-                  {artistsList.map((a, idx) => (
-                    <div key={idx} className="bg-[#F1F1EE] dark:bg-[#1C1A1E] px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 shrink-0 flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-cover bg-center" style={{ backgroundImage: `url('${a.img}')` }} />
-                      <div>
-                        <p className="font-bold text-[11px] leading-tight">{a.name}</p>
-                        <p className="text-[9px] text-slate-400">{a.role}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    value={newArtistName}
-                    onChange={(e) => setNewArtistName(e.target.value)}
-                    placeholder="Artist / DJ Name" 
-                    className="flex-1 p-2 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none"
-                  />
-                  <input 
-                    type="text" 
-                    value={newArtistRole}
-                    onChange={(e) => setNewArtistRole(e.target.value)}
-                    placeholder="Role (e.g. Resident DJ)" 
-                    className="w-28 p-2 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none"
-                  />
-                  <button 
-                    type="button" 
-                    onClick={handleAddArtist}
-                    className="px-3 bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold rounded-lg text-xs"
-                  >
-                    Add
-                  </button>
-                </div>
-              </div>
-
-              {/* Ticket Tiers Sub-section */}
-              <div className="p-3 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-[11px] text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                    <DollarSign className="w-3.5 h-3.5 text-[#2D6A4F]" /> Ticket Tiers & Pricing
-                  </span>
-                  <span className="text-[10px] text-slate-400">{ticketTiersList.length} tiers</span>
-                </div>
-
-                <div className="space-y-1.5">
-                  {ticketTiersList.map((tier, idx) => (
-                    <div key={idx} className="p-2 bg-[#F1F1EE] dark:bg-[#1C1A1E] rounded-xl flex items-center justify-between text-xs">
-                      <div>
-                        <span className="font-bold">{tier.name}</span>
-                        {tier.perks && <span className="text-[10px] text-slate-400 block">{tier.perks}</span>}
-                      </div>
-                      <span className="font-extrabold text-[#E0533C]">{tier.price}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <input 
-                    type="text" 
-                    value={newTierName}
-                    onChange={(e) => setNewTierName(e.target.value)}
-                    placeholder="Tier (e.g. Early Bird / VIP)" 
-                    className="p-2 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none"
-                  />
-                  <input 
-                    type="text" 
-                    value={newTierPrice}
-                    onChange={(e) => setNewTierPrice(e.target.value)}
-                    placeholder="Price (e.g. KES 2,500)" 
-                    className="p-2 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none"
-                  />
-                </div>
-                <button 
-                  type="button" 
-                  onClick={handleAddTier}
-                  className="w-full py-1.5 bg-[#F1F1EE] dark:bg-[#1C1A1E] hover:bg-slate-200 text-slate-800 dark:text-slate-200 font-bold rounded-lg text-[11px] transition"
-                >
-                  + Add Ticket Tier
-                </button>
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-bold text-slate-700 dark:text-slate-300">Ticket Portal Link (HustleSasa, TicketSasa, etc.)</label>
-                <input 
-                  type="text" 
-                  value={eventTicketUrl}
-                  onChange={(e) => setEventTicketUrl(e.target.value)}
-                  placeholder="https://hustlesasa.shop/..." 
-                  className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
-                />
-              </div>
-
-              <button 
-                type="button"
-                onClick={handlePublishEvent}
-                className="w-full py-3.5 bg-gradient-to-r from-[#2D6A4F] to-emerald-700 text-white font-black rounded-2xl shadow-md hover:opacity-95 transition flex items-center justify-center gap-2"
-              >
-                <CheckCircle2 className="w-4 h-4" /> Publish Event to RADA Home Feed
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ======================================================== */}
-        {/* SUB-VIEW 3: THRIFT SHOPS & LUKU VENDOR HUB */}
-        {/* ======================================================== */}
-        {activeTab === 'thrift' && (
-          <div className="space-y-4 text-xs">
-            {/* Step 1: Thrift Store Profile */}
-            <div className="bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-sm space-y-3.5">
-              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
-                <div>
-                  <h3 className="font-black text-xs uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                    <Shirt className="w-4 h-4 text-[#E9C46A]" />
-                    <span>Step 1: Register Your Thrift Store / Stall</span>
-                  </h3>
-                  <p className="text-[10px] text-slate-500">Official merchant badge on RADA Luku Visual Search Engine</p>
-                </div>
-                {thriftStoreRegistered ? (
-                  <span className="text-[10px] bg-emerald-100 text-[#2D6A4F] font-extrabold px-2 py-0.5 rounded-md flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> Registered
-                  </span>
-                ) : (
-                  <span className="text-[10px] bg-amber-100 text-amber-800 font-extrabold px-2 py-0.5 rounded-md">
-                    Required First
-                  </span>
-                )}
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-bold text-slate-700 dark:text-slate-300">Store / Merchant Name *</label>
-                <input 
-                  type="text" 
-                  value={thriftStoreName}
-                  onChange={(e) => setThriftStoreName(e.target.value)}
-                  placeholder="e.g. Gikomba Stall 4B & 9C Vintage" 
-                  className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Market / Location</label>
-                  <select 
-                    value={thriftStoreMarket}
-                    onChange={(e) => setThriftStoreMarket(e.target.value)}
-                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
-                  >
-                    <option value="Gikomba Market, Nairobi">Gikomba Market</option>
-                    <option value="Toi Market, Adams Arcade, Nairobi">Toi Market (Adams Arcade)</option>
-                    <option value="Ngara Market, Nairobi">Ngara Market</option>
-                    <option value="Nairobi CBD Pop-up">Nairobi CBD</option>
-                    <option value="Online / Courier Delivery KE">Online / Courier Delivery</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Stall Number / Lane</label>
-                  <input 
-                    type="text" 
-                    value={thriftStoreStall}
-                    onChange={(e) => setThriftStoreStall(e.target.value)}
-                    placeholder="e.g. Stall 4B, Lane 3" 
-                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-bold text-slate-700 dark:text-slate-300">WhatsApp Number for Customer Orders</label>
-                <input 
-                  type="text" 
-                  value={thriftWhatsapp}
-                  onChange={(e) => setThriftWhatsapp(e.target.value)}
-                  placeholder="+254 711 554 433" 
-                  className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
-                />
-              </div>
-
-              {!thriftStoreRegistered && (
-                <button
-                  type="button"
-                  onClick={handleRegisterThriftStore}
-                  className="w-full py-2.5 bg-[#E9C46A] hover:bg-amber-400 text-slate-900 font-black rounded-xl shadow transition"
-                >
-                  Register Store & Unlock Single Fits Upload
-                </button>
-              )}
-            </div>
-
-            {/* Step 2: Upload Single Fits (Drops) */}
-            <div className={`bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-sm space-y-3.5 transition-all ${
-              !thriftStoreRegistered ? 'opacity-60 pointer-events-none' : ''
-            }`}>
-              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
-                <div>
-                  <h3 className="font-black text-xs uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                    <Tag className="w-4 h-4 text-[#E0533C]" />
-                    <span>Step 2: Upload Single Fits & Drops</span>
-                  </h3>
-                  <p className="text-[10px] text-slate-500">Post vintage tees, jackets, pants, and sneakers to Luku</p>
-                </div>
-                <span className="text-[10px] bg-red-100 text-[#E0533C] font-extrabold px-2 py-0.5 rounded-md">Catalog Upload</span>
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-bold text-slate-700 dark:text-slate-300">Fit / Garment Title *</label>
-                <input 
-                  type="text" 
-                  value={fitName}
-                  onChange={(e) => setFitName(e.target.value)}
-                  placeholder="e.g. 90s Carhartt Detroit Jacket / Graphic Band Tee" 
-                  className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E0533C]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Price (KES)</label>
-                  <input 
-                    type="text" 
-                    value={fitPrice}
-                    onChange={(e) => setFitPrice(e.target.value)}
-                    placeholder="1,800" 
-                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Category</label>
-                  <select 
-                    value={fitCategory}
-                    onChange={(e) => setFitCategory(e.target.value)}
-                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
-                  >
-                    <option value="Tees & Tops">Tees & Tops</option>
-                    <option value="Jackets & Coats">Jackets & Coats</option>
-                    <option value="Pants & Jeans">Pants & Jeans</option>
-                    <option value="Shoes & Sneakers">Shoes & Sneakers</option>
-                    <option value="Accessories">Accessories & Caps</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Size</label>
-                  <select 
-                    value={fitSize}
-                    onChange={(e) => setFitSize(e.target.value)}
-                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
-                  >
-                    <option value="XL (Oversized Fit)">XL (Oversized)</option>
-                    <option value="L">Large (L)</option>
-                    <option value="M">Medium (M)</option>
-                    <option value="S">Small (S)</option>
-                    <option value="W32 L32">W32 L32 (Denim)</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Condition</label>
-                  <select 
-                    value={fitCondition}
-                    onChange={(e) => setFitCondition(e.target.value)}
-                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
-                  >
-                    <option value="Mint Condition">Mint Condition (10/10)</option>
-                    <option value="Vintage Wash">Vintage Wash</option>
-                    <option value="Distressed Raw">Distressed Raw</option>
-                    <option value="Brand New with Tags">Brand New with Tags</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Fit Photo Upload */}
-              <div className="space-y-1.5">
-                <label className="font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                  <span>Fit Photo</span>
-                  <span className="text-[10px] text-slate-400">Clear hanger or model shot</span>
-                </label>
-                <div className="flex items-center gap-3">
-                  <div 
-                    className="w-16 h-20 rounded-xl bg-cover bg-center shrink-0 border border-slate-300 dark:border-slate-700 shadow-sm"
-                    style={{ backgroundImage: `url('${fitImg}')` }}
-                  />
-                  <label className="flex-1 cursor-pointer py-3 px-3 bg-white dark:bg-[#121113] border border-dashed border-slate-300 dark:border-slate-700 rounded-xl hover:border-[#E0533C] text-center transition">
-                    <span className="text-[11px] font-bold text-[#E0533C] flex items-center justify-center gap-1.5">
-                      <Upload className="w-3.5 h-3.5" /> Upload Fit Image
-                    </span>
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      className="hidden" 
-                      onChange={(e) => handleImageFileChange(e, setFitImg)}
-                    />
-                  </label>
-                </div>
-              </div>
-
-              <button 
-                type="button"
-                onClick={handlePublishThriftFit}
-                className="w-full py-3.5 bg-gradient-to-r from-[#2D6A4F] to-[#E0533C] text-white font-black rounded-2xl shadow-md hover:opacity-95 transition flex items-center justify-center gap-2"
-              >
-                <CheckCircle2 className="w-4 h-4" /> Publish Fit to Luku Catalog
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ======================================================== */}
-        {/* SUB-VIEW 4: ACTIVE LISTINGS & ADVANCED ANALYTICS */}
-        {/* ======================================================== */}
-        {activeTab === 'analytics' && (
-          <div className="space-y-4 text-xs">
-            {/* Unlocked Celebration Banner */}
-            <div className="bg-gradient-to-r from-emerald-500/10 via-amber-500/10 to-red-500/10 border border-emerald-500/30 rounded-2xl p-3 flex items-center justify-between">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-7 h-7 rounded-lg bg-[#2D6A4F] text-white flex items-center justify-center font-bold shrink-0">
-                  <CheckCircle2 className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">
-                    Analytics Active: {currentBiz?.name}
-                  </h4>
-                  <p className="text-[10px] text-slate-500 truncate">
-                    Real-time Nairobi customer impressions, ride hails & WhatsApp leads
-                  </p>
-                </div>
-              </div>
-              <span className="text-[9px] bg-emerald-100 text-[#2D6A4F] font-black px-2 py-0.5 rounded-full shrink-0">
-                LIVE METRICS
-              </span>
-            </div>
-
-            {/* Core KPI Metrics Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-center shadow-xs">
-                <span className="text-[10px] text-slate-400 uppercase font-black">Spot / Feed Views</span>
-                <p className="text-xl font-black text-[#E0533C] mt-0.5">3,420</p>
-                <span className="text-[9px] text-[#2D6A4F] font-bold">+24% this week</span>
-              </div>
-              <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-center shadow-xs">
-                <span className="text-[10px] text-slate-400 uppercase font-black">Uber / Bolt Hails</span>
-                <p className="text-xl font-black text-slate-900 dark:text-slate-100 mt-0.5">418</p>
-                <span className="text-[9px] text-[#2D6A4F] font-bold">Ride to venue</span>
-              </div>
-              <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-center shadow-xs">
-                <span className="text-[10px] text-slate-400 uppercase font-black">Ticket / RSVPs</span>
-                <p className="text-xl font-black text-[#2D6A4F] mt-0.5">342</p>
-                <span className="text-[9px] text-slate-400">Synced to Vault</span>
-              </div>
-              <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-center shadow-xs">
-                <span className="text-[10px] text-slate-400 uppercase font-black">WhatsApp Orders</span>
-                <p className="text-xl font-black text-[#E9C46A] mt-0.5">76</p>
-                <span className="text-[9px] text-[#2D6A4F] font-bold">Luku & Menu leads</span>
-              </div>
-            </div>
-
-            {/* Weekly Customer Traffic Graph */}
-            <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 space-y-3 shadow-xs">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-black text-xs uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                    Weekly Nairobi Customer Footfall Trend
-                  </h4>
-                  <p className="text-[10px] text-slate-400">Peak hours: Fri & Sat (08:00 PM - 02:00 AM)</p>
-                </div>
-                <span className="text-[10px] font-bold text-[#E0533C]">Last 7 Days</span>
-              </div>
-
-              {/* Bar Chart Visual */}
-              <div className="grid grid-cols-7 gap-2 items-end h-28 pt-4 pb-1 px-1 border-b border-slate-200 dark:border-slate-800">
-                {[
-                  { day: 'Mon', count: 180, pct: '35%' },
-                  { day: 'Tue', count: 240, pct: '45%' },
-                  { day: 'Wed', count: 390, pct: '60%' },
-                  { day: 'Thu', count: 520, pct: '75%' },
-                  { day: 'Fri', count: 980, pct: '100%', highlight: true },
-                  { day: 'Sat', count: 860, pct: '90%', highlight: true },
-                  { day: 'Sun', count: 410, pct: '50%' }
-                ].map((item, idx) => (
-                  <div key={idx} className="flex flex-col items-center gap-1.5 h-full justify-end">
-                    <span className="text-[9px] font-bold text-slate-400">{item.count}</span>
-                    <div 
-                      className={`w-full rounded-t-lg transition-all ${
-                        item.highlight 
-                          ? 'bg-gradient-to-t from-[#E0533C] to-[#E9C46A]' 
-                          : 'bg-slate-300 dark:bg-slate-700'
-                      }`}
-                      style={{ height: item.pct }}
-                    />
-                    <span className="text-[10px] font-extrabold text-slate-600 dark:text-slate-300">{item.day}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Customer Rating & Reviews Summary */}
-            <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 space-y-3 shadow-xs">
-              <div className="flex items-center justify-between">
-                <h4 className="font-black text-xs uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                  Customer Ratings & Community Feedback
-                </h4>
-                <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 px-2 py-0.5 rounded-lg text-xs font-black">
-                  <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                  <span>★ 4.8 / 5.0</span>
-                </div>
-              </div>
-
-              {/* Rating Bars */}
-              <div className="space-y-1.5">
-                {[
-                  { star: '5 Stars', pct: '82%', count: 116 },
-                  { star: '4 Stars', pct: '14%', count: 20 },
-                  { star: '3 Stars', pct: '4%', count: 6 }
-                ].map((row, idx) => (
-                  <div key={idx} className="flex items-center gap-2 text-[11px]">
-                    <span className="w-14 font-bold text-slate-500">{row.star}</span>
-                    <div className="flex-1 bg-slate-200 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
-                      <div className="bg-[#E0533C] h-full rounded-full" style={{ width: row.pct }} />
-                    </div>
-                    <span className="w-8 text-right font-bold text-slate-400">{row.count}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Published Spots List */}
-            <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 space-y-3 shadow-xs">
-              <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-500 flex items-center justify-between">
-                <span>My Published Spots ({spots.filter(s => !s.businessId || s.businessId === currentBiz?.id).length})</span>
-                <button onClick={() => setActiveTab('spots')} className="text-[#E0533C] hover:underline font-bold text-[11px]">+ Add Spot</button>
-              </h3>
-              <div className="space-y-2">
-                {spots.slice(0, 3).map(spot => (
-                  <div key={spot.id} className="p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-10 h-10 rounded-lg bg-cover bg-center shrink-0" style={{ backgroundImage: `url('${spot.img}')` }} />
-                      <div className="min-w-0">
-                        <h4 className="font-bold text-xs truncate">{spot.title}</h4>
-                        <p className="text-[10px] text-slate-400 truncate">{spot.neighborhood} • {spot.menuItems?.length || 0} menu items • ★{spot.rating}</p>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={() => onDeleteListing('spot', spot.id)}
-                      className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg transition"
-                      title="Delete listing"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Published Events List */}
-            <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 space-y-3 shadow-xs">
-              <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-500 flex items-center justify-between">
-                <span>My Published Events ({events.length})</span>
-                <button onClick={() => setActiveTab('events')} className="text-[#2D6A4F] hover:underline font-bold text-[11px]">+ Add Event</button>
-              </h3>
-              <div className="space-y-2">
-                {events.map(event => (
-                  <div key={event.id} className="p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-10 h-10 rounded-lg bg-cover bg-center shrink-0" style={{ backgroundImage: `url('${event.img}')` }} />
-                      <div className="min-w-0">
-                        <h4 className="font-bold text-xs truncate">{event.title}</h4>
-                        <p className="text-[10px] text-slate-400 truncate">{event.date} • {event.goingCount} going</p>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={() => onDeleteListing('event', event.id)}
-                      className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg transition"
-                      title="Delete listing"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Published Thrift Fits */}
-            <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 space-y-3 shadow-xs">
-              <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-500 flex items-center justify-between">
-                <span>My Luku Thrift Fits ({thriftItems.length})</span>
-                <button onClick={() => setActiveTab('thrift')} className="text-[#E9C46A] hover:underline font-bold text-[11px]">+ Add Fit</button>
-              </h3>
-              <div className="space-y-2">
-                {thriftItems.map(item => (
-                  <div key={item.id} className="p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-10 h-10 rounded-lg bg-cover bg-center shrink-0" style={{ backgroundImage: `url('${item.img}')` }} />
-                      <div className="min-w-0">
-                        <h4 className="font-bold text-xs truncate">{item.name}</h4>
-                        <p className="text-[10px] text-slate-400 truncate">{item.price} • {item.seller}</p>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={() => onDeleteListing('thrift', item.id)}
-                      className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg transition"
-                      title="Delete listing"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-          </div>
-        )}
-
-      </div>
-
-      {/* SUCCESS CONFIRMATION MODAL POPUP */}
-      {successModalData && (
-        <div className="fixed inset-0 z-60 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#1C1A1E] text-slate-900 dark:text-slate-100 rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 text-center space-y-4">
-            <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950/60 border-2 border-emerald-500 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center shadow-lg">
-              <CheckCircle2 className="w-10 h-10" />
-            </div>
-
-            <div className="space-y-1">
-              <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300">
-                {successModalData.categoryBadge}
-              </span>
-              <h3 className="text-xl font-black text-slate-900 dark:text-slate-100 pt-1.5">
-                {successModalData.title}
-              </h3>
-              <p className="text-xs font-bold text-[#E0533C]">
-                "{successModalData.listingName}"
-              </p>
-            </div>
-
-            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed bg-[#F8F8F6] dark:bg-[#121113] p-3 rounded-2xl border border-slate-200 dark:border-slate-800">
-              {successModalData.message}
-            </p>
-
-            <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-[11px] text-amber-900 dark:text-amber-200 font-medium">
-              📊 {successModalData.subDetails}
-            </div>
-
-            <div className="pt-2 flex gap-2">
               <button
-                onClick={() => {
-                  setSuccessModalData(null);
-                  setActiveTab('analytics');
-                }}
-                className="flex-1 py-3 bg-[#2D6A4F] hover:bg-emerald-800 text-white font-black rounded-xl text-xs shadow-md transition"
+                type="submit"
+                className="w-full py-3 bg-gradient-to-r from-[#E0533C] to-[#E9C46A] text-white font-black text-xs rounded-xl shadow mt-2"
               >
-                View Analytics
+                Create Official Account
               </button>
+            </form>
+          </div>
+        )}
+
+        {/* SUCCESS CONFIRMATION MODAL POPUP */}
+        {successModalData && (
+          <div className="fixed inset-0 z-60 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-[#1C1A1E] text-slate-900 dark:text-slate-100 rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 text-center space-y-4">
+              <div className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-950/60 border-2 border-emerald-500 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center shadow">
+                <CheckCircle2 className="w-8 h-8" />
+              </div>
+
+              <div className="space-y-1">
+                <span className="text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300">
+                  {successModalData.categoryBadge}
+                </span>
+                <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 pt-1">
+                  {successModalData.title}
+                </h3>
+                <p className="text-xs font-bold text-[#E0533C]">
+                  "{successModalData.listingName}"
+                </p>
+              </div>
+
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed bg-[#F8F8F6] dark:bg-[#121113] p-3 rounded-2xl border border-slate-200 dark:border-slate-800">
+                {successModalData.message}
+              </p>
+
+              <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-[10px] text-amber-900 dark:text-amber-200 font-medium">
+                📍 {successModalData.subDetails}
+              </div>
+
               <button
                 onClick={() => setSuccessModalData(null)}
-                className="flex-1 py-3 bg-[#F8F8F6] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 font-bold rounded-xl text-xs transition hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="w-full py-2.5 bg-[#E0533C] text-white font-black rounded-xl text-xs shadow"
               >
                 Done
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
+      </div>
     </div>
   );
 };

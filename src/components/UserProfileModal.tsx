@@ -79,14 +79,12 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             {/* Relationship Status Badge */}
             <div className="pb-1">
               {isSingle ? (
-                <div className="bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 px-3 py-1.5 rounded-2xl text-xs font-black flex items-center gap-1.5 shadow-xs">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>Single (Open to Match)</span>
+                <div className="bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 px-3 py-1.5 rounded-2xl text-xs font-black shadow-xs">
+                  <span>Single</span>
                 </div>
               ) : (
-                <div className="bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-1.5 rounded-2xl text-xs font-black flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-slate-400" />
-                  <span>Not Single (Social & Events)</span>
+                <div className="bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-3 py-1.5 rounded-2xl text-xs font-black">
+                  <span>Not single</span>
                 </div>
               )}
             </div>
@@ -141,12 +139,12 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             {isSingle ? (
               <p className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300 font-medium">
                 <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-                <span>This user is <strong>Single</strong> and can receive hangout & matching requests.</span>
+                <span>This user is <strong>Single</strong> and open to hangout requests.</span>
               </p>
             ) : (
               <p className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
                 <Shield className="w-4 h-4 shrink-0 text-slate-400" />
-                <span>This user is <strong>Not Single</strong>. Matching requests are disabled; they are here for spots & events.</span>
+                <span>This user is <strong>Not single</strong>. Matching requests are disabled.</span>
               </p>
             )}
           </div>

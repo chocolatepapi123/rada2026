@@ -136,6 +136,28 @@ export default function App() {
 
   // Dedicated View All
   const [viewAllTitle, setViewAllTitle] = useState<string | null>(null);
+  const [viewAllCategory, setViewAllCategory] = useState<string | null>(null);
+
+  // User location & GPS override state (SPEC 2)
+  const [currentLocation, setCurrentLocation] = useState<string>(() => {
+    return localStorage.getItem('rada_current_location') || 'Westlands, Nairobi';
+  });
+  const [isGpsActive, setIsGpsActive] = useState<boolean>(() => {
+    const saved = localStorage.getItem('rada_gps_active');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  const handleUpdateLocation = (newLoc: string, isGps: boolean) => {
+    setCurrentLocation(newLoc);
+    setIsGpsActive(isGps);
+    localStorage.setItem('rada_current_location', newLoc);
+    localStorage.setItem('rada_gps_active', String(isGps));
+    if (isGps) {
+      showToast(`Device GPS active: ${newLoc}`);
+    } else {
+      showToast(`Location set to: ${newLoc}`);
+    }
+  };
 
   // GPS Broadcast
   const [isGpsBroadcasting, setIsGpsBroadcasting] = useState(false);
@@ -523,7 +545,9 @@ export default function App() {
           setActiveTab(tab);
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
-        currentLocation="Westlands, Nairobi"
+        currentLocation={currentLocation}
+        isGpsActive={isGpsActive}
+        onUpdateLocation={handleUpdateLocation}
         hasBusinessAccount={Boolean(currentBusiness)}
         businessName={currentBusiness?.name}
         isDarkMode={isDarkMode}
@@ -542,7 +566,11 @@ export default function App() {
             onPostStatus={handlePostStatus}
             onReplyStatus={handleReplyStatus}
             onViewUserProfile={(profile) => setViewingProfile(profile)}
-            onOpenDedicatedViewAll={(title) => setViewAllTitle(title)}
+            onOpenDedicatedViewAll={(title, cat) => {
+              setViewAllTitle(title);
+              setViewAllCategory(cat);
+            }}
+            onOpenCreateEvent={() => setIsBusinessHubOpen(true)}
             showToast={showToast}
           />
         )}
@@ -552,7 +580,12 @@ export default function App() {
             spots={spots}
             onOpenSpotFullView={(spot) => setSelectedSpotModal(spot)}
             onViewLocation={(spot) => setSelectedLocationMapSpot(spot)}
-            onOpenDedicatedViewAll={(title) => setViewAllTitle(title)}
+            onOpenDedicatedViewAll={(title, cat) => {
+              setViewAllTitle(title);
+              setViewAllCategory(cat);
+            }}
+            onOpenCreateSpot={() => setIsBusinessHubOpen(true)}
+            showToast={showToast}
           />
         )}
 
@@ -630,7 +663,12 @@ export default function App() {
         isWagwanOpen={isWagwanOpen}
         onCloseWagwan={() => setIsWagwanOpen(false)}
         spots={spots}
+        events={events}
+        cinemaMovies={cinemaMovies}
+        thriftItems={thriftItems}
         onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
+        onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
+        onBookCinema={handleBookCinema}
         selectedSpot={selectedSpotModal}
         onCloseSpotModal={() => setSelectedSpotModal(null)}
         onPlanDateFromSpot={handlePlanDateFromSpot}
@@ -658,7 +696,11 @@ export default function App() {
         discoveryProfiles={discoveryProfiles}
         onCreateGroup={handleCreateGroup}
         viewAllTitle={viewAllTitle}
-        onCloseViewAll={() => setViewAllTitle(null)}
+        viewAllCategory={viewAllCategory}
+        onCloseViewAll={() => {
+          setViewAllTitle(null);
+          setViewAllCategory(null);
+        }}
         isGpsBroadcasting={isGpsBroadcasting}
         onToggleGps={() => {
           setIsGpsBroadcasting(!isGpsBroadcasting);

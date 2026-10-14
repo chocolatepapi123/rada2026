@@ -21,11 +21,35 @@ import {
   Star,
   MessageSquare,
   Image as ImageIcon,
-  Send
+  Send,
+  Ticket,
+  ChevronRight,
+  Bell,
+  Lock,
+  Eye,
+  HelpCircle,
+  FileText,
+  Share2,
+  Sliders,
+  Compass,
+  Film,
+  Music,
+  Heart,
+  Hotel,
+  Palmtree,
+  Coffee,
+  UtensilsCrossed,
+  Shirt,
+  Store,
+  Percent,
+  Tag,
+  Check
 } from 'lucide-react';
 import { 
   SpotItem, 
   EventItem, 
+  CinemaMovie,
+  ThriftItem,
   DatingProfile, 
   EmergencyContact,
   Review,
@@ -41,7 +65,12 @@ interface OverlaysProps {
   isWagwanOpen: boolean;
   onCloseWagwan: () => void;
   spots: SpotItem[];
+  events?: EventItem[];
+  cinemaMovies?: CinemaMovie[];
+  thriftItems?: ThriftItem[];
   onOpenSpotDetails: (spot: SpotItem) => void;
+  onOpenEventDetails?: (event: EventItem) => void;
+  onBookCinema?: (movie: CinemaMovie) => void;
 
   // Spot View Modal
   selectedSpot: SpotItem | null;
@@ -65,7 +94,7 @@ interface OverlaysProps {
   qrPassTitle: string | null;
   onCloseQrModal: () => void;
 
-  // Plan a date workflow
+  // Plan a date workflow (SPEC 5: allow free browsing across all categories)
   isPlanDateModalOpen: boolean;
   onClosePlanDateModal: () => void;
   onSelectSpotForDate: (spot: SpotItem) => void;
@@ -78,8 +107,9 @@ interface OverlaysProps {
   discoveryProfiles: DatingProfile[];
   onCreateGroup: (name: string, members: string[]) => void;
 
-  // Dedicated View All
+  // Dedicated View All (SPEC 3: strictly display items matching that category only)
   viewAllTitle: string | null;
+  viewAllCategory?: string | null;
   onCloseViewAll: () => void;
 
   // SOS & Profile & Settings
@@ -101,7 +131,12 @@ export const Overlays: React.FC<OverlaysProps> = ({
   isWagwanOpen,
   onCloseWagwan,
   spots,
+  events = [],
+  cinemaMovies = [],
+  thriftItems = [],
   onOpenSpotDetails,
+  onOpenEventDetails,
+  onBookCinema,
   selectedSpot,
   onCloseSpotModal,
   onPlanDateFromSpot,
@@ -126,6 +161,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
   discoveryProfiles,
   onCreateGroup,
   viewAllTitle,
+  viewAllCategory,
   onCloseViewAll,
   isGpsBroadcasting,
   onToggleGps,
@@ -135,12 +171,17 @@ export const Overlays: React.FC<OverlaysProps> = ({
   onToggleTheme,
   showToast
 }) => {
-  // Wagwan AI Chat State
+  // Wagwan AI Chat State (SPEC 6: Fix Wagwan AI functionality)
   const [wagwanInput, setWagwanInput] = useState('');
-  const [wagwanMessages, setWagwanMessages] = useState<Array<{ sender: 'user' | 'ai'; text: string; spotMatch?: SpotItem }>>([
+  const [wagwanMessages, setWagwanMessages] = useState<Array<{ 
+    sender: 'user' | 'ai'; 
+    text: string; 
+    spotMatch?: SpotItem;
+    eventMatch?: EventItem;
+  }>>([
     { 
       sender: 'ai', 
-      text: 'Wagwan! 👋 Tell me your mood, who you are with (date, crew, solo), your budget, or preferred neighborhood in Nairobi and I will find the best spot for you!' 
+      text: 'Wagwan! 👋 I am your Nairobi concierge. Ask me for the best spots, cocktail bars, amapiano parties, romantic date hideouts, budget bites, or weekend lodges!' 
     }
   ]);
 
@@ -151,32 +192,57 @@ export const Overlays: React.FC<OverlaysProps> = ({
     setWagwanMessages(prev => [...prev, { sender: 'user', text: q }]);
     setWagwanInput('');
 
-    // Find best match in spots
+    // Contextual matching across spots and events
     const qLower = q.toLowerCase();
+    
+    // Check if query is looking for an event
+    const eventMatch = events.find(e => 
+      e.title.toLowerCase().includes(qLower) || 
+      (e.genre && e.genre.toLowerCase().includes(qLower)) ||
+      (qLower.includes('party') && e.category === 'nightlife') ||
+      (qLower.includes('rave') && e.category === 'concerts')
+    );
+
+    // Check spots matching
     const matched = spots.find(s => 
       s.title.toLowerCase().includes(qLower) || 
       s.neighborhood.toLowerCase().includes(qLower) ||
-      (qLower.includes('date') && parseFloat(s.rating) >= 4.7) ||
-      (qLower.includes('cocktail') && s.menuItems?.some(m => m.category === 'Cocktails')) ||
-      (qLower.includes('party') && s.category === 'nightlife')
+      (s.exactLocationTag && s.exactLocationTag.toLowerCase().includes(qLower)) ||
+      (qLower.includes('date') && (s.category === 'date_spots' || parseFloat(s.rating) >= 4.8)) ||
+      (qLower.includes('cocktail') && s.menuItems?.some(m => m.name.toLowerCase().includes('cocktail') || m.description.toLowerCase().includes('cocktail'))) ||
+      (qLower.includes('choma') && s.title.toLowerCase().includes('choma')) ||
+      (qLower.includes('coffee') && s.category === 'cafes') ||
+      (qLower.includes('hotel') && s.category === 'hotels') ||
+      (qLower.includes('vacation') && s.category === 'vacation')
     ) || spots[0];
 
     setTimeout(() => {
-      setWagwanMessages(prev => [
-        ...prev,
-        {
-          sender: 'ai',
-          text: `Based on your vibe, you should check out ${matched.title} in ${matched.neighborhood}! Rating ★${matched.rating} with rave community reviews.`,
-          spotMatch: matched
-        }
-      ]);
-    }, 400);
+      if (eventMatch && (qLower.includes('party') || qLower.includes('event') || qLower.includes('tonight'))) {
+        setWagwanMessages(prev => [
+          ...prev,
+          {
+            sender: 'ai',
+            text: `Vibe check: "${eventMatch.title}" at ${eventMatch.location} on ${eventMatch.date}! ${eventMatch.goingCount} people going with primary ticketing verified.`,
+            eventMatch
+          }
+        ]);
+      } else {
+        setWagwanMessages(prev => [
+          ...prev,
+          {
+            sender: 'ai',
+            text: `For this vibe, I recommend checking out ${matched.title} in ${matched.neighborhood}! Rating ★${matched.rating} with verified customer reviews and digital menu.`,
+            spotMatch: matched
+          }
+        ]);
+      }
+    }, 350);
   };
 
   // Spot Active Photo Index
   const [activeSpotImgIndex, setActiveSpotImgIndex] = useState(0);
 
-  // Review Submission State
+  // Review Submission State (SPEC 1: regular users can only upload photos within reviews)
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [newReviewRating, setNewReviewRating] = useState(5);
   const [newReviewText, setNewReviewText] = useState('');
@@ -206,9 +272,9 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
     const review: Review = {
       id: `rev-${Date.now()}`,
-      userName: 'Wayne Waweru',
-      userHandle: '@lowk3yFX',
-      userAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop',
+      userName: currentUserProfile?.name || 'Wayne Waweru',
+      userHandle: currentUserProfile?.handle || '@lowk3yFX',
+      userAvatar: currentUserProfile?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop',
       rating: newReviewRating,
       date: 'Just now',
       comment: newReviewText.trim(),
@@ -219,11 +285,15 @@ export const Overlays: React.FC<OverlaysProps> = ({
     setNewReviewText('');
     setNewReviewImg(null);
     setShowReviewForm(false);
+    showToast('Review and photo published live on RADA!');
   };
 
   // Plan a date DateTime picker state
   const [chosenDate, setChosenDate] = useState('2026-10-25');
   const [chosenTime, setChosenTime] = useState('19:00');
+  // SPEC 5: Plan a date - free browsing across all categories
+  const [planDateCategory, setPlanDateCategory] = useState<string>('all');
+  const [planDateSearch, setPlanDateSearch] = useState('');
 
   // Create Group State
   const [newGroupName, setNewGroupName] = useState('');
@@ -233,11 +303,15 @@ export const Overlays: React.FC<OverlaysProps> = ({
   const [newContactName, setNewContactName] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');
 
-  // 2FA state
+  // Settings State (SPEC 6: Redesign Settings like Instagram/TikTok)
   const [is2FAEnabled, setIs2FAEnabled] = useState(true);
+  const [pushNotifications, setPushNotifications] = useState(true);
+  const [readReceipts, setReadReceipts] = useState(true);
+  const [datingDiscoverable, setDatingDiscoverable] = useState(true);
+  const [languageSetting, setLanguageSetting] = useState('English (Kenya)');
 
-  // Profile Bio & Relationship Status state
-  const [profileBio, setProfileBio] = useState(currentUserProfile?.bio || 'Exploring Nairobi spots, amapiano vibes, and fashion setups. ✨');
+  // Profile Bio & Relationship Status state (SPEC 6: Rename Profile, strictly Single / Not single)
+  const [profileBio, setProfileBio] = useState(currentUserProfile?.bio || 'Exploring Nairobi hangouts, good music and vibes.');
   const [profileAvatar, setProfileAvatar] = useState(currentUserProfile?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop');
   const [profileRelationshipStatus, setProfileRelationshipStatus] = useState<'single' | 'not_single'>(currentUserProfile?.relationshipStatus || 'single');
 
@@ -265,7 +339,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
   return (
     <>
-      {/* 1. WAGWAN AI RECOMMENDER MODAL */}
+      {/* 1. WAGWAN AI HANGOUT RECOMMENDER MODAL */}
       {isWagwanOpen && (
         <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
@@ -296,7 +370,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                         : 'bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none'
                     }`}>
                       {msg.sender === 'ai' && (
-                        <span className="font-black text-[#E0533C] block">Wagwan Assistant ✨</span>
+                        <span className="font-black text-[#E0533C] block">Wagwan AI ✨</span>
                       )}
                       <p>{msg.text}</p>
                       {msg.spotMatch && (
@@ -310,9 +384,26 @@ export const Overlays: React.FC<OverlaysProps> = ({
                               onCloseWagwan();
                               onOpenSpotDetails(msg.spotMatch!);
                             }}
-                            className="px-2.5 py-1 bg-[#E0533C] text-white font-bold rounded-lg text-[10px]"
+                            className="px-2.5 py-1 bg-[#E0533C] text-white font-bold rounded-lg text-[10px] shadow-xs"
                           >
                             View Spot
+                          </button>
+                        </div>
+                      )}
+                      {msg.eventMatch && (
+                        <div className="p-2.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 mt-2">
+                          <div>
+                            <h5 className="font-black text-xs text-[#2D6A4F]">{msg.eventMatch.title}</h5>
+                            <p className="text-[10px] text-slate-500">{msg.eventMatch.location} • {msg.eventMatch.date}</p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              onCloseWagwan();
+                              if (onOpenEventDetails) onOpenEventDetails(msg.eventMatch!);
+                            }}
+                            className="px-2.5 py-1 bg-[#2D6A4F] text-white font-bold rounded-lg text-[10px] shadow-xs"
+                          >
+                            View Event
                           </button>
                         </div>
                       )}
@@ -328,7 +419,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     value={wagwanInput}
                     onChange={(e) => setWagwanInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleAskWagwan()}
-                    placeholder="e.g. Quiet cafe for a coffee date in Westlands..."
+                    placeholder="e.g. Sushi in Westlands, romantic dinner in Karen..."
                     className="flex-1 p-3 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C]"
                   />
                   <button
@@ -342,21 +433,27 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 <div className="flex gap-1.5 overflow-x-auto hide-scrollbar text-[11px]">
                   <button
                     onClick={() => handleAskWagwan('Romantic date night in Westlands')}
-                    className="px-2.5 py-1 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-full shrink-0 font-medium"
+                    className="px-2.5 py-1 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-full shrink-0 font-medium hover:border-[#E0533C]"
                   >
                     ✨ Cozy Date Night
                   </button>
                   <button
-                    onClick={() => handleAskWagwan('Latest IMAX cinema movie showtimes')}
-                    className="px-2.5 py-1 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-full shrink-0 font-medium"
+                    onClick={() => handleAskWagwan('Amapiano and cocktails party')}
+                    className="px-2.5 py-1 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-full shrink-0 font-medium hover:border-[#E0533C]"
                   >
-                    🎬 Movie Night
+                    🔥 Nightlife & Party
                   </button>
                   <button
-                    onClick={() => handleAskWagwan('Amapiano party vibe tonight')}
-                    className="px-2.5 py-1 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-full shrink-0 font-medium"
+                    onClick={() => handleAskWagwan('Quiet cafe for coffee & remote work')}
+                    className="px-2.5 py-1 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-full shrink-0 font-medium hover:border-[#E0533C]"
                   >
-                    🔥 Party Vibe
+                    ☕ Coffee & Work
+                  </button>
+                  <button
+                    onClick={() => handleAskWagwan('Choma and beer in Hurlingham')}
+                    className="px-2.5 py-1 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-full shrink-0 font-medium hover:border-[#E0533C]"
+                  >
+                    🍖 Choma & Chill
                   </button>
                 </div>
               </div>
@@ -365,7 +462,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
         </div>
       )}
 
-      {/* 2. ENRICHED SPOT HUB VIEW MODAL WITH LOTS OF IMAGES & COMMUNITY REVIEWS */}
+      {/* 2. SPOT DETAILS MODAL (SPEC 1: Multi-photos carousel & reviews photo upload only) */}
       {selectedSpot && (
         <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] overflow-y-auto flex flex-col animate-in fade-in duration-200">
           <div className="sticky top-0 z-20 bg-white/95 dark:bg-[#121113]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
@@ -389,98 +486,125 @@ export const Overlays: React.FC<OverlaysProps> = ({
               const allImages = (selectedSpot.images && selectedSpot.images.length > 0)
                 ? selectedSpot.images
                 : [selectedSpot.img];
-              const safeIndex = Math.min(activeSpotImgIndex, allImages.length - 1);
-              const activeImg = allImages[safeIndex] || selectedSpot.img;
+              const safeIndex = activeSpotImgIndex % allImages.length;
+              const currentHeroImg = allImages[safeIndex] || selectedSpot.img;
 
               return (
                 <div className="space-y-2">
                   <div
-                    className="h-64 rounded-3xl bg-cover bg-center relative shadow-md overflow-hidden transition-all duration-300"
-                    style={{ backgroundImage: `url('${activeImg}')` }}
+                    className="h-64 rounded-3xl bg-cover bg-center relative shadow-md transition-all duration-300"
+                    style={{ backgroundImage: `url('${currentHeroImg}')` }}
                   >
-                    <span className="absolute top-3 right-3 bg-black/75 backdrop-blur-md text-white text-xs font-black px-3 py-1 rounded-full">
+                    <span className="absolute top-3 right-3 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
                       {selectedSpot.price}
                     </span>
-                    <span className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-lg">
-                      Photo {safeIndex + 1} of {allImages.length}
+                    <span className="absolute bottom-3 left-3 bg-white/90 dark:bg-black/90 backdrop-blur-md text-slate-900 dark:text-white text-[10px] font-black px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-xs">
+                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                      <span>{selectedSpot.rating} ({selectedSpot.reviews?.length || 45} reviews)</span>
                     </span>
+                    {allImages.length > 1 && (
+                      <span className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-md">
+                        {safeIndex + 1} / {allImages.length} photos
+                      </span>
+                    )}
                   </div>
 
-                  {/* Thumbnail Row to browse lots of images */}
-                  <div className="flex gap-2 overflow-x-auto hide-scrollbar py-1">
-                    {allImages.map((img, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => setActiveSpotImgIndex(i)}
-                        className={`w-16 h-12 rounded-xl bg-cover bg-center shrink-0 border-2 transition ${
-                          i === safeIndex
-                            ? 'border-[#E0533C] scale-105 shadow-sm'
-                            : 'border-transparent opacity-70 hover:opacity-100'
-                        }`}
-                        style={{ backgroundImage: `url('${img}')` }}
-                      />
-                    ))}
-
-                    {/* Add More Spot Photos input */}
-                    <label className="w-16 h-12 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] flex flex-col items-center justify-center shrink-0 cursor-pointer text-slate-400 hover:text-[#E0533C] transition">
-                      <Upload className="w-4 h-4" />
-                      <span className="text-[8px] font-bold mt-0.5">Add</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                              if (event.target?.result) {
-                                onAddSpotImage(selectedSpot.id, event.target.result as string);
-                                showToast('Photo added to spot gallery!');
-                              }
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                      />
-                    </label>
-                  </div>
+                  {/* Thumbnail Row if Multiple Images */}
+                  {allImages.length > 1 && (
+                    <div className="flex gap-2 overflow-x-auto hide-scrollbar py-1">
+                      {allImages.map((imgUrl, i) => (
+                        <div
+                          key={i}
+                          onClick={() => setActiveSpotImgIndex(i)}
+                          className={`w-14 h-14 rounded-xl bg-cover bg-center shrink-0 cursor-pointer border-2 transition ${
+                            i === safeIndex ? 'border-[#E0533C] scale-105' : 'border-transparent opacity-70'
+                          }`}
+                          style={{ backgroundImage: `url('${imgUrl}')` }}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })()}
 
-            {/* Spot Header Details */}
+            {/* Title, Address & Tags */}
             <div className="space-y-1">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-black text-[#E0533C]">{selectedSpot.title}</h2>
-                <div className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2.5 py-1 rounded-xl text-xs">
-                  <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                  <span>★ {selectedSpot.rating}</span>
-                  <span className="text-[10px] text-slate-400 font-normal">
-                    ({selectedSpot.reviews?.length || selectedSpot.reviewCount || 45})
-                  </span>
-                </div>
+                <h2 className="text-xl font-black text-slate-900 dark:text-slate-100">
+                  {selectedSpot.title}
+                </h2>
+                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-red-100 text-[#E0533C]">
+                  {selectedSpot.category}
+                </span>
               </div>
-              <p className="text-xs text-slate-500 font-bold">{selectedSpot.neighborhood}</p>
-              <p className="text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1">
+              <p className="text-xs text-slate-500 flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
                 <span>{selectedSpot.address}</span>
               </p>
+              {selectedSpot.exactLocationTag && (
+                <p className="text-xs text-[#E0533C] font-semibold flex items-center gap-1">
+                  <span>📍 Tag: {selectedSpot.exactLocationTag}</span>
+                  {selectedSpot.landmark && <span className="text-slate-400">• Near {selectedSpot.landmark}</span>}
+                </p>
+              )}
               {selectedSpot.openingHours && (
-                <p className="text-[11px] text-slate-400 flex items-center gap-1">
+                <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
                   <Clock className="w-3.5 h-3.5" />
                   <span>Hours: {selectedSpot.openingHours}</span>
                 </p>
               )}
               {selectedSpot.description && (
-                <p className="text-xs text-slate-600 dark:text-slate-300 mt-2">
+                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed pt-2">
                   {selectedSpot.description}
                 </p>
               )}
             </div>
 
-            {/* Uber & Bolt Ride Hailing Integration */}
+            {/* Special Offers Section if present */}
+            {selectedSpot.specialOffers && selectedSpot.specialOffers.length > 0 && (
+              <div className="p-3 bg-red-50/70 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-2xl space-y-2">
+                <span className="font-black text-xs text-[#E0533C] flex items-center gap-1 uppercase tracking-wider">
+                  <Percent className="w-3.5 h-3.5" /> Special Offers & Promos
+                </span>
+                <div className="space-y-1">
+                  {selectedSpot.specialOffers.map(o => (
+                    <div key={o.id} className="flex items-start justify-between text-xs">
+                      <div>
+                        <strong className="text-slate-900 dark:text-slate-100">{o.title}</strong>
+                        <p className="text-[11px] text-slate-500">{o.description}</p>
+                      </div>
+                      <span className="bg-[#E0533C] text-white text-[9px] font-black px-2 py-0.5 rounded shrink-0">
+                        {o.discount}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Digital Menu Items */}
+            {selectedSpot.menuItems && selectedSpot.menuItems.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <h4 className="font-black text-slate-900 dark:text-slate-100 uppercase text-[11px] tracking-wider flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-[#2D6A4F]" />
+                  <span>Popular Dishes & Drinks</span>
+                </h4>
+                <div className="space-y-1.5">
+                  {selectedSpot.menuItems.map(item => (
+                    <div key={item.id} className="p-2.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] rounded-xl flex items-center justify-between">
+                      <div className="min-w-0 pr-2">
+                        <span className="font-bold text-xs block truncate">{item.name}</span>
+                        <p className="text-[10px] text-slate-400 truncate">{item.description}</p>
+                      </div>
+                      <span className="font-extrabold text-xs text-[#E0533C] shrink-0">{item.price}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Ride Hails & Plan Date */}
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => {
@@ -512,7 +636,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
               <span>Plan Hangout / Date at This Spot</span>
             </button>
 
-            {/* COMMUNITY REVIEWS & POST A REVIEW SECTION */}
+            {/* COMMUNITY REVIEWS & POST A REVIEW (SPEC 1: Regular users upload photos only inside reviews) */}
             <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
               <div className="flex items-center justify-between">
                 <div>
@@ -520,7 +644,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     <MessageSquare className="w-3.5 h-3.5 text-[#E0533C]" />
                     <span>Customer Reviews ({selectedSpot.reviews?.length || 0})</span>
                   </h4>
-                  <p className="text-[10px] text-slate-400">Verified community ratings with photos</p>
+                  <p className="text-[10px] text-slate-400">Verified community ratings with photo upload</p>
                 </div>
 
                 <button
@@ -536,7 +660,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
               {showReviewForm && (
                 <form
                   onSubmit={handleSubmitReview}
-                  className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border-2 border-[#E0533C]/40 rounded-3xl p-4 space-y-3 shadow-md animate-in slide-in-from-top-2 duration-150"
+                  className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border-2 border-[#E0533C]/40 rounded-3xl p-4 space-y-3 shadow-md"
                 >
                   <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
                     <span className="font-black text-xs text-[#E0533C]">Share Your Experience</span>
@@ -557,7 +681,6 @@ export const Overlays: React.FC<OverlaysProps> = ({
                           />
                         </button>
                       ))}
-                      <span className="text-xs font-bold text-amber-500 ml-1">{newReviewRating} Stars</span>
                     </div>
                   </div>
 
@@ -573,8 +696,8 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   {/* Photo attachment for review */}
                   <div className="space-y-1">
                     <label className="font-bold text-[11px] text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                      <span>Attach Photo to Review (Optional)</span>
-                      <span className="text-[10px] text-slate-400">Cocktail, dish, or patio shot</span>
+                      <span>Attach Photo to Review</span>
+                      <span className="text-[10px] text-slate-400">Regular users upload photos here</span>
                     </label>
 
                     {newReviewImg ? (
@@ -604,104 +727,50 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
                   <button
                     type="submit"
-                    className="w-full py-2.5 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition flex items-center justify-center gap-1.5"
+                    className="w-full py-2.5 bg-[#E0533C] text-white font-black rounded-xl text-xs hover:bg-orange-700 transition shadow"
                   >
-                    <Send className="w-3.5 h-3.5" />
-                    <span>Publish Review</span>
+                    Submit Review
                   </button>
                 </form>
               )}
 
-              {/* List of Reviews with Images */}
+              {/* Reviews List */}
               <div className="space-y-2.5">
-                {selectedSpot.reviews && selectedSpot.reviews.length > 0 ? (
+                {(selectedSpot.reviews && selectedSpot.reviews.length > 0) ? (
                   selectedSpot.reviews.map((rev) => (
-                    <div
-                      key={rev.id}
-                      className="p-3 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2"
-                    >
+                    <div key={rev.id} className="p-3 bg-[#F8F8F6] dark:bg-[#1C1A1E] rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1.5">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <div
-                            className="w-8 h-8 rounded-full bg-cover bg-center shrink-0 border border-slate-300 dark:border-slate-700"
-                            style={{ backgroundImage: `url('${rev.userAvatar}')` }}
-                          />
+                          <div className="w-7 h-7 rounded-full bg-cover bg-center" style={{ backgroundImage: `url('${rev.userAvatar}')` }} />
                           <div>
-                            <h5 className="font-bold text-xs leading-tight">{rev.userName}</h5>
-                            <span className="text-[10px] text-slate-400">{rev.userHandle} • {rev.date}</span>
+                            <span className="font-bold text-xs">{rev.userName}</span>
+                            <span className="text-[10px] text-slate-400 ml-1">{rev.userHandle}</span>
                           </div>
                         </div>
-
-                        <div className="flex items-center gap-0.5">
-                          {Array.from({ length: rev.rating }).map((_, i) => (
-                            <Star key={i} className="w-3 h-3 fill-amber-400 text-amber-400" />
-                          ))}
+                        <div className="flex items-center text-amber-500 text-[10px] font-bold">
+                          ★ {rev.rating}.0
                         </div>
                       </div>
-
-                      <p className="text-xs text-slate-600 dark:text-slate-300">
-                        {rev.comment}
-                      </p>
-
-                      {/* Attached review images */}
+                      <p className="text-slate-700 dark:text-slate-300 text-xs">{rev.comment}</p>
                       {rev.images && rev.images.length > 0 && (
-                        <div className="flex gap-2 overflow-x-auto hide-scrollbar pt-1">
-                          {rev.images.map((imgUrl, imgIdx) => (
-                            <img
-                              key={imgIdx}
-                              src={imgUrl}
-                              alt="Review photo"
-                              className="w-20 h-20 rounded-xl object-cover border border-slate-200 dark:border-slate-800 shrink-0 shadow-xs cursor-pointer hover:scale-105 transition"
-                            />
+                        <div className="flex gap-2 pt-1">
+                          {rev.images.map((img, idx) => (
+                            <img key={idx} src={img} alt="User review" className="w-20 h-16 rounded-lg object-cover" />
                           ))}
                         </div>
                       )}
                     </div>
                   ))
                 ) : (
-                  <p className="text-slate-400 text-center py-4">No reviews yet. Be the first to post a review!</p>
+                  <p className="text-slate-400 py-3 text-center">No reviews yet. Be the first to share your experience!</p>
                 )}
               </div>
-            </div>
-
-            {/* Menu Section */}
-            <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-              <div className="flex items-center justify-between">
-                <h4 className="font-black text-slate-900 dark:text-slate-100 uppercase text-[11px] tracking-wider">
-                  Menu & Prices ({selectedSpot.menuItems?.length || 0} items)
-                </h4>
-                <span className="text-[10px] text-[#2D6A4F] font-bold">Verified Menu</span>
-              </div>
-
-              {selectedSpot.menuItems && selectedSpot.menuItems.length > 0 ? (
-                <div className="space-y-2">
-                  {selectedSpot.menuItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className="p-3 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between gap-2"
-                    >
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h5 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{item.name}</h5>
-                          <span className="text-[9px] bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded font-semibold text-slate-600 dark:text-slate-400">
-                            {item.category}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-slate-500 mt-0.5">{item.description}</p>
-                      </div>
-                      <span className="font-black text-xs text-[#E0533C] shrink-0">{item.price}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-slate-400 text-center py-3">Digital menu being finalized by merchant.</p>
-              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* 3. ENRICHED EVENT DETAILS HUB MODAL */}
+      {/* 3. EVENT DETAILS MODAL (SPEC 3: Dresscode removed, primary ticket site) */}
       {selectedEvent && (
         <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] overflow-y-auto flex flex-col animate-in fade-in duration-200">
           <div className="sticky top-0 z-20 bg-white/95 dark:bg-[#121113]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
@@ -713,7 +782,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <h3 className="font-black text-sm uppercase tracking-wider text-slate-500">
-                Event Details & Tickets
+                Official Event Showcase
               </h3>
               <div className="w-9" />
             </div>
@@ -728,6 +797,11 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 <Users className="w-3.5 h-3.5 text-[#E0533C]" />
                 <span>{selectedEvent.goingCount} people going</span>
               </div>
+              {selectedEvent.genre && (
+                <div className="absolute bottom-3 left-3 bg-[#E0533C] text-white text-[10px] font-black px-3 py-1 rounded-full shadow">
+                  {selectedEvent.genre}
+                </div>
+              )}
             </div>
 
             <div className="space-y-1">
@@ -742,15 +816,14 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 <MapPin className="w-3.5 h-3.5" />
                 <span>{selectedEvent.location}</span>
               </p>
-              {selectedEvent.dressCode && (
-                <div className="mt-2 p-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-xl text-[11px]">
-                  <strong className="text-amber-900 dark:text-amber-200">Dress Code / What to wear:</strong>{' '}
-                  <span className="text-slate-600 dark:text-slate-300">{selectedEvent.dressCode}</span>
-                </div>
+              {selectedEvent.description && (
+                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed pt-2">
+                  {selectedEvent.description}
+                </p>
               )}
             </div>
 
-            {/* Uber / Bolt to Event */}
+            {/* Ride to Event */}
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => {
@@ -774,7 +847,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
               </button>
             </div>
 
-            {/* Artists */}
+            {/* Performing Artists Lineup */}
             {selectedEvent.artists && selectedEvent.artists.length > 0 && (
               <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
                 <h4 className="font-black text-slate-900 dark:text-slate-100 uppercase text-[11px] tracking-wider">
@@ -800,7 +873,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
               </div>
             )}
 
-            {/* Ticket Tiers */}
+            {/* Ticket Tier Options */}
             {selectedEvent.tiers && selectedEvent.tiers.length > 0 && (
               <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
                 <h4 className="font-black text-slate-900 dark:text-slate-100 uppercase text-[11px] tracking-wider">
@@ -829,9 +902,8 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 className={`flex-1 py-3 font-black rounded-2xl flex items-center justify-center gap-1.5 text-xs transition shadow-xs ${
                   goingEventIds.includes(selectedEvent.id)
                     ? 'bg-[#2D6A4F] hover:bg-emerald-800 text-white shadow-md'
-                    : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 hover:border-[#2D6A4F]'
+                    : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100'
                 }`}
-                title={goingEventIds.includes(selectedEvent.id) ? 'Click to remove count' : 'Click to say you are going'}
               >
                 <CheckCircle2 className={`w-4 h-4 ${goingEventIds.includes(selectedEvent.id) ? 'text-white' : 'text-[#2D6A4F]'}`} />
                 <span>{goingEventIds.includes(selectedEvent.id) ? 'Going ✓' : "I'm Going"}</span>
@@ -840,7 +912,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 onClick={() => onBuyEventTicket(selectedEvent)}
                 className="flex-1 py-3 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-2xl shadow-md transition text-xs flex items-center justify-center gap-1.5"
               >
-                <span>Get Ticket Pass</span>
+                <span>Get Primary Ticket</span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -848,38 +920,73 @@ export const Overlays: React.FC<OverlaysProps> = ({
         </div>
       )}
 
-      {/* 4. PLAN A DATE MODAL */}
+      {/* 4. PLAN A DATE MODAL (SPEC 5: Allow free browsing across ALL categories) */}
       {isPlanDateModalOpen && !datePlanningSpot && (
         <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-[#E0533C]" />
-                <h3 className="font-black text-sm uppercase tracking-wider">Plan a Date: Pick a Spot</h3>
+                <h3 className="font-black text-sm uppercase tracking-wider">Plan a Date: Pick Any Venue</h3>
               </div>
               <button onClick={onClosePlanDateModal} className="p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
+
             <div className="py-4 space-y-4 flex-1 text-xs">
               <p className="text-slate-500 font-medium">
-                Browse Nairobi's top spots below to pick the venue for your date:
+                Browse freely across all Nairobi categories to pick the perfect date destination:
               </p>
-              <div className="grid grid-cols-2 gap-3">
-                {spots.map((spot) => (
-                  <div
-                    key={spot.id}
-                    onClick={() => onSelectSpotForDate(spot)}
-                    className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 shadow-sm cursor-pointer hover:border-[#E0533C] transition"
+
+              {/* Category Filter Pills for Plan a Date */}
+              <div className="flex gap-1.5 overflow-x-auto hide-scrollbar pb-1">
+                {[
+                  { id: 'all', label: 'All Venues' },
+                  { id: 'date_spots', label: 'Romantic Date Spots' },
+                  { id: 'restaurants', label: 'Restaurants' },
+                  { id: 'nightlife', label: 'Nightlife' },
+                  { id: 'cafes', label: 'Cafes & Bakeries' },
+                  { id: 'hotels', label: 'Hotels & Stays' },
+                  { id: 'vacation', label: 'Vacation Spots' }
+                ].map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => setPlanDateCategory(c.id)}
+                    className={`px-3 py-1.5 rounded-full font-bold shrink-0 transition text-xs ${
+                      planDateCategory === c.id
+                        ? 'bg-[#E0533C] text-white shadow-xs'
+                        : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
+                    }`}
                   >
-                    <div
-                      className="h-28 rounded-xl mb-2 bg-cover bg-center"
-                      style={{ backgroundImage: `url('${spot.img}')` }}
-                    />
-                    <h4 className="font-black text-xs text-[#E0533C] truncate">{spot.title}</h4>
-                    <p className="text-[10px] text-slate-500">{spot.neighborhood} • {spot.price}</p>
-                  </div>
+                    {c.label}
+                  </button>
                 ))}
+              </div>
+
+              {/* Free Browsing Venue Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                {spots
+                  .filter(s => planDateCategory === 'all' || s.category === planDateCategory)
+                  .map((spot) => (
+                    <div
+                      key={spot.id}
+                      onClick={() => onSelectSpotForDate(spot)}
+                      className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 shadow-sm cursor-pointer hover:border-[#E0533C] transition flex flex-col justify-between"
+                    >
+                      <div>
+                        <div
+                          className="h-28 rounded-xl mb-2 bg-cover bg-center"
+                          style={{ backgroundImage: `url('${spot.img}')` }}
+                        />
+                        <h4 className="font-black text-xs text-[#E0533C] truncate">{spot.title}</h4>
+                        <p className="text-[10px] text-slate-500">{spot.neighborhood} • {spot.price}</p>
+                      </div>
+                      <button className="w-full mt-2 py-1.5 bg-[#E0533C] text-white font-bold rounded-lg text-[10px]">
+                        Select for Date
+                      </button>
+                    </div>
+                  ))}
               </div>
             </div>
           </div>
@@ -1188,41 +1295,176 @@ export const Overlays: React.FC<OverlaysProps> = ({
         </div>
       )}
 
-      {/* 9. SETTINGS & APPEARANCE OVERLAY */}
+      {/* 9. REDESIGNED SETTINGS (SPEC 6: Redesigned like Instagram / TikTok) */}
       {activeOverlay === 'settingsOverlay' && (
         <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
-              <h3 className="font-black text-sm uppercase tracking-wider">Settings & Appearance</h3>
+              <div className="flex items-center gap-2">
+                <Sliders className="w-5 h-5 text-[#E0533C]" />
+                <h3 className="font-black text-sm uppercase tracking-wider">Settings</h3>
+              </div>
               <button onClick={onCloseOverlay} className="p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="py-4 space-y-4 text-xs flex-1">
-              <div className="p-3.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between">
-                <div>
-                  <h4 className="font-bold">Color Theme Mode</h4>
-                  <p className="text-[11px] text-slate-500">
-                    Currently: {isDarkMode ? 'Dark Theme' : 'Light Theme (Default White)'}
-                  </p>
+
+            <div className="py-4 space-y-5 text-xs flex-1">
+              {/* Group 1: Account & Preferences (Instagram/TikTok style) */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-1">
+                  Preferences & Appearance
+                </span>
+                <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden divide-y divide-slate-200/60 dark:divide-slate-800/80">
+                  <div className="p-3.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      {isDarkMode ? <Moon className="w-4 h-4 text-purple-400" /> : <Sun className="w-4 h-4 text-amber-500" />}
+                      <div>
+                        <h4 className="font-bold">Dark Appearance</h4>
+                        <p className="text-[10px] text-slate-400">Toggle between Light and Dark mode</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={onToggleTheme}
+                      className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${isDarkMode ? 'bg-[#E0533C]' : 'bg-slate-300'}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${isDarkMode ? 'translate-x-6' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+
+                  <div className="p-3.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <Bell className="w-4 h-4 text-[#E0533C]" />
+                      <div>
+                        <h4 className="font-bold">Push Notifications</h4>
+                        <p className="text-[10px] text-slate-400">Match alerts, event drops & ticket passes</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setPushNotifications(!pushNotifications);
+                        showToast(pushNotifications ? 'Push notifications paused.' : 'Push notifications enabled!');
+                      }}
+                      className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${pushNotifications ? 'bg-[#2D6A4F]' : 'bg-slate-300'}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${pushNotifications ? 'translate-x-6' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+
+                  <div className="p-3.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <Sliders className="w-4 h-4 text-[#2D6A4F]" />
+                      <div>
+                        <h4 className="font-bold">Language / Lugha</h4>
+                        <p className="text-[10px] text-slate-400">{languageSetting}</p>
+                      </div>
+                    </div>
+                    <select
+                      value={languageSetting}
+                      onChange={(e) => {
+                        setLanguageSetting(e.target.value);
+                        showToast(`Language set to ${e.target.value}`);
+                      }}
+                      className="bg-transparent font-bold text-xs text-[#E0533C] focus:outline-none"
+                    >
+                      <option value="English (Kenya)">English (KE)</option>
+                      <option value="Kiswahili">Kiswahili</option>
+                      <option value="Sheng Urban">Sheng</option>
+                    </select>
+                  </div>
                 </div>
-                <button
-                  onClick={onToggleTheme}
-                  className="px-4 py-2 bg-[#E0533C] text-white rounded-xl font-bold flex items-center gap-1.5 shadow-sm"
-                >
-                  {isDarkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-                  <span>Switch to {isDarkMode ? 'Light' : 'Dark'}</span>
-                </button>
               </div>
 
-              <div className="p-3.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between">
-                <div>
-                  <h4 className="font-bold">App Location Permissions</h4>
-                  <p className="text-[11px] text-slate-500">Used for Nairobi spot distances & Uber dropoffs</p>
-                </div>
-                <span className="text-[#2D6A4F] font-bold flex items-center gap-1">
-                  <CheckCircle2 className="w-4 h-4" /> Enabled
+              {/* Group 2: Privacy & Interactions */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-1">
+                  Privacy & Interactions
                 </span>
+                <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden divide-y divide-slate-200/60 dark:divide-slate-800/80">
+                  <div className="p-3.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <Eye className="w-4 h-4 text-blue-500" />
+                      <div>
+                        <h4 className="font-bold">Discoverable in Socials</h4>
+                        <p className="text-[10px] text-slate-400">Show card to Nairobi community</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setDatingDiscoverable(!datingDiscoverable);
+                        showToast(datingDiscoverable ? 'Hidden from Discover.' : 'Visible in Discover.');
+                      }}
+                      className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${datingDiscoverable ? 'bg-[#2D6A4F]' : 'bg-slate-300'}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${datingDiscoverable ? 'translate-x-6' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+
+                  <div className="p-3.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <MapPin className="w-4 h-4 text-emerald-500" />
+                      <div>
+                        <h4 className="font-bold">GPS Location Services</h4>
+                        <p className="text-[10px] text-slate-400">Used for spot distances & Uber dropoffs</p>
+                      </div>
+                    </div>
+                    <span className="text-emerald-600 font-bold text-xs flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5" /> Active
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <Lock className="w-4 h-4 text-amber-500" />
+                      <div>
+                        <h4 className="font-bold">Two-Factor Authentication (2FA)</h4>
+                        <p className="text-[10px] text-slate-400">Account login security protection</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setIs2FAEnabled(!is2FAEnabled);
+                        showToast(is2FAEnabled ? '2FA disabled.' : '2FA enabled.');
+                      }}
+                      className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${is2FAEnabled ? 'bg-[#2D6A4F]' : 'bg-slate-300'}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${is2FAEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Group 3: Support & Information */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-1">
+                  Support & About
+                </span>
+                <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden divide-y divide-slate-200/60 dark:divide-slate-800/80">
+                  <button
+                    onClick={() => showToast('Opening RADA Nairobi Help Center & FAQ...')}
+                    className="w-full p-3.5 flex items-center justify-between text-left hover:bg-slate-100 dark:hover:bg-slate-800/50 transition"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <HelpCircle className="w-4 h-4 text-slate-500" />
+                      <span className="font-bold">Help Center & Safety Rules</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-400" />
+                  </button>
+
+                  <button
+                    onClick={() => showToast('RADA Nairobi Hangouts v2026.4.2')}
+                    className="w-full p-3.5 flex items-center justify-between text-left hover:bg-slate-100 dark:hover:bg-slate-800/50 transition"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <FileText className="w-4 h-4 text-slate-500" />
+                      <div>
+                        <span className="font-bold">App Version</span>
+                        <p className="text-[10px] text-slate-400">RADA 2026.4.2 (Production Build)</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono text-slate-400">Up to date</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1273,30 +1515,12 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   Update Account Info
                 </button>
               </div>
-
-              <div className="p-3.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between">
-                <div>
-                  <h4 className="font-bold">Two-Factor Authentication (2FA)</h4>
-                  <p className="text-[11px] text-slate-500">Secure sign-in via SMS / Authenticator</p>
-                </div>
-                <button
-                  onClick={() => {
-                    setIs2FAEnabled(!is2FAEnabled);
-                    showToast(is2FAEnabled ? '2FA disabled.' : '2FA enabled.');
-                  }}
-                  className={`px-3.5 py-1.5 font-bold rounded-xl shadow ${
-                    is2FAEnabled ? 'bg-[#2D6A4F] text-white' : 'bg-slate-400 text-white'
-                  }`}
-                >
-                  {is2FAEnabled ? 'Enabled' : 'Disabled'}
-                </button>
-              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* 11. PROFILE & SAFETY OVERLAY */}
+      {/* 11. PROFILE OVERLAY (SPEC 6: Renamed to Profile, strictly Single or Not single without emojis) */}
       {activeOverlay === 'profileOverlay' && (
         <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
@@ -1304,7 +1528,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
               <div className="flex items-center gap-2 text-[#E0533C]">
                 <User className="w-5 h-5" />
                 <h3 className="font-black text-sm uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                  Profile & Safety Hub
+                  Profile
                 </h3>
               </div>
               <button onClick={onCloseOverlay} className="p-1">
@@ -1330,14 +1554,14 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   <p className="text-slate-500 font-bold text-[11px]">{currentUserProfile?.handle || '@lowk3yFX'} • Nairobi, Kenya</p>
                 </div>
 
-                {/* Relationship Status: Single vs Not Single */}
+                {/* Relationship Status: Strictly Single or Not single without emojis */}
                 <div className="space-y-1.5 text-left pt-1 border-t border-slate-200 dark:border-slate-800">
                   <div className="flex items-center justify-between">
                     <label className="font-extrabold text-[11px] text-slate-700 dark:text-slate-300">
                       Relationship Status
                     </label>
                     <span className="text-[10px] font-bold text-[#E0533C]">
-                      {profileRelationshipStatus === 'single' ? '🟢 Open to Matching' : '🔒 Browsing Only'}
+                      {profileRelationshipStatus === 'single' ? 'Single' : 'Not single'}
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
@@ -1350,8 +1574,8 @@ export const Overlays: React.FC<OverlaysProps> = ({
                           : 'bg-white dark:bg-[#121113] border-slate-200 dark:border-slate-800 text-slate-500 hover:border-slate-300'
                       }`}
                     >
-                      <span>🟢 Single</span>
-                      <span className="text-[9px] font-normal opacity-80">Can receive match requests</span>
+                      <span>Single</span>
+                      <span className="text-[9px] font-normal opacity-80">Visible in matching queue</span>
                     </button>
 
                     <button
@@ -1363,13 +1587,10 @@ export const Overlays: React.FC<OverlaysProps> = ({
                           : 'bg-white dark:bg-[#121113] border-slate-200 dark:border-slate-800 text-slate-500 hover:border-slate-300'
                       }`}
                     >
-                      <span>🔒 Not Single</span>
-                      <span className="text-[9px] font-normal opacity-80">Matching disabled</span>
+                      <span>Not single</span>
+                      <span className="text-[9px] font-normal opacity-80">Excluded from matching</span>
                     </button>
                   </div>
-                  <p className="text-[10px] text-slate-400">
-                    * Users marked as "Single" are the ones who can receive hangout & dating match requests on RADA.
-                  </p>
                 </div>
 
                 <div className="space-y-1 text-left pt-1">
@@ -1388,11 +1609,11 @@ export const Overlays: React.FC<OverlaysProps> = ({
                         avatar: profileAvatar,
                         relationshipStatus: profileRelationshipStatus
                       });
-                      showToast(`Profile saved! Status set to ${profileRelationshipStatus === 'single' ? 'Single' : 'Not Single'}.`);
+                      showToast(`Profile saved! Status set to ${profileRelationshipStatus === 'single' ? 'Single' : 'Not single'}.`);
                     }}
                     className="w-full py-2.5 bg-[#2D6A4F] hover:bg-emerald-800 text-white font-bold rounded-xl text-xs shadow mt-1 transition"
                   >
-                    Save Profile & Status
+                    Save Profile
                   </button>
                 </div>
               </div>
@@ -1401,39 +1622,114 @@ export const Overlays: React.FC<OverlaysProps> = ({
         </div>
       )}
 
-      {/* 12. DEDICATED VIEW ALL MODAL */}
+      {/* 12. DEDICATED VIEW ALL MODAL (SPEC 3: Strictly display items matching that category only) */}
       {viewAllTitle && (
         <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
-              <h3 className="font-black text-sm uppercase tracking-wider">{viewAllTitle}</h3>
+              <div className="flex items-center gap-2">
+                <Compass className="w-5 h-5 text-[#E0533C]" />
+                <h3 className="font-black text-sm uppercase tracking-wider">{viewAllTitle}</h3>
+              </div>
               <button onClick={onCloseViewAll} className="p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
+
             <div className="py-4 space-y-3 flex-1 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                {spots.map((s, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => {
-                      onCloseViewAll();
-                      onOpenSpotDetails(s);
-                    }}
-                    className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 shadow-sm space-y-1.5 cursor-pointer hover:border-[#E0533C] transition"
-                  >
+              {/* Category-Specific Strict Filtering */}
+              {viewAllCategory === 'events' ? (
+                /* STRICTLY DISPLAY EVENTS */
+                <div className="space-y-3">
+                  {events.map((evt) => (
                     <div
-                      className="h-28 rounded-xl bg-cover bg-center"
-                      style={{ backgroundImage: `url('${s.img}')` }}
-                    />
-                    <h4 className="font-bold text-xs truncate text-[#E0533C]">{s.title}</h4>
-                    <p className="text-[10px] text-slate-500">{s.neighborhood} • ★{s.rating}</p>
-                    <button className="w-full py-1.5 bg-[#E0533C] text-white rounded-lg text-[11px] font-bold">
-                      View Details
-                    </button>
-                  </div>
-                ))}
-              </div>
+                      key={evt.id}
+                      onClick={() => {
+                        onCloseViewAll();
+                        if (onOpenEventDetails) onOpenEventDetails(evt);
+                      }}
+                      className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 flex items-center justify-between gap-3 shadow-xs cursor-pointer hover:border-[#E0533C] transition"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-16 h-16 rounded-xl bg-cover bg-center shrink-0" style={{ backgroundImage: `url('${evt.img}')` }} />
+                        <div className="min-w-0">
+                          <h4 className="font-bold text-xs truncate">{evt.title}</h4>
+                          <p className="text-[10px] text-[#E0533C] font-semibold">{evt.date}</p>
+                          <p className="text-[10px] text-slate-400 truncate">{evt.location}</p>
+                        </div>
+                      </div>
+                      <button className="px-3 py-1.5 bg-[#E0533C] text-white rounded-xl text-xs font-bold shrink-0">
+                        View Event
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : viewAllCategory === 'cinemas' ? (
+                /* STRICTLY DISPLAY CINEMA MOVIES */
+                <div className="grid grid-cols-2 gap-3">
+                  {cinemaMovies.map((movie) => (
+                    <div
+                      key={movie.id}
+                      onClick={() => {
+                        onCloseViewAll();
+                        if (onBookCinema) onBookCinema(movie);
+                      }}
+                      className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 shadow-xs cursor-pointer hover:border-[#2D6A4F] transition flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="h-44 rounded-xl bg-cover bg-center mb-2" style={{ backgroundImage: `url('${movie.img}')` }} />
+                        <h4 className="font-bold text-xs truncate">{movie.title}</h4>
+                        <p className="text-[10px] text-[#2D6A4F] font-semibold">{movie.locationName}</p>
+                        <p className="text-[9px] text-slate-400">{movie.format}</p>
+                      </div>
+                      <button className="w-full mt-2 py-1.5 bg-[#2D6A4F] text-white rounded-lg text-[10px] font-bold">
+                        Book Movie
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : viewAllCategory === 'thrift' ? (
+                /* STRICTLY DISPLAY THRIFT LUKU ITEMS */
+                <div className="grid grid-cols-2 gap-3">
+                  {thriftItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 shadow-xs"
+                    >
+                      <div className="h-36 rounded-xl bg-cover bg-center mb-2" style={{ backgroundImage: `url('${item.img}')` }} />
+                      <h4 className="font-bold text-xs truncate">{item.name}</h4>
+                      <p className="text-[10px] text-[#E0533C] font-black">{item.price} • {item.size}</p>
+                      <p className="text-[9px] text-slate-400 truncate">{item.seller}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                /* STRICTLY DISPLAY MATCHING SPOTS */
+                <div className="grid grid-cols-2 gap-3">
+                  {spots
+                    .filter(s => !viewAllCategory || viewAllCategory === 'spots' || s.category === viewAllCategory)
+                    .map((s, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          onCloseViewAll();
+                          onOpenSpotDetails(s);
+                        }}
+                        className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 shadow-sm space-y-1.5 cursor-pointer hover:border-[#E0533C] transition"
+                      >
+                        <div
+                          className="h-28 rounded-xl bg-cover bg-center"
+                          style={{ backgroundImage: `url('${s.img}')` }}
+                        />
+                        <h4 className="font-bold text-xs truncate text-[#E0533C]">{s.title}</h4>
+                        <p className="text-[10px] text-slate-500">{s.neighborhood} • ★{s.rating}</p>
+                        <button className="w-full py-1.5 bg-[#E0533C] text-white rounded-lg text-[11px] font-bold">
+                          View Details
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
