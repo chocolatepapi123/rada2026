@@ -181,11 +181,57 @@ export const BusinessHubModal: React.FC<BusinessHubModalProps> = ({
     setMenuItemsList(prev => prev.filter(m => m.id !== id));
   };
 
-    const handlePublishSpot = async () => {
+      const handlePublishSpot = async () => {
     if (!spotTitle.trim()) {
       showToast('Please enter a spot title.');
       return;
     }
+
+    const payload = {
+      title: spotTitle.trim(),
+      category: spotCategory,
+      neighborhood: spotNeighborhood,
+      lat: -1.2675 + (Math.random() - 0.5) * 0.02,
+      lng: 36.8115 + (Math.random() - 0.5) * 0.02,
+      rating: '4.8',
+      price: spotPrice,
+      address: spotAddress,
+      img: spotImg,
+      description: spotDescription,
+      phone: currentBiz?.phone || '+254 700 000 000',
+      opening_hours: spotHours,
+      business_id: currentBiz?.id || null,
+      menu_images: [spotImg],
+      menu_items: menuItemsList
+    };
+
+    // 1. Send to Supabase Database
+    const { data, error } = await supabase
+      .from('spots')
+      .insert([payload])
+      .select();
+
+    // 2. If Supabase fails, SHOW THE ERROR ON YOUR PHONE SCREEN
+    if (error) {
+      alert(`SUPABASE ERROR: ${error.message} (Details: ${error.details || 'None'})`);
+      return;
+    }
+
+    // 3. Update local state & show success
+    const publishedSpot = data && data.length > 0 ? data[0] : { id: Date.now(), ...payload };
+    onAddOrUpdateSpot(publishedSpot);
+
+    setSuccessModalData({
+      title: 'Successful! Spot Uploaded',
+      message: `Your spot "${spotTitle}" is live in Supabase!`,
+      listingName: spotTitle,
+      categoryBadge: 'Spot Upload Successful',
+      subDetails: 'Customers can now view location, menus, and reviews.'
+    });
+
+    showToast(`Upload Successful! Spot "${spotTitle}" is live in Supabase.`);
+  };
+
 
     const payload = {
       title: spotTitle.trim(),
