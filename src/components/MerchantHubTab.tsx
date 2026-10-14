@@ -31,7 +31,10 @@ import {
   Share2,
   RefreshCw,
   UtensilsCrossed,
-  X
+  X,
+  ArrowLeft,
+  Upload,
+  Camera
 } from 'lucide-react';
 import { 
   BusinessAccount, 
@@ -47,6 +50,7 @@ import {
   Artist 
 } from '../types.ts';
 import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
+import { DynamicLocationSelector } from './DynamicLocationSelector.tsx';
 
 interface MerchantHubTabProps {
   businesses: BusinessAccount[];
@@ -210,6 +214,46 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   const [newMenuPrice, setNewMenuPrice] = useState('KES ');
   const [newMenuCategory, setNewMenuCategory] = useState('Mains');
   const [newMenuDesc, setNewMenuDesc] = useState('');
+
+  // Native file upload handlers for Spot Cover Image and Gallery
+  const handleSpotCoverFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        setSpotCoverImg(reader.result);
+        showToast('Cover photo uploaded successfully!');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSpotGalleryFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const readers = Array.from(files).map(file => {
+      return new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (typeof reader.result === 'string') {
+            resolve(reader.result);
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    Promise.all(readers).then(results => {
+      setSpotGalleryImgs(prev => [...prev, ...results]);
+      showToast(`Added ${results.length} photo(s) to gallery.`);
+    });
+  };
+
+  const handleRemoveGalleryImage = (indexToRemove: number) => {
+    setSpotGalleryImgs(prev => prev.filter((_, idx) => idx !== indexToRemove));
+    showToast('Gallery image removed.');
+  };
 
   const openCreateSpotModal = () => {
     setEditingSpotId(null);
@@ -645,37 +689,24 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                   </div>
 
                   {/* Neighborhood & Address */}
-                  <div className="grid grid-cols-2 gap-3 pt-2">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                        Neighborhood
-                      </label>
-                      <select 
-                        value={onboardNeighborhood}
-                        onChange={(e) => setOnboardNeighborhood(e.target.value)}
-                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl px-3 py-3 font-semibold focus:outline-none focus:border-[#E0533C]"
-                      >
-                        <option value="Westlands">Westlands</option>
-                        <option value="Kilimani">Kilimani</option>
-                        <option value="Karen">Karen</option>
-                        <option value="CBD">Nairobi CBD</option>
-                        <option value="Hurlingham">Hurlingham</option>
-                        <option value="Lavington">Lavington</option>
-                        <option value="Parklands">Parklands</option>
-                        <option value="Ngong Road">Ngong Road</option>
-                      </select>
-                    </div>
+                  <div className="space-y-3 pt-2">
+                    <DynamicLocationSelector
+                      value={onboardNeighborhood}
+                      onChange={(loc) => setOnboardNeighborhood(loc)}
+                      label="Neighborhood / Location Area *"
+                      placeholder="Search neighborhood, sub-location or type custom..."
+                    />
 
                     <div>
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                        Full Address / Stall
+                        Full Address / Building / Stall Number
                       </label>
                       <input 
                         type="text"
-                        placeholder="e.g. Mpaka Rd, 2nd Floor"
+                        placeholder="e.g. Mpaka Rd, 2nd Floor / Gikomba Stall 4B"
                         value={onboardAddress}
                         onChange={(e) => setOnboardAddress(e.target.value)}
-                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl px-3 py-3 focus:outline-none focus:border-[#E0533C]"
+                        className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3 font-medium focus:outline-none focus:border-[#E0533C]"
                       />
                     </div>
                   </div>
@@ -875,20 +906,20 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 mt-8">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-8">
                   <button
                     type="button"
                     onClick={() => setOnboardingStep(1)}
-                    className="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs py-3.5 rounded-2xl transition"
+                    className="w-full sm:w-auto sm:px-6 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs py-3.5 rounded-2xl transition text-center shrink-0 order-2 sm:order-1 cursor-pointer"
                   >
                     Back to Profile
                   </button>
                   <button
                     type="button"
                     onClick={handleCompleteOnboarding}
-                    className="flex-2 bg-[#E0533C] hover:bg-[#c9432d] text-white font-black text-xs py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 active:scale-[0.99] transition cursor-pointer"
+                    className="w-full flex-1 bg-[#E0533C] hover:bg-[#c9432d] text-white font-extrabold text-xs sm:text-sm px-6 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 active:scale-[0.99] transition cursor-pointer leading-tight text-center whitespace-normal order-1 sm:order-2"
                   >
-                    <CheckCircle2 className="w-4 h-4" />
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
                     <span>Launch Merchant Dashboard</span>
                   </button>
                 </div>
@@ -1791,183 +1822,485 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       </div>
 
       {/* =========================================================================
-          MODAL 1: CREATE / EDIT SPOT FORM
+          FULL-SCREEN DEDICATED VIEW: CREATE / EDIT SPOT & MENU
           ========================================================================= */}
       {isSpotFormOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-[#1C1A1E] w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 animate-in slide-in-from-bottom duration-200">
-            {/* Modal Header */}
-            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <div>
-                <h3 className="font-black text-base">
-                  {editingSpotId ? 'Edit Spot & Menu' : 'Publish New Spot Listing'}
-                </h3>
-                <p className="text-xs text-slate-500">Managed under {currentBiz.name}</p>
+        <div className="fixed inset-0 z-50 bg-[#FBFBF9] dark:bg-[#121113] text-slate-900 dark:text-slate-100 overflow-y-auto animate-in fade-in duration-150 flex flex-col">
+          {/* Top Sticky Header with Back Button */}
+          <div className="sticky top-0 z-30 bg-white/95 dark:bg-[#1C1A1E]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-xs">
+            <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsSpotFormOpen(false)}
+                  className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200 transition cursor-pointer"
+                  title="Back to Dashboard"
+                  aria-label="Back to Dashboard"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+                <div>
+                  <h2 className="font-black text-base sm:text-lg tracking-tight text-slate-900 dark:text-slate-100">
+                    {editingSpotId ? 'Edit Spot & Menu' : 'Publish New Spot Listing'}
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    Managing {currentBiz.name} official spot profile
+                  </p>
+                </div>
               </div>
-              <button 
-                onClick={() => setIsSpotFormOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-900"
-              >
-                <X className="w-4 h-4" />
-              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsSpotFormOpen(false)}
+                  className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121113] transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
+          </div>
 
-            {/* Modal Body */}
-            <form onSubmit={handleSaveSpot} className="p-5 overflow-y-auto space-y-4 flex-1">
-              <div>
-                <label className="block text-xs font-bold mb-1">Spot Title *</label>
-                <input 
-                  type="text" 
-                  value={spotTitle} 
-                  onChange={(e) => setSpotTitle(e.target.value)} 
-                  placeholder="e.g. Ink & Drink Lounge"
-                  className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none focus:border-[#E0533C]"
-                  required 
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold mb-1">Category</label>
-                  <select 
-                    value={spotCategory} 
-                    onChange={(e) => setSpotCategory(e.target.value as SpotCategory)}
-                    className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
-                  >
-                    <option value="restaurants">Restaurants</option>
-                    <option value="nightlife">Nightlife & Clubs</option>
-                    <option value="cafes">Cafes</option>
-                    <option value="date_spots">Date Spots</option>
-                    <option value="hotels">Hotels</option>
-                    <option value="vacation">Vacation Lodges</option>
-                  </select>
-                </div>
+          {/* Full-Screen Form Container */}
+          <div className="max-w-3xl mx-auto w-full px-4 py-6 flex-1 pb-32">
+            <form onSubmit={handleSaveSpot} className="space-y-6">
+              
+              {/* Basic Details Card */}
+              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                  Basic Spot Info
+                </h3>
 
                 <div>
-                  <label className="block text-xs font-bold mb-1">Price Tier</label>
-                  <select 
-                    value={spotPrice} 
-                    onChange={(e) => setSpotPrice(e.target.value)}
-                    className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
-                  >
-                    <option value="KES $">KES $ (Budget Friendly)</option>
-                    <option value="KES $$">KES $$ (Moderate)</option>
-                    <option value="KES $$$">KES $$$ (Premium)</option>
-                    <option value="KES $$$$">KES $$$$ (Fine Dining / Luxury)</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Exact Location & Bus Stop Tag */}
-              <div>
-                <label className="block text-xs font-bold mb-1">
-                  Exact Location Tag (with Bus Stop / Stage) *
-                </label>
-                <input 
-                  type="text" 
-                  value={spotExactLocationTag} 
-                  onChange={(e) => setSpotExactLocationTag(e.target.value)} 
-                  placeholder="e.g. Mpaka Road, Westlands, Opposite PrideInn Hotel"
-                  className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none focus:border-[#E0533C]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold mb-1">Nearest Landmark / Stage</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Spot Title *</label>
                   <input 
                     type="text" 
-                    value={spotLandmark} 
-                    onChange={(e) => setSpotLandmark(e.target.value)} 
-                    placeholder="e.g. Westlands Stage"
-                    className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 focus:outline-none"
+                    value={spotTitle} 
+                    onChange={(e) => setSpotTitle(e.target.value)} 
+                    placeholder="e.g. Ink & Drink Lounge"
+                    className="w-full text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C] font-semibold"
+                    required 
                   />
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Category</label>
+                    <select 
+                      value={spotCategory} 
+                      onChange={(e) => setSpotCategory(e.target.value as SpotCategory)}
+                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 font-semibold focus:outline-none focus:border-[#E0533C]"
+                    >
+                      <option value="restaurants">Restaurants</option>
+                      <option value="nightlife">Nightlife & Clubs</option>
+                      <option value="cafes">Cafes</option>
+                      <option value="date_spots">Date Spots</option>
+                      <option value="hotels">Hotels</option>
+                      <option value="vacation">Vacation Lodges</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Price Tier</label>
+                    <select 
+                      value={spotPrice} 
+                      onChange={(e) => setSpotPrice(e.target.value)}
+                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 font-semibold focus:outline-none focus:border-[#E0533C]"
+                    >
+                      <option value="KES $">KES $ (Budget Friendly)</option>
+                      <option value="KES $$">KES $$ (Moderate)</option>
+                      <option value="KES $$$">KES $$$ (Premium)</option>
+                      <option value="KES $$$$">KES $$$$ (Fine Dining / Luxury)</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block text-xs font-bold mb-1">Opening Hours</label>
-                  <input 
-                    type="text" 
-                    value={spotOpeningHours} 
-                    onChange={(e) => setSpotOpeningHours(e.target.value)} 
-                    placeholder="e.g. 11:00 AM - Midnight"
-                    className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 focus:outline-none"
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Description / About</label>
+                  <textarea 
+                    rows={3}
+                    value={spotDescription} 
+                    onChange={(e) => setSpotDescription(e.target.value)} 
+                    placeholder="Tell guests what makes your hangout, cocktails, views, or food unique..."
+                    className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C]"
                   />
                 </div>
               </div>
 
-              {/* Cover Photo */}
-              <div>
-                <label className="block text-xs font-bold mb-1">Cover Image URL</label>
-                <input 
-                  type="url" 
-                  value={spotCoverImg} 
-                  onChange={(e) => setSpotCoverImg(e.target.value)} 
-                  className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 focus:outline-none"
+              {/* Location & Directions Card with Dynamic Auto-search */}
+              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                    Location & Transit Directions
+                  </h3>
+                  <span className="text-[10px] text-[#E0533C] font-bold">Nairobi • Kiambu • Mombasa Rd</span>
+                </div>
+
+                {/* Dynamic Auto-Search Location Selector */}
+                <DynamicLocationSelector
+                  value={spotNeighborhood}
+                  onChange={(loc) => {
+                    setSpotNeighborhood(loc);
+                    if (!spotAddress) {
+                      setSpotAddress(loc);
+                    }
+                  }}
+                  label="Neighborhood / Area Location *"
+                  placeholder="Search Nairobi estates, Kiambu, Mombasa Rd stages..."
                 />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Exact Location Tag (with Bus Stop / Stage) *
+                    </label>
+                    <input 
+                      type="text" 
+                      value={spotExactLocationTag} 
+                      onChange={(e) => setSpotExactLocationTag(e.target.value)} 
+                      placeholder="e.g. Mpaka Road, Westlands, Opposite PrideInn Hotel"
+                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Nearest Landmark / Bus Stage
+                    </label>
+                    <input 
+                      type="text" 
+                      value={spotLandmark} 
+                      onChange={(e) => setSpotLandmark(e.target.value)} 
+                      placeholder="e.g. Westlands Stage / Sarit Roundabout"
+                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C]"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Opening Hours
+                    </label>
+                    <input 
+                      type="text" 
+                      value={spotOpeningHours} 
+                      onChange={(e) => setSpotOpeningHours(e.target.value)} 
+                      placeholder="e.g. 11:00 AM - Midnight"
+                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Reservation Phone / WhatsApp
+                    </label>
+                    <input 
+                      type="text" 
+                      value={spotPhone} 
+                      onChange={(e) => setSpotPhone(e.target.value)} 
+                      placeholder="e.g. +254 722 123 456"
+                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none"
+                    />
+                  </div>
+                </div>
               </div>
 
-              {/* Digital Menu Builder */}
-              <div className="border-t border-slate-200 dark:border-slate-800 pt-3">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-black text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+              {/* NATIVE FILE UPLOADS: COVER IMAGE & GALLERY PHOTOS */}
+              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-6">
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                    Spot Media & Visuals
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Upload high-quality photos directly from your device. No URLs needed.
+                  </p>
+                </div>
+
+                {/* PRIMARY COVER IMAGE (NATIVE FILE UPLOAD) */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                      Primary Cover Photo *
+                    </label>
+                    {spotCoverImg && (
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Cover Active</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {spotCoverImg ? (
+                    <div className="relative w-full h-56 sm:h-72 rounded-2xl overflow-hidden border-2 border-slate-200 dark:border-slate-800 group shadow-xs bg-slate-900">
+                      <img 
+                        src={spotCoverImg} 
+                        alt="Spot Cover Preview" 
+                        className="w-full h-full object-cover" 
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end justify-between p-4">
+                        <div className="flex items-center gap-2">
+                          <label
+                            htmlFor="spot-cover-file-input"
+                            className="px-3.5 py-2 bg-white/95 hover:bg-white text-slate-900 rounded-xl text-xs font-extrabold cursor-pointer transition shadow-md flex items-center gap-1.5"
+                          >
+                            <Upload className="w-3.5 h-3.5 text-[#E0533C]" />
+                            <span>Change Photo</span>
+                          </label>
+                          <input
+                            id="spot-cover-file-input"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleSpotCoverFileUpload}
+                            className="hidden"
+                          />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSpotCoverImg('');
+                            showToast('Cover photo removed. Please upload a new image.');
+                          }}
+                          className="px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-extrabold cursor-pointer transition shadow-md flex items-center gap-1.5"
+                          title="Remove cover photo"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Remove</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <label
+                      htmlFor="spot-cover-file-input-empty"
+                      className="w-full h-48 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-2.5 p-6 cursor-pointer transition group text-center"
+                    >
+                      <div className="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] flex items-center justify-center group-hover:scale-105 transition">
+                        <Camera className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-black text-slate-800 dark:text-slate-200">
+                          Upload Spot Cover Photo
+                        </p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Click to select a high-resolution photo from your device
+                        </p>
+                      </div>
+                      <span className="px-4 py-2 bg-[#E0533C] text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Select Image File</span>
+                      </span>
+                      <input
+                        id="spot-cover-file-input-empty"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleSpotCoverFileUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+
+                {/* GALLERY OF MULTIPLE ADDITIONAL SPOT IMAGES */}
+                <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                        Gallery Photos ({spotGalleryImgs.length})
+                      </label>
+                      <p className="text-[11px] text-slate-400">
+                        Add interior shots, signature cocktails, seating, and patio views
+                      </p>
+                    </div>
+
+                    <label
+                      htmlFor="spot-gallery-file-input"
+                      className="px-3.5 py-1.5 bg-[#E0533C]/10 hover:bg-[#E0533C]/20 text-[#E0533C] rounded-xl text-xs font-extrabold cursor-pointer transition flex items-center gap-1.5 shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Upload Photos</span>
+                    </label>
+                    <input
+                      id="spot-gallery-file-input"
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleSpotGalleryFileUpload}
+                      className="hidden"
+                    />
+                  </div>
+
+                  {spotGalleryImgs.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {spotGalleryImgs.map((imgUrl, idx) => (
+                        <div 
+                          key={idx} 
+                          className="relative group rounded-2xl overflow-hidden aspect-square border border-slate-200 dark:border-slate-800 bg-slate-900 shadow-xs"
+                        >
+                          <img 
+                            src={imgUrl} 
+                            alt={`Gallery photo ${idx + 1}`} 
+                            className="w-full h-full object-cover group-hover:scale-105 transition duration-200" 
+                          />
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center gap-2 p-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSpotCoverImg(imgUrl);
+                                showToast('Set as primary cover photo!');
+                              }}
+                              className="px-2.5 py-1 bg-white text-slate-900 rounded-lg text-[10px] font-black hover:bg-slate-100 transition"
+                            >
+                              Set as Cover
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveGalleryImage(idx)}
+                              className="px-2.5 py-1 bg-red-600 text-white rounded-lg text-[10px] font-bold hover:bg-red-700 flex items-center gap-1 transition"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                          {spotCoverImg === imgUrl && (
+                            <div className="absolute top-2 left-2 bg-[#E0533C] text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md uppercase">
+                              Cover
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                      {/* Add More Photos Tile */}
+                      <label
+                        htmlFor="spot-gallery-file-input-grid"
+                        className="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-1.5 p-3 aspect-square cursor-pointer transition text-center group"
+                      >
+                        <div className="w-9 h-9 rounded-xl bg-orange-50 dark:bg-orange-950/40 text-[#E0533C] flex items-center justify-center group-hover:scale-110 transition">
+                          <Plus className="w-5 h-5" />
+                        </div>
+                        <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-300">
+                          Add More
+                        </span>
+                        <input
+                          id="spot-gallery-file-input-grid"
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleSpotGalleryFileUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <label
+                      htmlFor="spot-gallery-file-input-empty"
+                      className="w-full py-8 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-2 cursor-pointer transition text-center"
+                    >
+                      <ImageIcon className="w-8 h-8 text-slate-400" />
+                      <div>
+                        <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                          No additional gallery photos uploaded
+                        </p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Select multiple photos from your device to showcase the atmosphere
+                        </p>
+                      </div>
+                      <span className="px-3.5 py-1.5 bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-bold">
+                        Choose Photos
+                      </span>
+                      <input
+                        id="spot-gallery-file-input-empty"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleSpotGalleryFileUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              {/* Digital Menu Builder Card */}
+              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                     <UtensilsCrossed className="w-3.5 h-3.5 text-[#E0533C]" />
                     <span>Digital Menu Items ({spotMenuItems.length})</span>
                   </span>
                 </div>
 
                 {/* Existing menu items */}
-                <div className="space-y-1.5 max-h-36 overflow-y-auto mb-3">
-                  {spotMenuItems.map((item, idx) => (
-                    <div key={item.id || idx} className="p-2 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between text-xs">
-                      <div>
-                        <span className="font-extrabold">{item.name}</span>
-                        <span className="text-[10px] text-slate-400 block">{item.category} • {item.price}</span>
+                {spotMenuItems.length > 0 && (
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    {spotMenuItems.map((item, idx) => (
+                      <div key={item.id || idx} className="p-3 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between text-xs">
+                        <div className="min-w-0 flex-1 pr-3">
+                          <span className="font-extrabold text-slate-900 dark:text-slate-100 block truncate">{item.name}</span>
+                          <span className="text-[11px] text-[#E0533C] font-black">{item.price}</span>
+                          {item.description && <span className="text-[10px] text-slate-400 block truncate">{item.description}</span>}
+                        </div>
+                        <button 
+                          type="button"
+                          onClick={() => setSpotMenuItems(prev => prev.filter((_, i) => i !== idx))}
+                          className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-950/60 text-red-500 hover:text-red-700 flex items-center justify-center shrink-0 cursor-pointer transition"
+                          title="Delete menu item"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
-                      <button 
-                        type="button"
-                        onClick={() => setSpotMenuItems(prev => prev.filter((_, i) => i !== idx))}
-                        className="text-red-500 hover:text-red-700 p-1"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* Add menu item mini-form */}
-                <div className="bg-[#FBFBF9] dark:bg-[#121113] p-3 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="bg-[#FBFBF9] dark:bg-[#121113] p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
+                  <h4 className="text-xs font-black text-slate-800 dark:text-slate-200">Add New Dish or Cocktail</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <input 
                       type="text"
                       placeholder="Dish or Cocktail Name"
                       value={newMenuName}
                       onChange={(e) => setNewMenuName(e.target.value)}
-                      className="text-xs bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl p-2 focus:outline-none"
+                      className="text-xs bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
                     />
                     <input 
                       type="text"
                       placeholder="Price (e.g. KES 1,200)"
                       value={newMenuPrice}
                       onChange={(e) => setNewMenuPrice(e.target.value)}
-                      className="text-xs bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl p-2 focus:outline-none"
+                      className="text-xs bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
                     />
                   </div>
                   <button 
                     type="button"
                     onClick={handleAddMenuItem}
-                    className="w-full text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 py-1.5 rounded-xl hover:bg-amber-500/20 transition cursor-pointer"
+                    className="w-full text-xs font-extrabold bg-[#E0533C]/10 text-[#E0533C] hover:bg-[#E0533C]/20 py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1"
                   >
-                    + Add Dish / Drink to Menu
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Item to Menu</span>
                   </button>
                 </div>
               </div>
 
-              <button 
-                type="submit"
-                className="w-full bg-[#E0533C] text-white font-black text-sm py-3 rounded-2xl shadow-lg mt-4 cursor-pointer"
-              >
-                {editingSpotId ? 'Save Spot Changes' : 'Publish Spot to RADA'}
-              </button>
+              {/* Submit Buttons */}
+              <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+                <button 
+                  type="button"
+                  onClick={() => setIsSpotFormOpen(false)}
+                  className="w-full sm:w-auto px-6 py-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-extrabold text-xs sm:text-sm rounded-2xl transition cursor-pointer text-center order-2 sm:order-1"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="w-full flex-1 bg-[#E0533C] hover:bg-[#c9432d] text-white font-black text-sm py-4 rounded-2xl shadow-xl shadow-orange-500/20 active:scale-[0.99] transition cursor-pointer flex items-center justify-center gap-2 order-1 sm:order-2"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{editingSpotId ? 'Save & Update Spot Listing' : 'Publish Spot to RADA'}</span>
+                </button>
+              </div>
+
             </form>
           </div>
         </div>

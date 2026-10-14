@@ -14,6 +14,7 @@ import {
   RotateCcw,
   Navigation as NavigationIcon
 } from 'lucide-react';
+import { DynamicLocationSelector } from './DynamicLocationSelector.tsx';
 
 interface HeaderProps {
   onOpenOverlay: (overlayId: string) => void;
@@ -109,60 +110,46 @@ export const Header: React.FC<HeaderProps> = ({
             RADA
           </button>
 
-          {/* Interactive Location Badge: GPS by default, clickable to edit & override GPS */}
-          {isEditingLocation ? (
-            <div className="flex items-center gap-1 bg-[#F8F8F6] dark:bg-[#1C1A1E] border-2 border-[#E0533C] rounded-full px-2 py-0.5 animate-in fade-in zoom-in-95 duration-150">
-              <MapPin className="w-3.5 h-3.5 text-[#E0533C] shrink-0" />
-              <input
-                ref={inputRef}
-                type="text"
-                value={locationInput}
-                onChange={(e) => setLocationInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSaveLocation();
-                  if (e.key === 'Escape') setIsEditingLocation(false);
-                }}
-                onBlur={handleSaveLocation}
-                placeholder="e.g. Kilimani, Nairobi"
-                className="text-xs bg-transparent border-none text-slate-900 dark:text-slate-100 font-semibold focus:outline-none w-28 sm:w-36 truncate"
-              />
-              <button
-                type="button"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  handleSaveLocation();
-                }}
-                className="w-5 h-5 rounded-full bg-[#E0533C] text-white flex items-center justify-center shrink-0"
-                title="Save Location"
-              >
-                <Check className="w-3 h-3" />
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1 min-w-0">
-              <button
-                onClick={() => setIsEditingLocation(true)}
-                title="Click to change location (Overrides GPS)"
-                className="text-xs bg-[#F8F8F6] dark:bg-[#1C1A1E] hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold px-2.5 py-1 rounded-full flex items-center gap-1.5 border border-slate-200 dark:border-slate-800 transition cursor-pointer group truncate max-w-[170px]"
-              >
-                <MapPin className={`w-3.5 h-3.5 shrink-0 ${isGpsActive ? 'text-emerald-500 animate-pulse' : 'text-[#E0533C]'}`} />
-                <span className="truncate">{currentLocation}</span>
-                <span className="text-[9px] text-slate-400 group-hover:text-[#E0533C] underline shrink-0 font-normal ml-0.5">
-                  edit
-                </span>
-              </button>
+          {/* Interactive Location Badge: GPS by default, clickable to search/select location */}
+          <div className="flex items-center gap-1 min-w-0">
+            <button
+              onClick={() => setIsEditingLocation(true)}
+              title="Click to search or change location (Overrides GPS)"
+              className="text-xs bg-[#F8F8F6] dark:bg-[#1C1A1E] hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold px-2.5 py-1 rounded-full flex items-center gap-1.5 border border-slate-200 dark:border-slate-800 transition cursor-pointer group truncate max-w-[170px]"
+            >
+              <MapPin className={`w-3.5 h-3.5 shrink-0 ${isGpsActive ? 'text-emerald-500 animate-pulse' : 'text-[#E0533C]'}`} />
+              <span className="truncate">{currentLocation}</span>
+              <span className="text-[9px] text-slate-400 group-hover:text-[#E0533C] underline shrink-0 font-normal ml-0.5">
+                edit
+              </span>
+            </button>
 
-              {!isGpsActive && (
-                <button
-                  onClick={handleResetToGps}
-                  title="Reset to Device GPS Location"
-                  className="w-6 h-6 rounded-full bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-emerald-600 flex items-center justify-center transition shrink-0"
-                >
-                  <NavigationIcon className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          )}
+            {!isGpsActive && (
+              <button
+                onClick={handleResetToGps}
+                title="Reset to Device GPS Location"
+                className="w-6 h-6 rounded-full bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-emerald-600 flex items-center justify-center transition shrink-0"
+              >
+                <NavigationIcon className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+
+          {/* Dynamic Map Search Location Selector Modal */}
+          <DynamicLocationSelector
+            isModalMode={true}
+            isOpen={isEditingLocation}
+            onClose={() => setIsEditingLocation(false)}
+            value={currentLocation}
+            onChange={(newLoc, isGps) => {
+              onUpdateLocation(newLoc, isGps || false);
+              setIsEditingLocation(false);
+            }}
+            showGpsReset={true}
+            onResetGps={() => handleResetToGps({ stopPropagation: () => {} } as any)}
+            label="Search Nairobi Location"
+            placeholder="Search neighborhood, landmark, or bus stop..."
+          />
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
