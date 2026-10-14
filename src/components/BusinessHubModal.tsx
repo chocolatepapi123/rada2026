@@ -27,7 +27,8 @@ import {
   Image as ImageIcon,
   Check,
   Percent,
-  Compass
+  Compass,
+  Camera
 } from 'lucide-react';
 import { 
   BusinessAccount, 
@@ -41,6 +42,7 @@ import {
   Artist, 
   TicketTier 
 } from '../types.ts';
+import { DynamicLocationSelector } from './DynamicLocationSelector.tsx';
 
 interface BusinessHubModalProps {
   isOpen: boolean;
@@ -442,6 +444,9 @@ export const BusinessHubModal: React.FC<BusinessHubModalProps> = ({
   const [eventPrice, setEventPrice] = useState('KES 1,500');
   const [eventDescription, setEventDescription] = useState('The ultimate weekend party vibe in Nairobi.');
   const [eventBannerImg, setEventBannerImg] = useState('https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop');
+  const [eventGalleryImgs, setEventGalleryImgs] = useState<string[]>([
+    'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&auto=format&fit=crop'
+  ]);
   const [eventTicketUrl, setEventTicketUrl] = useState('https://hustlesasa.com/');
 
   const [artistsList, setArtistsList] = useState<Artist[]>([
@@ -457,6 +462,27 @@ export const BusinessHubModal: React.FC<BusinessHubModalProps> = ({
   const [newTierName, setNewTierName] = useState('');
   const [newTierPrice, setNewTierPrice] = useState('KES 2,000');
   const [newTierPerks, setNewTierPerks] = useState('');
+
+  const handleMultipleFilesChange = (e: React.ChangeEvent<HTMLInputElement>, setter: React.Dispatch<React.SetStateAction<string[]>>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const readers = Array.from(files).map(file => {
+      return new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (typeof reader.result === 'string') {
+            resolve(reader.result);
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    Promise.all(readers).then(results => {
+      setter(prev => [...prev, ...results]);
+      showToast(`Added ${results.length} photo(s) to gallery.`);
+    });
+  };
 
   const handleAddArtist = () => {
     if (!newArtistName.trim()) return;
@@ -497,6 +523,7 @@ export const BusinessHubModal: React.FC<BusinessHubModalProps> = ({
       lat: -1.2295 + (Math.random() - 0.5) * 0.02,
       lng: 36.8124 + (Math.random() - 0.5) * 0.02,
       img: eventBannerImg,
+      images: eventGalleryImgs.length > 0 ? eventGalleryImgs : [eventBannerImg],
       goingCount: 1,
       url: eventTicketUrl || 'https://hustlesasa.com/',
       description: eventDescription,
@@ -525,7 +552,12 @@ export const BusinessHubModal: React.FC<BusinessHubModalProps> = ({
   const [fitCategory, setFitCategory] = useState('Tees & Tops');
   const [fitCondition, setFitCondition] = useState('Vintage Wash');
   const [fitSize, setFitSize] = useState('XL (Oversized)');
+  const [thriftStoreLocation, setThriftStoreLocation] = useState('Gikomba Market, Nairobi');
+  const [thriftStallNumber, setThriftStallNumber] = useState('Lane 3, Stall 4B');
   const [fitImg, setFitImg] = useState('https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=600&auto=format&fit=crop');
+  const [thriftGalleryImgs, setThriftGalleryImgs] = useState<string[]>([
+    'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&auto=format&fit=crop'
+  ]);
 
   const handlePublishThriftFit = () => {
     if (!fitName.trim()) {
@@ -537,12 +569,13 @@ export const BusinessHubModal: React.FC<BusinessHubModalProps> = ({
       name: fitName.trim(),
       price: fitPrice.trim().startsWith('KES') ? fitPrice.trim() : `KES ${fitPrice.trim()}`,
       seller: currentBiz?.name || 'Gikomba Vault',
-      storeLocation: currentBiz?.address || 'Gikomba Market, Nairobi',
-      stallNumber: 'Official Stall',
+      storeLocation: thriftStoreLocation || currentBiz?.address || 'Gikomba Market, Nairobi',
+      stallNumber: thriftStallNumber || 'Official Stall',
       category: fitCategory,
       condition: fitCondition,
       size: fitSize,
       img: fitImg,
+      images: thriftGalleryImgs.length > 0 ? thriftGalleryImgs : [fitImg],
       verified: true,
       businessId: currentBiz?.id,
       whatsapp: currentBiz?.whatsapp || '+254711554433'
@@ -1294,27 +1327,34 @@ export const BusinessHubModal: React.FC<BusinessHubModalProps> = ({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Location Venue</label>
-                  <input 
-                    type="text" 
+                  <DynamicLocationSelector
                     value={eventLocation}
-                    onChange={(e) => setEventLocation(e.target.value)}
-                    placeholder="e.g. Village Market Courtyard, Westlands" 
-                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
+                    onChange={(loc) => setEventLocation(loc)}
+                    label="Venue Location *"
+                    placeholder="Search venue estate, Kiambu, Mombasa Rd stages..."
                   />
                 </div>
 
                 {/* Event Poster Upload */}
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Event Poster / Cover</label>
+                <div className="space-y-2">
+                  <label className="font-bold text-slate-700 dark:text-slate-300 block text-xs">Event Poster / Cover Artwork *</label>
                   <div className="flex items-center gap-3">
                     <div 
-                      className="w-20 h-24 rounded-xl bg-cover bg-center shrink-0 border border-slate-300 dark:border-slate-700 shadow-sm"
+                      className="w-20 h-24 rounded-xl bg-cover bg-center shrink-0 border border-slate-300 dark:border-slate-700 shadow-sm relative group overflow-hidden"
                       style={{ backgroundImage: `url('${eventBannerImg}')` }}
-                    />
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setEventBannerImg('')}
+                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white cursor-pointer"
+                        title="Remove poster"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-400" />
+                      </button>
+                    </div>
                     <label className="flex-1 cursor-pointer py-3 px-3 bg-white dark:bg-[#121113] border border-dashed border-slate-300 dark:border-slate-700 rounded-xl hover:border-[#2D6A4F] text-center transition">
                       <span className="text-[11px] font-bold text-[#2D6A4F] flex items-center justify-center gap-1.5">
-                        <Upload className="w-3.5 h-3.5" /> Upload Event Artwork
+                        <Upload className="w-3.5 h-3.5" /> Upload Event Artwork File
                       </span>
                       <input 
                         type="file" 
@@ -1324,6 +1364,42 @@ export const BusinessHubModal: React.FC<BusinessHubModalProps> = ({
                       />
                     </label>
                   </div>
+                </div>
+
+                {/* Event Multi-Image Gallery */}
+                <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-bold text-slate-700 dark:text-slate-300 text-xs block">Event Atmosphere Gallery ({eventGalleryImgs.length})</span>
+                      <span className="text-[10px] text-slate-400">Add crowd, stage production, or VIP lounge photos</span>
+                    </div>
+                    <label className="cursor-pointer text-[11px] font-extrabold text-[#2D6A4F] hover:underline flex items-center gap-1 bg-[#2D6A4F]/10 px-2.5 py-1 rounded-lg transition">
+                      <Plus className="w-3 h-3" /> Add Photos
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => handleMultipleFilesChange(e, setEventGalleryImgs)}
+                      />
+                    </label>
+                  </div>
+                  {eventGalleryImgs.length > 0 && (
+                    <div className="flex gap-2 overflow-x-auto py-1">
+                      {eventGalleryImgs.map((imgUrl, idx) => (
+                        <div key={idx} className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0 border border-slate-300 dark:border-slate-700 group">
+                          <img src={imgUrl} alt="Gallery" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setEventGalleryImgs(prev => prev.filter((_, i) => i !== idx))}
+                            className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Primary Ticketing Portal Link */}
@@ -1457,17 +1533,47 @@ export const BusinessHubModal: React.FC<BusinessHubModalProps> = ({
                   </div>
                 </div>
 
-                {/* Photo Upload */}
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Item Photo</label>
+                {/* Store Location & Stall Number with Dynamic Auto-search */}
+                <div className="space-y-2 pt-1 border-t border-slate-200 dark:border-slate-800">
+                  <DynamicLocationSelector
+                    value={thriftStoreLocation}
+                    onChange={(loc) => setThriftStoreLocation(loc)}
+                    label="Market / Store Location *"
+                    placeholder="Search market (Gikomba, Toi, Ngara, Westlands) or estate stage..."
+                  />
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-700 dark:text-slate-300 text-xs">Stall / Lane Details</label>
+                    <input 
+                      type="text" 
+                      value={thriftStallNumber} 
+                      onChange={(e) => setThriftStallNumber(e.target.value)} 
+                      placeholder="e.g. Lane 3, Stall 4B, Opposite Posta"
+                      className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none text-xs"
+                    />
+                  </div>
+                </div>
+
+                {/* Primary Photo Upload */}
+                <div className="space-y-2 pt-1 border-t border-slate-200 dark:border-slate-800">
+                  <label className="font-bold text-slate-700 dark:text-slate-300 block text-xs">Primary Fit Cover Photo *</label>
                   <div className="flex items-center gap-3">
                     <div 
-                      className="w-16 h-20 rounded-xl bg-cover bg-center shrink-0 border border-slate-300 dark:border-slate-700 shadow-sm"
+                      className="w-16 h-20 rounded-xl bg-cover bg-center shrink-0 border border-slate-300 dark:border-slate-700 shadow-sm relative group overflow-hidden"
                       style={{ backgroundImage: `url('${fitImg}')` }}
-                    />
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setFitImg('')}
+                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white cursor-pointer"
+                        title="Remove photo"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-400" />
+                      </button>
+                    </div>
                     <label className="flex-1 cursor-pointer py-3 px-3 bg-white dark:bg-[#121113] border border-dashed border-slate-300 dark:border-slate-700 rounded-xl hover:border-[#E0533C] text-center transition">
                       <span className="text-[11px] font-bold text-[#E0533C] flex items-center justify-center gap-1.5">
-                        <Upload className="w-3.5 h-3.5" /> Upload Fit Image
+                        <Upload className="w-3.5 h-3.5" /> Upload Primary Fit File
                       </span>
                       <input 
                         type="file" 
@@ -1477,6 +1583,42 @@ export const BusinessHubModal: React.FC<BusinessHubModalProps> = ({
                       />
                     </label>
                   </div>
+                </div>
+
+                {/* Thrift Multi-Angle Gallery */}
+                <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-bold text-slate-700 dark:text-slate-300 text-xs block">Multi-Angle Gallery ({thriftGalleryImgs.length})</span>
+                      <span className="text-[10px] text-slate-400">Add back angle, tag label, and fabric texture shots</span>
+                    </div>
+                    <label className="cursor-pointer text-[11px] font-extrabold text-[#E0533C] hover:underline flex items-center gap-1 bg-[#E0533C]/10 px-2.5 py-1 rounded-lg transition">
+                      <Plus className="w-3 h-3" /> Add Angles
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => handleMultipleFilesChange(e, setThriftGalleryImgs)}
+                      />
+                    </label>
+                  </div>
+                  {thriftGalleryImgs.length > 0 && (
+                    <div className="flex gap-2 overflow-x-auto py-1">
+                      {thriftGalleryImgs.map((imgUrl, idx) => (
+                        <div key={idx} className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0 border border-slate-300 dark:border-slate-700 group">
+                          <img src={imgUrl} alt="Gallery Angle" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setThriftGalleryImgs(prev => prev.filter((_, i) => i !== idx))}
+                            className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <button 

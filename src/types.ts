@@ -117,6 +117,7 @@ export interface EventItem {
   lat: number;
   lng: number;
   img: string;
+  images?: string[];
   goingCount: number;
   url: string;
   dressCode?: string;
@@ -137,6 +138,7 @@ export interface ThriftItem {
   condition: string;
   size: string;
   img: string;
+  images?: string[];
   verified: boolean;
   businessId?: string;
   whatsapp?: string;

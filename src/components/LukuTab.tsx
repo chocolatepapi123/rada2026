@@ -12,7 +12,9 @@ import {
   ShoppingBag,
   Disc3,
   MapPin,
-  Phone
+  Phone,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { ThriftItem, BusinessAccount } from '../types.ts';
 import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
@@ -36,6 +38,23 @@ export const LukuTab: React.FC<LukuTabProps> = ({
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [isListening, setIsListening] = useState(false);
   const [activeStoreModal, setActiveStoreModal] = useState<BusinessAccount | null>(null);
+  const [activeImageIndices, setActiveImageIndices] = useState<Record<number, number>>({});
+
+  const handlePrevImage = (e: React.MouseEvent, itemId: number, maxImages: number) => {
+    e.stopPropagation();
+    setActiveImageIndices(prev => {
+      const current = prev[itemId] || 0;
+      return { ...prev, [itemId]: (current - 1 + maxImages) % maxImages };
+    });
+  };
+
+  const handleNextImage = (e: React.MouseEvent, itemId: number, maxImages: number) => {
+    e.stopPropagation();
+    setActiveImageIndices(prev => {
+      const current = prev[itemId] || 0;
+      return { ...prev, [itemId]: (current + 1) % maxImages };
+    });
+  };
 
   // Web Speech API Voice Search
   const handleToggleVoiceSearch = () => {
@@ -179,24 +198,57 @@ export const LukuTab: React.FC<LukuTabProps> = ({
           </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          {filteredItems.map((item) => (
-            <div
-              key={item.id}
-              className="bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 shadow-sm flex flex-col justify-between hover:border-[#E9C46A] transition group"
-            >
-              <div>
-                <div
-                  className="h-44 rounded-xl bg-cover bg-center mb-2 relative overflow-hidden"
-                  style={{ backgroundImage: `url('${item.img}')` }}
-                >
-                  <span className="absolute top-2 right-2 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2 py-0.5 rounded-md">
-                    {item.price}
-                  </span>
-                  <span className="absolute bottom-2 left-2 bg-[#2D6A4F] text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
-                    {item.size}
-                  </span>
-                </div>
+          {filteredItems.map((item) => {
+            const itemImages = [item.img, ...(item.images || [])].filter((v, i, a) => a.indexOf(v) === i);
+            const activeIdx = (activeImageIndices[item.id] || 0) % itemImages.length;
+            const currentImg = itemImages[activeIdx] || item.img;
+
+            return (
+              <div
+                key={item.id}
+                className="bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 shadow-sm flex flex-col justify-between hover:border-[#E9C46A] transition group"
+              >
+                <div>
+                  <div
+                    className="h-44 rounded-xl bg-cover bg-center mb-2 relative overflow-hidden group/img select-none"
+                    style={{ backgroundImage: `url('${currentImg}')` }}
+                  >
+                    <span className="absolute top-2 right-2 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2 py-0.5 rounded-md z-10">
+                      {item.price}
+                    </span>
+                    <span className="absolute bottom-2 left-2 bg-[#2D6A4F] text-white text-[9px] font-bold px-1.5 py-0.5 rounded z-10">
+                      {item.size}
+                    </span>
+
+                    {/* Multi-Image Navigation Controls */}
+                    {itemImages.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={(e) => handlePrevImage(e, item.id, itemImages.length)}
+                          className="absolute left-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition z-10 cursor-pointer"
+                        >
+                          <ChevronLeft className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => handleNextImage(e, item.id, itemImages.length)}
+                          className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition z-10 cursor-pointer"
+                        >
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+
+                        <div className="absolute bottom-2 right-2 flex items-center gap-1 z-10 bg-black/60 px-1.5 py-0.5 rounded-full">
+                          {itemImages.map((_, i) => (
+                            <div 
+                              key={i} 
+                              className={`w-1 h-1 rounded-full transition-all ${i === activeIdx ? 'w-2.5 bg-amber-400' : 'bg-white/60'}`} 
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
 
                 <div className="flex items-start justify-between gap-1">
                   <h4 className="font-extrabold text-xs line-clamp-1 text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition">
@@ -250,8 +302,8 @@ export const LukuTab: React.FC<LukuTabProps> = ({
                   <span>Inquire</span>
                 </button>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {/* Empty Search Result State */}
           {filteredItems.length === 0 && (

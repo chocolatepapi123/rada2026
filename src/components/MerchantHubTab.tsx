@@ -372,7 +372,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   const myClaimedSpots = spots.filter(s => s.businessId === currentBiz?.id);
 
   // ----------------------------------------------------
-  // EVENT ORGANIZER WORKFLOW STATE
+  // EVENT ORGANIZER WORKFLOW STATE (Full-Screen + Multi-Image + Dynamic Locations)
   // ----------------------------------------------------
   const [isEventFormOpen, setIsEventFormOpen] = useState(false);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
@@ -380,19 +380,67 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   const [eventCategory, setEventCategory] = useState<'concerts' | 'nightlife' | 'art' | 'cinemas'>('concerts');
   const [eventGenre, setEventGenre] = useState('Afrobeats & Amapiano');
   const [eventDate, setEventDate] = useState('Sat, 28 Nov 2026');
-  const [eventTime, setEventTime] = useState('07:00 PM - 03:00 AM');
+  const [eventTime, setEventTime] = useState('08:00 PM - 04:00 AM');
   const [eventLocation, setEventLocation] = useState('Westlands, Nairobi');
+  const [eventExactLocationTag, setEventExactLocationTag] = useState('');
   const [eventUrl, setEventUrl] = useState('https://hustlesasa.com/');
   const [eventImg, setEventImg] = useState('https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop');
+  const [eventGalleryImgs, setEventGalleryImgs] = useState<string[]>([]);
   const [eventDescription, setEventDescription] = useState('');
   const [eventTiers, setEventTiers] = useState<TicketTier[]>([
     { name: 'Early Bird Pass', price: 'KES 1,500', perks: 'Fast-track entry' },
     { name: 'Regular Gate', price: 'KES 2,000', perks: 'All-night access' },
     { name: 'VIP Pass Lounge', price: 'KES 4,500', perks: 'VIP bar access & welcome drink' }
   ]);
+  const [newTierName, setNewTierName] = useState('');
+  const [newTierPrice, setNewTierPrice] = useState('KES ');
+  const [newTierPerks, setNewTierPerks] = useState('');
+
   const [eventArtists, setEventArtists] = useState<Artist[]>([
     { name: 'DJ Joe Mfalme', role: 'Main Stage Headliner', img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop' }
   ]);
+  const [newArtistName, setNewArtistName] = useState('');
+  const [newArtistRole, setNewArtistRole] = useState('Guest DJ / Performer');
+
+  // Native file upload handlers for Event Poster and Gallery
+  const handleEventPosterFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        setEventImg(reader.result);
+        showToast('Event artwork poster uploaded successfully!');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleEventGalleryFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const readers = Array.from(files).map(file => {
+      return new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (typeof reader.result === 'string') {
+            resolve(reader.result);
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    Promise.all(readers).then(results => {
+      setEventGalleryImgs(prev => [...prev, ...results]);
+      showToast(`Added ${results.length} photo(s) to event gallery.`);
+    });
+  };
+
+  const handleRemoveEventGalleryImage = (indexToRemove: number) => {
+    setEventGalleryImgs(prev => prev.filter((_, idx) => idx !== indexToRemove));
+    showToast('Event gallery image removed.');
+  };
 
   const openCreateEventModal = () => {
     setEditingEventId(null);
@@ -402,9 +450,37 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setEventDate('Sat, 28 Nov 2026');
     setEventTime('08:00 PM - 04:00 AM');
     setEventLocation(currentBiz?.address || 'Westlands, Nairobi');
+    setEventExactLocationTag('Courtyard / Arena Main Stage');
     setEventUrl('https://hustlesasa.com/');
     setEventImg('https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop');
+    setEventGalleryImgs(['https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&auto=format&fit=crop']);
     setEventDescription('Official event curated by ' + currentBiz?.name);
+    setEventArtists([
+      { name: 'DJ Joe Mfalme', role: 'Main Stage Headliner', img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop' }
+    ]);
+    setEventTiers([
+      { name: 'Early Bird Pass', price: 'KES 1,500', perks: 'Fast-track entry' },
+      { name: 'Regular Gate', price: 'KES 2,000', perks: 'All-night access' },
+      { name: 'VIP Pass Lounge', price: 'KES 4,500', perks: 'VIP bar access & welcome drink' }
+    ]);
+    setIsEventFormOpen(true);
+  };
+
+  const openEditEventModal = (evt: EventItem) => {
+    setEditingEventId(evt.id);
+    setEventTitle(evt.title);
+    setEventCategory(evt.category);
+    setEventGenre(evt.genre || 'Afrobeats & Amapiano');
+    setEventDate(evt.date);
+    setEventTime(evt.time || '08:00 PM - 04:00 AM');
+    setEventLocation(evt.location);
+    setEventExactLocationTag(evt.location);
+    setEventUrl(evt.url || 'https://hustlesasa.com/');
+    setEventImg(evt.img);
+    setEventGalleryImgs(evt.images && evt.images.length > 0 ? evt.images : [evt.img]);
+    setEventDescription(evt.description || '');
+    setEventArtists(evt.artists || []);
+    setEventTiers(evt.tiers || []);
     setIsEventFormOpen(true);
   };
 
@@ -414,6 +490,10 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       showToast('Please enter an event title.');
       return;
     }
+    const finalLocation = eventExactLocationTag.trim() && !eventLocation.includes(eventExactLocationTag.trim())
+      ? `${eventLocation} • ${eventExactLocationTag.trim()}`
+      : eventLocation;
+
     const newEvt: EventItem = {
       id: editingEventId || Date.now(),
       title: eventTitle.trim(),
@@ -421,11 +501,12 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       genre: eventGenre,
       date: eventDate,
       time: eventTime,
-      location: eventLocation,
+      location: finalLocation,
       lat: -1.2675,
       lng: 36.8115,
       img: eventImg,
-      goingCount: 1,
+      images: eventGalleryImgs.length > 0 ? eventGalleryImgs : [eventImg],
+      goingCount: editingEventId ? (events.find(e => e.id === editingEventId)?.goingCount || 1) : 1,
       url: eventUrl || 'https://hustlesasa.com/',
       description: eventDescription,
       businessId: currentBiz.id,
@@ -434,33 +515,91 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     };
     onAddEvent(newEvt);
     setIsEventFormOpen(false);
-    showToast(`Event "${newEvt.title}" published live with verified ticketing!`);
+    showToast(editingEventId ? `Event "${newEvt.title}" updated successfully!` : `Event "${newEvt.title}" published live with verified ticketing!`);
   };
 
   const myEvents = events.filter(e => e.businessId === currentBiz?.id);
 
   // ----------------------------------------------------
-  // THRIFT / LUKU SELLER WORKFLOW STATE
+  // THRIFT / LUKU SELLER WORKFLOW STATE (Full-Screen + Multi-Image + Dynamic Locations)
   // ----------------------------------------------------
   const [isThriftFormOpen, setIsThriftFormOpen] = useState(false);
+  const [editingThriftId, setEditingThriftId] = useState<number | null>(null);
   const [thriftName, setThriftName] = useState('');
-  const [thriftPrice, setThriftPrice] = useState('KES 1,500');
-  const [thriftCategory, setThriftCategory] = useState('Outerwear');
+  const [thriftPrice, setThriftPrice] = useState('KES 1,800');
+  const [thriftCategory, setThriftCategory] = useState('Jackets');
   const [thriftCondition, setThriftCondition] = useState('Thrift Grade A');
   const [thriftSize, setThriftSize] = useState('L');
-  const [thriftStoreLoc, setThriftStoreLoc] = useState(currentBiz?.address || 'Gikomba Market, Stall 4B');
+  const [thriftStoreLoc, setThriftStoreLoc] = useState(currentBiz?.address || 'Gikomba Market, Nairobi');
   const [thriftStallNumber, setThriftStallNumber] = useState('Stall 4B');
   const [thriftImg, setThriftImg] = useState('https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=800&auto=format&fit=crop');
+  const [thriftGalleryImgs, setThriftGalleryImgs] = useState<string[]>([]);
+
+  // Native file upload handlers for Thrift Fit and Multi-Angle Gallery
+  const handleThriftCoverFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        setThriftImg(reader.result);
+        showToast('Main fit photo uploaded successfully!');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleThriftGalleryFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const readers = Array.from(files).map(file => {
+      return new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (typeof reader.result === 'string') {
+            resolve(reader.result);
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    Promise.all(readers).then(results => {
+      setThriftGalleryImgs(prev => [...prev, ...results]);
+      showToast(`Added ${results.length} angle photo(s) to garment gallery.`);
+    });
+  };
+
+  const handleRemoveThriftGalleryImage = (indexToRemove: number) => {
+    setThriftGalleryImgs(prev => prev.filter((_, idx) => idx !== indexToRemove));
+    showToast('Garment photo removed.');
+  };
 
   const openCreateThriftModal = () => {
+    setEditingThriftId(null);
     setThriftName('');
     setThriftPrice('KES 1,800');
     setThriftCategory('Jackets');
     setThriftCondition('Thrift Grade A');
-    setThriftSize('L');
+    setThriftSize('L (Oversized)');
     setThriftStoreLoc(currentBiz?.address || 'Gikomba Market, Nairobi');
-    setThriftStallNumber('Stall 4B');
+    setThriftStallNumber('Lane 3, Stall 4B');
     setThriftImg('https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=800&auto=format&fit=crop');
+    setThriftGalleryImgs(['https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&auto=format&fit=crop']);
+    setIsThriftFormOpen(true);
+  };
+
+  const openEditThriftModal = (item: ThriftItem) => {
+    setEditingThriftId(item.id);
+    setThriftName(item.name);
+    setThriftPrice(item.price);
+    setThriftCategory(item.category);
+    setThriftCondition(item.condition);
+    setThriftSize(item.size);
+    setThriftStoreLoc(item.storeLocation);
+    setThriftStallNumber(item.stallNumber || '');
+    setThriftImg(item.img);
+    setThriftGalleryImgs(item.images && item.images.length > 0 ? item.images : [item.img]);
     setIsThriftFormOpen(true);
   };
 
@@ -471,7 +610,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       return;
     }
     const item: ThriftItem = {
-      id: Date.now(),
+      id: editingThriftId || Date.now(),
       name: thriftName.trim(),
       price: thriftPrice.startsWith('KES') ? thriftPrice : `KES ${thriftPrice}`,
       seller: currentBiz.name,
@@ -481,13 +620,14 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       condition: thriftCondition,
       size: thriftSize,
       img: thriftImg,
+      images: thriftGalleryImgs.length > 0 ? thriftGalleryImgs : [thriftImg],
       verified: true,
       businessId: currentBiz.id,
       whatsapp: currentBiz.whatsapp
     };
     onAddThriftItem(item);
     setIsThriftFormOpen(false);
-    showToast(`"${item.name}" listed in LUKU catalog!`);
+    showToast(editingThriftId ? `"${item.name}" updated in LUKU catalog!` : `"${item.name}" listed in LUKU catalog!`);
   };
 
   const myThriftItems = thriftItems.filter(t => t.businessId === currentBiz?.id || t.seller === currentBiz?.name);
@@ -1530,6 +1670,14 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                             <ChevronRight className="w-3 h-3" />
                           </button>
                           <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => openEditEventModal(evt)}
+                              className="px-2.5 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/30 text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900/40 text-xs font-bold flex items-center gap-1 transition"
+                              title="Edit Event"
+                            >
+                              <Edit3 className="w-3 h-3" />
+                              <span>Edit</span>
+                            </button>
                             <a
                               href={evt.url}
                               target="_blank"
@@ -1608,16 +1756,25 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                         </div>
                         <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800/80">
                           <MerchantVerificationBadge category="thrift_store" size="xs" showLabel={false} />
-                          <button
-                            onClick={() => {
-                              onDeleteListing('thrift', item.id);
-                              showToast(`Removed "${item.name}".`);
-                            }}
-                            className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg"
-                            title="Delete Item"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => openEditThriftModal(item)}
+                              className="p-1.5 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-lg transition"
+                              title="Edit Piece"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                onDeleteListing('thrift', item.id);
+                                showToast(`Removed "${item.name}".`);
+                              }}
+                              className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg"
+                              title="Delete Item"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -2307,236 +2464,1037 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       )}
 
       {/* =========================================================================
-          MODAL 2: CREATE / EDIT EVENT FORM
+          VIEW 2: DEDICATED FULL-SCREEN VIEW: CREATE / EDIT EVENT
           ========================================================================= */}
       {isEventFormOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-[#1C1A1E] w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 animate-in slide-in-from-bottom duration-200">
-            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <div>
-                <h3 className="font-black text-base">Publish Concert or Rave</h3>
-                <p className="text-xs text-slate-500">Organized by {currentBiz.name}</p>
-              </div>
-              <button onClick={() => setIsEventFormOpen(false)} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                <X className="w-4 h-4 text-slate-500" />
+        <div className="fixed inset-0 z-50 bg-[#FBFBF9] dark:bg-[#121113] overflow-y-auto flex flex-col animate-in fade-in duration-200">
+          {/* Top Sticky Header */}
+          <div className="sticky top-0 z-20 bg-white/95 dark:bg-[#1C1A1E]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 py-3.5 flex items-center justify-between shadow-xs">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setIsEventFormOpen(false)}
+                className="p-2 -ml-1 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition flex items-center gap-1.5 font-bold text-xs cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span className="hidden sm:inline">Back to Dashboard</span>
               </button>
+              <div className="h-5 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100">
+                    {editingEventId ? 'Edit Concert / Rave Listing' : 'Publish Concert or Rave Listing'}
+                  </h2>
+                  <MerchantVerificationBadge category="event_organizer" size="xs" />
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Organizer: <strong className="text-slate-700 dark:text-slate-300">{currentBiz.name}</strong> • Live RADA Events Feed
+                </p>
+              </div>
             </div>
 
-            <form onSubmit={handleSaveEvent} className="p-5 overflow-y-auto space-y-4 flex-1">
-              <div>
-                <label className="block text-xs font-bold mb-1">Event Title *</label>
-                <input 
-                  type="text" 
-                  value={eventTitle} 
-                  onChange={(e) => setEventTitle(e.target.value)} 
-                  placeholder="e.g. Sunset Amapiano Jam Vol. 4"
-                  className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none focus:border-purple-600"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold mb-1">Category</label>
-                  <select 
-                    value={eventCategory} 
-                    onChange={(e) => setEventCategory(e.target.value as any)}
-                    className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
-                  >
-                    <option value="concerts">Concerts & Festivals</option>
-                    <option value="nightlife">Nightlife Club Rave</option>
-                    <option value="art">Art & Cultural Showcase</option>
-                    <option value="cinemas">Film & Screenings</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold mb-1">Music Genre Tag</label>
-                  <input 
-                    type="text"
-                    value={eventGenre}
-                    onChange={(e) => setEventGenre(e.target.value)}
-                    placeholder="e.g. Amapiano & Afro-Tech"
-                    className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold mb-1">Date</label>
-                  <input 
-                    type="text" 
-                    value={eventDate} 
-                    onChange={(e) => setEventDate(e.target.value)} 
-                    placeholder="e.g. Sat, 31 Oct 2026"
-                    className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold mb-1">Time</label>
-                  <input 
-                    type="text" 
-                    value={eventTime} 
-                    onChange={(e) => setEventTime(e.target.value)} 
-                    placeholder="08:00 PM - 04:00 AM"
-                    className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold mb-1">Venue Location</label>
-                <input 
-                  type="text" 
-                  value={eventLocation} 
-                  onChange={(e) => setEventLocation(e.target.value)} 
-                  placeholder="e.g. Village Market Courtyard, Nairobi"
-                  className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold mb-1">Official Ticketing Link *</label>
-                <input 
-                  type="url" 
-                  value={eventUrl} 
-                  onChange={(e) => setEventUrl(e.target.value)} 
-                  placeholder="https://hustlesasa.com/your-event"
-                  className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold mb-1">Poster Image URL</label>
-                <input 
-                  type="url" 
-                  value={eventImg} 
-                  onChange={(e) => setEventImg(e.target.value)} 
-                  className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 focus:outline-none"
-                />
-              </div>
-
-              <button 
-                type="submit"
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-black text-sm py-3 rounded-2xl shadow-lg mt-4 cursor-pointer"
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsEventFormOpen(false)}
+                className="px-3.5 py-2 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
               >
-                Publish Event
+                Cancel
               </button>
+              <button
+                type="button"
+                onClick={(e) => handleSaveEvent(e as any)}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-black rounded-xl shadow-md shadow-purple-500/20 active:scale-95 transition cursor-pointer flex items-center gap-1.5"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>{editingEventId ? 'Save Event' : 'Publish Event'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Main Full-Screen Form Container */}
+          <div className="max-w-3xl mx-auto w-full p-4 sm:p-8 space-y-6 pb-28">
+            <form onSubmit={handleSaveEvent} className="space-y-6">
+              
+              {/* Event Core Identity Card */}
+              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <CalendarDays className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Event Identity & Category</span>
+                  </h3>
+                  <span className="text-[10px] text-purple-600 font-bold bg-purple-50 dark:bg-purple-950/40 px-2 py-0.5 rounded-full">
+                    Official Primary Listing
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Event Title *
+                  </label>
+                  <input 
+                    type="text" 
+                    value={eventTitle} 
+                    onChange={(e) => setEventTitle(e.target.value)} 
+                    placeholder="e.g. Sunset Amapiano Jam Vol. 4 • Nairobi Edition"
+                    className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-purple-600"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Event Category
+                    </label>
+                    <select 
+                      value={eventCategory} 
+                      onChange={(e) => setEventCategory(e.target.value as any)}
+                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none"
+                    >
+                      <option value="concerts">Concerts & Live Festivals</option>
+                      <option value="nightlife">Nightlife Club Rave</option>
+                      <option value="art">Art & Cultural Showcase</option>
+                      <option value="cinemas">Film & Cinema Screening</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Music Genre / Theme Tag
+                    </label>
+                    <input 
+                      type="text"
+                      value={eventGenre}
+                      onChange={(e) => setEventGenre(e.target.value)}
+                      placeholder="e.g. Amapiano & Afro-Tech / Hip-Hop"
+                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Event Description / Vibe Overview
+                  </label>
+                  <textarea 
+                    value={eventDescription}
+                    onChange={(e) => setEventDescription(e.target.value)}
+                    rows={3}
+                    placeholder="Describe the sound system, headliners, outdoor stages, food vendors, and party atmosphere..."
+                    className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Schedule: Date & Time Card */}
+              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Date & Schedule</span>
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Event Date *
+                    </label>
+                    <input 
+                      type="text" 
+                      value={eventDate} 
+                      onChange={(e) => setEventDate(e.target.value)} 
+                      placeholder="e.g. Sat, 28 Nov 2026"
+                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Event Hours *
+                    </label>
+                    <input 
+                      type="text" 
+                      value={eventTime} 
+                      onChange={(e) => setEventTime(e.target.value)} 
+                      placeholder="e.g. 07:00 PM - 04:00 AM"
+                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Venue Location & Dynamic Auto-Search Card */}
+              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Venue Location & Transit Directions</span>
+                  </h3>
+                  <span className="text-[10px] text-purple-600 font-bold">Nairobi • Kiambu • Mombasa Rd</span>
+                </div>
+
+                {/* Dynamic Auto-Search Location Selector */}
+                <DynamicLocationSelector
+                  value={eventLocation}
+                  onChange={(loc) => setEventLocation(loc)}
+                  label="Venue Neighborhood / Area Location *"
+                  placeholder="Search venue estate, Kiambu, Mombasa Rd stages, or type custom..."
+                />
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Specific Stage / Landmark / Gate Directions
+                  </label>
+                  <input 
+                    type="text" 
+                    value={eventExactLocationTag} 
+                    onChange={(e) => setEventExactLocationTag(e.target.value)} 
+                    placeholder="e.g. The Courtyard Main Stage, Gate 2, Village Market"
+                    className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-purple-600"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Helps partygoers navigate bus drops, Uber drop-offs, and venue security gates.
+                  </p>
+                </div>
+              </div>
+
+              {/* NATIVE FILE UPLOADS: EVENT POSTER & MULTI-IMAGE GALLERY */}
+              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-5">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <ImageIcon className="w-3.5 h-3.5 text-purple-600" />
+                      <span>Event Poster & Visual Gallery</span>
+                    </h3>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Select high-res artwork & venue vibe photos directly from your device (no URL typing required)
+                    </p>
+                  </div>
+                </div>
+
+                {/* Primary Event Poster / Cover */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                      Primary Event Poster Artwork *
+                    </label>
+                    <span className="text-[10px] text-purple-600 font-bold bg-purple-50 dark:bg-purple-950/40 px-2 py-0.5 rounded-full">
+                      Main Banner Artwork
+                    </span>
+                  </div>
+
+                  {eventImg ? (
+                    <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-900 group">
+                      <div className="h-64 sm:h-72 w-full relative">
+                        <img 
+                          src={eventImg} 
+                          alt="Event Poster Preview" 
+                          className="w-full h-full object-cover group-hover:scale-[1.02] transition duration-300"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30" />
+                        
+                        <div className="absolute top-3 left-3 bg-purple-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md uppercase tracking-wider flex items-center gap-1">
+                          <Check className="w-3 h-3 stroke-[3]" />
+                          <span>Active Cover Poster</span>
+                        </div>
+
+                        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2">
+                          <label 
+                            htmlFor="event-poster-file-input-replace"
+                            className="px-3.5 py-2 bg-white/90 hover:bg-white text-slate-900 rounded-xl text-xs font-black shadow-lg cursor-pointer transition flex items-center gap-1.5"
+                          >
+                            <Camera className="w-3.5 h-3.5 text-purple-600" />
+                            <span>Change Poster</span>
+                          </label>
+                          <input
+                            id="event-poster-file-input-replace"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleEventPosterFileUpload}
+                            className="hidden"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEventImg('');
+                              showToast('Poster artwork removed.');
+                            }}
+                            className="px-3 py-2 bg-red-600/90 hover:bg-red-600 text-white rounded-xl text-xs font-bold shadow-lg transition flex items-center gap-1"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Remove</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <label
+                      htmlFor="event-poster-file-input-empty"
+                      className="w-full py-10 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-purple-600 bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-2 cursor-pointer transition text-center group"
+                    >
+                      <div className="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center group-hover:scale-110 transition">
+                        <Upload className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-black text-slate-800 dark:text-slate-200">
+                          Upload Event Artwork Poster
+                        </p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Tap to select official flyer or poster from your phone or computer
+                        </p>
+                      </div>
+                      <span className="px-4 py-2 bg-purple-600 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 mt-1">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Select Poster File</span>
+                      </span>
+                      <input
+                        id="event-poster-file-input-empty"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleEventPosterFileUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+
+                {/* GALLERY OF MULTIPLE ADDITIONAL EVENT PHOTOS */}
+                <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                        Event Atmosphere & Stage Gallery ({eventGalleryImgs.length})
+                      </label>
+                      <p className="text-[11px] text-slate-400">
+                        Add stage production, DJ decks, past crowd vibes, or VIP deck photos
+                      </p>
+                    </div>
+
+                    <label
+                      htmlFor="event-gallery-file-input"
+                      className="px-3.5 py-1.5 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 rounded-xl text-xs font-extrabold cursor-pointer transition flex items-center gap-1.5 shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Upload Photos</span>
+                    </label>
+                    <input
+                      id="event-gallery-file-input"
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleEventGalleryFileUpload}
+                      className="hidden"
+                    />
+                  </div>
+
+                  {eventGalleryImgs.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {eventGalleryImgs.map((imgUrl, idx) => (
+                        <div 
+                          key={idx} 
+                          className="relative group rounded-2xl overflow-hidden aspect-square border border-slate-200 dark:border-slate-800 bg-slate-900 shadow-xs"
+                        >
+                          <img 
+                            src={imgUrl} 
+                            alt={`Event photo ${idx + 1}`} 
+                            className="w-full h-full object-cover group-hover:scale-105 transition duration-200" 
+                          />
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center gap-2 p-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEventImg(imgUrl);
+                                showToast('Set as main event poster!');
+                              }}
+                              className="px-2.5 py-1 bg-white text-slate-900 rounded-lg text-[10px] font-black hover:bg-slate-100 transition"
+                            >
+                              Set as Poster
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveEventGalleryImage(idx)}
+                              className="px-2.5 py-1 bg-red-600 text-white rounded-lg text-[10px] font-bold hover:bg-red-700 flex items-center gap-1 transition"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                          {eventImg === imgUrl && (
+                            <div className="absolute top-2 left-2 bg-purple-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md uppercase">
+                              Poster
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                      {/* Add More Photos Tile */}
+                      <label
+                        htmlFor="event-gallery-file-input-grid"
+                        className="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-purple-600 bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-1.5 p-3 aspect-square cursor-pointer transition text-center group"
+                      >
+                        <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center group-hover:scale-110 transition">
+                          <Plus className="w-5 h-5" />
+                        </div>
+                        <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-300">
+                          Add More
+                        </span>
+                        <input
+                          id="event-gallery-file-input-grid"
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleEventGalleryFileUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <label
+                      htmlFor="event-gallery-file-input-empty"
+                      className="w-full py-8 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-purple-600 bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-2 cursor-pointer transition text-center"
+                    >
+                      <ImageIcon className="w-8 h-8 text-slate-400" />
+                      <div>
+                        <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                          No additional vibe photos added yet
+                        </p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Upload multiple crowd or stage images to hype up partygoers
+                        </p>
+                      </div>
+                      <span className="px-3.5 py-1.5 bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-bold">
+                        Choose Photos
+                      </span>
+                      <input
+                        id="event-gallery-file-input-empty"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleEventGalleryFileUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              {/* Ticketing Portal & Multi-Tier Passes */}
+              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <Ticket className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Official Primary Ticketing & Passes</span>
+                  </h3>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Official Primary Ticketing Portal Link *
+                  </label>
+                  <input 
+                    type="url" 
+                    value={eventUrl} 
+                    onChange={(e) => setEventUrl(e.target.value)} 
+                    placeholder="e.g. https://hustlesasa.com/your-event OR https://kenyabuzz.com/events"
+                    className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-purple-600"
+                    required
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Direct primary checkout links only (no affiliate codes or redirects).
+                  </p>
+                </div>
+
+                {/* Ticket Tiers */}
+                <div className="space-y-3 pt-2">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Admission Tiers ({eventTiers.length})
+                  </label>
+                  <div className="space-y-2">
+                    {eventTiers.map((tier, idx) => (
+                      <div key={idx} className="p-3 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between text-xs">
+                        <div>
+                          <span className="font-extrabold text-slate-900 dark:text-slate-100">{tier.name}</span>
+                          <span className="text-[11px] text-purple-600 font-black ml-2">{tier.price}</span>
+                          {tier.perks && <p className="text-[10px] text-slate-400 mt-0.5">{tier.perks}</p>}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setEventTiers(prev => prev.filter((_, i) => i !== idx))}
+                          className="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-500 hover:text-red-700 flex items-center justify-center shrink-0 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Add Tier Mini-Form */}
+                  <div className="p-3 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block">Add Pass Tier</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <input 
+                        type="text"
+                        placeholder="Tier (e.g. VIP Pass)"
+                        value={newTierName}
+                        onChange={(e) => setNewTierName(e.target.value)}
+                        className="text-xs bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 focus:outline-none"
+                      />
+                      <input 
+                        type="text"
+                        placeholder="Price (e.g. KES 3,500)"
+                        value={newTierPrice}
+                        onChange={(e) => setNewTierPrice(e.target.value)}
+                        className="text-xs bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 focus:outline-none"
+                      />
+                      <input 
+                        type="text"
+                        placeholder="Perks (e.g. Welcome cocktail)"
+                        value={newTierPerks}
+                        onChange={(e) => setNewTierPerks(e.target.value)}
+                        className="text-xs bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 focus:outline-none"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!newTierName.trim()) return;
+                        const price = newTierPrice.trim().startsWith('KES') ? newTierPrice.trim() : `KES ${newTierPrice.trim()}`;
+                        setEventTiers(prev => [...prev, { name: newTierName.trim(), price, perks: newTierPerks.trim() || 'Standard entry' }]);
+                        setNewTierName('');
+                        setNewTierPrice('KES ');
+                        setNewTierPerks('');
+                        showToast(`Added tier "${newTierName}"!`);
+                      }}
+                      className="w-full py-2 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Tier</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Headliner Lineup Card */}
+              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Performing Artists & DJ Lineup ({eventArtists.length})</span>
+                  </h3>
+                </div>
+
+                <div className="flex gap-2 overflow-x-auto py-1">
+                  {eventArtists.map((a, idx) => (
+                    <div key={idx} className="bg-[#FBFBF9] dark:bg-[#121113] p-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shrink-0 flex items-center gap-2.5">
+                      <img src={a.img} alt={a.name} className="w-9 h-9 rounded-xl object-cover" />
+                      <div>
+                        <span className="font-extrabold text-xs block">{a.name}</span>
+                        <span className="text-[10px] text-slate-400 block">{a.role}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setEventArtists(prev => prev.filter((_, i) => i !== idx))}
+                        className="w-6 h-6 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-500 hover:text-red-700 flex items-center justify-center"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input 
+                    type="text" 
+                    value={newArtistName}
+                    onChange={(e) => setNewArtistName(e.target.value)}
+                    placeholder="Artist / Headliner DJ Name" 
+                    className="flex-1 p-3 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none"
+                  />
+                  <input 
+                    type="text" 
+                    value={newArtistRole}
+                    onChange={(e) => setNewArtistRole(e.target.value)}
+                    placeholder="Role (e.g. Special Guest DJ)" 
+                    className="sm:w-48 p-3 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none"
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      if (!newArtistName.trim()) return;
+                      setEventArtists(prev => [...prev, {
+                        name: newArtistName.trim(),
+                        role: newArtistRole.trim() || 'Performer',
+                        img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop'
+                      }]);
+                      setNewArtistName('');
+                      showToast(`Added ${newArtistName} to lineup!`);
+                    }}
+                    className="px-4 py-3 bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold rounded-xl text-xs flex items-center justify-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Artist</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Bottom Submit Bar */}
+              <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+                <button 
+                  type="button"
+                  onClick={() => setIsEventFormOpen(false)}
+                  className="w-full sm:w-auto px-6 py-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-extrabold text-xs sm:text-sm rounded-2xl transition cursor-pointer text-center order-2 sm:order-1"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="w-full flex-1 bg-purple-600 hover:bg-purple-700 text-white font-black text-sm py-4 rounded-2xl shadow-xl shadow-purple-500/20 active:scale-[0.99] transition cursor-pointer flex items-center justify-center gap-2 order-1 sm:order-2"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{editingEventId ? 'Save & Update Event Listing' : 'Publish Concert to RADA'}</span>
+                </button>
+              </div>
+
             </form>
           </div>
         </div>
       )}
 
       {/* =========================================================================
-          MODAL 3: CREATE / EDIT THRIFT FORM
+          VIEW 3: DEDICATED FULL-SCREEN VIEW: CREATE / EDIT THRIFT / LUKU FIT
           ========================================================================= */}
       {isThriftFormOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-[#1C1A1E] w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 animate-in slide-in-from-bottom duration-200">
-            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <div>
-                <h3 className="font-black text-base">Upload LUKU Fit</h3>
-                <p className="text-xs text-slate-500">Store: {currentBiz.name}</p>
-              </div>
-              <button onClick={() => setIsThriftFormOpen(false)} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                <X className="w-4 h-4 text-slate-500" />
+        <div className="fixed inset-0 z-50 bg-[#FBFBF9] dark:bg-[#121113] overflow-y-auto flex flex-col animate-in fade-in duration-200">
+          {/* Top Sticky Header */}
+          <div className="sticky top-0 z-20 bg-white/95 dark:bg-[#1C1A1E]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 py-3.5 flex items-center justify-between shadow-xs">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setIsThriftFormOpen(false)}
+                className="p-2 -ml-1 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition flex items-center gap-1.5 font-bold text-xs cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span className="hidden sm:inline">Back to Dashboard</span>
               </button>
+              <div className="h-5 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100">
+                    {editingThriftId ? 'Edit LUKU Fit Listing' : 'Upload LUKU Fit Piece'}
+                  </h2>
+                  <MerchantVerificationBadge category="thrift_store" size="xs" />
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Store: <strong className="text-slate-700 dark:text-slate-300">{currentBiz.name}</strong> • Live RADA LUKU Catalog
+                </p>
+              </div>
             </div>
 
-            <form onSubmit={handleSaveThrift} className="p-5 overflow-y-auto space-y-4 flex-1">
-              <div>
-                <label className="block text-xs font-bold mb-1">Apparel Item Name *</label>
-                <input 
-                  type="text" 
-                  value={thriftName} 
-                  onChange={(e) => setThriftName(e.target.value)} 
-                  placeholder="e.g. 90s Vintage Leather Bomber Jacket"
-                  className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none focus:border-emerald-600"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold mb-1">Price (KES)</label>
-                  <input 
-                    type="text" 
-                    value={thriftPrice} 
-                    onChange={(e) => setThriftPrice(e.target.value)} 
-                    placeholder="KES 2,500"
-                    className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold mb-1">Category</label>
-                  <select 
-                    value={thriftCategory} 
-                    onChange={(e) => setThriftCategory(e.target.value)}
-                    className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
-                  >
-                    <option value="Jackets">Jackets & Outerwear</option>
-                    <option value="Denim">Vintage Denim</option>
-                    <option value="Tees">Graphic Tees</option>
-                    <option value="Hoodies">Hoodies & Sweats</option>
-                    <option value="Sneakers">Sneakers</option>
-                    <option value="Accessories">Caps & Accessories</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold mb-1">Condition</label>
-                  <select 
-                    value={thriftCondition} 
-                    onChange={(e) => setThriftCondition(e.target.value)}
-                    className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
-                  >
-                    <option value="Thrift Grade A">Thrift Grade A</option>
-                    <option value="Vintage Mint">Vintage Mint</option>
-                    <option value="Brand New">Brand New / Tagged</option>
-                    <option value="Distressed">Distressed Aesthetic</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold mb-1">Size</label>
-                  <input 
-                    type="text" 
-                    value={thriftSize} 
-                    onChange={(e) => setThriftSize(e.target.value)} 
-                    placeholder="e.g. L, Oversized, 32"
-                    className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold mb-1">Stall Number / Pickup Location</label>
-                <input 
-                  type="text" 
-                  value={thriftStoreLoc} 
-                  onChange={(e) => setThriftStoreLoc(e.target.value)} 
-                  placeholder="e.g. Gikomba Market, Lane 3, Stall 4B"
-                  className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold mb-1">Photo URL</label>
-                <input 
-                  type="url" 
-                  value={thriftImg} 
-                  onChange={(e) => setThriftImg(e.target.value)} 
-                  className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 focus:outline-none"
-                />
-              </div>
-
-              <button 
-                type="submit"
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm py-3 rounded-2xl shadow-lg mt-4 cursor-pointer"
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsThriftFormOpen(false)}
+                className="px-3.5 py-2 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
               >
-                Sync to LUKU Engine
+                Cancel
               </button>
+              <button
+                type="button"
+                onClick={(e) => handleSaveThrift(e as any)}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer flex items-center gap-1.5"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>{editingThriftId ? 'Save Fit' : 'Sync to LUKU'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Main Full-Screen Form Container */}
+          <div className="max-w-3xl mx-auto w-full p-4 sm:p-8 space-y-6 pb-28">
+            <form onSubmit={handleSaveThrift} className="space-y-6">
+
+              {/* Apparel Identity & Attributes Card */}
+              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <Shirt className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Garment Details & Pricing</span>
+                  </h3>
+                  <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">
+                    LUKU Styling Engine
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Apparel Item Name *
+                  </label>
+                  <input 
+                    type="text" 
+                    value={thriftName} 
+                    onChange={(e) => setThriftName(e.target.value)} 
+                    placeholder="e.g. 90s Vintage Leather Bomber Jacket"
+                    className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-emerald-600"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Price (KES) *
+                    </label>
+                    <input 
+                      type="text" 
+                      value={thriftPrice} 
+                      onChange={(e) => setThriftPrice(e.target.value)} 
+                      placeholder="e.g. KES 2,500"
+                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-emerald-600"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Apparel Category
+                    </label>
+                    <select 
+                      value={thriftCategory} 
+                      onChange={(e) => setThriftCategory(e.target.value)}
+                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none"
+                    >
+                      <option value="Jackets">Jackets & Coats</option>
+                      <option value="Denim">Vintage Denim & Jeans</option>
+                      <option value="Tees">Graphic Tees & Tops</option>
+                      <option value="Hoodies">Hoodies & Sweats</option>
+                      <option value="Pants">Cargo & Trousers</option>
+                      <option value="Sneakers">Footwear & Sneakers</option>
+                      <option value="Accessories">Caps & Accessories</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Condition & Wash
+                    </label>
+                    <select 
+                      value={thriftCondition} 
+                      onChange={(e) => setThriftCondition(e.target.value)}
+                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none"
+                    >
+                      <option value="Thrift Grade A">Thrift Grade A (Prime)</option>
+                      <option value="Vintage Mint">Vintage Mint Wash</option>
+                      <option value="Brand New">Brand New / Deadstock</option>
+                      <option value="Distressed">Distressed Aesthetic / Raw Hem</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Garment Size *
+                    </label>
+                    <input 
+                      type="text" 
+                      value={thriftSize} 
+                      onChange={(e) => setThriftSize(e.target.value)} 
+                      placeholder="e.g. XL (Boxy Oversized) or 32 Waist"
+                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Store Location & Pickup Stall with Dynamic Auto-search */}
+              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Store / Market Area & Pickup Directions</span>
+                  </h3>
+                  <span className="text-[10px] text-emerald-600 font-bold">Nairobi • Markets • Kiambu</span>
+                </div>
+
+                {/* Dynamic Auto-Search Location Selector */}
+                <DynamicLocationSelector
+                  value={thriftStoreLoc}
+                  onChange={(loc) => setThriftStoreLoc(loc)}
+                  label="Market / Area Location *"
+                  placeholder="Search market (Gikomba, Toi, Ngara, Westlands) or estate stage..."
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Stall Number / Lane Directions
+                    </label>
+                    <input 
+                      type="text" 
+                      value={thriftStallNumber} 
+                      onChange={(e) => setThriftStallNumber(e.target.value)} 
+                      placeholder="e.g. Lane 3, Stall 4B, Opposite Posta"
+                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-emerald-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Direct WhatsApp Orders
+                    </label>
+                    <input 
+                      type="text" 
+                      value={currentBiz.whatsapp || '+254 700 000 000'} 
+                      disabled
+                      className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 cursor-not-allowed"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* NATIVE FILE UPLOADS: GARMENT PRIMARY PHOTO & MULTI-ANGLE GALLERY */}
+              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-5">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <ImageIcon className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Garment Photos & Multi-Angle Catalog</span>
+                    </h3>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Select front, back, tag, and on-body fit photos directly from your device
+                    </p>
+                  </div>
+                </div>
+
+                {/* Primary Fit Cover Photo */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                      Primary Fit Photo *
+                    </label>
+                    <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">
+                      Catalog Thumbnail
+                    </span>
+                  </div>
+
+                  {thriftImg ? (
+                    <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-900 group max-w-sm mx-auto sm:mx-0">
+                      <div className="h-72 w-full relative">
+                        <img 
+                          src={thriftImg} 
+                          alt="Fit Preview" 
+                          className="w-full h-full object-cover group-hover:scale-[1.02] transition duration-300"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30" />
+                        
+                        <div className="absolute top-3 left-3 bg-emerald-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md uppercase tracking-wider flex items-center gap-1">
+                          <Check className="w-3 h-3 stroke-[3]" />
+                          <span>Primary Fit Photo</span>
+                        </div>
+
+                        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2">
+                          <label 
+                            htmlFor="thrift-photo-file-input-replace"
+                            className="px-3.5 py-2 bg-white/90 hover:bg-white text-slate-900 rounded-xl text-xs font-black shadow-lg cursor-pointer transition flex items-center gap-1.5"
+                          >
+                            <Camera className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Change Photo</span>
+                          </label>
+                          <input
+                            id="thrift-photo-file-input-replace"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleThriftCoverFileUpload}
+                            className="hidden"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setThriftImg('');
+                              showToast('Fit photo removed.');
+                            }}
+                            className="px-3 py-2 bg-red-600/90 hover:bg-red-600 text-white rounded-xl text-xs font-bold shadow-lg transition flex items-center gap-1"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Remove</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <label
+                      htmlFor="thrift-photo-file-input-empty"
+                      className="w-full py-10 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-600 bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-2 cursor-pointer transition text-center group"
+                    >
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition">
+                        <Upload className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-black text-slate-800 dark:text-slate-200">
+                          Upload Main Fit Photo
+                        </p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Tap to select a crisp garment photo from your device
+                        </p>
+                      </div>
+                      <span className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 mt-1">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Select Garment File</span>
+                      </span>
+                      <input
+                        id="thrift-photo-file-input-empty"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleThriftCoverFileUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+
+                {/* GALLERY OF MULTIPLE ADDITIONAL FIT ANGLES */}
+                <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                        Multi-Angle Fit Gallery ({thriftGalleryImgs.length})
+                      </label>
+                      <p className="text-[11px] text-slate-400">
+                        Add back angle, tag/size label, fabric wash detail, and styled outfit shots
+                      </p>
+                    </div>
+
+                    <label
+                      htmlFor="thrift-gallery-file-input"
+                      className="px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 rounded-xl text-xs font-extrabold cursor-pointer transition flex items-center gap-1.5 shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Upload Angles</span>
+                    </label>
+                    <input
+                      id="thrift-gallery-file-input"
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleThriftGalleryFileUpload}
+                      className="hidden"
+                    />
+                  </div>
+
+                  {thriftGalleryImgs.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {thriftGalleryImgs.map((imgUrl, idx) => (
+                        <div 
+                          key={idx} 
+                          className="relative group rounded-2xl overflow-hidden aspect-square border border-slate-200 dark:border-slate-800 bg-slate-900 shadow-xs"
+                        >
+                          <img 
+                            src={imgUrl} 
+                            alt={`Fit angle ${idx + 1}`} 
+                            className="w-full h-full object-cover group-hover:scale-105 transition duration-200" 
+                          />
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center gap-2 p-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setThriftImg(imgUrl);
+                                showToast('Set as main fit photo!');
+                              }}
+                              className="px-2.5 py-1 bg-white text-slate-900 rounded-lg text-[10px] font-black hover:bg-slate-100 transition"
+                            >
+                              Set as Main
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveThriftGalleryImage(idx)}
+                              className="px-2.5 py-1 bg-red-600 text-white rounded-lg text-[10px] font-bold hover:bg-red-700 flex items-center gap-1 transition"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                          {thriftImg === imgUrl && (
+                            <div className="absolute top-2 left-2 bg-emerald-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md uppercase">
+                              Main
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                      {/* Add More Photos Tile */}
+                      <label
+                        htmlFor="thrift-gallery-file-input-grid"
+                        className="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-600 bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-1.5 p-3 aspect-square cursor-pointer transition text-center group"
+                      >
+                        <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition">
+                          <Plus className="w-5 h-5" />
+                        </div>
+                        <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-300">
+                          Add More
+                        </span>
+                        <input
+                          id="thrift-gallery-file-input-grid"
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleThriftGalleryFileUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <label
+                      htmlFor="thrift-gallery-file-input-empty"
+                      className="w-full py-8 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-600 bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-2 cursor-pointer transition text-center"
+                    >
+                      <ImageIcon className="w-8 h-8 text-slate-400" />
+                      <div>
+                        <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                          No additional angle photos uploaded
+                        </p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Select multiple photos to show back details, fabric texture, and fit
+                        </p>
+                      </div>
+                      <span className="px-3.5 py-1.5 bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-bold">
+                        Choose Photos
+                      </span>
+                      <input
+                        id="thrift-gallery-file-input-empty"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleThriftGalleryFileUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              {/* Bottom Submit Bar */}
+              <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+                <button 
+                  type="button"
+                  onClick={() => setIsThriftFormOpen(false)}
+                  className="w-full sm:w-auto px-6 py-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-extrabold text-xs sm:text-sm rounded-2xl transition cursor-pointer text-center order-2 sm:order-1"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="w-full flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm py-4 rounded-2xl shadow-xl shadow-emerald-500/20 active:scale-[0.99] transition cursor-pointer flex items-center justify-center gap-2 order-1 sm:order-2"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{editingThriftId ? 'Save & Update LUKU Piece' : 'Sync Piece to LUKU Engine'}</span>
+                </button>
+              </div>
+
             </form>
           </div>
         </div>
