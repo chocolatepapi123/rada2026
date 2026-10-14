@@ -16,14 +16,21 @@ import {
   Plus,
   Sparkles,
   Music,
-  ExternalLink
+  ExternalLink,
+  Percent,
+  Flame,
+  Copy,
+  Check,
+  Store
 } from 'lucide-react';
-import { EventItem, CinemaMovie, StatusPost, UserProfile } from '../types.ts';
+import { EventItem, CinemaMovie, StatusPost, UserProfile, BusinessOffer, OfferCategory } from '../types.ts';
+import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
 
 interface HomeTabProps {
   events: EventItem[];
   cinemaMovies: CinemaMovie[];
   statuses: StatusPost[];
+  offers?: BusinessOffer[];
   onOpenEventDetails: (event: EventItem) => void;
   onBookCinema: (movie: CinemaMovie) => void;
   onPostStatus: (text: string, mediaUrl?: string, locationName?: string) => void;
@@ -31,6 +38,7 @@ interface HomeTabProps {
   onViewUserProfile: (profile: UserProfile) => void;
   onOpenDedicatedViewAll: (title: string, category: string) => void;
   onOpenCreateEvent?: (initialTitle?: string) => void;
+  onOpenBusinessProfile?: (businessId: string) => void;
   showToast: (msg: string) => void;
 }
 
@@ -38,6 +46,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   events,
   cinemaMovies,
   statuses,
+  offers = [],
   onOpenEventDetails,
   onBookCinema,
   onPostStatus,
@@ -45,6 +54,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   onViewUserProfile,
   onOpenDedicatedViewAll,
   onOpenCreateEvent,
+  onOpenBusinessProfile,
   showToast
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -52,6 +62,18 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   const [selectedGenre, setSelectedGenre] = useState('all');
   const [selectedCinemaLoc, setSelectedCinemaLoc] = useState('all');
   const [isListening, setIsListening] = useState(false);
+
+  // Offers state
+  const [selectedOfferCategory, setSelectedOfferCategory] = useState<'all' | OfferCategory>('all');
+  const [copiedOfferId, setCopiedOfferId] = useState<string | null>(null);
+
+  const handleCopyOfferCode = (offerId: string, code?: string) => {
+    if (!code) return;
+    navigator.clipboard.writeText(code);
+    setCopiedOfferId(offerId);
+    showToast(`Claim code "${code}" copied! Present at venue or checkout.`);
+    setTimeout(() => setCopiedOfferId(null), 2500);
+  };
 
   // Status creation state
   const [statusText, setStatusText] = useState('');
@@ -171,6 +193,20 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     );
   });
 
+  // Filter offers by category and search query
+  const filteredOffers = (offers || []).filter(o => {
+    if (selectedOfferCategory !== 'all' && o.category !== selectedOfferCategory) return false;
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      o.title.toLowerCase().includes(q) ||
+      o.businessName.toLowerCase().includes(q) ||
+      o.description.toLowerCase().includes(q) ||
+      o.category.toLowerCase().includes(q) ||
+      o.discount.toLowerCase().includes(q)
+    );
+  });
+
   return (
     <section className="px-4 py-4 space-y-6">
       {/* Search Bar with Web Speech API & Waveform Animation */}
@@ -267,14 +303,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       </div>
 
       {/* Empty Search Result State for Home Tab */}
-      {filteredEvents.length === 0 && filteredCinemaMovies.length === 0 && (
+      {filteredEvents.length === 0 && filteredCinemaMovies.length === 0 && filteredOffers.length === 0 && (
         <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-dashed border-slate-300 dark:border-slate-800 rounded-3xl p-6 text-center space-y-3 shadow-xs">
           <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/60 text-[#E0533C] mx-auto flex items-center justify-center font-black">
             <Calendar className="w-6 h-6" />
           </div>
           <div className="space-y-1">
             <h4 className="font-black text-sm text-slate-900 dark:text-slate-100">
-              No events or movie showtimes found for "{searchQuery}"
+              No events, movie showtimes or offers found for "{searchQuery}"
             </h4>
             <p className="text-xs text-slate-500 max-w-xs mx-auto">
               Are you an event organizer or promoter? Publish this event live on RADA!
@@ -287,6 +323,139 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             <Plus className="w-4 h-4" />
             <span>Create Event "{searchQuery || 'New Showcase'}"</span>
           </button>
+        </div>
+      )}
+
+      {/* ========================================================
+          RUNNING OFFERS & PROMOTIONS FEED (SPEC 4)
+          ======================================================== */}
+      {filteredOffers.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-[#E0533C] to-amber-400 flex items-center justify-center text-white shadow-xs">
+                <Flame className="w-3 h-3 fill-white" />
+              </div>
+              <h2 className="text-xs font-black tracking-wider uppercase text-slate-800 dark:text-slate-200">
+                Running Offers & Promotions
+              </h2>
+            </div>
+            <span className="text-[10px] font-bold text-[#E0533C] bg-red-50 dark:bg-red-950/40 px-2 py-0.5 rounded-full border border-red-200 dark:border-red-900/40">
+              Live Verified Deals
+            </span>
+          </div>
+
+          {/* Offer Category Filter System */}
+          <div className="flex gap-1.5 overflow-x-auto hide-scrollbar pb-1">
+            {[
+              { id: 'all', label: 'All Deals' },
+              { id: 'Tickets', label: 'Tickets' },
+              { id: 'Food', label: 'Food' },
+              { id: 'Drinks', label: 'Drinks' },
+              { id: 'Apparel', label: 'Apparel' },
+              { id: 'Special Deals', label: 'Special Deals' }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setSelectedOfferCategory(tab.id as any)}
+                className={`px-3 py-1 rounded-full text-[11px] shrink-0 font-bold transition cursor-pointer ${
+                  selectedOfferCategory === tab.id
+                    ? 'bg-rose-600 text-white shadow-xs'
+                    : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Offers Horizontal Showcase */}
+          <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+            {filteredOffers.map(offer => (
+              <div
+                key={offer.id}
+                className="w-72 sm:w-80 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shrink-0 shadow-sm flex flex-col justify-between hover:border-rose-400/60 transition group"
+              >
+                {/* Poster Banner */}
+                <div className="h-36 w-full relative bg-slate-900 overflow-hidden">
+                  <img
+                    src={offer.posterUrl || 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&auto=format&fit=crop'}
+                    alt={offer.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition duration-300 opacity-90"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
+                  
+                  <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+                    <span className="bg-[#E0533C] text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md uppercase tracking-wide">
+                      {offer.discount}
+                    </span>
+                    <span className="bg-black/60 backdrop-blur-md text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-white/20">
+                      {offer.category}
+                    </span>
+                  </div>
+
+                  <div className="absolute bottom-2.5 left-2.5 right-2.5">
+                    <p className="text-[10px] text-amber-300 font-bold">{offer.validUntil}</p>
+                    <h3 className="text-sm font-black text-white line-clamp-1 mt-0.5">{offer.title}</h3>
+                  </div>
+                </div>
+
+                {/* Offer Details & Actions */}
+                <div className="p-3.5 space-y-2.5 flex-1 flex flex-col justify-between">
+                  <div className="space-y-1.5">
+                    {/* Merchant Attribution with Tailored Verification Badge */}
+                    <div 
+                      onClick={() => onOpenBusinessProfile && onOpenBusinessProfile(offer.businessId)}
+                      className="flex items-center justify-between cursor-pointer group/biz"
+                    >
+                      <span className="text-xs font-black text-slate-800 dark:text-slate-200 group-hover/biz:text-[#E0533C] transition truncate max-w-[150px]">
+                        {offer.businessName}
+                      </span>
+                      <MerchantVerificationBadge category={offer.businessCategory} size="xs" />
+                    </div>
+
+                    <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
+                      {offer.description}
+                    </p>
+                  </div>
+
+                  {/* Claim Button & Code */}
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                    <div className="text-[10px] font-mono font-bold bg-[#F8F8F6] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 px-2 py-1 rounded-lg text-slate-700 dark:text-slate-300 truncate">
+                      {offer.claimCode || 'RADADEAL'}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={() => handleCopyOfferCode(offer.id, offer.claimCode || 'RADADEAL')}
+                        className="px-2.5 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1 cursor-pointer"
+                      >
+                        {copiedOfferId === offer.id ? (
+                          <>
+                            <Check className="w-3 h-3" />
+                            <span>Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Claim</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={() => onOpenBusinessProfile && onOpenBusinessProfile(offer.businessId)}
+                        className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 transition"
+                        title="View Merchant Profile"
+                      >
+                        <Store className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

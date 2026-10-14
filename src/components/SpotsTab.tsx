@@ -16,6 +16,7 @@ import {
   Compass
 } from 'lucide-react';
 import { SpotItem } from '../types.ts';
+import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
 
 interface SpotsTabProps {
   spots: SpotItem[];
@@ -251,9 +252,14 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           {/* Spot Header Info */}
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <h4 className="font-black text-sm text-[#E0533C] truncate group-hover:opacity-90 transition">
-                {spot.title}
-              </h4>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <h4 className="font-black text-sm text-[#E0533C] truncate group-hover:opacity-90 transition">
+                  {spot.title}
+                </h4>
+                {(spot.businessId || !spot.isUserUploaded) && (
+                  <MerchantVerificationBadge category="hospitality" size="xs" showLabel={false} />
+                )}
+              </div>
               <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[11px] shrink-0">
                 <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
                 <span>{spot.rating}</span>

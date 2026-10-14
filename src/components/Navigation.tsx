@@ -1,4 +1,3 @@
-import React from 'react';
 import { Home, MapPin, Shirt, Users, Wallet } from 'lucide-react';
 
 interface NavigationProps {

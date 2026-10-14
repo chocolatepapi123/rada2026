@@ -55,6 +55,7 @@ import {
   Review,
   UserProfile
 } from '../types.ts';
+import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
 
 interface OverlaysProps {
   // Overlays state
@@ -531,9 +532,14 @@ export const Overlays: React.FC<OverlaysProps> = ({
             {/* Title, Address & Tags */}
             <div className="space-y-1">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-black text-slate-900 dark:text-slate-100">
-                  {selectedSpot.title}
-                </h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-black text-slate-900 dark:text-slate-100">
+                    {selectedSpot.title}
+                  </h2>
+                  {(selectedSpot.businessId || !selectedSpot.isUserUploaded) && (
+                    <MerchantVerificationBadge category="hospitality" size="xs" />
+                  )}
+                </div>
                 <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-red-100 text-[#E0533C]">
                   {selectedSpot.category}
                 </span>
@@ -805,9 +811,12 @@ export const Overlays: React.FC<OverlaysProps> = ({
             </div>
 
             <div className="space-y-1">
-              <h2 className="text-xl font-black text-slate-900 dark:text-slate-100">
-                {selectedEvent.title}
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-black text-slate-900 dark:text-slate-100">
+                  {selectedEvent.title}
+                </h2>
+                <MerchantVerificationBadge category="event_organizer" size="xs" />
+              </div>
               <p className="text-xs text-[#E0533C] font-bold flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5" />
                 <span>{selectedEvent.date} {selectedEvent.time ? `• ${selectedEvent.time}` : ''}</span>

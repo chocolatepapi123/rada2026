@@ -211,7 +211,7 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <span className="font-extrabold text-[#E0533C]">Business Hub</span>
+                      <span className="font-extrabold text-[#E0533C]">Business & Merchant Hub</span>
                       <span className="text-[9px] bg-red-100 dark:bg-red-950/80 text-[#E0533C] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider">
                         Merchant
                       </span>

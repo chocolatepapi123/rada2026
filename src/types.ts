@@ -1,5 +1,23 @@
 export type BusinessCategory = 'hospitality' | 'event_organizer' | 'thrift_store';
 
+export type OfferCategory = 'Tickets' | 'Food' | 'Drinks' | 'Apparel' | 'Special Deals';
+
+export interface BusinessOffer {
+  id: string;
+  businessId: string;
+  businessName: string;
+  businessCategory: BusinessCategory;
+  title: string;
+  description: string;
+  category: OfferCategory;
+  discount: string;
+  posterUrl?: string;
+  validUntil?: string;
+  claimCode?: string;
+  actionUrl?: string;
+  createdAt?: string;
+}
+
 export interface SpecialOffer {
   id: string;
   title: string;

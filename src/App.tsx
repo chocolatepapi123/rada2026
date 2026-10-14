@@ -6,7 +6,8 @@
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header.tsx';
 import { Navigation } from './components/Navigation.tsx';
-import { BusinessHubModal } from './components/BusinessHubModal.tsx';
+import { MerchantHubTab } from './components/MerchantHubTab.tsx';
+import { PublicBusinessProfileModal } from './components/PublicBusinessProfileModal.tsx';
 import { HomeTab } from './components/HomeTab.tsx';
 import { SpotsTab } from './components/SpotsTab.tsx';
 import { LukuTab } from './components/LukuTab.tsx';
@@ -18,6 +19,7 @@ import { UserProfileModal } from './components/UserProfileModal.tsx';
 
 import {
   initialBusinesses,
+  initialOffers,
   initialSpots,
   initialEvents,
   initialThriftItems,
@@ -31,6 +33,7 @@ import {
 
 import {
   BusinessAccount,
+  BusinessOffer,
   SpotItem,
   EventItem,
   ThriftItem,
@@ -116,6 +119,15 @@ export default function App() {
     const saved = localStorage.getItem('rada_contacts');
     return saved ? JSON.parse(saved) : initialContacts;
   });
+
+  // Independent Offers & Promotions State (SPEC 4)
+  const [offers, setOffers] = useState<BusinessOffer[]>(() => {
+    const saved = localStorage.getItem('rada_offers');
+    return saved ? JSON.parse(saved) : initialOffers;
+  });
+
+  // Public Business Profile View Modal State
+  const [selectedPublicBusiness, setSelectedPublicBusiness] = useState<BusinessAccount | null>(null);
 
   // Overlays state
   const [activeOverlay, setActiveOverlay] = useState<string | null>(null);
@@ -229,6 +241,10 @@ export default function App() {
     localStorage.setItem('rada_current_user', JSON.stringify(currentUserProfile));
   }, [currentUserProfile]);
 
+  useEffect(() => {
+    localStorage.setItem('rada_offers', JSON.stringify(offers));
+  }, [offers]);
+
   // Active business reference
   const currentBusiness = businesses.find(b => b.id === activeBusinessId) || businesses[0];
 
@@ -236,6 +252,57 @@ export default function App() {
   const handleCreateBusiness = (newBiz: BusinessAccount) => {
     setBusinesses(prev => [newBiz, ...prev]);
     setActiveBusinessId(newBiz.id);
+  };
+
+  const handleUpdateBusiness = (updatedBiz: BusinessAccount) => {
+    setBusinesses(prev => prev.map(b => b.id === updatedBiz.id ? updatedBiz : b));
+  };
+
+  // Offers Handlers (SPEC 4: Decoupled Independent Engine)
+  const handleCreateOffer = (newOffer: BusinessOffer) => {
+    setOffers(prev => [newOffer, ...prev]);
+  };
+
+  const handleUpdateOffer = (updatedOffer: BusinessOffer) => {
+    setOffers(prev => prev.map(o => o.id === updatedOffer.id ? updatedOffer : o));
+  };
+
+  const handleDeleteOffer = (offerId: string) => {
+    setOffers(prev => prev.filter(o => o.id !== offerId));
+  };
+
+  // Spot Claiming (SPEC 3A: Exclusive to Spot Merchants)
+  const handleClaimSpot = (spotId: number, businessId: string) => {
+    setSpots(prev => prev.map(s => {
+      if (s.id === spotId) {
+        return {
+          ...s,
+          businessId,
+          isUserUploaded: false
+        };
+      }
+      return s;
+    }));
+  };
+
+  const handleReleaseSpot = (spotId: number) => {
+    setSpots(prev => prev.map(s => {
+      if (s.id === spotId) {
+        return {
+          ...s,
+          businessId: undefined,
+          isUserUploaded: true
+        };
+      }
+      return s;
+    }));
+  };
+
+  const handleOpenBusinessProfile = (bizId: string) => {
+    const biz = businesses.find(b => b.id === bizId);
+    if (biz) {
+      setSelectedPublicBusiness(biz);
+    }
   };
 
   const handleAddOrUpdateSpot = (spot: SpotItem) => {
@@ -561,6 +628,7 @@ export default function App() {
             events={events}
             cinemaMovies={cinemaMovies}
             statuses={statuses}
+            offers={offers}
             onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
             onBookCinema={handleBookCinema}
             onPostStatus={handlePostStatus}
@@ -570,7 +638,10 @@ export default function App() {
               setViewAllTitle(title);
               setViewAllCategory(cat);
             }}
-            onOpenCreateEvent={() => setIsBusinessHubOpen(true)}
+            onOpenCreateEvent={() => {
+              setIsBusinessHubOpen(true);
+            }}
+            onOpenBusinessProfile={handleOpenBusinessProfile}
             showToast={showToast}
           />
         )}
@@ -584,7 +655,9 @@ export default function App() {
               setViewAllTitle(title);
               setViewAllCategory(cat);
             }}
-            onOpenCreateSpot={() => setIsBusinessHubOpen(true)}
+            onOpenCreateSpot={() => {
+              setIsBusinessHubOpen(true);
+            }}
             showToast={showToast}
           />
         )}
@@ -593,7 +666,48 @@ export default function App() {
           <LukuTab
             thriftItems={thriftItems}
             businesses={businesses}
-            onOpenStore={(storeName) => showToast(`Browsing ${storeName} official catalog!`)}
+            onOpenStore={(storeName) => {
+              const biz = businesses.find(b => b.name.toLowerCase() === storeName.toLowerCase());
+              if (biz) setSelectedPublicBusiness(biz);
+              else showToast(`Browsing ${storeName} official catalog!`);
+            }}
+            onOpenCreateFit={() => {
+              setIsBusinessHubOpen(true);
+            }}
+            showToast={showToast}
+          />
+        )}
+
+        {/* ========================================================
+            STANDALONE DEDICATED UNCOMPRESSED BUSINESS & MERCHANT HUB
+            ======================================================== */}
+        {activeTab === 'merchant' && (
+          <MerchantHubTab
+            businesses={businesses}
+            activeBusinessId={activeBusinessId}
+            onSelectBusiness={(id) => {
+              setActiveBusinessId(id);
+              const b = businesses.find(item => item.id === id);
+              if (b) showToast(`Switched active business to "${b.name}"`);
+            }}
+            onCreateBusiness={handleCreateBusiness}
+            onUpdateBusiness={handleUpdateBusiness}
+            spots={spots}
+            onAddOrUpdateSpot={handleAddOrUpdateSpot}
+            onDeleteListing={handleDeleteListing}
+            events={events}
+            onAddEvent={handleAddEvent}
+            thriftItems={thriftItems}
+            onAddThriftItem={handleAddThriftItem}
+            offers={offers}
+            onCreateOffer={handleCreateOffer}
+            onUpdateOffer={handleUpdateOffer}
+            onDeleteOffer={handleDeleteOffer}
+            onClaimSpot={handleClaimSpot}
+            onReleaseSpot={handleReleaseSpot}
+            onViewSpotDetails={(spot) => setSelectedSpotModal(spot)}
+            onViewEventDetails={(event) => setSelectedEventModal(event)}
+            onOpenPublicProfile={(biz) => setSelectedPublicBusiness(biz)}
             showToast={showToast}
           />
         )}
@@ -627,27 +741,40 @@ export default function App() {
         }}
       />
 
-      {/* BUSINESS & MERCHANT HUB (FULL MODAL) */}
-      <BusinessHubModal
-        isOpen={isBusinessHubOpen}
-        onClose={() => setIsBusinessHubOpen(false)}
-        businesses={businesses}
-        activeBusinessId={activeBusinessId}
-        onSelectBusiness={(id) => {
-          setActiveBusinessId(id);
-          const b = businesses.find(item => item.id === id);
-          if (b) showToast(`Switched active business to "${b.name}"`);
-        }}
-        onCreateBusiness={handleCreateBusiness}
-        onAddOrUpdateSpot={handleAddOrUpdateSpot}
-        onAddEvent={handleAddEvent}
-        onAddThriftItem={handleAddThriftItem}
-        onDeleteListing={handleDeleteListing}
-        spots={spots}
-        events={events}
-        thriftItems={thriftItems}
-        showToast={showToast}
-      />
+      {/* BUSINESS & MERCHANT HUB (FULL-SCREEN DEDICATED MODAL VIEW) */}
+      {isBusinessHubOpen && (
+        <div className="fixed inset-0 z-50 bg-[#FBFBF9] dark:bg-[#121113] overflow-y-auto animate-in slide-in-from-bottom duration-200">
+          <MerchantHubTab
+            businesses={businesses}
+            activeBusinessId={activeBusinessId}
+            onSelectBusiness={(id) => {
+              setActiveBusinessId(id);
+              const b = businesses.find(item => item.id === id);
+              if (b) showToast(`Switched active business to "${b.name}"`);
+            }}
+            onCreateBusiness={handleCreateBusiness}
+            onUpdateBusiness={handleUpdateBusiness}
+            spots={spots}
+            onAddOrUpdateSpot={handleAddOrUpdateSpot}
+            onDeleteListing={handleDeleteListing}
+            events={events}
+            onAddEvent={handleAddEvent}
+            thriftItems={thriftItems}
+            onAddThriftItem={handleAddThriftItem}
+            offers={offers}
+            onCreateOffer={handleCreateOffer}
+            onUpdateOffer={handleUpdateOffer}
+            onDeleteOffer={handleDeleteOffer}
+            onClaimSpot={handleClaimSpot}
+            onReleaseSpot={handleReleaseSpot}
+            onViewSpotDetails={(spot) => setSelectedSpotModal(spot)}
+            onViewEventDetails={(event) => setSelectedEventModal(event)}
+            onOpenPublicProfile={(biz) => setSelectedPublicBusiness(biz)}
+            onClose={() => setIsBusinessHubOpen(false)}
+            showToast={showToast}
+          />
+        </div>
+      )}
 
       {/* "VIEW LOCATION" DEDICATED MAP MODAL */}
       <LocationMapModal
@@ -729,6 +856,19 @@ export default function App() {
           setActiveTab('socials');
           setViewingProfile(null);
         }}
+        showToast={showToast}
+      />
+
+      {/* PUBLIC BUSINESS & MERCHANT PROFILE MODAL */}
+      <PublicBusinessProfileModal
+        business={selectedPublicBusiness}
+        onClose={() => setSelectedPublicBusiness(null)}
+        offers={offers}
+        spots={spots}
+        events={events}
+        thriftItems={thriftItems}
+        onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
+        onOpenEventDetails={(event) => setSelectedEventModal(event)}
         showToast={showToast}
       />
 

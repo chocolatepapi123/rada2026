@@ -15,6 +15,7 @@ import {
   Phone
 } from 'lucide-react';
 import { ThriftItem, BusinessAccount } from '../types.ts';
+import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
 
 interface LukuTabProps {
   thriftItems: ThriftItem[];
@@ -202,9 +203,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
                     {item.name}
                   </h4>
                   {item.verified && (
-                    <span title="Verified Merchant" className="inline-flex shrink-0 mt-0.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-[#2D6A4F]" />
-                    </span>
+                    <MerchantVerificationBadge category="thrift_store" size="xs" showLabel={false} />
                   )}
                 </div>
 

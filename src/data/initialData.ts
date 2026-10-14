@@ -1,5 +1,6 @@
 import { 
   BusinessAccount, 
+  BusinessOffer,
   SpotItem, 
   EventItem, 
   ThriftItem, 
@@ -10,6 +11,80 @@ import {
   VaultTicket, 
   EmergencyContact 
 } from '../types.ts';
+
+export const initialOffers: BusinessOffer[] = [
+  {
+    id: 'off-1',
+    businessId: 'biz-1',
+    businessName: 'Ink & Drink Bar & Lounge',
+    businessCategory: 'hospitality',
+    title: 'Happy Hour Dawa & Tapas 2-for-1',
+    description: 'Buy 1 signature Kenyan honey Dawa cocktail or craft cider and get 1 free! Valid every weekday sunset.',
+    category: 'Drinks',
+    discount: 'BUY 1 GET 1',
+    posterUrl: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&auto=format&fit=crop',
+    validUntil: 'Every Mon-Fri 5PM-8PM',
+    claimCode: 'RADA-DAWA241',
+    createdAt: '2026-10-10'
+  },
+  {
+    id: 'off-2',
+    businessId: 'biz-1',
+    businessName: 'Ink & Drink Bar & Lounge',
+    businessCategory: 'hospitality',
+    title: 'Sunday Smoked Brisket Sliders Combo',
+    description: 'Order any 2 artisanal brisket sliders and get 20% off craft beer buckets and hand-cut truffle fries.',
+    category: 'Food',
+    discount: '20% OFF',
+    posterUrl: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=800&auto=format&fit=crop',
+    validUntil: 'Every Sunday all day',
+    claimCode: 'RADA-BRISKET20',
+    createdAt: '2026-10-11'
+  },
+  {
+    id: 'off-3',
+    businessId: 'biz-2',
+    businessName: 'VibeCraft Events KE',
+    businessCategory: 'event_organizer',
+    title: 'Halloween Rave Early Bird Crew Pass',
+    description: 'Group booking of 4+ tickets gets VIP fast-track entry plus complimentary welcome cocktail potion.',
+    category: 'Tickets',
+    discount: '15% OFF VIP',
+    posterUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop',
+    validUntil: 'Valid until 28 Oct 2026',
+    claimCode: 'CREWPACK26',
+    actionUrl: 'https://hustlesasa.com/',
+    createdAt: '2026-10-12'
+  },
+  {
+    id: 'off-4',
+    businessId: 'biz-3',
+    businessName: 'Gikomba Stall 4B & 9C Vintage',
+    businessCategory: 'thrift_store',
+    title: 'Streetwear Bundle: Jeans + Tee + Free Cap',
+    description: 'Buy any pair of Japanese carpenter denim and 90s vintage band tee, get an authentic vintage snapback free!',
+    category: 'Apparel',
+    discount: 'BUNDLE & SAVE',
+    posterUrl: 'https://images.unsplash.com/photo-1544441893-675973e31985?w=800&auto=format&fit=crop',
+    validUntil: 'While stocks last this month',
+    claimCode: 'LUKU-FREEHAT',
+    createdAt: '2026-10-13'
+  },
+  {
+    id: 'off-5',
+    businessId: 'biz-1',
+    businessName: 'Ink & Drink Bar & Lounge',
+    businessCategory: 'hospitality',
+    title: 'Midweek Afro-Fusion Date Night',
+    description: 'Complimentary dessert platter & artisanal sparkling spritz when you reserve a table for two on Wednesdays.',
+    category: 'Special Deals',
+    discount: 'FREE DESSERT',
+    posterUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
+    validUntil: 'Valid Wednesdays 6PM-11PM',
+    claimCode: 'INK-DATEFREE',
+    createdAt: '2026-10-13'
+  }
+];
 
 export const initialBusinesses: BusinessAccount[] = [
   {
