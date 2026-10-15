@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 import { AuthModal } from './components/AuthModal';
-
+import { AdminDashboard } from './components/AdminDashboard.tsx';
 import { Header } from './components/Header.tsx';
 import { Navigation } from './components/Navigation.tsx';
 import { MerchantHubTab } from './components/MerchantHubTab.tsx';
@@ -1025,6 +1025,13 @@ if (authLoading) {
             onOpenEventDetails={(event) => setSelectedEventModal(event)}
             showToast={showToast}
           />
+          {isAdminOpen && userRole === 'admin' && (
+  <AdminDashboard
+    businesses={businesses}
+    onClose={() => setIsAdminOpen(false)}
+    showToast={showToast}
+  />
+)}
         </>
       )}
     </div>
