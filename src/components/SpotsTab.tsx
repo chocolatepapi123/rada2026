@@ -16,6 +16,7 @@ import {
   Compass
 } from 'lucide-react';
 
+
 import { SpotItem } from '../types.ts';
 import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
 
