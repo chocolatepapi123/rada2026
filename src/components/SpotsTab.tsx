@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { 
+import React, { useEffect, useState } from 'react';
+
   Search, 
   MapPin, 
   Star, 
@@ -57,6 +57,26 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     'Thika'
   ]);
 
+  const [dbSpots, setDbSpots] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function fetchLiveSpots() {
+      const { data, error } = await supabase
+        .from('spots')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching spots:', error);
+      } else if (data && data.length > 0) {
+        setDbSpots(data);
+      }
+    }
+
+    fetchLiveSpots();
+  }, []);
+
+  
   const handlePrevImage = (e: React.MouseEvent, spotId: number, maxImages: number) => {
     e.stopPropagation();
     setActiveImageIndices(prev => {
