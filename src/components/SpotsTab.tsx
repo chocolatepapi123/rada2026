@@ -18,7 +18,7 @@ import {
 
 
 import { SpotItem, MenuItem } from '../types.ts';
-import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
+import { BusinessBadge } from './BusinessBadge.tsx';
 import { supabase } from '../lib/supabase.ts';
 
 interface SpotsTabProps {
@@ -317,9 +317,12 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                 <h4 className="font-black text-sm text-[#E0533C] truncate group-hover:opacity-90 transition">
                   {spot.title}
                 </h4>
-                {(spot.businessId || !spot.isUserUploaded) && (
-                  <MerchantVerificationBadge category="hospitality" size="xs" showLabel={false} />
-                )}
+                <BusinessBadge
+                  businessId={spot.businessId}
+                  category="hospitality"
+                  size="xs"
+                  unclaimedVerified={!spot.isUserUploaded}
+                />
               </div>
               <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[11px] shrink-0">
                 <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
