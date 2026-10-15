@@ -78,7 +78,6 @@ interface MerchantHubTabProps {
   onClose?: () => void;
   showToast: (msg: string) => void;
 }
-
 export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   businesses,
   activeBusinessId,
