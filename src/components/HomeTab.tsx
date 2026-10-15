@@ -27,7 +27,7 @@ import {
   Smile
 } from 'lucide-react';
 import { EventItem, CinemaMovie, StatusPost, UserProfile, BusinessOffer, OfferCategory, SpotItem } from '../types.ts';
-import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
+import { BusinessBadge } from './BusinessBadge.tsx';
 import { EmojiPicker } from './EmojiPicker.tsx';
 
 interface HomeTabProps {
@@ -613,7 +613,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                       <span className="text-xs font-black text-slate-800 dark:text-slate-200 group-hover/biz:text-[#E0533C] transition truncate max-w-[150px]">
                         {offer.businessName}
                       </span>
-                      <MerchantVerificationBadge category={offer.businessCategory} size="xs" />
+                      <BusinessBadge businessId={offer.businessId} category={offer.businessCategory} size="xs" />
                     </div>
 
                     <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
