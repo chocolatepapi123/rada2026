@@ -52,21 +52,28 @@ import {
 } from './types.ts';
 
 export default function App() {
-  // Animated Splash Screen state (Immediately displays upon app load)
-   const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [showSplash, setShowSplash] = useState<boolean>(true);
 
+  // Safe Supabase Session Listener
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+    if (supabase && supabase.auth) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setSession(session);
+        setAuthLoading(false);
+      }).catch(() => {
+        setAuthLoading(false);
+      });
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        setSession(session);
+      });
+
+      return () => subscription.unsubscribe();
+    } else {
       setAuthLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
+    }
   }, []);
 
   const handleSignOut = async () => {
@@ -91,8 +98,6 @@ export default function App() {
       </div>
     );
   }
-
-  const [showSplash, setShowSplash] = useState<boolean>(true);
 
   // Theme State: Default to pure white / light mode
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
