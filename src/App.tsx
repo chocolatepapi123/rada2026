@@ -55,7 +55,8 @@ export default function App() {
   const [session, setSession] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [showSplash, setShowSplash] = useState<boolean>(true);
-
+  const [userRole, setUserRole] = useState<'user' | 'merchant' | 'admin'>('user');
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
   // Safe Supabase Session Listener
   useEffect(() => {
     if (supabase && supabase.auth) {
@@ -75,7 +76,37 @@ export default function App() {
       setAuthLoading(false);
     }
   }, []);
+  // Load logged-in user's role
+  useEffect(() => {
+    if (!session?.user?.id) {
+      setUserRole('user');
+      return;
+    }
 
+    const loadUserRole = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .single();
+
+      if (error) {
+        console.error('Failed to load user role:', error);
+        setUserRole('user');
+        return;
+      }
+
+      setUserRole(
+        data?.role === 'admin'
+          ? 'admin'
+          : data?.role === 'merchant'
+            ? 'merchant'
+            : 'user'
+      );
+    };
+
+    loadUserRole();
+  }, [session]);
   const handleSignOut = async () => {
     await supabase.auth.signOut();
   };
