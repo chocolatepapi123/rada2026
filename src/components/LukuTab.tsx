@@ -18,7 +18,7 @@ import {
   Share2
 } from 'lucide-react';
 import { ThriftItem, BusinessAccount } from '../types.ts';
-import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
+import { BusinessBadge } from './BusinessBadge.tsx';
 import { shareContent } from '../utils/shareUtils.ts';
 
 interface LukuTabProps {
@@ -311,9 +311,12 @@ export const LukuTab: React.FC<LukuTabProps> = ({
                   <h4 className="font-extrabold text-xs line-clamp-1 text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition">
                     {item.name}
                   </h4>
-                  {item.verified && (
-                    <MerchantVerificationBadge category="thrift_store" size="xs" showLabel={false} />
-                  )}
+                  <BusinessBadge
+                    businessId={item.businessId}
+                    category="thrift_store"
+                    size="xs"
+                    unclaimedVerified={item.verified}
+                  />
                 </div>
 
                 <p className="text-[10px] text-slate-500 truncate mt-0.5">
@@ -338,7 +341,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
                       address: `${item.storeLocation} ${item.stallNumber || ''}`,
                       bio: `Curated streetwear & thrift drops from ${item.seller} at ${item.storeLocation}.`,
                       logo: item.img,
-                      verified: item.verified,
+                      verified: item.businessId ? false : item.verified,
                       createdDate: '2026',
                       discography: ['Vintage Streetwear Archive', 'Rare Denim & Outerwear', 'Graphic Tees Showcase'],
                       pinnedImages: [item.img]
