@@ -1307,7 +1307,53 @@ verificationStatus: 'pending',
             SUB-TAB: OVERVIEW
             ========================================================================= */}
         {activeSubTab === 'overview' && (
-          <div className="space-y-6 animate-in fade-in duration-150">
+          <div 
+ className="space-y-6 animate-in fade-in duration-150">
+            {/* ACTUAL BUSINESS VERIFICATION STATUS */}
+{(() => {
+  const status =
+    currentBiz.verificationStatus ||
+    (currentBiz.verified ? 'approved' : 'pending');
+
+  const statusStyles = {
+    pending: 'border-amber-300 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-200',
+    approved: 'border-emerald-300 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-200',
+    rejected: 'border-red-300 bg-red-50 text-red-900 dark:bg-red-950/30 dark:border-red-800 dark:text-red-200',
+  };
+
+  const statusContent = {
+    pending: {
+      title: 'Verification pending',
+      message: 'Your business profile has been submitted and is waiting for RADA admin review.',
+    },
+    approved: {
+      title: 'Business verified',
+      message: 'Your business has been approved by RADA.',
+    },
+    rejected: {
+      title: 'Verification rejected',
+      message: currentBiz.verificationNote
+        ? `Reason: ${currentBiz.verificationNote}`
+        : 'Your business was not approved. Please review your details and contact RADA support.',
+    },
+  };
+
+  return (
+    <div className={`rounded-2xl border p-4 ${statusStyles[status]}`}>
+      <div className="flex items-start gap-3">
+        <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-black">
+            {statusContent[status].title}
+          </p>
+          <p className="text-xs mt-1 leading-relaxed">
+            {statusContent[status].message}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+})()}
             {/* Quick Metrics Bar */}
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-center shadow-xs">
