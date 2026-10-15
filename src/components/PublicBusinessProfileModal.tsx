@@ -53,9 +53,8 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
   onOpenEventDetails,
   showToast
 }) => {
+ const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
   if (!business) return null;
-
-  const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
 
   // Filter offers for this business
   const businessOffers = offers.filter(o => o.businessId === business.id);
