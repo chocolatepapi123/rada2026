@@ -1144,10 +1144,10 @@ const [isOnboardingOpen, setIsOnboardingOpen] = useState(!currentBiz);
               {isSwitcherOpen && (
                 <div className="absolute top-full left-0 mt-2 w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
                   <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Your Merchant Accounts ({businesses.length})
+                    Your Merchant Accounts ({ownedBusinesses.length})
                   </div>
                   <div className="space-y-1">
-                    {businesses.map((biz) => (
+                    {ownedBusinesses.map((biz) => (
                       <button
                         key={biz.id}
                         onClick={() => {
