@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   X, 
@@ -55,7 +56,7 @@ import {
   Review,
   UserProfile
 } from '../types.ts';
-import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
+import { BusinessBadge } from './BusinessBadge.tsx';
 import { shareContent } from '../utils/shareUtils.ts';
 
 interface OverlaysProps {
@@ -655,7 +656,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     </span>
                     <span className="absolute bottom-3 left-3 bg-white/90 dark:bg-black/90 backdrop-blur-md text-slate-900 dark:text-white text-[10px] font-black px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-xs">
                       <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                      <span>{selectedSpot.rating} ({selectedSpot.reviews?.length || 45} reviews)</span>
+                      <span>{selectedSpot.rating} ({selectedSpot.reviewCount ?? selectedSpot.reviews?.length ?? 0} reviews)</span>
                     </span>
                     {allImages.length > 1 && (
                       <span className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-md">
@@ -969,7 +970,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 <h2 className="text-xl font-black text-slate-900 dark:text-slate-100">
                   {selectedEvent.title}
                 </h2>
-                <MerchantVerificationBadge category="event_organizer" size="xs" />
+                <BusinessBadge businessId={selectedEvent.businessId} category="event_organizer" size="xs" unclaimedVerified />
               </div>
               <p className="text-xs text-[#E0533C] font-bold flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5" />
