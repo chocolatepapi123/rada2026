@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 import * as cloud from './lib/cloudSync';
+import { BusinessesProvider } from './components/BusinessBadge.tsx';
 import { AuthModal } from './components/AuthModal';
 import { AdminDashboard } from './components/AdminDashboard.tsx';
 import { Header } from './components/Header.tsx';
@@ -418,14 +419,19 @@ export default function App() {
   const pendingRef = useRef(0);    // cloud writes still in flight
 
   // Run a cloud write in the background. fn returns an error message or null.
+  const syncRef = useRef<(() => void) | null>(null);
+
   const cloudWrite = (fn: () => Promise<string | null>) => {
     mutationRef.current += 1;
     pendingRef.current += 1;
+    let ok = false;
     fn()
       .then((err) => {
         if (err) {
           console.warn('Cloud save failed:', err);
           showToast(`Saved on this device only (${err}).`);
+        } else {
+          ok = true;
         }
       })
       .catch((e) => {
@@ -434,6 +440,8 @@ export default function App() {
       })
       .finally(() => {
         pendingRef.current -= 1;
+        // After a successful save, reload from the cloud so photos become online links
+        if (ok && pendingRef.current === 0) syncRef.current?.();
       });
   };
 
@@ -446,6 +454,7 @@ export default function App() {
       const remoteBiz = await cloud.fetchBusinesses();
       const remoteListings = await cloud.fetchListings();
       if (!remoteBiz || !remoteListings) return; // offline or tables missing: keep local data
+      const remoteReviews = (await cloud.fetchReviews()) || {};
 
       const L = latestRef.current;
       const seedBizIds = new Set(initialBusinesses.map(b => b.id));
@@ -485,7 +494,37 @@ export default function App() {
         return [...remote, ...toMigrate, ...seeds];
       };
 
-      const mergedSpots = await mergeKind('spot', initialSpots, L.spots, remoteListings.spot);
+      const mergedSpotsRaw = await mergeKind('spot', initialSpots, L.spots, remoteListings.spot);
+
+      // Ratings, review counts, reviews and review photos come from the reviews table
+      const remoteSpotIds = new Set(remoteListings.spot.map((x: any) => String(x.id)));
+      const mergedSpots = mergedSpotsRaw.map((sp: any) => {
+        const seed = initialSpots.find(x => String(x.id) === String(sp.id));
+        const base: any = remoteSpotIds.has(String(sp.id)) ? sp : (seed || sp);
+        const mine: any[] = remoteReviews[String(sp.id)] || [];
+        const seedReviews: any[] = seed?.reviews || [];
+        const allReviews = [...mine, ...seedReviews];
+
+        const baseImages: string[] = base.images && base.images.length > 0 ? base.images : [base.img];
+        const reviewImages: string[] = mine.flatMap((r: any) => r.images || []);
+        const images = Array.from(new Set([...baseImages, ...reviewImages]));
+
+        let rating: string;
+        let reviewCount: number;
+        if (seed) {
+          reviewCount = (seed.reviewCount ?? seedReviews.length) + mine.length;
+          rating = mine.length > 0
+            ? (allReviews.reduce((sum: number, r: any) => sum + r.rating, 0) / allReviews.length).toFixed(1)
+            : seed.rating;
+        } else {
+          reviewCount = mine.length;
+          rating = mine.length > 0
+            ? (mine.reduce((sum: number, r: any) => sum + r.rating, 0) / mine.length).toFixed(1)
+            : 'New';
+        }
+
+        return { ...base, reviews: allReviews, reviewCount, rating, images };
+      });
       const mergedEvents = await mergeKind('event', initialEvents, L.events, remoteListings.event);
       const mergedThrift = await mergeKind('thrift', initialThriftItems, L.thriftItems, remoteListings.thrift);
       const mergedOffers = await mergeKind('offer', initialOffers, L.offers, remoteListings.offer);
@@ -509,6 +548,7 @@ export default function App() {
       syncFromCloud().catch(e => console.warn('Cloud sync failed:', e));
     };
 
+    syncRef.current = run;
     run();
     const onVisible = () => {
       if (document.visibilityState === 'visible') run();
@@ -538,7 +578,7 @@ export default function App() {
     setBusinesses(prev => prev.map(b => b.id === updatedBiz.id ? updatedBiz : b));
     const isSeed = initialBusinesses.some(b => b.id === updatedBiz.id);
     if (currentUserId && !isSeed) {
-      cloudWrite(() => cloud.updateBusiness(updatedBiz));
+      cloudWrite(() => cloud.updateBusiness(updatedBiz, currentUserId));
     }
   };
 
@@ -644,6 +684,7 @@ export default function App() {
 
   // Post Review with Images Handler
   const handlePostReview = (spotId: number, review: Review) => {
+    if (currentUserId) cloudWrite(() => cloud.insertReview(spotId, review, currentUserId));
     setSpots(prev => prev.map(s => {
       if (s.id === spotId) {
         const existingReviews = s.reviews || [];
@@ -892,6 +933,7 @@ export default function App() {
     }
   };
   return (
+    <BusinessesProvider businesses={businesses}>
     <div className="min-h-screen bg-white text-slate-900 dark:bg-[#121113] dark:text-slate-100 flex flex-col transition-colors duration-200 antialiased overflow-x-hidden">
       {/* Primary Application Splash Screen */}
       {showSplash && <SplashScreen durationMs={2000} onDismiss={() => setShowSplash(false)} />}
@@ -1187,16 +1229,20 @@ export default function App() {
 
     if (!business) return;
 
-    handleUpdateBusiness({
-      ...business,
-      ...updates,
-    });
+    // update on screen right away
+    setBusinesses(prev => prev.map(b => b.id === businessId ? ({ ...b, ...updates } as BusinessAccount) : b));
+
+    // save online: only the verification fields are changed
+    if (currentUserId && !initialBusinesses.some(b => b.id === businessId)) {
+      cloudWrite(() => cloud.reviewBusiness(businessId, updates as Partial<BusinessAccount>));
+    }
   }}
 />
 )}
         </>
       )}
     </div>
+    </BusinessesProvider>
   );
 }
  
