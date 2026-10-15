@@ -1038,13 +1038,14 @@ export default function App() {
   onClose={() => setIsAdminOpen(false)}
   showToast={showToast}
   onUpdateBusiness={(businessId, updates) => {
-    setBusinesses(prev =>
-      prev.map(business =>
-        business.id === businessId
-          ? { ...business, ...updates }
-          : business
-      )
-    );
+    const business = businesses.find(b => b.id === businessId);
+
+    if (!business) return;
+
+    handleUpdateBusiness({
+      ...business,
+      ...updates,
+    });
   }}
 />
 )}
