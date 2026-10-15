@@ -12,6 +12,7 @@ import {
 interface MerchantVerificationBadgeProps {
   category: string;
   size?: 'xs' | 'sm' | 'md';
+  showLabel?: boolean;
 }
 
 export default function MerchantVerificationBadge({
@@ -32,14 +33,16 @@ export default function MerchantVerificationBadge({
   } else if (
     normalizedCategory.includes('spot') ||
     normalizedCategory.includes('place') ||
-    normalizedCategory.includes('venue')
+    normalizedCategory.includes('venue') ||
+    normalizedCategory.includes('hospitality')
   ) {
     Icon = MapPin;
     label = 'Verified Spot';
   } else if (
     normalizedCategory.includes('luku') ||
     normalizedCategory.includes('shop') ||
-    normalizedCategory.includes('retail')
+    normalizedCategory.includes('retail') ||
+    normalizedCategory.includes('thrift')
   ) {
     Icon = ShoppingBag;
     label = 'Verified Luku';
@@ -112,3 +115,7 @@ export default function MerchantVerificationBadge({
     </span>
   );
       }
+
+
+// Named export so both `import X from` and `import { X } from` work
+export { MerchantVerificationBadge };
