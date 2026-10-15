@@ -152,15 +152,22 @@ export default function App() {
 
   // Business Hub State
   const [businesses, setBusinesses] = useState<BusinessAccount[]>(() => {
-    const saved = localStorage.getItem('rada_businesses');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length >= 5) return parsed;
-      } catch (e) {}
+  const saved = localStorage.getItem('rada_businesses');
+
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch (e) {
+      console.error('Failed to load businesses:', e);
     }
-    return initialBusinesses;
-  });
+  }
+
+  return initialBusinesses;
+});
   const [activeBusinessId, setActiveBusinessId] = useState<string>(() => {
     return businesses[0]?.id || 'biz-1';
   });
