@@ -686,15 +686,10 @@ export const Overlays: React.FC<OverlaysProps> = ({
             {/* Title, Address & Tags */}
             <div className="space-y-1">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-black text-slate-900 dark:text-slate-100">
-                    {selectedSpot.title}
-                  </h2>
-                  {(selectedSpot.businessId || !selectedSpot.isUserUploaded) && (
-                    <MerchantVerificationBadge category="hospitality" size="xs" />
-                  )}
-                </div>
-                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-red-100 text-[#E0533C]">
+                <h2 className="text-xl font-black text-slate-900 dark:text-slate-100">
+                  {selectedSpot.title}
+                </h2>
+                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-red-100 dark:bg-red-950/60 text-[#E0533C]">
                   {selectedSpot.category}
                 </span>
               </div>
@@ -715,10 +710,47 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 </p>
               )}
               {selectedSpot.description && (
-                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed pt-2">
+                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed pt-1">
                   {selectedSpot.description}
                 </p>
               )}
+            </div>
+
+            {/* ACTION BUTTONS REORDERED TO TOP: Uber, Bolt, and Plan a Date */}
+            <div className="space-y-2 pt-1 pb-1">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    showToast(`Opening Uber to ${selectedSpot.title}...`);
+                    window.open(`https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${encodeURIComponent(selectedSpot.address)}`, '_blank');
+                  }}
+                  className="py-3 bg-black text-white hover:bg-slate-800 font-black rounded-2xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Car className="w-4 h-4" />
+                  <span>Request Uber</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    showToast(`Opening Bolt to ${selectedSpot.title}...`);
+                    window.open('https://bolt.eu/', '_blank');
+                  }}
+                  className="py-3 bg-emerald-600 text-white hover:bg-emerald-700 font-black rounded-2xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Car className="w-4 h-4" />
+                  <span>Request Bolt</span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => onPlanDateFromSpot(selectedSpot)}
+                className="w-full py-3.5 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-2xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Calendar className="w-4 h-4" />
+                <span>Plan Hangout / Date at This Spot</span>
+              </button>
             </div>
 
             {/* Special Offers Section if present */}
@@ -763,38 +795,6 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 </div>
               </div>
             )}
-
-            {/* Ride Hails & Plan Date */}
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => {
-                  showToast(`Opening Uber to ${selectedSpot.title}...`);
-                  window.open(`https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${encodeURIComponent(selectedSpot.address)}`, '_blank');
-                }}
-                className="py-3 bg-black text-white hover:bg-slate-800 font-black rounded-2xl shadow-md transition flex items-center justify-center gap-2"
-              >
-                <Car className="w-4 h-4" />
-                <span>Request Uber</span>
-              </button>
-              <button
-                onClick={() => {
-                  showToast(`Opening Bolt to ${selectedSpot.title}...`);
-                  window.open('https://bolt.eu/', '_blank');
-                }}
-                className="py-3 bg-emerald-600 text-white hover:bg-emerald-700 font-black rounded-2xl shadow-md transition flex items-center justify-center gap-2"
-              >
-                <Car className="w-4 h-4" />
-                <span>Request Bolt</span>
-              </button>
-            </div>
-
-            <button
-              onClick={() => onPlanDateFromSpot(selectedSpot)}
-              className="w-full py-3.5 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-2xl shadow-md transition flex items-center justify-center gap-2"
-            >
-              <Calendar className="w-4 h-4" />
-              <span>Plan Hangout / Date at This Spot</span>
-            </button>
 
             {/* COMMUNITY REVIEWS & POST A REVIEW (SPEC 1: Regular users upload photos only inside reviews) */}
             <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">

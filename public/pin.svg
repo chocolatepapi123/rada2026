@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 130" fill="none">
+  <!-- Outer Pin Contour -->
+  <path d="M50 6 C26 6 10 26 10 50 C10 76 45 116 48.5 120 C49.3 121 50.7 121 51.5 120 C55 116 90 76 90 50 C90 26 74 6 50 6 Z" stroke="currentColor" stroke-width="8" stroke-linejoin="round" />
+  <!-- Distinctive RADA Pin Left Accent Rim Line -->
+  <path d="M22 35 C15 45 16 58 25 74 C34 90 46 106 50 112" stroke="currentColor" stroke-width="6" stroke-linecap="round" />
+  <!-- Center Circular Cutout -->
+  <circle cx="50" cy="48" r="17" stroke="currentColor" stroke-width="8" />
+</svg>

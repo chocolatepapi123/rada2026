@@ -12,11 +12,6 @@ interface VaultTabProps {
 export const VaultTab: React.FC<VaultTabProps> = ({ tickets, onShowQrCode, showToast }) => {
   const [selectedMonth, setSelectedMonth] = useState(9); // October
   const [selectedYear, setSelectedYear] = useState(2026);
-  const [snapshotTicket, setSnapshotTicket] = useState<VaultTicket | null>(null);
-
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const isLongPressTriggeredRef = useRef(false);
-
   // Calendar calculations
   const firstDay = new Date(selectedYear, selectedMonth, 1).getDay();
   const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
@@ -36,33 +31,6 @@ export const VaultTab: React.FC<VaultTabProps> = ({ tickets, onShowQrCode, showT
   const isHappeningToday = (ticket: VaultTicket) => {
     const d = ticket.dateStr.toLowerCase();
     return d.includes('14 oct') || d.includes('today') || d.includes('now');
-  };
-
-  // Long press gesture handlers
-  const handlePressStart = (ticket: VaultTicket) => {
-    isLongPressTriggeredRef.current = false;
-    longPressTimerRef.current = setTimeout(() => {
-      isLongPressTriggeredRef.current = true;
-      setSnapshotTicket(ticket);
-      if (showToast) showToast('Event Snapshot generated! 📸');
-    }, 450);
-  };
-
-  const handlePressEnd = () => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-  };
-
-  const handleShareSnapshot = async (ticket: VaultTicket) => {
-    await shareContent({
-      title: `RADA Event Snapshot: ${ticket.title}`,
-      text: `🎟️ Outing locked in! Catch me at "${ticket.title}" on ${ticket.dateStr} at ${ticket.locationStr}. Check it out on RADA Nairobi!`,
-      url: window.location.href,
-      onSuccess: showToast,
-      onError: showToast
-    });
   };
 
   return (
@@ -139,7 +107,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({ tickets, onShowQrCode, showT
             <span className="w-2.5 h-2.5 rounded-full bg-[#E05328]" />
             <span>Outing / Event Scheduled</span>
           </span>
-          <span className="text-[9px] text-[#E05328] font-bold">Long-press passes for Social Snapshot 📸</span>
+          <span className="text-[9px] text-slate-400 font-bold">Tap QR Pass for fast-track entry</span>
         </div>
       </div>
 
@@ -159,13 +127,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({ tickets, onShowQrCode, showT
             return (
               <div
                 key={t.id}
-                onMouseDown={() => handlePressStart(t)}
-                onMouseUp={handlePressEnd}
-                onMouseLeave={handlePressEnd}
-                onTouchStart={() => handlePressStart(t)}
-                onTouchEnd={handlePressEnd}
-                onTouchCancel={handlePressEnd}
-                className={`relative rounded-3xl p-4.5 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-white transition select-none cursor-pointer transform active:scale-[0.98] ${
+                className={`relative rounded-3xl p-4.5 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-white transition select-none ${
                   isToday
                     ? 'bg-gradient-to-r from-[#E05328] via-[#D94E28] to-[#E9C46A] ring-4 ring-amber-400/40 shadow-xl'
                     : t.type === 'Verified Ticket Pass'
@@ -182,14 +144,9 @@ export const VaultTab: React.FC<VaultTabProps> = ({ tickets, onShowQrCode, showT
                 )}
 
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[9px] uppercase font-black tracking-wider bg-white/20 px-2 py-0.5 rounded-md inline-block">
-                      {t.type}
-                    </span>
-                    <span className="text-[9px] text-white/80 font-semibold flex items-center gap-1">
-                      <Camera className="w-3 h-3" /> Hold to snapshot
-                    </span>
-                  </div>
+                  <span className="text-[9px] uppercase font-black tracking-wider bg-white/20 px-2 py-0.5 rounded-md inline-block">
+                    {t.type}
+                  </span>
                   <h4 className="font-black text-base mt-1 text-white truncate">{t.title}</h4>
                   <p className="text-xs text-slate-100 mt-0.5 flex items-center gap-1 truncate">
                     <Calendar className="w-3.5 h-3.5 shrink-0" />
@@ -198,15 +155,21 @@ export const VaultTab: React.FC<VaultTabProps> = ({ tickets, onShowQrCode, showT
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  {/* Event Snapshot Direct Action */}
+                  {/* Share Outing Action */}
                   <button
                     type="button"
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.stopPropagation();
-                      setSnapshotTicket(t);
+                      await shareContent({
+                        title: `RADA Pass: ${t.title}`,
+                        text: `🎟️ Outing locked in! Catch me at "${t.title}" on ${t.dateStr} at ${t.locationStr}. Check it out on RADA!`,
+                        url: window.location.href,
+                        onSuccess: showToast,
+                        onError: showToast
+                      });
                     }}
-                    title="Generate & Share Event Snapshot"
-                    className="p-2.5 bg-black/30 hover:bg-black/50 text-white rounded-xl transition flex items-center justify-center border border-white/20"
+                    title="Share Outing Pass"
+                    className="p-2.5 bg-black/30 hover:bg-black/50 text-white rounded-xl transition flex items-center justify-center border border-white/20 cursor-pointer"
                   >
                     <Share2 className="w-4 h-4" />
                   </button>
@@ -218,7 +181,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({ tickets, onShowQrCode, showT
                       e.stopPropagation();
                       onShowQrCode(t.title);
                     }}
-                    className="px-3.5 py-2.5 bg-white text-slate-900 rounded-xl text-xs font-black shadow-md hover:bg-slate-100 transition flex items-center gap-1.5"
+                    className="px-3.5 py-2.5 bg-white text-slate-900 rounded-xl text-xs font-black shadow-md hover:bg-slate-100 transition flex items-center gap-1.5 cursor-pointer"
                   >
                     <QrCode className="w-4 h-4 text-[#E05328]" />
                     <span>QR Pass</span>
@@ -235,96 +198,6 @@ export const VaultTab: React.FC<VaultTabProps> = ({ tickets, onShowQrCode, showT
           )}
         </div>
       </div>
-
-      {/* POLISHED EVENT SNAPSHOT CARD PREVIEW MODAL */}
-      {snapshotTicket && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#1C1A1E] text-slate-900 dark:text-white rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800">
-            {/* Header bar */}
-            <div className="px-4 py-3 bg-[#F8F8F6] dark:bg-[#121113] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <span className="text-[11px] font-black tracking-wider uppercase text-slate-500 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-[#E05328]" />
-                Event Snapshot Card
-              </span>
-              <button 
-                onClick={() => setSnapshotTicket(null)}
-                className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition"
-              >
-                <X className="w-4 h-4 text-slate-500" />
-              </button>
-            </div>
-
-            {/* Social Poster Card Design */}
-            <div className="p-5 space-y-4">
-              <div 
-                className="rounded-2xl p-5 text-white shadow-xl relative overflow-hidden space-y-3"
-                style={{
-                  background: 'linear-gradient(135deg, #E05328 0%, #D94E28 50%, #2D6A4F 100%)',
-                }}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 backdrop-blur-md px-2.5 py-1 rounded-md">
-                    RADA NAIROBI • PASS
-                  </span>
-                  <span className="text-[10px] font-bold text-amber-300 bg-black/40 px-2 py-0.5 rounded-full">
-                    Verified Outing
-                  </span>
-                </div>
-
-                <div className="pt-2">
-                  <h3 className="text-lg font-black text-white leading-tight">
-                    {snapshotTicket.title}
-                  </h3>
-                  <p className="text-xs text-white/90 mt-1 flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 shrink-0 text-amber-300" />
-                    <span>{snapshotTicket.dateStr}</span>
-                  </p>
-                  <p className="text-xs text-white/80 mt-0.5 flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 shrink-0 text-amber-300" />
-                    <span>{snapshotTicket.locationStr}</span>
-                  </p>
-                </div>
-
-                {/* QR pass & code preview */}
-                <div className="pt-3 border-t border-white/20 flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <p className="text-[9px] uppercase tracking-wider text-white/70 font-bold">Fast-Track Pass Code</p>
-                    <p className="text-xs font-mono font-black text-amber-200">#RADA-ENTRY-2026</p>
-                  </div>
-                  <div className="w-12 h-12 bg-white rounded-xl p-1 shadow-md flex items-center justify-center">
-                    <QrCode className="w-full h-full text-slate-900" />
-                  </div>
-                </div>
-
-                {/* Squad Count */}
-                <div className="flex items-center gap-1.5 text-[10px] text-white/80 pt-1">
-                  <Users className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Nairobi Squad Synced • Verified on RADA</span>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleShareSnapshot(snapshotTicket)}
-                  className="flex-1 py-3 bg-[#E05328] hover:bg-orange-700 text-white rounded-2xl text-xs font-black shadow-md transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-                >
-                  <Share2 className="w-4 h-4" />
-                  <span>Share Snapshot to Friends</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSnapshotTicket(null)}
-                  className="px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold transition hover:bg-slate-200 dark:hover:bg-slate-700"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </section>
   );
 };

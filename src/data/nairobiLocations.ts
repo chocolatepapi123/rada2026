@@ -4,7 +4,7 @@ export interface NairobiLocationItem {
   subLocation?: string;
   type: 'bus_stop' | 'landmark' | 'mall' | 'petrol_station' | 'area';
   stageOrLandmark?: string;
-  county?: 'Nairobi' | 'Kiambu' | 'Mombasa Rd Corridor';
+  county?: string;
 }
 
 export const nairobiLocationsData: NairobiLocationItem[] = [
@@ -938,20 +938,208 @@ export const nairobiLocationsData: NairobiLocationItem[] = [
     type: 'bus_stop',
     stageOrLandmark: 'High Point Bus Stop • Juja',
     county: 'Kiambu'
+  },
+  // ==========================================
+  // NAIROBI ROYSAMBU & KASARANI
+  // ==========================================
+  {
+    name: 'Thika Road Mall (TRM)',
+    neighborhood: 'Roysambu',
+    subLocation: 'Thika Superhighway Exit 7',
+    type: 'mall',
+    stageOrLandmark: 'opposite Kasarani stage',
+    county: 'Nairobi'
+  },
+  {
+    name: 'Kasarani Sports Stadium',
+    neighborhood: 'Kasarani',
+    subLocation: 'Kasarani Mwiki Rd',
+    type: 'landmark',
+    stageOrLandmark: 'Kasarani Aquatic Stage',
+    county: 'Nairobi'
+  },
+  // ==========================================
+  // MOMBASA & COASTAL CORRIDOR
+  // ==========================================
+  {
+    name: 'Nyali Cinemax & City Mall',
+    neighborhood: 'Nyali',
+    subLocation: 'Links Road',
+    type: 'mall',
+    stageOrLandmark: 'Nyali Bridge / City Mall Stage',
+    county: 'Mombasa'
+  },
+  {
+    name: 'Diani Beach Road Strip',
+    neighborhood: 'Diani',
+    subLocation: 'Beach Road, South Coast',
+    type: 'area',
+    stageOrLandmark: 'Carrefour Diani / Kongo Mosque Stage',
+    county: 'Kwale / Diani'
+  },
+  {
+    name: 'Bamburi Beach Stage',
+    neighborhood: 'Bamburi',
+    subLocation: 'Malindi Highway',
+    type: 'landmark',
+    stageOrLandmark: 'Haller Park & Pirates Beach Stage',
+    county: 'Mombasa'
+  },
+  // ==========================================
+  // RIFT VALLEY & OUTSKIRTS
+  // ==========================================
+  {
+    name: 'Buffalo Mall Naivasha',
+    neighborhood: 'Naivasha',
+    subLocation: 'Nairobi-Nakuru Highway',
+    type: 'mall',
+    stageOrLandmark: 'Buffalo Mall Roundabout Stage',
+    county: 'Nakuru'
+  },
+  {
+    name: 'Westside Mall Nakuru',
+    neighborhood: 'Nakuru Town',
+    subLocation: 'Kenyatta Avenue',
+    type: 'mall',
+    stageOrLandmark: 'Westside Stage • Nakuru CBD',
+    county: 'Nakuru'
+  },
+  {
+    name: 'Rupa Village Mall Eldoret',
+    neighborhood: 'Eldoret',
+    subLocation: 'Malaba Road',
+    type: 'mall',
+    stageOrLandmark: 'Rupa Roundabout Stage',
+    county: 'Uasin Gishu / Eldoret'
+  },
+  // ==========================================
+  // WESTERN & NYANZA
+  // ==========================================
+  {
+    name: 'Mega City Mall Kisumu',
+    neighborhood: 'Kisumu CBD',
+    subLocation: 'Nairobi Road',
+    type: 'mall',
+    stageOrLandmark: 'Mega City Flyover Stage',
+    county: 'Kisumu'
+  },
+  {
+    name: 'Dunga Hill Camp',
+    neighborhood: 'Dunga, Kisumu',
+    subLocation: 'Lake Victoria Shoreline',
+    type: 'landmark',
+    stageOrLandmark: 'Dunga Beach Stage',
+    county: 'Kisumu'
+  },
+  // ==========================================
+  // MACHAKOS & EASTERN
+  // ==========================================
+  {
+    name: 'Machakos People\'s Park',
+    neighborhood: 'Machakos Town',
+    subLocation: 'Maruba Dam Rd',
+    type: 'landmark',
+    stageOrLandmark: 'People\'s Park Main Gate Stage',
+    county: 'Machakos'
+  },
+  {
+    name: 'Signature Mall Mlolongo',
+    neighborhood: 'Mlolongo / Mombasa Rd',
+    subLocation: 'Mombasa Highway',
+    type: 'mall',
+    stageOrLandmark: 'Mlolongo Expressway Stage',
+    county: 'Machakos'
   }
 ];
+
+/**
+ * Format exact location tag clearly as:
+ * "Town/Area, Neighborhood, Landmark/Stage" (e.g., "Nairobi, Roysambu, opposite Kasarani stage")
+ */
+export function formatExactLocationTag(townOrArea: string, neighborhood: string, landmarkOrStage: string): string {
+  const parts = [
+    townOrArea.trim(),
+    neighborhood.trim(),
+    landmarkOrStage.trim()
+  ].filter(Boolean);
+  return parts.join(', ');
+}
 
 export function searchNairobiLocations(query: string): NairobiLocationItem[] {
   const q = query.trim().toLowerCase();
   if (!q) {
-    return nairobiLocationsData.slice(0, 10);
+    return nairobiLocationsData.slice(0, 12);
   }
   
-  // Split search terms for multi-word queries (e.g., "Banana Kiambu" or "Mombasa Rd Syokimau")
   const terms = q.split(/\s+/).filter(Boolean);
 
   return nairobiLocationsData.filter((loc) => {
     const combinedStr = `${loc.name} ${loc.neighborhood} ${loc.subLocation || ''} ${loc.stageOrLandmark || ''} ${loc.county || ''}`.toLowerCase();
     return terms.every(term => combinedStr.includes(term));
   }).slice(0, 15);
+}
+
+/**
+ * Map-Driven Kenyan Location Auto-suggestion Engine.
+ * Fetches actual live places and landmarks directly from OpenStreetMap Nominatim across Kenya,
+ * gracefully blending with the offline rich Kenyan location database.
+ */
+export async function fetchMapDrivenLocations(query: string): Promise<NairobiLocationItem[]> {
+  const localResults = searchNairobiLocations(query);
+  const trimmed = query.trim();
+  if (!trimmed || trimmed.length < 2) {
+    return localResults;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2200);
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(trimmed)}&countrycodes=ke&addressdetails=1&limit=8`,
+      { 
+        signal: controller.signal,
+        headers: {
+          'Accept-Language': 'en'
+        }
+      }
+    );
+    clearTimeout(timeout);
+
+    if (!res.ok) return localResults;
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) return localResults;
+
+    const mapItems: NairobiLocationItem[] = data.map((place: any) => {
+      const addr = place.address || {};
+      const town = addr.city || addr.town || addr.municipality || addr.county || 'Kenya';
+      const neighborhood = addr.suburb || addr.neighbourhood || addr.village || addr.quarter || addr.subdistrict || town;
+      const landmark = place.name || addr.road || place.display_name.split(',')[0];
+      const stageOrStageDesc = `${town}, ${neighborhood}, near ${landmark}`;
+
+      return {
+        name: landmark,
+        neighborhood,
+        subLocation: town,
+        type: 'landmark' as const,
+        stageOrLandmark: stageOrStageDesc,
+        county: addr.state || addr.county || town
+      };
+    });
+
+    // Merge map results at the top while removing duplicates
+    const seen = new Set<string>();
+    const merged: NairobiLocationItem[] = [];
+
+    for (const item of [...mapItems, ...localResults]) {
+      const key = `${item.name.toLowerCase()}-${item.neighborhood.toLowerCase()}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.push(item);
+      }
+    }
+
+    return merged.slice(0, 16);
+  } catch {
+    return localResults;
+  }
 }

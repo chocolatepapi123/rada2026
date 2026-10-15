@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Header } from './components/Header.tsx';
 import { Navigation } from './components/Navigation.tsx';
 import { MerchantHubTab } from './components/MerchantHubTab.tsx';
@@ -257,15 +257,16 @@ export default function App() {
   // Profile View Modal state (to view anyone's profile and bio)
   const [viewingProfile, setViewingProfile] = useState<UserProfile | null>(null);
 
-  // Toast Notification System
-  const [toasts, setToasts] = useState<Array<{ id: number; text: string }>>([]);
+  // Sleek minimal single-line toast notification (one at a time, quick fade, no green glow or stacking)
+  const [activeToast, setActiveToast] = useState<string | null>(null);
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const showToast = (text: string) => {
-    const id = Date.now() + Math.random();
-    setToasts(prev => [...prev, { id, text }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 2800);
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setActiveToast(text);
+    toastTimeoutRef.current = setTimeout(() => {
+      setActiveToast(null);
+    }, 2200);
   };
 
   // Sync state to localStorage
@@ -677,18 +678,14 @@ export default function App() {
         />
       )}
       
-      {/* Toast Notification Container */}
-      <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center gap-2">
-        {toasts.map(toast => (
-          <div
-            key={toast.id}
-            className="toast-notification bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-black px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 border border-slate-800 dark:border-slate-200"
-          >
-            <span className="w-2 h-2 rounded-full bg-[#2D6A4F] animate-ping" />
-            <span>{toast.text}</span>
+      {/* Sleek Minimal Single-Line Toast Notification (No green glow, no stacking, fades quickly) */}
+      {activeToast && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-150">
+          <div className="bg-slate-900/90 dark:bg-white/95 text-white dark:text-slate-900 backdrop-blur-md text-xs font-semibold px-4 py-2 rounded-full shadow-lg border border-slate-700/50 dark:border-slate-200/50 flex items-center gap-2 whitespace-nowrap">
+            <span>{activeToast}</span>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
       {/* Top Header */}
       <Header
@@ -935,6 +932,7 @@ export default function App() {
       {/* USER PROFILE & BIO MODAL */}
       <UserProfileModal
         user={viewingProfile}
+        isMutualMatch={conversations.some(c => viewingProfile && c.name.toLowerCase().includes(viewingProfile.name.split(',')[0].toLowerCase()))}
         onClose={() => setViewingProfile(null)}
         onSendMatchRequest={(u) => {
           showToast(`Hangout & Match request sent to ${u.name}!`);

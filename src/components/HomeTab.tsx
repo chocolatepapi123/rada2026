@@ -22,10 +22,13 @@ import {
   Copy,
   Check,
   Store,
-  ShoppingBag
+  ShoppingBag,
+  SlidersHorizontal,
+  Smile
 } from 'lucide-react';
 import { EventItem, CinemaMovie, StatusPost, UserProfile, BusinessOffer, OfferCategory, SpotItem } from '../types.ts';
 import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
+import { EmojiPicker } from './EmojiPicker.tsx';
 
 interface HomeTabProps {
   events: EventItem[];
@@ -68,9 +71,11 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   const [selectedCinemaLoc, setSelectedCinemaLoc] = useState('all');
   const [isListening, setIsListening] = useState(false);
 
-  // Featured Events Advanced Filters
-  const [eventGenreFilter, setEventGenreFilter] = useState('all');
-  const [eventDateFilter, setEventDateFilter] = useState('');
+  // Events Streamlined Modal Filters
+  const [isEventFilterModalOpen, setIsEventFilterModalOpen] = useState(false);
+  const [selectedEventPriceTier, setSelectedEventPriceTier] = useState('all');
+  const [selectedEventDateRange, setSelectedEventDateRange] = useState('all');
+  const [showStatusEmojiPicker, setShowStatusEmojiPicker] = useState(false);
 
   // Offers state
   const [selectedOfferCategory, setSelectedOfferCategory] = useState<'all' | OfferCategory>('all');
@@ -176,6 +181,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     onPostStatus(statusText.trim(), statusMediaUrl || undefined, statusLocation);
     setStatusText('');
     setStatusMediaUrl(null);
+    setShowStatusEmojiPicker(false);
   };
 
   const handleSendReply = (statusId: string) => {
@@ -184,26 +190,41 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     setReplyInputText('');
   };
 
-  // Filter events with real-time query, vibe, genre, and date
+  // Filter events with real-time query, vibe, genre, price tier, and date
   const filteredEvents = events.filter(e => {
     const matchesVibe = selectedVibe === 'all' || e.category === selectedVibe;
     const matchesGenre = selectedGenre === 'all' || (e.genre && e.genre.toLowerCase().includes(selectedGenre.toLowerCase()));
-    const matchesEventGenre = eventGenreFilter === 'all' || (e.genre && e.genre.toLowerCase().includes(eventGenreFilter.toLowerCase()));
 
-    // Date filtering (e.g. 2026-10-25 -> "25 Oct")
-    let matchesDate = true;
-    if (eventDateFilter) {
-      const parts = eventDateFilter.split('-');
-      if (parts.length === 3) {
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const mIdx = parseInt(parts[1], 10) - 1;
-        const dNum = parseInt(parts[2], 10);
-        const searchPattern = `${dNum} ${months[mIdx]}`;
-        matchesDate = e.date.toLowerCase().includes(searchPattern.toLowerCase());
-      }
+    // Price tier filtering
+    let matchesPrice = true;
+    if (selectedEventPriceTier === 'free') {
+      matchesPrice = e.tiers.some(t => t.price.toLowerCase().includes('free') || t.price.includes('0'));
+    } else if (selectedEventPriceTier === 'under1k') {
+      matchesPrice = e.tiers.some(t => {
+        const num = parseInt(t.price.replace(/\D/g, ''), 10);
+        return num && num < 1000;
+      });
+    } else if (selectedEventPriceTier === '1k-3k') {
+      matchesPrice = e.tiers.some(t => {
+        const num = parseInt(t.price.replace(/\D/g, ''), 10);
+        return num && num >= 1000 && num <= 3000;
+      });
+    } else if (selectedEventPriceTier === '3k+') {
+      matchesPrice = e.tiers.some(t => {
+        const num = parseInt(t.price.replace(/\D/g, ''), 10);
+        return num && num > 3000;
+      });
     }
-    
-    if (!matchesVibe || !matchesGenre || !matchesEventGenre || !matchesDate) return false;
+
+    // Date range filtering
+    let matchesDate = true;
+    if (selectedEventDateRange === 'today') {
+      matchesDate = e.date.toLowerCase().includes('today') || e.date.toLowerCase().includes('14 oct');
+    } else if (selectedEventDateRange === 'weekend') {
+      matchesDate = e.date.toLowerCase().includes('sat') || e.date.toLowerCase().includes('sun') || e.date.toLowerCase().includes('weekend') || e.date.toLowerCase().includes('17 oct') || e.date.toLowerCase().includes('18 oct');
+    }
+
+    if (!matchesVibe || !matchesGenre || !matchesPrice || !matchesDate) return false;
 
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
@@ -250,95 +271,242 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     <section className="px-4 py-4 space-y-6">
       {/* Search Bar with Web Speech API & Waveform Animation */}
       <div className="space-y-3">
-        <div className="relative flex items-center">
-          <Search className="w-4 h-4 absolute left-3.5 text-slate-400 pointer-events-none" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search Nairobi events, venues, movies, or DJs..."
-            className="w-full pl-10 pr-24 py-3 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] shadow-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
-          />
+        <div className="relative flex items-center gap-2">
+          <div className="relative flex-1 flex items-center">
+            <Search className="w-4 h-4 absolute left-3.5 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search Kenyan events, venues, movies, or DJs..."
+              className="w-full pl-10 pr-20 py-3 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] shadow-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+            />
 
-          <div className="absolute right-2.5 flex items-center gap-1.5">
-            {/* Listening Waveform Animation */}
-            {isListening && (
-              <div className="flex items-center gap-0.5 px-2 py-1 bg-red-100 dark:bg-red-950/80 rounded-full animate-pulse">
-                <span className="w-1 h-3 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1 h-4 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1 h-2 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                <span className="text-[9px] font-black text-[#E0533C] ml-1">Listening</span>
-              </div>
+            <div className="absolute right-2.5 flex items-center gap-1.5">
+              {/* Listening Waveform Animation */}
+              {isListening && (
+                <div className="flex items-center gap-0.5 px-2 py-1 bg-red-100 dark:bg-red-950/80 rounded-full animate-pulse">
+                  <span className="w-1 h-3 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-1 h-4 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-1 h-2 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <span className="text-[9px] font-black text-[#E0533C] ml-1">Listening</span>
+                </div>
+              )}
+
+              {/* Microphone Button */}
+              <button
+                type="button"
+                onClick={handleToggleVoiceSearch}
+                title={isListening ? 'Stop Listening' : 'Voice Search with Web Speech API'}
+                className={`p-2 rounded-xl transition ${
+                  isListening 
+                    ? 'bg-[#E0533C] text-white shadow-md animate-ping' 
+                    : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-[#E0533C] hover:text-white'
+                }`}
+              >
+                <Mic className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Clean Filter Icon Button (Replaces top genre pill row) */}
+          <button
+            type="button"
+            onClick={() => setIsEventFilterModalOpen(true)}
+            className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-xs ${
+              selectedGenre !== 'all' || selectedEventDateRange !== 'all' || selectedEventPriceTier !== 'all'
+                ? 'bg-[#E0533C] text-white border-[#E0533C] shadow-md'
+                : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+            }`}
+            title="Filter Events (Date, Price, Expanded Genres)"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            {(selectedGenre !== 'all' || selectedEventDateRange !== 'all' || selectedEventPriceTier !== 'all') && (
+              <span className="w-2 h-2 rounded-full bg-white ml-1.5" />
             )}
+          </button>
+        </div>
 
-            {/* Microphone Button */}
+        {/* Active Filter Indicators */}
+        {(selectedGenre !== 'all' || selectedEventDateRange !== 'all' || selectedEventPriceTier !== 'all') && (
+          <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pt-0.5">
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Active:</span>
+            {selectedGenre !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#E0533C] text-white">
+                <span>{selectedGenre.toUpperCase()}</span>
+                <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedGenre('all')} />
+              </span>
+            )}
+            {selectedEventDateRange !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900">
+                <span>{selectedEventDateRange}</span>
+                <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedEventDateRange('all')} />
+              </span>
+            )}
+            {selectedEventPriceTier !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#2D6A4F] text-white">
+                <span>{selectedEventPriceTier}</span>
+                <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedEventPriceTier('all')} />
+              </span>
+            )}
             <button
               type="button"
-              onClick={handleToggleVoiceSearch}
-              title={isListening ? 'Stop Listening' : 'Voice Search with Web Speech API'}
-              className={`p-2 rounded-xl transition ${
-                isListening 
-                  ? 'bg-[#E0533C] text-white shadow-md animate-ping' 
-                  : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-[#E0533C] hover:text-white'
-              }`}
+              onClick={() => {
+                setSelectedGenre('all');
+                setSelectedEventDateRange('all');
+                setSelectedEventPriceTier('all');
+              }}
+              className="text-[10px] text-[#E0533C] font-bold underline ml-1 cursor-pointer"
             >
-              <Mic className="w-3.5 h-3.5" />
+              Reset
             </button>
           </div>
-        </div>
+        )}
 
-        {/* Vibe Category Pills */}
-        <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
-          {[
-            { id: 'all', label: 'All Vibes' },
-            { id: 'concerts', label: 'Concerts & Live' },
-            { id: 'nightlife', label: 'Nightlife & Clubs' },
-            { id: 'cinemas', label: 'Cinemas' },
-            { id: 'art', label: 'Art & Culture' }
-          ].map((pill) => (
-            <button
-              key={pill.id}
-              onClick={() => setSelectedVibe(pill.id)}
-              className={`px-4 py-2 rounded-full text-xs shrink-0 transition-all ${
-                selectedVibe === pill.id
-                  ? 'bg-[#E0533C] text-white font-black shadow-sm'
-                  : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-800 hover:border-slate-300'
-              }`}
-            >
-              {pill.label}
-            </button>
-          ))}
-        </div>
+        {/* Streamlined Events & Entertainment Filter Modal */}
+        {isEventFilterModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+            <div className="bg-white dark:bg-[#1C1A1E] w-full max-w-md rounded-3xl p-5 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 max-h-[88vh] overflow-y-auto">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-red-50 dark:bg-red-950/60 text-[#E0533C] flex items-center justify-center">
+                    <SlidersHorizontal className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
+                      Filter Events & Movies
+                    </h3>
+                    <p className="text-[10px] text-slate-400">Date, price tier & expanded genres</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsEventFilterModalOpen(false)}
+                  className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
 
-        {/* Movie/Event Genre Filters */}
-        <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-1">
-          <span className="text-[10px] font-black uppercase text-slate-400 shrink-0 mr-1 flex items-center gap-1">
-            <Music className="w-3 h-3" /> Genre:
-          </span>
-          {[
-            { id: 'all', label: 'All' },
-            { id: 'afrobeats', label: 'Afrobeats' },
-            { id: 'amapiano', label: 'Amapiano' },
-            { id: 'electronic', label: 'Electronic / Tech' },
-            { id: 'acoustic', label: 'Acoustic / Live' },
-            { id: 'sci-fi', label: 'Sci-Fi' },
-            { id: 'action', label: 'Action' },
-            { id: 'comedy', label: 'Comedy' },
-            { id: 'animation', label: 'Animation' }
-          ].map((g) => (
-            <button
-              key={g.id}
-              onClick={() => setSelectedGenre(g.id)}
-              className={`px-3 py-1 rounded-full text-[11px] shrink-0 transition ${
-                selectedGenre === g.id
-                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-black shadow-xs'
-                  : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-600 dark:text-slate-400 font-semibold border border-slate-200 dark:border-slate-800'
-              }`}
-            >
-              {g.label}
-            </button>
-          ))}
-        </div>
+              {/* Date Filter Options */}
+              <div className="space-y-2">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-[#E0533C]" />
+                  <span>When:</span>
+                </span>
+                <div className="grid grid-cols-3 gap-1.5 text-xs">
+                  {[
+                    { id: 'all', label: 'All Dates' },
+                    { id: 'today', label: 'Happening Today' },
+                    { id: 'weekend', label: 'This Weekend' }
+                  ].map((d) => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => setSelectedEventDateRange(d.id)}
+                      className={`p-2 rounded-xl font-bold transition text-center cursor-pointer ${
+                        selectedEventDateRange === d.id
+                          ? 'bg-[#E0533C] text-white shadow-xs'
+                          : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
+                      }`}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Price Tier Options */}
+              <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                  <Ticket className="w-3.5 h-3.5 text-[#2D6A4F]" />
+                  <span>Price / Budget:</span>
+                </span>
+                <div className="grid grid-cols-2 gap-1.5 text-xs">
+                  {[
+                    { id: 'all', label: 'All Prices' },
+                    { id: 'free', label: 'Free Entry / RSVP' },
+                    { id: 'under1k', label: 'Under KES 1,000' },
+                    { id: '1k-3k', label: 'KES 1,000 - 3,000' },
+                    { id: '3k+', label: 'VIP (KES 3,000+)' }
+                  ].map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setSelectedEventPriceTier(p.id)}
+                      className={`p-2 rounded-xl font-bold transition text-center cursor-pointer ${
+                        selectedEventPriceTier === p.id
+                          ? 'bg-[#2D6A4F] text-white shadow-xs'
+                          : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Expanded Genres */}
+              <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                  <Music className="w-3.5 h-3.5 text-purple-500" />
+                  <span>Genre & Style:</span>
+                </span>
+                <div className="flex flex-wrap gap-1.5 text-xs">
+                  {[
+                    { id: 'all', label: 'All Genres' },
+                    { id: 'hip hop', label: 'Hip Hop & Rap' },
+                    { id: 'afrobeats', label: 'Afrobeats' },
+                    { id: 'amapiano', label: 'Amapiano' },
+                    { id: 'gengetone', label: 'Gengetone' },
+                    { id: 'reggae', label: 'Reggae & Dancehall' },
+                    { id: 'electronic', label: 'Electronic & Tech' },
+                    { id: 'acoustic', label: 'Acoustic & Live Bands' },
+                    { id: 'sci-fi', label: 'Sci-Fi' },
+                    { id: 'action', label: 'Action Movies' },
+                    { id: 'comedy', label: 'Comedy' },
+                    { id: 'animation', label: 'Animation' }
+                  ].map((g) => (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => setSelectedGenre(g.id)}
+                      className={`px-3 py-1.5 rounded-xl font-bold transition cursor-pointer ${
+                        selectedGenre === g.id
+                          ? 'bg-purple-600 text-white shadow-xs'
+                          : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
+                      }`}
+                    >
+                      {g.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedGenre('all');
+                    setSelectedEventDateRange('all');
+                    setSelectedEventPriceTier('all');
+                  }}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 cursor-pointer"
+                >
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsEventFilterModalOpen(false)}
+                  className="flex-1 py-2.5 bg-[#E0533C] text-white rounded-xl text-xs font-black shadow-md hover:bg-orange-700 transition cursor-pointer"
+                >
+                  Apply Filters ({filteredEvents.length} events)
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Empty Search Result State for Home Tab */}
@@ -551,60 +719,38 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             </button>
           </div>
 
-          {/* ADVANCED EVENT FILTERS: Genre Pills & Date/Month Date-Picker */}
-          <div className="space-y-2 bg-[#F8F8F6] dark:bg-[#1C1A1E] p-2.5 rounded-2xl border border-slate-200 dark:border-slate-800">
-            {/* Genre Pills Row */}
-            <div className="flex gap-1.5 overflow-x-auto hide-scrollbar pb-1">
-              {[
-                { id: 'all', label: 'All Genres' },
-                { id: 'amapiano', label: 'Amapiano' },
-                { id: 'afrobeats', label: 'Afrobeats' },
-                { id: 'house', label: 'House & Techno' },
-                { id: 'live', label: 'Live Bands' },
-                { id: 'food', label: 'Food & Wine' },
-                { id: 'art', label: 'Visual Arts' },
-                { id: 'fashion', label: 'Fashion & Pop-ups' },
-                { id: 'jazz', label: 'Live Jazz' }
-              ].map(genre => (
-                <button
-                  key={genre.id}
-                  onClick={() => setEventGenreFilter(genre.id)}
-                  className={`px-3 py-1 rounded-full text-[11px] font-bold shrink-0 transition ${
-                    eventGenreFilter === genre.id
-                      ? 'bg-[#E0533C] text-white shadow-xs'
-                      : 'bg-white dark:bg-[#121113] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
-                  }`}
-                >
-                  {genre.label}
-                </button>
-              ))}
+          {/* Active Filter Indicators if any */}
+          {(selectedGenre !== 'all' || selectedEventPriceTier !== 'all' || selectedEventDateRange !== 'all') && (
+            <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-1 text-[11px]">
+              <span className="text-slate-400 font-bold uppercase text-[10px]">Active Filters:</span>
+              {selectedGenre !== 'all' && (
+                <span className="bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 px-2.5 py-0.5 rounded-full font-bold">
+                  {selectedGenre}
+                </span>
+              )}
+              {selectedEventPriceTier !== 'all' && (
+                <span className="bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 px-2.5 py-0.5 rounded-full font-bold">
+                  {selectedEventPriceTier}
+                </span>
+              )}
+              {selectedEventDateRange !== 'all' && (
+                <span className="bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 px-2.5 py-0.5 rounded-full font-bold">
+                  {selectedEventDateRange}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedGenre('all');
+                  setSelectedEventPriceTier('all');
+                  setSelectedEventDateRange('all');
+                }}
+                className="text-[10px] text-red-500 font-bold hover:underline cursor-pointer ml-1"
+              >
+                Clear all
+              </button>
             </div>
-
-            {/* Date/Month Filter */}
-            <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/70 dark:border-slate-800/70 text-xs">
-              <div className="flex items-center gap-1.5 text-slate-500">
-                <Calendar className="w-3.5 h-3.5 text-[#E0533C]" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Date / Month Filter:</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="date"
-                  value={eventDateFilter}
-                  onChange={(e) => setEventDateFilter(e.target.value)}
-                  className="bg-white dark:bg-[#121113] text-slate-800 dark:text-slate-200 text-xs px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-1 focus:ring-[#E0533C]"
-                />
-                {eventDateFilter && (
-                  <button
-                    type="button"
-                    onClick={() => setEventDateFilter('')}
-                    className="text-[10px] text-red-500 font-bold hover:underline px-1"
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
+          )}
 
           <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
             {filteredEvents.map((evt) => (
@@ -790,11 +936,23 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           )}
 
           <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800/80">
-            <div className="flex items-center gap-2">
-              <label className="cursor-pointer p-1.5 text-slate-500 hover:text-[#E0533C] transition">
+            <div className="flex items-center gap-1.5">
+              <label className="cursor-pointer p-1.5 text-slate-500 hover:text-[#E0533C] transition" title="Attach Photo">
                 <Camera className="w-4 h-4" />
                 <input type="file" accept="image/*" className="hidden" onChange={handleMediaUpload} />
               </label>
+
+              <button
+                type="button"
+                onClick={() => setShowStatusEmojiPicker(!showStatusEmojiPicker)}
+                className={`p-1.5 rounded-lg transition cursor-pointer ${
+                  showStatusEmojiPicker ? 'text-[#E0533C] bg-orange-50 dark:bg-orange-950/40' : 'text-slate-500 hover:text-[#E0533C]'
+                }`}
+                title="Pick Emoji"
+              >
+                <Smile className="w-4 h-4" />
+              </button>
+
               <span className="text-[10px] text-slate-400 font-medium truncate max-w-[150px]">
                 📍 {statusLocation}
               </span>
@@ -802,12 +960,23 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
             <button
               onClick={handlePublishStatus}
-              className="px-4 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center gap-1.5"
+              className="px-4 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center gap-1.5 cursor-pointer"
             >
               <span>Broadcast</span>
               <Send className="w-3 h-3" />
             </button>
           </div>
+
+          {/* Expanded Emoji Picker for Status Updates */}
+          {showStatusEmojiPicker && (
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+              <EmojiPicker
+                isOpen={showStatusEmojiPicker}
+                onSelectEmoji={(emoji) => setStatusText(prev => prev + emoji)}
+                onClose={() => setShowStatusEmojiPicker(false)}
+              />
+            </div>
+          )}
         </div>
 
         {/* Status Stream */}

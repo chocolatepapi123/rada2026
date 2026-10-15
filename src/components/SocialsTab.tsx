@@ -23,6 +23,7 @@ import {
   Volume2
 } from 'lucide-react';
 import { DatingProfile, ChatConversation, ChatMessage, ChatTheme, UserProfile } from '../types.ts';
+import { EmojiPicker } from './EmojiPicker.tsx';
 
 interface SocialsTabProps {
   discoveryProfiles: DatingProfile[];
@@ -266,16 +267,20 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
-            <div className="flex items-center gap-2">
-              <div
-                className="w-10 h-10 rounded-full bg-cover bg-center border-2 border-white/40 shadow-sm"
-                style={{ backgroundImage: `url('${activeChat.avatar}')` }}
-              />
+            <div className="flex items-center gap-2.5">
+              <div className="relative">
+                <div
+                  className="w-10 h-10 rounded-full bg-cover bg-center border-2 border-white/40 shadow-sm"
+                  style={{ backgroundImage: `url('${activeChat.avatar}')` }}
+                />
+                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#1C1A1E]" />
+              </div>
               <div>
                 <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{activeChat.name}</h4>
-                <p className="text-[10px] text-slate-400">
-                  {activeChat.type === 'group' ? 'Group Chat' : 'Active Direct Message'}
-                </p>
+                <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span>{activeChat.type === 'group' ? 'Group Chat' : 'Active'}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -476,20 +481,14 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           </div>
         )}
 
-        {/* Emoji Panel */}
+        {/* Expanded Rich Emoji Picker */}
         {showEmojiPicker && (
-          <div className="max-w-lg mx-auto w-full px-4">
-            <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 shadow-2xl grid grid-cols-8 gap-2 text-xl text-center">
-              {['🔥', '❤️', '😂', '✨', '☕', '🎉', '🍻', '🚀', '🙌', '🍔', '🍕', '💃', '🥑', '🍾', '🕶️', '⚡'].map((emoji) => (
-                <button
-                  key={emoji}
-                  onClick={() => setChatInputText(prev => prev + emoji)}
-                  className="hover:scale-125 transition"
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
+          <div className="max-w-lg mx-auto w-full px-4 mb-2">
+            <EmojiPicker
+              isOpen={showEmojiPicker}
+              onSelectEmoji={(emoji) => setChatInputText(prev => prev + emoji)}
+              onClose={() => setShowEmojiPicker(false)}
+            />
           </div>
         )}
 
@@ -829,14 +828,20 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                 className="p-3 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between gap-3 shadow-xs hover:border-[#E0533C] transition cursor-pointer"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div
-                    className="w-11 h-11 rounded-full bg-cover bg-center shrink-0 border border-slate-300 dark:border-slate-700"
-                    style={{ backgroundImage: `url('${conv.avatar}')` }}
-                  />
+                  <div className="relative shrink-0">
+                    <div
+                      className="w-11 h-11 rounded-full bg-cover bg-center border border-slate-300 dark:border-slate-700"
+                      style={{ backgroundImage: `url('${conv.avatar}')` }}
+                    />
+                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#1C1A1E]" />
+                  </div>
                   <div className="min-w-0">
-                    <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">
-                      {conv.name}
-                    </h4>
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">
+                        {conv.name}
+                      </h4>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                    </div>
                     <p className="text-[10px] text-slate-400 truncate mt-0.5">
                       {conv.lastMessage}
                     </p>

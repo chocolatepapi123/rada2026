@@ -57,43 +57,35 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-[#121113]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-xs transition-colors duration-200">
       <div className="max-w-lg mx-auto w-full px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2.5 min-w-0">
           <button 
             onClick={() => onSwitchTab('home')} 
-            className="text-2xl font-black tracking-tighter text-[#E0533C] cursor-pointer hover:opacity-90 transition focus:outline-none shrink-0"
+            className="flex items-center gap-1.5 cursor-pointer hover:opacity-90 transition focus:outline-none shrink-0"
+            title="RADA Home"
           >
-            RADA
+            <div className="w-7 h-7 rounded-lg bg-[#E0533C] text-white flex items-center justify-center shadow-xs shrink-0">
+              <svg viewBox="0 0 100 130" className="w-4.5 h-4.5 fill-none stroke-white" strokeLinejoin="round">
+                <path d="M50 6 C26 6 10 26 10 50 C10 76 45 116 48.5 120 C49.3 121 50.7 121 51.5 120 C55 116 90 76 90 50 C90 26 74 6 50 6 Z" strokeWidth="8" />
+                <path d="M22 35 C15 45 16 58 25 74 C34 90 46 106 50 112" strokeWidth="6" strokeLinecap="round" />
+                <circle cx="50" cy="48" r="17" strokeWidth="8" />
+              </svg>
+            </div>
+            <span className="text-2xl font-black tracking-tighter text-[#E0533C]">
+              RADA
+            </span>
           </button>
 
-          {/* Dynamic Detected Current Location Pill (Locked & Fixed - Non-Editable) */}
+          {/* Dynamic Detected Current Location (Clean badge without green glowing ping) */}
           <div 
             className="text-xs bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 font-semibold px-2.5 py-1 rounded-full flex items-center gap-1.5 border border-slate-200 dark:border-slate-800 select-none max-w-[190px] cursor-default shadow-2xs"
-            title={`Physical Location: ${currentLocation}`}
+            title={`Location: ${currentLocation}`}
           >
-            <span className="relative flex h-2 w-2 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
             <MapPin className="w-3.5 h-3.5 shrink-0 text-[#E05328]" />
             <span className="truncate text-[11px] font-bold">{currentLocation}</span>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* Quick Theme Switcher Button */}
-          <button
-            onClick={onToggleTheme}
-            title={isDarkMode ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
-            className="w-9 h-9 rounded-full bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center hover:scale-105 active:scale-95 transition"
-            aria-label="Toggle theme"
-          >
-            {isDarkMode ? (
-              <Sun className="w-4 h-4 text-amber-400" />
-            ) : (
-              <Moon className="w-4 h-4 text-slate-600" />
-            )}
-          </button>
-
           {/* Wagwan AI Quick Recommender */}
           <button
             onClick={onOpenWagwanAI}
@@ -154,6 +146,23 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   <Settings className="w-4 h-4 text-[#2D6A4F]" />
                   <span>Settings</span>
+                </button>
+
+                {/* Theme Mode Option (Moved exclusively to menu/settings) */}
+                <button
+                  onClick={() => {
+                    onToggleTheme();
+                    setMenuOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center justify-between text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition"
+                >
+                  <div className="flex items-center gap-3">
+                    {isDarkMode ? <Moon className="w-4 h-4 text-amber-400" /> : <Sun className="w-4 h-4 text-amber-500" />}
+                    <span>Theme: {isDarkMode ? 'Dark Mode' : 'Light Mode'}</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                    Toggle
+                  </span>
                 </button>
 
                 {/* Account & Security */}

@@ -11,7 +11,7 @@ import {
   X,
   Compass
 } from 'lucide-react';
-import { NairobiLocationItem, searchNairobiLocations } from '../data/nairobiLocations.ts';
+import { NairobiLocationItem, searchNairobiLocations, fetchMapDrivenLocations } from '../data/nairobiLocations.ts';
 
 interface DynamicLocationSelectorProps {
   value: string;
@@ -29,7 +29,7 @@ interface DynamicLocationSelectorProps {
 export const DynamicLocationSelector: React.FC<DynamicLocationSelectorProps> = ({
   value,
   onChange,
-  placeholder = 'Search neighborhood, landmark, or bus stop...',
+  placeholder = 'Search place, stage, mall, or town in Kenya...',
   label,
   isModalMode = false,
   isOpen = true,
@@ -39,6 +39,8 @@ export const DynamicLocationSelector: React.FC<DynamicLocationSelectorProps> = (
   className = ''
 }) => {
   const [searchInput, setSearchInput] = useState(value || '');
+  const [searchResults, setSearchResults] = useState<NairobiLocationItem[]>(() => searchNairobiLocations(value || ''));
+  const [isLoadingMap, setIsLoadingMap] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -46,6 +48,30 @@ export const DynamicLocationSelector: React.FC<DynamicLocationSelectorProps> = (
   useEffect(() => {
     setSearchInput(value || '');
   }, [value]);
+
+  // Live map-driven auto-suggestions with debounce
+  useEffect(() => {
+    // Instant local results
+    const instant = searchNairobiLocations(searchInput);
+    setSearchResults(instant);
+
+    if (!searchInput.trim() || searchInput.trim().length < 2) {
+      setIsLoadingMap(false);
+      return;
+    }
+
+    setIsLoadingMap(true);
+    const timer = setTimeout(async () => {
+      try {
+        const liveResults = await fetchMapDrivenLocations(searchInput);
+        setSearchResults(liveResults);
+      } finally {
+        setIsLoadingMap(false);
+      }
+    }, 280);
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   useEffect(() => {
     if (isModalMode && isOpen && inputRef.current) {
@@ -67,8 +93,6 @@ export const DynamicLocationSelector: React.FC<DynamicLocationSelectorProps> = (
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isModalMode]);
-
-  const searchResults = searchNairobiLocations(searchInput);
 
   const handleSelectLocation = (locStr: string) => {
     setSearchInput(locStr);
@@ -100,13 +124,16 @@ export const DynamicLocationSelector: React.FC<DynamicLocationSelectorProps> = (
   };
 
   const quickPills = [
-    'Kilimani, Nairobi',
     'Westlands, Nairobi',
-    'Valley Arcade, Kilimani',
-    'Yaya Centre, Kilimani',
+    'Kilimani, Nairobi',
+    'Roysambu, TRM',
     'Karen, Nairobi',
     'CBD, Nairobi',
-    'Lavington, Nairobi'
+    'Kiambu Town',
+    'Mombasa, Nyali',
+    'Diani Beach',
+    'Kisumu CBD',
+    'Nakuru Town'
   ];
 
   const content = (
@@ -285,8 +312,9 @@ export const DynamicLocationSelector: React.FC<DynamicLocationSelectorProps> = (
                 <MapPin className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-                  {label || 'Select Nairobi Location'}
+                <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                  <span>{label || 'Select Location (Kenya)'}</span>
+                  {isLoadingMap && <span className="text-[9px] text-[#E0533C] font-normal animate-pulse">Searching maps...</span>}
                 </h3>
                 <p className="text-[10px] text-slate-400">Search sub-locations, landmarks, bus stops or type custom</p>
               </div>
