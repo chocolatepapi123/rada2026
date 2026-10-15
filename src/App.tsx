@@ -1000,6 +1000,8 @@ export default function App() {
         onOpenEventDetails={(event) => setSelectedEventModal(event)}
         showToast={showToast}
       />
+      {/* Mandatory First-Time Auth Gate */}
+      <AuthModal isOpen={!session} onSuccess={() => {}} />
 
     </div>
   );
