@@ -712,6 +712,11 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-white text-slate-900 dark:bg-[#121113] dark:text-slate-100 flex flex-col transition-colors duration-200 antialiased overflow-x-hidden">
+            {!session ? (
+        <AuthModal isOpen={true} onSuccess={() => {}} />
+      ) : (
+        <>
+
       {/* Animated Splash Screen with Brand Orange Background & 2-Second Logo Effect */}
       {showSplash && (
         <SplashScreen
@@ -1002,7 +1007,10 @@ export default function App() {
       />
 
       {/* Mandatory First-Time Auth Gate */}
-      <AuthModal isOpen={!session} onSuccess={() => {}} />
+      <AuthModal isOpen={true} onSuccess={() => {}} />
+        </>
+      )}
+
     </div>
   );
 }
