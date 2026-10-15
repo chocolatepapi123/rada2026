@@ -727,23 +727,14 @@ export default function App() {
       )}
 
 
-            {/* Mandatory Authentication Gate with Loading Guard */}
-      {authLoading ? (
-        <div className="min-h-screen bg-black text-stone-400 flex items-center justify-center">
-          Loading RADA...
-        </div>
+                              {authLoading ? (
+        <div className="min-h-screen bg-black text-white flex items-center justify-center">Loading RADA...</div>
       ) : !session ? (
         <AuthModal isOpen={true} onSuccess={() => setAuthLoading(false)} />
       ) : (
         <>
+          {showSplash && <SplashScreen durationMs={2000} onDismiss={() => setShowSplash(false)} />}
 
-          {/* Animated Splash Screen */}
-          {showSplash && (
-            <SplashScreen
-              durationMs={2000}
-              onDismiss={() => setShowSplash(false)}
-            />
-          )}
 
           {/* Top Header */}
           <Header
