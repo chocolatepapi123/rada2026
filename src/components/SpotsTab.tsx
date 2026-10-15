@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Search,
   MapPin,
@@ -157,7 +157,32 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     setIsAddingCustomNeigh(false);
     if (showToast) showToast(`Added "${trimmed}" to neighborhoods!`);
   };
-const displaySpots = dbSpots.length > 0 ? dbSpots : spots;
+// Show BOTH local spots (merchant-published, stored in app state) and Supabase spots.
+  // Previously, if Supabase had any rows, local spots were hidden entirely.
+  const displaySpots = useMemo(() => {
+    const localIds = new Set(spots.map(s => String(s.id)));
+    const localTitles = new Set(spots.map(s => (s.title || '').trim().toLowerCase()));
+
+    const extraDbSpots = dbSpots
+      .filter(d =>
+        !localIds.has(String(d.id)) &&
+        !localTitles.has((d.title || '').trim().toLowerCase())
+      )
+      .map(d => ({
+        ...d,
+        title: d.title || 'Untitled Spot',
+        category: d.category || 'restaurants',
+        neighborhood: d.neighborhood || 'Nairobi',
+        address: d.address || '',
+        price: d.price || 'KES $$',
+        rating: d.rating || '0.0',
+        lat: d.lat ?? -1.2921,
+        lng: d.lng ?? 36.8219,
+        img: d.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
+      }));
+
+    return [...spots, ...extraDbSpots];
+  }, [spots, dbSpots]);
 
   // Real-time fuzzy natural query search
   // e.g. "Sushi in Westlands" parses "sushi" and "westlands"
