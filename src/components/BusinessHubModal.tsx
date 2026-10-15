@@ -263,7 +263,6 @@ export const BusinessHubModal: React.FC<BusinessHubModalProps> = ({
   const handleAddSpotImage = (url: string) => {
     if (!url.trim()) return;
     setSpotImagesList(prev => [...prev, url.trim()]);
-    setNewImageInputUrl('');
     showToast('Photo added to spot images gallery!');
   };
 

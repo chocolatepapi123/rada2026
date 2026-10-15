@@ -275,7 +275,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
           t.category.toLowerCase().includes(qLower) ||
           t.condition.toLowerCase().includes(qLower) ||
           t.seller.toLowerCase().includes(qLower) ||
-          t.location.toLowerCase().includes(qLower) ||
+          t.storeLocation.toLowerCase().includes(qLower) ||
           (qLower.includes('jean') && t.category === 'Denim') ||
           (qLower.includes('jacket') && t.category === 'Jackets') ||
           (qLower.includes('sneaker') && t.category === 'Sneakers') ||
@@ -287,7 +287,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
           ...prev,
           {
             sender: 'ai',
-            text: `LUKU fit recommendation: "${thriftMatch.name}" from ${thriftMatch.seller} (${thriftMatch.location}) for ${thriftMatch.price}! Quality: ${thriftMatch.condition}. You can reach the merchant directly below.`,
+            text: `LUKU fit recommendation: "${thriftMatch.name}" from ${thriftMatch.seller} (${thriftMatch.storeLocation}) for ${thriftMatch.price}! Quality: ${thriftMatch.condition}. You can reach the merchant directly below.`,
             thriftMatch
           }
         ]);
@@ -299,7 +299,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
           e.title.toLowerCase().includes(qLower) || 
           (e.genre && e.genre.toLowerCase().includes(qLower)) ||
           e.location.toLowerCase().includes(qLower) ||
-          e.description.toLowerCase().includes(qLower) ||
+          (e.description && e.description.toLowerCase().includes(qLower)) ||
           (qLower.includes('amapiano') && (e.title.toLowerCase().includes('amapiano') || e.genre?.toLowerCase().includes('amapiano'))) ||
           (qLower.includes('concert') && e.category === 'concerts') ||
           (qLower.includes('party') && e.category === 'nightlife')
@@ -333,7 +333,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
         // Keyword heuristics
         if ((qLower.includes('date') || qLower.includes('romantic')) && (s.category === 'date_spots' || parseFloat(s.rating) >= 4.8)) score += 6;
-        if ((qLower.includes('cocktail') || qLower.includes('drinks')) && (s.category === 'bars' || s.category === 'clubs')) score += 5;
+        if ((qLower.includes('cocktail') || qLower.includes('drinks')) && s.category === 'nightlife') score += 5;
         if ((qLower.includes('choma') || qLower.includes('nyama') || qLower.includes('meat')) && titleLower.includes('choma')) score += 8;
         if ((qLower.includes('coffee') || qLower.includes('cafe') || qLower.includes('work') || qLower.includes('wifi')) && s.category === 'cafes') score += 7;
         if (qLower.includes('rooftop') && (titleLower.includes('rooftop') || descLower.includes('rooftop'))) score += 7;
