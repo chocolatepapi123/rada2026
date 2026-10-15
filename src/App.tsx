@@ -91,13 +91,7 @@ export default function App() {
     }
   };
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-black text-stone-400 flex items-center justify-center">
-        Loading RADA...
-      </div>
-    );
-  }
+  
 
   // Theme State: Default to pure white / light mode
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -714,7 +708,13 @@ export default function App() {
       setActiveOverlay(overlayId);
     }
   };
-
+if (authLoading) {
+    return (
+      <div className="min-h-screen bg-black text-stone-400 flex items-center justify-center">
+        Loading RADA...
+      </div>
+    );
+                                                }
    return (
     <div className="min-h-screen bg-white text-slate-900 dark:bg-[#121113] dark:text-slate-100 flex flex-col transition-colors duration-200 antialiased overflow-x-hidden">
       {/* Sleek Minimal Single-Line Toast Notification */}
