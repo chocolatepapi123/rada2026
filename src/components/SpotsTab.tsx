@@ -149,10 +149,12 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     setIsAddingCustomNeigh(false);
     if (showToast) showToast(`Added "${trimmed}" to neighborhoods!`);
   };
+const displaySpots = dbSpots.length > 0 ? dbSpots : spots;
 
   // Real-time fuzzy natural query search
   // e.g. "Sushi in Westlands" parses "sushi" and "westlands"
-  const filteredSpots = spots.filter(s => {
+  const filteredSpots = displaySpots.filter(s => {
+
     // Category filter
     const matchesCategory = selectedCategory === 'all' || s.category === selectedCategory;
 
