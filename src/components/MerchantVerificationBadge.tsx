@@ -1,84 +1,114 @@
-import React from 'react';
-import { Store, Ticket, Shirt, CheckCircle2 } from 'lucide-react';
-import { BusinessCategory } from '../types.ts';
+import {
+  Briefcase,
+  Check,
+  MapPin,
+  Music2,
+  Shirt,
+  ShoppingBag,
+  Ticket,
+  Utensils,
+} from 'lucide-react';
 
 interface MerchantVerificationBadgeProps {
-  category?: BusinessCategory | 'spot' | 'event' | 'thrift';
-  size?: 'xs' | 'sm' | 'md' | 'lg';
-  showLabel?: boolean;
-  className?: string;
+  category: string;
+  size?: 'xs' | 'sm' | 'md';
 }
 
-export const MerchantVerificationBadge: React.FC<MerchantVerificationBadgeProps> = ({
-  category = 'hospitality',
+export default function MerchantVerificationBadge({
+  category,
   size = 'sm',
-  showLabel = true,
-  className = ''
-}) => {
-  // Normalize category
-  const isSpot = category === 'hospitality' || category === 'spot';
-  const isEvent = category === 'event_organizer' || category === 'event';
-  const isThrift = category === 'thrift_store' || category === 'thrift';
+}: MerchantVerificationBadgeProps) {
+  const normalizedCategory = String(category || '').toLowerCase();
 
-  let config = {
-    label: 'Spot Verified',
-    icon: Store,
-    bgClass: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
-    iconClass: 'text-amber-600 dark:text-amber-400',
-    dotClass: 'bg-amber-500'
-  };
+  let Icon = Briefcase;
+  let label = 'Verified Business';
 
-  if (isEvent) {
-    config = {
-      label: 'Organizer Verified',
-      icon: Ticket,
-      bgClass: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/30',
-      iconClass: 'text-purple-600 dark:text-purple-400',
-      dotClass: 'bg-purple-500'
-    };
-  } else if (isThrift) {
-    config = {
-      label: 'Luku Verified Seller',
-      icon: Shirt,
-      bgClass: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
-      iconClass: 'text-emerald-600 dark:text-emerald-400',
-      dotClass: 'bg-emerald-500'
-    };
+  if (
+    normalizedCategory.includes('event') ||
+    normalizedCategory.includes('concert')
+  ) {
+    Icon = Ticket;
+    label = 'Verified Event';
+  } else if (
+    normalizedCategory.includes('spot') ||
+    normalizedCategory.includes('place') ||
+    normalizedCategory.includes('venue')
+  ) {
+    Icon = MapPin;
+    label = 'Verified Spot';
+  } else if (
+    normalizedCategory.includes('luku') ||
+    normalizedCategory.includes('shop') ||
+    normalizedCategory.includes('retail')
+  ) {
+    Icon = ShoppingBag;
+    label = 'Verified Luku';
+  } else if (
+    normalizedCategory.includes('food') ||
+    normalizedCategory.includes('restaurant') ||
+    normalizedCategory.includes('cafe')
+  ) {
+    Icon = Utensils;
+    label = 'Verified Food Business';
+  } else if (
+    normalizedCategory.includes('night') ||
+    normalizedCategory.includes('club') ||
+    normalizedCategory.includes('entertainment')
+  ) {
+    Icon = Music2;
+    label = 'Verified Nightlife';
+  } else if (
+    normalizedCategory.includes('fashion') ||
+    normalizedCategory.includes('clothing') ||
+    normalizedCategory.includes('style')
+  ) {
+    Icon = Shirt;
+    label = 'Verified Fashion';
   }
 
-  const Icon = config.icon;
-
-  const sizeClasses = {
+  const sizes = {
     xs: {
-      wrap: 'text-[9px] px-1.5 py-0.5 gap-1',
-      icon: 'w-2.5 h-2.5',
-      check: 'w-2 h-2'
+      wrapper: 'w-5 h-5',
+      icon: 'w-3 h-3',
+      check: 'w-2.5 h-2.5',
+      checkWrapper: 'w-3 h-3 -right-1 -bottom-1',
     },
     sm: {
-      wrap: 'text-[10px] px-2 py-0.5 gap-1.5',
-      icon: 'w-3 h-3',
-      check: 'w-2.5 h-2.5'
+      wrapper: 'w-6 h-6',
+      icon: 'w-3.5 h-3.5',
+      check: 'w-2.5 h-2.5',
+      checkWrapper: 'w-3.5 h-3.5 -right-1 -bottom-1',
     },
     md: {
-      wrap: 'text-xs px-2.5 py-1 gap-1.5',
-      icon: 'w-3.5 h-3.5',
-      check: 'w-3 h-3'
+      wrapper: 'w-8 h-8',
+      icon: 'w-4.5 h-4.5',
+      check: 'w-3 h-3',
+      checkWrapper: 'w-4 h-4 -right-1 -bottom-1',
     },
-    lg: {
-      wrap: 'text-sm px-3 py-1.5 gap-2',
-      icon: 'w-4 h-4',
-      check: 'w-3.5 h-3.5'
-    }
-  }[size];
+  };
+
+  const currentSize = sizes[size];
 
   return (
     <span
-      className={`inline-flex items-center rounded-full font-bold border transition-all select-none ${config.bgClass} ${sizeClasses.wrap} ${className}`}
-      title={config.label}
+      className={`relative inline-flex items-center justify-center ${currentSize.wrapper}`}
+      title={label}
+      aria-label={label}
     >
-      <Icon className={`${sizeClasses.icon} shrink-0 stroke-[2.2]`} />
-      {showLabel && <span>{config.label}</span>}
-      <CheckCircle2 className={`${sizeClasses.check} shrink-0 fill-current opacity-80`} />
+      {/* Category icon */}
+      <span className="inline-flex items-center justify-center w-full h-full rounded-lg bg-blue-600/10 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400 border border-blue-500/20">
+        <Icon className={currentSize.icon} strokeWidth={2.4} />
+      </span>
+
+      {/* RADA verification check */}
+      <span
+        className={`absolute flex items-center justify-center rounded-full bg-blue-600 text-white border-2 border-white dark:border-[#090a0f] ${currentSize.checkWrapper}`}
+      >
+        <Check
+          className={currentSize.check}
+          strokeWidth={3}
+        />
+      </span>
     </span>
   );
-};
+      }
