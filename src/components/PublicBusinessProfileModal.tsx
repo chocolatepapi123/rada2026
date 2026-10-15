@@ -27,6 +27,7 @@ import {
   ThriftItem 
 } from '../types.ts';
 import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
+import { isBusinessApproved } from './BusinessBadge.tsx';
 
 import { shareContent } from '../utils/shareUtils.ts';
 
@@ -117,7 +118,9 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
 
           {/* Business Type Badge */}
           <div className="absolute top-3 left-3">
-            <MerchantVerificationBadge category={business.category} size="sm" />
+            {isBusinessApproved(business) && (
+              <MerchantVerificationBadge category={business.category} size="sm" />
+            )}
           </div>
         </div>
 
