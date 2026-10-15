@@ -10,7 +10,6 @@ import { AuthModal } from './components/AuthModal';
 import { Header } from './components/Header.tsx';
 import { Navigation } from './components/Navigation.tsx';
 import { MerchantHubTab } from './components/MerchantHubTab.tsx';
-import { AdminDashboard } from './components/AdminDashboard.tsx';
 import { PublicBusinessProfileModal } from './components/PublicBusinessProfileModal.tsx';
 import { HomeTab } from './components/HomeTab.tsx';
 import { SpotsTab } from './components/SpotsTab.tsx';
@@ -55,8 +54,6 @@ import {
 export default function App() {
   const [session, setSession] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [userRole, setUserRole] = useState<'user' | 'merchant' | 'admin'>('user');
-const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [showSplash, setShowSplash] = useState<boolean>(true);
 
   // Safe Supabase Session Listener
@@ -78,36 +75,7 @@ const [isAdminOpen, setIsAdminOpen] = useState(false);
       setAuthLoading(false);
     }
   }, []);
-useEffect(() => {
-  if (!session?.user?.id) {
-    setUserRole('user');
-    return;
-  }
 
-  const loadUserRole = async () => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', session.user.id)
-      .single();
-
-    if (error) {
-      console.error('Failed to load user role:', error);
-      setUserRole('user');
-      return;
-    }
-
-    setUserRole(
-      data?.role === 'admin'
-        ? 'admin'
-        : data?.role === 'merchant'
-          ? 'merchant'
-          : 'user'
-    );
-  };
-
-  loadUserRole();
-}, [session]);
   const handleSignOut = async () => {
     await supabase.auth.signOut();
   };
@@ -783,8 +751,7 @@ if (authLoading) {
             businessName={currentBusiness?.name}
             isDarkMode={isDarkMode}
             onToggleTheme={handleToggleTheme}
-            onOpenAdmin={() => setIsAdminOpen(true)}
-            />
+          />
 
           {/* Main Content Viewports */}
           <main className="flex-1 pb-24 max-w-lg mx-auto w-full relative px-0">
@@ -1022,13 +989,6 @@ if (authLoading) {
             onOpenEventDetails={(event) => setSelectedEventModal(event)}
             showToast={showToast}
           />
-          {isAdminOpen && userRole === 'admin' && (
-  <AdminDashboard
-    businesses={businesses}
-    onClose={() => setIsAdminOpen(false)}
-    showToast={showToast}
-  />
-)}
         </>
       )}
     </div>

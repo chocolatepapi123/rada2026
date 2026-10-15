@@ -12,19 +12,23 @@ export function useUserProfile(userId: string | undefined) {
     }
 
     async function fetchProfile() {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
 
-      if (error) {
-        console.error('Error fetching profile:', error);
-      } else {
-        setProfile(data);
+        if (error) {
+          console.error('Error fetching profile:', error);
+        } else {
+          setProfile(data);
+        }
+      } catch (err) {
+        console.warn('Error fetching profile from Supabase:', err);
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     }
 
     fetchProfile();

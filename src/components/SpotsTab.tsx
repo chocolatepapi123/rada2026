@@ -17,8 +17,9 @@ import {
 } from 'lucide-react';
 
 
-import { SpotItem } from '../types.ts';
+import { SpotItem, MenuItem } from '../types.ts';
 import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
+import { supabase } from '../lib/supabase.ts';
 
 interface SpotsTabProps {
   spots: SpotItem[];
@@ -63,15 +64,20 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
 
   useEffect(() => {
     async function fetchLiveSpots() {
-      const { data, error } = await supabase
-        .from('spots')
-        .select('*')
-        .order('created_at', { ascending: false });
+      try {
+        if (!supabase) return;
+        const { data, error } = await supabase
+          .from('spots')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching spots:', error);
-      } else if (data && data.length > 0) {
-        setDbSpots(data);
+        if (error) {
+          console.error('Error fetching spots:', error);
+        } else if (data && data.length > 0) {
+          setDbSpots(data);
+        }
+      } catch (err) {
+        console.warn('Error connecting to Supabase spots table:', err);
       }
     }
 
@@ -183,7 +189,7 @@ const displaySpots = dbSpots.length > 0 ? dbSpots : spots;
       (s.exactLocationTag && s.exactLocationTag.toLowerCase().includes(q)) ||
       (s.landmark && s.landmark.toLowerCase().includes(q)) ||
       (s.description && s.description.toLowerCase().includes(q)) ||
-      (s.menuItems && s.menuItems.some(m => m.name.toLowerCase().includes(q) || m.description.toLowerCase().includes(q)));
+      (s.menuItems && s.menuItems.some((m: MenuItem) => m.name.toLowerCase().includes(q) || m.description.toLowerCase().includes(q)));
 
     if (fullTextMatch) return true;
 
@@ -197,7 +203,7 @@ const displaySpots = dbSpots.length > 0 ? dbSpots : spots;
         (s.exactLocationTag && s.exactLocationTag.toLowerCase().includes(word)) ||
         (s.landmark && s.landmark.toLowerCase().includes(word)) ||
         (s.description && s.description.toLowerCase().includes(word)) ||
-        (s.menuItems && s.menuItems.some(m => m.name.toLowerCase().includes(word) || m.description.toLowerCase().includes(word)))
+        (s.menuItems && s.menuItems.some((m: MenuItem) => m.name.toLowerCase().includes(word) || m.description.toLowerCase().includes(word)))
       );
     });
 
