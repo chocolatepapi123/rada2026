@@ -4,6 +4,9 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { supabase } from './lib/supabase';
+import { AuthModal } from './components/AuthModal';
+
 import { Header } from './components/Header.tsx';
 import { Navigation } from './components/Navigation.tsx';
 import { MerchantHubTab } from './components/MerchantHubTab.tsx';
@@ -50,6 +53,45 @@ import {
 
 export default function App() {
   // Animated Splash Screen state (Immediately displays upon app load)
+   const [session, setSession] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setAuthLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
+  const handleDeleteAccount = async () => {
+    if (window.confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
+      const { error } = await supabase.rpc('delete_user_account');
+      if (error) {
+        alert("Error deleting account: " + error.message);
+      } else {
+        await supabase.auth.signOut();
+      }
+    }
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-black text-stone-400 flex items-center justify-center">
+        Loading RADA...
+      </div>
+    );
+  }
+
   const [showSplash, setShowSplash] = useState<boolean>(true);
 
   // Theme State: Default to pure white / light mode
