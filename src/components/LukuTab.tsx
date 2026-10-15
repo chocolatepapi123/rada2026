@@ -324,7 +324,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
                 </p>
               </div>
 
-              <div className="mt-2.5 flex items-center gap-1.5">
+              <div className="mt-2.5 space-y-1.5">
                 <button
                   onClick={() => {
                     const store = businesses.find(b => b.name === item.seller || b.id === item.businessId) || {
@@ -345,35 +345,37 @@ export const LukuTab: React.FC<LukuTabProps> = ({
                     };
                     handleViewStore(store);
                   }}
-                  className="flex-1 py-1.5 bg-white dark:bg-[#121113] hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-bold transition flex items-center justify-center gap-1 shadow-xs"
+                  className="w-full py-2 px-2.5 bg-white dark:bg-[#121113] hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs whitespace-nowrap cursor-pointer"
                 >
-                  <Store className="w-3 h-3 text-[#E0533C]" />
+                  <Store className="w-3.5 h-3.5 text-[#E0533C] shrink-0" />
                   <span>View Store</span>
                 </button>
-                <button
-                  onClick={() => handleInquireWhatsApp(item)}
-                  className="py-1.5 px-2 bg-[#2D6A4F] hover:bg-emerald-800 text-white rounded-xl text-[10px] font-bold transition flex items-center justify-center gap-1 shadow-xs"
-                  title="Direct WhatsApp"
-                >
-                  <MessageCircle className="w-3 h-3" />
-                  <span>Inquire</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    shareContent({
-                      title: `RADA LUKU: ${item.name}`,
-                      text: `🔥 Check out "${item.name}" by ${item.seller} on RADA LUKU (${item.price}, Size ${item.size}, ${item.storeLocation})!`,
-                      url: window.location.href,
-                      onSuccess: showToast,
-                      onError: showToast
-                    });
-                  }}
-                  className="py-1.5 px-2 bg-white dark:bg-[#121113] hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-xl transition flex items-center justify-center shadow-xs"
-                  title="Share Fit"
-                >
-                  <Share2 className="w-3 h-3 text-[#E0533C]" />
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => handleInquireWhatsApp(item)}
+                    className="flex-1 py-1.5 px-2 bg-[#2D6A4F] hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 shadow-xs cursor-pointer whitespace-nowrap"
+                    title="Direct WhatsApp"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>Inquire</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      shareContent({
+                        title: `RADA LUKU: ${item.name}`,
+                        text: `🔥 Check out "${item.name}" by ${item.seller} on RADA LUKU (${item.price}, Size ${item.size}, ${item.storeLocation})!`,
+                        url: window.location.href,
+                        onSuccess: showToast,
+                        onError: showToast
+                      });
+                    }}
+                    className="py-1.5 px-2.5 bg-white dark:bg-[#121113] hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-xl transition flex items-center justify-center shadow-xs shrink-0 cursor-pointer"
+                    title="Share Fit"
+                  >
+                    <Share2 className="w-3.5 h-3.5 text-[#E0533C]" />
+                  </button>
+                </div>
               </div>
             </div>
           );

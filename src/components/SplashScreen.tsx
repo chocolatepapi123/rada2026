@@ -68,21 +68,18 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
           />
         </div>
 
-        {/* Brand Tagline */}
+        {/* Brand Header & Animated Subtitle */}
         <div 
-          className="mt-6 space-y-1 transition-all duration-1000 delay-300"
+          className="mt-6 space-y-2 transition-all duration-1000 delay-300"
           style={{
             animation: 'splashTaglineFade 1600ms ease-out 400ms backwards',
           }}
         >
-          <h1 className="text-white text-lg sm:text-xl font-black tracking-widest uppercase drop-shadow-sm">
+          <h1 className="text-white text-3xl sm:text-4xl font-black tracking-widest uppercase drop-shadow-md">
             RADA
           </h1>
-          <p className="text-white/90 text-xs sm:text-sm font-semibold tracking-wide">
-            Nairobi Hangouts & Business Hub
-          </p>
-          <p className="text-white/70 text-[10px] sm:text-xs font-medium tracking-wider uppercase pt-1">
-            Where to go • What to wear • Who to go with
+          <p className="text-white/95 text-sm sm:text-base font-semibold tracking-wider lowercase drop-shadow-sm animate-pulse transition-opacity duration-1000">
+            leo rada ni gani
           </p>
         </div>
 

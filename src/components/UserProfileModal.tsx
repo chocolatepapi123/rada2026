@@ -108,7 +108,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           {/* Location details */}
           <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-semibold">
             <MapPin className="w-3.5 h-3.5 text-[#E0533C] shrink-0" />
-            <span>{user.loc || 'Kenya'}</span>
+            <span>{user.loc ? user.loc.replace(/^nearby\s+/i, '').replace(/\bnearby\b/gi, '').replace(/[\d.]+\s*km\s*away\s*(in\s*)?/i, '').trim() : 'Kenya'}</span>
           </p>
 
           {/* Bio Section */}

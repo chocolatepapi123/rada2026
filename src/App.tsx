@@ -739,15 +739,11 @@ export default function App() {
       setActiveOverlay(overlayId);
     }
   };
-if (authLoading) {
-    return (
-      <div className="min-h-screen bg-black text-stone-400 flex items-center justify-center">
-        Loading RADA...
-      </div>
-    );
-                                                }
-   return (
+  return (
     <div className="min-h-screen bg-white text-slate-900 dark:bg-[#121113] dark:text-slate-100 flex flex-col transition-colors duration-200 antialiased overflow-x-hidden">
+      {/* Primary Application Splash Screen */}
+      {showSplash && <SplashScreen durationMs={2000} onDismiss={() => setShowSplash(false)} />}
+
       {/* Sleek Minimal Single-Line Toast Notification */}
       {activeToast && (
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-150">
@@ -757,14 +753,18 @@ if (authLoading) {
         </div>
       )}
 
-
-                              {authLoading ? (
-        <div className="min-h-screen bg-black text-white flex items-center justify-center">Loading RADA...</div>
+      {authLoading ? (
+        <div 
+          className="min-h-screen flex flex-col items-center justify-center p-6 text-center select-none"
+          style={{ background: 'linear-gradient(135deg, #E05328 0%, #D94E28 100%)' }}
+        >
+          <h1 className="text-white text-3xl font-black tracking-widest uppercase mb-2">RADA</h1>
+          <p className="text-white/95 text-sm font-semibold tracking-wider lowercase animate-pulse">leo rada ni gani</p>
+        </div>
       ) : !session ? (
         <AuthModal isOpen={true} onSuccess={() => setAuthLoading(false)} />
       ) : (
         <>
-          {showSplash && <SplashScreen durationMs={2000} onDismiss={() => setShowSplash(false)} />}
 
 
           {/* Top Header */}

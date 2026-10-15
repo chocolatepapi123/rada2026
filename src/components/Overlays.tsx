@@ -1384,7 +1384,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
               {/* Hospitals */}
               <div className="space-y-2">
                 <h4 className="font-bold text-slate-800 dark:text-slate-200 uppercase text-[10px] tracking-wider">
-                  Nearby Hospitals (Nairobi)
+                  Hospitals (Nairobi)
                 </h4>
                 <div className="space-y-2">
                   <div className="p-3 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between">

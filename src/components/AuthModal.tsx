@@ -67,7 +67,7 @@ export function AuthModal({ isOpen, onSuccess }: AuthModalProps) {
           </div>
           <h2 className="text-2xl font-bold">Welcome to RADA</h2>
           <p className="text-stone-400 text-sm mt-1">
-            {isSignUp ? 'Create your account to explore Nairobi' : 'Log in to continue'}
+            {isSignUp ? 'Create your account to get started' : 'Log in to continue'}
           </p>
         </div>
 

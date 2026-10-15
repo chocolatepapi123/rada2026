@@ -80,10 +80,19 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   // Search filter
   const [userSearchQuery, setUserSearchQuery] = useState('');
 
-  // SPEC 5: Remove "Not single" users from matching. Only single profiles appear in Discover matching.
-  const singleProfiles = discoveryProfiles.filter(p => p.relationshipStatus === 'single');
-  const currentProfile = singleProfiles.length > 0 
-    ? singleProfiles[profileIndex % singleProfiles.length]
+  // Helper to remove 'nearby' and distance prefixes, leaving just the location
+  const cleanLocation = (locStr?: string) => {
+    if (!locStr) return 'Nairobi';
+    return locStr
+      .replace(/^nearby\s+/i, '')
+      .replace(/\bnearby\b/gi, '')
+      .replace(/[\d.]+\s*km\s*away\s*(in\s*)?/i, '')
+      .trim();
+  };
+
+  // Discovery: all community profiles are discoverable without filtering
+  const currentProfile = discoveryProfiles.length > 0 
+    ? discoveryProfiles[profileIndex % discoveryProfiles.length]
     : null;
 
   const handleSwipe = (action: 'like' | 'pass') => {
@@ -92,13 +101,17 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
     setTimeout(() => {
       if (action === 'like') {
         const likedPerson = currentProfile;
-        setSentRequests(prev => [{
-          id: `sent-${Date.now()}`,
-          name: likedPerson.name.split(',')[0],
-          avatar: likedPerson.img,
-          handle: likedPerson.handle
-        }, ...prev]);
-        showToast(`Hangout & Match request sent to ${likedPerson.name.split(',')[0]}!`);
+        if (likedPerson.relationshipStatus !== 'single') {
+          showToast(`${likedPerson.name.split(',')[0]} is Not single. Match requests are for single members.`);
+        } else {
+          setSentRequests(prev => [{
+            id: `sent-${Date.now()}`,
+            name: likedPerson.name.split(',')[0],
+            avatar: likedPerson.img,
+            handle: likedPerson.handle
+          }, ...prev]);
+          showToast(`Hangout & Match request sent to ${likedPerson.name.split(',')[0]}!`);
+        }
       } else {
         showToast('Passed.');
       }
@@ -642,10 +655,14 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                   vibes: currentProfile.vibes
                 })}
               >
-                {/* Status Badge: Strictly Single without emojis */}
+                {/* Status Badge: Single or Not single */}
                 <div className="absolute top-3 left-3">
-                  <span className="bg-emerald-600/90 backdrop-blur-md text-white text-[11px] font-black px-3 py-1 rounded-full shadow-sm">
-                    Single
+                  <span className={`backdrop-blur-md text-white text-[11px] font-black px-3 py-1 rounded-full shadow-sm ${
+                    currentProfile.relationshipStatus === 'single'
+                      ? 'bg-emerald-600/90'
+                      : 'bg-slate-800/90'
+                  }`}>
+                    {currentProfile.relationshipStatus === 'single' ? 'Single' : 'Not single'}
                   </span>
                 </div>
 
@@ -659,7 +676,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                       handle: currentProfile.handle,
                       avatar: currentProfile.img,
                       bio: currentProfile.bio || 'Exploring Nairobi hangouts, food, and culture.',
-                      loc: currentProfile.loc,
+                      loc: cleanLocation(currentProfile.loc),
                       relationshipStatus: currentProfile.relationshipStatus,
                       vibes: currentProfile.vibes
                     });
@@ -679,9 +696,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                   <span className="text-xs text-[#E0533C] font-bold">{currentProfile.handle}</span>
                 </div>
 
-                <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 font-semibold">
                   <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
-                  <span>{currentProfile.loc}</span>
+                  <span>{cleanLocation(currentProfile.loc)}</span>
                 </p>
 
                 {currentProfile.bio && (
@@ -723,8 +740,8 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           ) : (
             <div className="py-12 text-center bg-[#F1F1EE] dark:bg-[#1C1A1E] rounded-3xl p-6 border border-slate-200 dark:border-slate-800 space-y-3">
               <Sparkles className="w-8 h-8 text-[#E0533C] mx-auto" />
-              <h4 className="font-black text-sm">You've reached the end of the Single queue!</h4>
-              <p className="text-xs text-slate-500">Check back later for new single members joining RADA.</p>
+              <h4 className="font-black text-sm">You've reached the end of the profile queue!</h4>
+              <p className="text-xs text-slate-500">Check back later for new members joining RADA.</p>
               <button
                 onClick={() => setProfileIndex(0)}
                 className="px-4 py-2 bg-[#E0533C] text-white rounded-xl text-xs font-bold shadow"
@@ -886,7 +903,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                     handle: p.handle,
                     avatar: p.img,
                     bio: p.bio || 'Exploring Nairobi hangouts, good music and vibes.',
-                    loc: p.loc,
+                    loc: cleanLocation(p.loc),
                     relationshipStatus: p.relationshipStatus,
                     vibes: p.vibes
                   })}
@@ -899,7 +916,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                     />
                     <div className="min-w-0">
                       <h4 className="font-bold text-xs truncate">{p.name}</h4>
-                      <p className="text-[10px] text-slate-400 truncate">{p.loc}</p>
+                      <p className="text-[10px] text-slate-400 truncate">{cleanLocation(p.loc)}</p>
                     </div>
                   </div>
                   {/* SPEC 5: Strictly Single or Not single without emojis */}
