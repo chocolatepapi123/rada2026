@@ -170,9 +170,10 @@ const [isOnboardingOpen, setIsOnboardingOpen] = useState(!currentBiz);
 
     const newBizId = `biz-${Date.now()}`;
     const newBiz: BusinessAccount = {
-      id: newBizId,
-      name: onboardName.trim(),
-      category: selectedVertical,
+  id: newBizId,
+  ownerId: userId,
+  name: onboardName.trim(),
+  category: selectedVertical,
       email: onboardEmail || 'contact@business.ke',
       phone: onboardPhone || '+254 700 000 000',
       whatsapp: onboardWhatsapp.replace(/\s+/g, '') || '+254700000000',
