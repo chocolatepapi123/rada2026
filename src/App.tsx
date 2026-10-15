@@ -751,6 +751,11 @@ if (authLoading) {
             businessName={currentBusiness?.name}
             isDarkMode={isDarkMode}
             onToggleTheme={handleToggleTheme}
+              onOpenAdmin={() => setIsAdminOpen(true)}
+  userRole={userRole}
+  onLogout={async () => {
+    await supabase.auth.signOut();
+  }}
           />
 
           {/* Main Content Viewports */}
