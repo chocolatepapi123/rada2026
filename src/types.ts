@@ -1,3 +1,6 @@
+export type UserRole = 'user' | 'merchant' | 'admin';
+
+export type VerificationStatus = 'pending' | 'approved' | 'rejected';
 export type BusinessCategory = 'hospitality' | 'event_organizer' | 'thrift_store';
 
 export type OfferCategory = 'Tickets' | 'Food' | 'Drinks' | 'Apparel' | 'Special Deals';
@@ -40,6 +43,10 @@ export interface BusinessAccount {
   logo: string;
   coverImage?: string;
   verified: boolean;
+  verificationStatus?: VerificationStatus;
+verificationNote?: string;
+verifiedAt?: string;
+verifiedBy?: string;
   instagram?: string;
   createdDate: string;
   discography?: string[];
