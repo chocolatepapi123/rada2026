@@ -23,6 +23,10 @@ interface HeaderProps {
   businessName?: string;
   isDarkMode: boolean;
   onToggleTheme: () => void;
+
+  onOpenAdmin?: () => void;
+  userRole?: 'user' | 'merchant' | 'admin';
+  onLogout?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -34,7 +38,10 @@ export const Header: React.FC<HeaderProps> = ({
   hasBusinessAccount,
   businessName,
   isDarkMode,
-  onToggleTheme
+  onToggleTheme,
+  onOpenAdmin,
+  userRole,
+  onLogout
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -182,6 +189,30 @@ export const Header: React.FC<HeaderProps> = ({
                   <ShieldAlert className="w-4 h-4 text-[#E0533C]" />
                   <span>Emergency & SOS Hub</span>
                 </button>
+                {userRole === 'admin' && onOpenAdmin && (
+  <button
+    onClick={() => {
+      setMenuOpen(false);
+      onOpenAdmin();
+    }}
+    className="w-full text-left px-4 py-2.5 text-xs font-bold hover:bg-purple-50 dark:hover:bg-purple-950/30 flex items-center gap-3 text-purple-700 dark:text-purple-300 border-t border-slate-100 dark:border-slate-800/80 transition"
+  >
+    <ShieldAlert className="w-4 h-4 text-purple-600" />
+    <span>Admin Dashboard</span>
+  </button>
+                {onLogout && (
+  <button
+    onClick={() => {
+      setMenuOpen(false);
+      onLogout();
+    }}
+    className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-3 text-red-600 dark:text-red-400 border-t border-slate-100 dark:border-slate-800/80 transition"
+  >
+    <span className="text-base">↪</span>
+    <span>Log Out</span>
+  </button>
+)}
+)}
               </div>
             )}
           </div>
