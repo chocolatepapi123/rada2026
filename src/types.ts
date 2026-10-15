@@ -28,7 +28,6 @@ export interface SpecialOffer {
 
 export interface BusinessAccount {
   id: string;
-ownerId?: string;
   ownerId?: string;
   name: string;
   category: BusinessCategory;
