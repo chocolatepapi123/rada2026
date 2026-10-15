@@ -1026,11 +1026,20 @@ export default function App() {
             showToast={showToast}
           />
           {isAdminOpen && userRole === 'admin' && (
-  <AdminDashboard
-    businesses={businesses}
-    onClose={() => setIsAdminOpen(false)}
-    showToast={showToast}
-  />
+<AdminDashboard
+  businesses={businesses}
+  onClose={() => setIsAdminOpen(false)}
+  showToast={showToast}
+  onUpdateBusiness={(businessId, updates) => {
+    setBusinesses(prev =>
+      prev.map(business =>
+        business.id === businessId
+          ? { ...business, ...updates }
+          : business
+      )
+    );
+  }}
+/>
 )}
         </>
       )}
