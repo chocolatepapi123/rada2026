@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-
-  Search, 
-  MapPin, 
-  Star, 
-  ChevronLeft, 
-  ChevronRight, 
+import {
+  Search,
+  MapPin,
+  Star,
+  ChevronLeft,
+  ChevronRight,
   UtensilsCrossed,
   Music,
   Coffee,
@@ -15,6 +15,7 @@ import React, { useEffect, useState } from 'react';
   Plus,
   Compass
 } from 'lucide-react';
+
 import { SpotItem } from '../types.ts';
 import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
 
