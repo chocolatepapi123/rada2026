@@ -39,8 +39,14 @@ export interface BusinessAccount {
   bio: string;
   logo: string;
   coverImage?: string;
-  verified: boolean;
-  instagram?: string;
+  
+verified: boolean;
+verificationStatus?: 'pending' | 'approved' | 'rejected';
+verificationNote?: string;
+verifiedAt?: string;
+verifiedBy?: string;
+instagram?: string;
+
   createdDate: string;
   discography?: string[];
   pinnedImages?: string[];
