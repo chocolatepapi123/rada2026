@@ -873,6 +873,7 @@ if (authLoading) {
               <MerchantHubTab
                 businesses={businesses}
                 activeBusinessId={activeBusinessId}
+                userId={session?.user?.id}
                 onSelectBusiness={(id) => setActiveBusinessId(id)}
                 onCreateBusiness={handleCreateBusiness}
                 onUpdateBusiness={handleUpdateBusiness}
