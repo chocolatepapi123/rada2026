@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 
 interface HeaderProps {
+  onOpenAdmin?: () => void;
   onOpenOverlay: (overlayId: string) => void;
   onOpenWagwanAI: () => void;
   onSwitchTab: (tabId: string) => void;
@@ -26,6 +27,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
+  onOpenAdmin,
   onOpenOverlay,
   onOpenWagwanAI,
   onSwitchTab,
