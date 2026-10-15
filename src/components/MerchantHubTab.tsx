@@ -1136,7 +1136,12 @@ verificationStatus: 'pending',
                     <span className="text-[10px] text-slate-400">▼</span>
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <MerchantVerificationBadge category={currentBiz.category} size="xs" />
+                    {currentBiz.verified && (
+  <MerchantVerificationBadge
+    category={currentBiz.category}
+    size="xs"
+  />
+)}
                   </div>
                 </div>
               </button>
