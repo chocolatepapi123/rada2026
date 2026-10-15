@@ -10,6 +10,7 @@ import { AuthModal } from './components/AuthModal';
 import { Header } from './components/Header.tsx';
 import { Navigation } from './components/Navigation.tsx';
 import { MerchantHubTab } from './components/MerchantHubTab.tsx';
+import { AdminDashboard } from './components/AdminDashboard.tsx';
 import { PublicBusinessProfileModal } from './components/PublicBusinessProfileModal.tsx';
 import { HomeTab } from './components/HomeTab.tsx';
 import { SpotsTab } from './components/SpotsTab.tsx';
@@ -54,6 +55,8 @@ import {
 export default function App() {
   const [session, setSession] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [userRole, setUserRole] = useState<'user' | 'merchant' | 'admin'>('user');
+const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [showSplash, setShowSplash] = useState<boolean>(true);
 
   // Safe Supabase Session Listener
