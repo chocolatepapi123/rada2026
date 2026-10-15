@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
+import * as cloud from './lib/cloudSync';
 import { AuthModal } from './components/AuthModal';
 import { AdminDashboard } from './components/AdminDashboard.tsx';
 import { Header } from './components/Header.tsx';
@@ -407,31 +408,162 @@ export default function App() {
   // Active business reference
   const currentBusiness = businesses.find(b => b.id === activeBusinessId) || businesses[0];
 
+  // ---------------------------------------------------------------
+  // CLOUD SYNC (Supabase): businesses + listings are shared across devices
+  // ---------------------------------------------------------------
+  const currentUserId: string | undefined = session?.user?.id;
+  const latestRef = useRef<any>(null);
+  latestRef.current = { businesses, spots, events, thriftItems, offers };
+  const mutationRef = useRef(0);   // bumps on every local change
+  const pendingRef = useRef(0);    // cloud writes still in flight
+
+  // Run a cloud write in the background. fn returns an error message or null.
+  const cloudWrite = (fn: () => Promise<string | null>) => {
+    mutationRef.current += 1;
+    pendingRef.current += 1;
+    fn()
+      .then((err) => {
+        if (err) {
+          console.warn('Cloud save failed:', err);
+          showToast(`Saved on this device only (${err}).`);
+        }
+      })
+      .catch((e) => {
+        console.warn('Cloud save error:', e);
+        showToast('Saved on this device only (offline?).');
+      })
+      .finally(() => {
+        pendingRef.current -= 1;
+      });
+  };
+
+  useEffect(() => {
+    if (authLoading) return;
+    const uid: string | undefined = session?.user?.id;
+
+    const syncFromCloud = async () => {
+      const startVersion = mutationRef.current;
+      const remoteBiz = await cloud.fetchBusinesses();
+      const remoteListings = await cloud.fetchListings();
+      if (!remoteBiz || !remoteListings) return; // offline or tables missing: keep local data
+
+      const L = latestRef.current;
+      const seedBizIds = new Set(initialBusinesses.map(b => b.id));
+      const remoteBizIds = new Set(remoteBiz.map(b => b.id));
+
+      // Move businesses created earlier on THIS device by the signed-in user online (always as pending)
+      const bizToMigrate: BusinessAccount[] = uid
+        ? L.businesses.filter((b: BusinessAccount) => b.ownerId === uid && !seedBizIds.has(b.id) && !remoteBizIds.has(b.id))
+        : [];
+      for (const b of bizToMigrate) {
+        await cloud.insertBusiness({ ...b, verified: false, verificationStatus: 'pending' }, uid as string);
+      }
+      const migratedBiz = bizToMigrate.map(b => ({ ...b, verified: false, verificationStatus: 'pending' as const }));
+      const seedBiz = initialBusinesses
+        .filter(b => !remoteBizIds.has(b.id))
+        .map(b => L.businesses.find((x: BusinessAccount) => x.id === b.id) || b);
+      const mergedBiz: BusinessAccount[] = [...remoteBiz, ...migratedBiz, ...seedBiz];
+      const myBizIds = new Set(mergedBiz.filter(b => uid && b.ownerId === uid).map(b => b.id));
+
+      const mergeKind = async (kind: cloud.ListingKind, initial: any[], local: any[], remote: any[]) => {
+        const remoteIds = new Set(remote.map(i => String(i.id)));
+        const seedIds = new Set(initial.map(i => String(i.id)));
+        const toMigrate = uid
+          ? local.filter(i =>
+              !seedIds.has(String(i.id)) &&
+              !remoteIds.has(String(i.id)) &&
+              i.businessId &&
+              myBizIds.has(i.businessId)
+            )
+          : [];
+        for (const item of toMigrate) {
+          await cloud.upsertListing(kind, item, item.businessId, uid as string);
+        }
+        const seeds = initial
+          .map(sd => local.find(l => String(l.id) === String(sd.id)) || sd)
+          .filter(sd => !remoteIds.has(String(sd.id)));
+        return [...remote, ...toMigrate, ...seeds];
+      };
+
+      const mergedSpots = await mergeKind('spot', initialSpots, L.spots, remoteListings.spot);
+      const mergedEvents = await mergeKind('event', initialEvents, L.events, remoteListings.event);
+      const mergedThrift = await mergeKind('thrift', initialThriftItems, L.thriftItems, remoteListings.thrift);
+      const mergedOffers = await mergeKind('offer', initialOffers, L.offers, remoteListings.offer);
+
+      // If the user changed something while we were syncing, don't overwrite it
+      if (mutationRef.current !== startVersion || pendingRef.current > 0) return;
+
+      setBusinesses(mergedBiz);
+      setSpots(mergedSpots);
+      setEvents(mergedEvents);
+      setThriftItems(mergedThrift);
+      setOffers(mergedOffers);
+      setActiveBusinessId(prev =>
+        mergedBiz.some(b => b.id === prev)
+          ? prev
+          : (mergedBiz.find(b => uid && b.ownerId === uid)?.id || mergedBiz[0]?.id || prev)
+      );
+    };
+
+    const run = () => {
+      syncFromCloud().catch(e => console.warn('Cloud sync failed:', e));
+    };
+
+    run();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') run();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [authLoading, session?.user?.id]);
+
   // Handlers for Business Hub
   const handleCreateBusiness = (newBiz: BusinessAccount) => {
-    setBusinesses(prev => [newBiz, ...prev]);
-    setActiveBusinessId(newBiz.id);
+    const biz: BusinessAccount = {
+      ...newBiz,
+      ownerId: newBiz.ownerId || currentUserId,
+      verified: false,
+      verificationStatus: 'pending',
+    };
+    setBusinesses(prev => [biz, ...prev]);
+    setActiveBusinessId(biz.id);
+    if (currentUserId) {
+      cloudWrite(() => cloud.insertBusiness(biz, currentUserId));
+    } else {
+      showToast('Sign in to save your business online.');
+    }
   };
 
   const handleUpdateBusiness = (updatedBiz: BusinessAccount) => {
     setBusinesses(prev => prev.map(b => b.id === updatedBiz.id ? updatedBiz : b));
+    const isSeed = initialBusinesses.some(b => b.id === updatedBiz.id);
+    if (currentUserId && !isSeed) {
+      cloudWrite(() => cloud.updateBusiness(updatedBiz));
+    }
   };
 
   // Offers Handlers (SPEC 4: Decoupled Independent Engine)
   const handleCreateOffer = (newOffer: BusinessOffer) => {
     setOffers(prev => [newOffer, ...prev]);
+    if (currentUserId) cloudWrite(() => cloud.upsertListing('offer', newOffer, newOffer.businessId, currentUserId));
   };
 
   const handleUpdateOffer = (updatedOffer: BusinessOffer) => {
     setOffers(prev => prev.map(o => o.id === updatedOffer.id ? updatedOffer : o));
+    if (currentUserId) cloudWrite(() => cloud.upsertListing('offer', updatedOffer, updatedOffer.businessId, currentUserId));
   };
 
   const handleDeleteOffer = (offerId: string) => {
     setOffers(prev => prev.filter(o => o.id !== offerId));
+    if (currentUserId) cloudWrite(() => cloud.deleteListing('offer', offerId));
   };
 
   // Spot Claiming (SPEC 3A: Exclusive to Spot Merchants)
   const handleClaimSpot = (spotId: number, businessId: string) => {
+    const claimed = spots.find(s => s.id === spotId);
+    if (claimed && currentUserId) {
+      cloudWrite(() => cloud.upsertListing('spot', { ...claimed, businessId, isUserUploaded: false }, businessId, currentUserId));
+    }
     setSpots(prev => prev.map(s => {
       if (s.id === spotId) {
         return {
@@ -445,6 +577,10 @@ export default function App() {
   };
 
   const handleReleaseSpot = (spotId: number) => {
+    const released = spots.find(s => s.id === spotId);
+    if (released && currentUserId) {
+      cloudWrite(() => cloud.upsertListing('spot', { ...released, businessId: undefined, isUserUploaded: true }, null, currentUserId));
+    }
     setSpots(prev => prev.map(s => {
       if (s.id === spotId) {
         return {
@@ -465,6 +601,7 @@ export default function App() {
   };
 
   const handleAddOrUpdateSpot = (spot: SpotItem) => {
+    if (currentUserId) cloudWrite(() => cloud.upsertListing('spot', spot, spot.businessId, currentUserId));
     setSpots(prev => {
       const idx = prev.findIndex(s => s.id === spot.id || s.title.toLowerCase() === spot.title.toLowerCase());
       if (idx >= 0) {
@@ -477,14 +614,22 @@ export default function App() {
   };
 
   const handleAddEvent = (event: EventItem) => {
-    setEvents(prev => [event, ...prev]);
+    // add new, or replace if this event already exists (editing)
+    setEvents(prev => prev.some(e => e.id === event.id)
+      ? prev.map(e => e.id === event.id ? event : e)
+      : [event, ...prev]);
+    if (currentUserId) cloudWrite(() => cloud.upsertListing('event', event, event.businessId, currentUserId));
   };
 
   const handleAddThriftItem = (item: ThriftItem) => {
-    setThriftItems(prev => [item, ...prev]);
+    setThriftItems(prev => prev.some(t => t.id === item.id)
+      ? prev.map(t => t.id === item.id ? item : t)
+      : [item, ...prev]);
+    if (currentUserId) cloudWrite(() => cloud.upsertListing('thrift', item, item.businessId, currentUserId));
   };
 
   const handleDeleteListing = (type: 'spot' | 'event' | 'thrift', id: number) => {
+    if (currentUserId) cloudWrite(() => cloud.deleteListing(type, id));
     if (type === 'spot') {
       setSpots(prev => prev.filter(s => s.id !== id));
       showToast('Spot listing removed.');
