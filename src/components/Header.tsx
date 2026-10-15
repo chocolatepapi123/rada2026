@@ -189,7 +189,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <ShieldAlert className="w-4 h-4 text-[#E0533C]" />
                   <span>Emergency & SOS Hub</span>
                 </button>
-                                {userRole === 'admin' && onOpenAdmin && (
+                {userRole === 'admin' && onOpenAdmin && (
                   <button
                     onClick={() => {
                       setMenuOpen(false);
@@ -201,7 +201,6 @@ export const Header: React.FC<HeaderProps> = ({
                     <span>Admin Dashboard</span>
                   </button>
                 )}
-
                 {onLogout && (
                   <button
                     onClick={() => {
