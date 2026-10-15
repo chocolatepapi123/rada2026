@@ -78,7 +78,36 @@ const [isAdminOpen, setIsAdminOpen] = useState(false);
       setAuthLoading(false);
     }
   }, []);
+useEffect(() => {
+  if (!session?.user?.id) {
+    setUserRole('user');
+    return;
+  }
 
+  const loadUserRole = async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', session.user.id)
+      .single();
+
+    if (error) {
+      console.error('Failed to load user role:', error);
+      setUserRole('user');
+      return;
+    }
+
+    setUserRole(
+      data?.role === 'admin'
+        ? 'admin'
+        : data?.role === 'merchant'
+          ? 'merchant'
+          : 'user'
+    );
+  };
+
+  loadUserRole();
+}, [session]);
   const handleSignOut = async () => {
     await supabase.auth.signOut();
   };
@@ -754,7 +783,8 @@ if (authLoading) {
             businessName={currentBusiness?.name}
             isDarkMode={isDarkMode}
             onToggleTheme={handleToggleTheme}
-          />
+            onOpenAdmin={() => setIsAdminOpen(true)}
+            />
 
           {/* Main Content Viewports */}
           <main className="flex-1 pb-24 max-w-lg mx-auto w-full relative px-0">
