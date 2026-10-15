@@ -710,22 +710,9 @@ export default function App() {
     }
   };
 
-  return (
+   return (
     <div className="min-h-screen bg-white text-slate-900 dark:bg-[#121113] dark:text-slate-100 flex flex-col transition-colors duration-200 antialiased overflow-x-hidden">
-            {!session ? (
-        <AuthModal isOpen={true} onSuccess={() => {}} />
-      ) : (
-        <>
-
-      {/* Animated Splash Screen with Brand Orange Background & 2-Second Logo Effect */}
-      {showSplash && (
-        <SplashScreen
-          durationMs={2000}
-          onDismiss={() => setShowSplash(false)}
-        />
-      )}
-      
-      {/* Sleek Minimal Single-Line Toast Notification (No green glow, no stacking, fades quickly) */}
+      {/* Sleek Minimal Single-Line Toast Notification */}
       {activeToast && (
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-150">
           <div className="bg-slate-900/90 dark:bg-white/95 text-white dark:text-slate-900 backdrop-blur-md text-xs font-semibold px-4 py-2 rounded-full shadow-lg border border-slate-700/50 dark:border-slate-200/50 flex items-center gap-2 whitespace-nowrap">
@@ -734,283 +721,275 @@ export default function App() {
         </div>
       )}
 
-      {/* Top Header */}
-      <Header
-        onOpenOverlay={handleOpenOverlay}
-        onOpenWagwanAI={() => setIsWagwanOpen(true)}
-        onSwitchTab={(tab) => {
-          setActiveTab(tab);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-        currentLocation={currentLocation}
-        isGpsActive={isGpsActive}
-        onUpdateLocation={handleUpdateLocation}
-        hasBusinessAccount={Boolean(currentBusiness)}
-        businessName={currentBusiness?.name}
-        isDarkMode={isDarkMode}
-        onToggleTheme={handleToggleTheme}
-      />
+      {/* Mandatory Authentication Gate: Hides ALL Mock Data & Tabs when logged out */}
+      {!session ? (
+        <AuthModal isOpen={true} onSuccess={() => {}} />
+      ) : (
+        <>
+          {/* Animated Splash Screen */}
+          {showSplash && (
+            <SplashScreen
+              durationMs={2000}
+              onDismiss={() => setShowSplash(false)}
+            />
+          )}
 
-      {/* Main Content Viewports */}
-      <main className="flex-1 pb-24 max-w-lg mx-auto w-full relative px-0">
-        {activeTab === 'home' && (
-          <HomeTab
+          {/* Top Header */}
+          <Header
+            onOpenOverlay={handleOpenOverlay}
+            onOpenWagwanAI={() => setIsWagwanOpen(true)}
+            onSwitchTab={(tab) => {
+              setActiveTab(tab);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            currentLocation={currentLocation}
+            isGpsActive={isGpsActive}
+            onUpdateLocation={handleUpdateLocation}
+            hasBusinessAccount={Boolean(currentBusiness)}
+            businessName={currentBusiness?.name}
+            isDarkMode={isDarkMode}
+            onToggleTheme={handleToggleTheme}
+          />
+
+          {/* Main Content Viewports */}
+          <main className="flex-1 pb-24 max-w-lg mx-auto w-full relative px-0">
+            {activeTab === 'home' && (
+              <HomeTab
+                events={events}
+                cinemaMovies={cinemaMovies}
+                statuses={statuses}
+                offers={offers}
+                spots={spots}
+                onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
+                onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
+                onBookCinema={handleBookCinema}
+                onPostStatus={handlePostStatus}
+                onReplyStatus={handleReplyStatus}
+                onViewUserProfile={(profile) => setViewingProfile(profile)}
+                onOpenDedicatedViewAll={(title, cat) => {
+                  setViewAllTitle(title);
+                  setViewAllCategory(cat);
+                }}
+                onOpenCreateEvent={() => setIsBusinessHubOpen(true)}
+                onOpenBusinessProfile={handleOpenBusinessProfile}
+                showToast={showToast}
+              />
+            )}
+
+            {activeTab === 'spots' && (
+              <SpotsTab
+                spots={spots}
+                onOpenSpotFullView={(spot) => setSelectedSpotModal(spot)}
+                onViewLocation={(spot) => setSelectedLocationMapSpot(spot)}
+                onOpenDedicatedViewAll={(title, cat) => {
+                  setViewAllTitle(title);
+                  setViewAllCategory(cat);
+                }}
+                onOpenCreateSpot={() => setIsBusinessHubOpen(true)}
+                showToast={showToast}
+              />
+            )}
+
+            {activeTab === 'luku' && (
+              <LukuTab
+                thriftItems={thriftItems}
+                businesses={businesses}
+                onOpenStore={(storeName) => {
+                  const biz = businesses.find(b => b.name.toLowerCase() === storeName.toLowerCase());
+                  if (biz) setSelectedPublicBusiness(biz);
+                  else showToast(`Browsing ${storeName} official catalog!`);
+                }}
+                onOpenCreateFit={() => setIsBusinessHubOpen(true)}
+                showToast={showToast}
+              />
+            )}
+
+            {activeTab === 'merchant' && (
+              <MerchantHubTab
+                businesses={businesses}
+                activeBusinessId={activeBusinessId}
+                onSelectBusiness={(id) => {
+                  setActiveBusinessId(id);
+                  const b = businesses.find(item => item.id === id);
+                  if (b) showToast(`Switched active business to "${b.name}"`);
+                }}
+                onCreateBusiness={handleCreateBusiness}
+                onUpdateBusiness={handleUpdateBusiness}
+                spots={spots}
+                onAddOrUpdateSpot={handleAddOrUpdateSpot}
+                onDeleteListing={handleDeleteListing}
+                events={events}
+                onAddEvent={handleAddEvent}
+                thriftItems={thriftItems}
+                onAddThriftItem={handleAddThriftItem}
+                offers={offers}
+                onCreateOffer={handleCreateOffer}
+                onUpdateOffer={handleUpdateOffer}
+                onDeleteOffer={handleDeleteOffer}
+                onClaimSpot={handleClaimSpot}
+                onReleaseSpot={handleReleaseSpot}
+                onViewSpotDetails={(spot) => setSelectedSpotModal(spot)}
+                onViewEventDetails={(event) => setSelectedEventModal(event)}
+                onOpenPublicProfile={(biz) => setSelectedPublicBusiness(biz)}
+                showToast={showToast}
+              />
+            )}
+
+            {activeTab === 'socials' && (
+              <SocialsTab
+                discoveryProfiles={discoveryProfiles}
+                conversations={conversations}
+                onOpenPlanDateModal={() => setIsPlanDateModalOpen(true)}
+                onOpenCreateGroupModal={() => setIsCreateGroupOpen(true)}
+                onAcceptRequest={handleAcceptRequest}
+                onViewUserProfile={(profile) => setViewingProfile(profile)}
+                showToast={showToast}
+              />
+            )}
+
+            {activeTab === 'vault' && (
+              <VaultTab
+                tickets={tickets}
+                onShowQrCode={(title) => setQrPassTitle(title)}
+                showToast={showToast}
+              />
+            )}
+          </main>
+
+          {/* Bottom Sticky Navigation */}
+          <Navigation
+            activeTab={activeTab}
+            onTabChange={(tab) => {
+              setActiveTab(tab);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
+
+          {/* Modals & Overlays */}
+          {isBusinessHubOpen && (
+            <div className="fixed inset-0 z-50 bg-[#FBFBF9] dark:bg-[#121113] overflow-y-auto">
+              <MerchantHubTab
+                businesses={businesses}
+                activeBusinessId={activeBusinessId}
+                onSelectBusiness={(id) => setActiveBusinessId(id)}
+                onCreateBusiness={handleCreateBusiness}
+                onUpdateBusiness={handleUpdateBusiness}
+                spots={spots}
+                onAddOrUpdateSpot={handleAddOrUpdateSpot}
+                onDeleteListing={handleDeleteListing}
+                events={events}
+                onAddEvent={handleAddEvent}
+                thriftItems={thriftItems}
+                onAddThriftItem={handleAddThriftItem}
+                offers={offers}
+                onCreateOffer={handleCreateOffer}
+                onUpdateOffer={handleUpdateOffer}
+                onDeleteOffer={handleDeleteOffer}
+                onClaimSpot={handleClaimSpot}
+                onReleaseSpot={handleReleaseSpot}
+                onViewSpotDetails={(spot) => setSelectedSpotModal(spot)}
+                onViewEventDetails={(event) => setSelectedEventModal(event)}
+                onOpenPublicProfile={(biz) => setSelectedPublicBusiness(biz)}
+                onClose={() => setIsBusinessHubOpen(false)}
+                showToast={showToast}
+              />
+            </div>
+          )}
+
+          <LocationMapModal
+            spot={selectedLocationMapSpot}
+            onClose={() => setSelectedLocationMapSpot(null)}
+            showToast={showToast}
+          />
+
+          <Overlays
+            activeOverlay={activeOverlay}
+            onCloseOverlay={() => setActiveOverlay(null)}
+            isWagwanOpen={isWagwanOpen}
+            onCloseWagwan={() => setIsWagwanOpen(false)}
+            spots={spots}
             events={events}
             cinemaMovies={cinemaMovies}
-            statuses={statuses}
-            offers={offers}
-            spots={spots}
+            thriftItems={thriftItems}
             onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
             onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
             onBookCinema={handleBookCinema}
-            onPostStatus={handlePostStatus}
-            onReplyStatus={handleReplyStatus}
-            onViewUserProfile={(profile) => setViewingProfile(profile)}
-            onOpenDedicatedViewAll={(title, cat) => {
-              setViewAllTitle(title);
-              setViewAllCategory(cat);
+            selectedSpot={selectedSpotModal}
+            onCloseSpotModal={() => setSelectedSpotModal(null)}
+            onPlanDateFromSpot={handlePlanDateFromSpot}
+            onPostReview={handlePostReview}
+            onAddSpotImage={handleAddSpotImage}
+            selectedEvent={selectedEventModal}
+            onCloseEventModal={() => setSelectedEventModal(null)}
+            onToggleGoing={handleToggleGoing}
+            goingEventIds={goingEventIds}
+            onBuyEventTicket={handleBuyEventTicket}
+            currentUserProfile={currentUserProfile}
+            onUpdateCurrentUserProfile={handleUpdateCurrentUserProfile}
+            qrPassTitle={qrPassTitle}
+            onCloseQrModal={() => setQrPassTitle(null)}
+            isPlanDateModalOpen={isPlanDateModalOpen}
+            onClosePlanDateModal={() => {
+              setIsPlanDateModalOpen(false);
+              setDatePlanningSpot(null);
             }}
-            onOpenCreateEvent={() => {
-              setIsBusinessHubOpen(true);
-            }}
-            onOpenBusinessProfile={handleOpenBusinessProfile}
-            showToast={showToast}
-          />
-        )}
-
-        {activeTab === 'spots' && (
-          <SpotsTab
-            spots={spots}
-            onOpenSpotFullView={(spot) => setSelectedSpotModal(spot)}
-            onViewLocation={(spot) => setSelectedLocationMapSpot(spot)}
-            onOpenDedicatedViewAll={(title, cat) => {
-              setViewAllTitle(title);
-              setViewAllCategory(cat);
-            }}
-            onOpenCreateSpot={() => {
-              setIsBusinessHubOpen(true);
-            }}
-            showToast={showToast}
-          />
-        )}
-
-        {activeTab === 'luku' && (
-          <LukuTab
-            thriftItems={thriftItems}
-            businesses={businesses}
-            onOpenStore={(storeName) => {
-              const biz = businesses.find(b => b.name.toLowerCase() === storeName.toLowerCase());
-              if (biz) setSelectedPublicBusiness(biz);
-              else showToast(`Browsing ${storeName} official catalog!`);
-            }}
-            onOpenCreateFit={() => {
-              setIsBusinessHubOpen(true);
-            }}
-            showToast={showToast}
-          />
-        )}
-
-        {/* ========================================================
-            STANDALONE DEDICATED UNCOMPRESSED BUSINESS & MERCHANT HUB
-            ======================================================== */}
-        {activeTab === 'merchant' && (
-          <MerchantHubTab
-            businesses={businesses}
-            activeBusinessId={activeBusinessId}
-            onSelectBusiness={(id) => {
-              setActiveBusinessId(id);
-              const b = businesses.find(item => item.id === id);
-              if (b) showToast(`Switched active business to "${b.name}"`);
-            }}
-            onCreateBusiness={handleCreateBusiness}
-            onUpdateBusiness={handleUpdateBusiness}
-            spots={spots}
-            onAddOrUpdateSpot={handleAddOrUpdateSpot}
-            onDeleteListing={handleDeleteListing}
-            events={events}
-            onAddEvent={handleAddEvent}
-            thriftItems={thriftItems}
-            onAddThriftItem={handleAddThriftItem}
-            offers={offers}
-            onCreateOffer={handleCreateOffer}
-            onUpdateOffer={handleUpdateOffer}
-            onDeleteOffer={handleDeleteOffer}
-            onClaimSpot={handleClaimSpot}
-            onReleaseSpot={handleReleaseSpot}
-            onViewSpotDetails={(spot) => setSelectedSpotModal(spot)}
-            onViewEventDetails={(event) => setSelectedEventModal(event)}
-            onOpenPublicProfile={(biz) => setSelectedPublicBusiness(biz)}
-            showToast={showToast}
-          />
-        )}
-
-        {activeTab === 'socials' && (
-          <SocialsTab
+            onSelectSpotForDate={(spot) => setDatePlanningSpot(spot)}
+            datePlanningSpot={datePlanningSpot}
+            onConfirmDateInvite={handleConfirmDateInvite}
+            isCreateGroupOpen={isCreateGroupOpen}
+            onCloseCreateGroup={() => setIsCreateGroupOpen(false)}
             discoveryProfiles={discoveryProfiles}
-            conversations={conversations}
-            onOpenPlanDateModal={() => setIsPlanDateModalOpen(true)}
-            onOpenCreateGroupModal={() => setIsCreateGroupOpen(true)}
-            onAcceptRequest={handleAcceptRequest}
-            onViewUserProfile={(profile) => setViewingProfile(profile)}
-            showToast={showToast}
-          />
-        )}
-
-        {activeTab === 'vault' && (
-          <VaultTab
-            tickets={tickets}
-            onShowQrCode={(title) => setQrPassTitle(title)}
-            showToast={showToast}
-          />
-        )}
-      </main>
-
-      {/* Bottom Sticky Navigation */}
-      <Navigation
-        activeTab={activeTab}
-        onTabChange={(tab) => {
-          setActiveTab(tab);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-      />
-
-      {/* BUSINESS & MERCHANT HUB (FULL-SCREEN DEDICATED MODAL VIEW) */}
-      {isBusinessHubOpen && (
-        <div className="fixed inset-0 z-50 bg-[#FBFBF9] dark:bg-[#121113] overflow-y-auto animate-in slide-in-from-bottom duration-200">
-          <MerchantHubTab
-            businesses={businesses}
-            activeBusinessId={activeBusinessId}
-            onSelectBusiness={(id) => {
-              setActiveBusinessId(id);
-              const b = businesses.find(item => item.id === id);
-              if (b) showToast(`Switched active business to "${b.name}"`);
+            onCreateGroup={handleCreateGroup}
+            viewAllTitle={viewAllTitle}
+            viewAllCategory={viewAllCategory}
+            onCloseViewAll={() => {
+              setViewAllTitle(null);
+              setViewAllCategory(null);
             }}
-            onCreateBusiness={handleCreateBusiness}
-            onUpdateBusiness={handleUpdateBusiness}
-            spots={spots}
-            onAddOrUpdateSpot={handleAddOrUpdateSpot}
-            onDeleteListing={handleDeleteListing}
-            events={events}
-            onAddEvent={handleAddEvent}
-            thriftItems={thriftItems}
-            onAddThriftItem={handleAddThriftItem}
-            offers={offers}
-            onCreateOffer={handleCreateOffer}
-            onUpdateOffer={handleUpdateOffer}
-            onDeleteOffer={handleDeleteOffer}
-            onClaimSpot={handleClaimSpot}
-            onReleaseSpot={handleReleaseSpot}
-            onViewSpotDetails={(spot) => setSelectedSpotModal(spot)}
-            onViewEventDetails={(event) => setSelectedEventModal(event)}
-            onOpenPublicProfile={(biz) => setSelectedPublicBusiness(biz)}
-            onClose={() => setIsBusinessHubOpen(false)}
+            isGpsBroadcasting={isGpsBroadcasting}
+            onToggleGps={() => setIsGpsBroadcasting(!isGpsBroadcasting)}
+            emergencyContacts={emergencyContacts}
+            onAddEmergencyContact={(name, phone) => {
+              setEmergencyContacts(prev => [...prev, { id: `ec-${Date.now()}`, name, phone }]);
+              showToast(`Emergency contact "${name}" saved!`);
+            }}
+            isDarkMode={isDarkMode}
+            onToggleTheme={handleToggleTheme}
             showToast={showToast}
           />
-        </div>
-      )}
 
-      {/* "VIEW LOCATION" DEDICATED MAP MODAL */}
-      <LocationMapModal
-        spot={selectedLocationMapSpot}
-        onClose={() => setSelectedLocationMapSpot(null)}
-        showToast={showToast}
-      />
+          <UserProfileModal
+            user={viewingProfile}
+            isMutualMatch={conversations.some(c => viewingProfile && c.name.toLowerCase().includes(viewingProfile.name.split(',')[0].toLowerCase()))}
+            onClose={() => setViewingProfile(null)}
+            onSendMatchRequest={(u) => {
+              showToast(`Hangout & Match request sent to ${u.name}!`);
+              setViewingProfile(null);
+            }}
+            onSendMessage={(u) => {
+              showToast(`Direct message opened with ${u.name}!`);
+              setActiveTab('socials');
+              setViewingProfile(null);
+            }}
+            showToast={showToast}
+          />
 
-      {/* ALL OVERLAYS & MODALS */}
-      <Overlays
-        activeOverlay={activeOverlay}
-        onCloseOverlay={() => setActiveOverlay(null)}
-        isWagwanOpen={isWagwanOpen}
-        onCloseWagwan={() => setIsWagwanOpen(false)}
-        spots={spots}
-        events={events}
-        cinemaMovies={cinemaMovies}
-        thriftItems={thriftItems}
-        onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
-        onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
-        onBookCinema={handleBookCinema}
-        selectedSpot={selectedSpotModal}
-        onCloseSpotModal={() => setSelectedSpotModal(null)}
-        onPlanDateFromSpot={handlePlanDateFromSpot}
-        onPostReview={handlePostReview}
-        onAddSpotImage={handleAddSpotImage}
-        selectedEvent={selectedEventModal}
-        onCloseEventModal={() => setSelectedEventModal(null)}
-        onToggleGoing={handleToggleGoing}
-        goingEventIds={goingEventIds}
-        onBuyEventTicket={handleBuyEventTicket}
-        currentUserProfile={currentUserProfile}
-        onUpdateCurrentUserProfile={handleUpdateCurrentUserProfile}
-        qrPassTitle={qrPassTitle}
-        onCloseQrModal={() => setQrPassTitle(null)}
-        isPlanDateModalOpen={isPlanDateModalOpen}
-        onClosePlanDateModal={() => {
-          setIsPlanDateModalOpen(false);
-          setDatePlanningSpot(null);
-        }}
-        onSelectSpotForDate={(spot) => setDatePlanningSpot(spot)}
-        datePlanningSpot={datePlanningSpot}
-        onConfirmDateInvite={handleConfirmDateInvite}
-        isCreateGroupOpen={isCreateGroupOpen}
-        onCloseCreateGroup={() => setIsCreateGroupOpen(false)}
-        discoveryProfiles={discoveryProfiles}
-        onCreateGroup={handleCreateGroup}
-        viewAllTitle={viewAllTitle}
-        viewAllCategory={viewAllCategory}
-        onCloseViewAll={() => {
-          setViewAllTitle(null);
-          setViewAllCategory(null);
-        }}
-        isGpsBroadcasting={isGpsBroadcasting}
-        onToggleGps={() => {
-          setIsGpsBroadcasting(!isGpsBroadcasting);
-          showToast(!isGpsBroadcasting ? 'Live Emergency GPS Broadcast activated!' : 'GPS Broadcast stopped.');
-        }}
-        emergencyContacts={emergencyContacts}
-        onAddEmergencyContact={(name, phone) => {
-          setEmergencyContacts(prev => [...prev, { id: `ec-${Date.now()}`, name, phone }]);
-          showToast(`Emergency contact "${name}" saved!`);
-        }}
-        isDarkMode={isDarkMode}
-        onToggleTheme={handleToggleTheme}
-        showToast={showToast}
-      />
-
-      {/* USER PROFILE & BIO MODAL */}
-      <UserProfileModal
-        user={viewingProfile}
-        isMutualMatch={conversations.some(c => viewingProfile && c.name.toLowerCase().includes(viewingProfile.name.split(',')[0].toLowerCase()))}
-        onClose={() => setViewingProfile(null)}
-        onSendMatchRequest={(u) => {
-          showToast(`Hangout & Match request sent to ${u.name}!`);
-          setViewingProfile(null);
-        }}
-        onSendMessage={(u) => {
-          showToast(`Direct message opened with ${u.name}!`);
-          setActiveTab('socials');
-          setViewingProfile(null);
-        }}
-        showToast={showToast}
-      />
-  
-            {/* PUBLIC BUSINESS & MERCHANT PROFILE MODAL */}
-      <PublicBusinessProfileModal
-        business={selectedPublicBusiness}
-        onClose={() => setSelectedPublicBusiness(null)}
-        offers={offers}
-        spots={spots}
-        events={events}
-        thriftItems={thriftItems}
-        onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
-        onOpenEventDetails={(event) => setSelectedEventModal(event)}
-        showToast={showToast}
-      />
-
-      {/* Mandatory First-Time Auth Gate */}
-      <AuthModal isOpen={true} onSuccess={() => {}} />
+          <PublicBusinessProfileModal
+            business={selectedPublicBusiness}
+            onClose={() => setSelectedPublicBusiness(null)}
+            offers={offers}
+            spots={spots}
+            events={events}
+            thriftItems={thriftItems}
+            onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
+            onOpenEventDetails={(event) => setSelectedEventModal(event)}
+            showToast={showToast}
+          />
         </>
       )}
-
     </div>
   );
 }
+ 
+                      
+          
