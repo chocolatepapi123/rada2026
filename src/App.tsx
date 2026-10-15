@@ -810,6 +810,7 @@ if (authLoading) {
               <MerchantHubTab
                 businesses={businesses}
                 activeBusinessId={activeBusinessId}
+                userId={session?.user?.id}
                 onSelectBusiness={(id) => {
                   setActiveBusinessId(id);
                   const b = businesses.find(item => item.id === id);
