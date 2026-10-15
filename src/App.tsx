@@ -1022,6 +1022,13 @@ if (authLoading) {
             onOpenEventDetails={(event) => setSelectedEventModal(event)}
             showToast={showToast}
           />
+          {isAdminOpen && userRole === 'admin' && (
+  <AdminDashboard
+    businesses={businesses}
+    onClose={() => setIsAdminOpen(false)}
+    showToast={showToast}
+  />
+)}
         </>
       )}
     </div>
