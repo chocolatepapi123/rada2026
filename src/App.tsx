@@ -987,8 +987,8 @@ export default function App() {
         }}
         showToast={showToast}
       />
-
-      {/* PUBLIC BUSINESS & MERCHANT PROFILE MODAL */}
+  
+            {/* PUBLIC BUSINESS & MERCHANT PROFILE MODAL */}
       <PublicBusinessProfileModal
         business={selectedPublicBusiness}
         onClose={() => setSelectedPublicBusiness(null)}
@@ -1000,18 +1000,9 @@ export default function App() {
         onOpenEventDetails={(event) => setSelectedEventModal(event)}
         showToast={showToast}
       />
-            ) : (
-        <div className="min-h-screen bg-stone-950 flex flex-col items-center justify-center text-stone-500 p-4">
-          <div className="w-12 h-12 rounded-full border border-stone-800 flex items-center justify-center mb-3 animate-pulse">
-            <span className="text-amber-500 font-bold">R</span>
-          </div>
-          <p className="text-sm text-stone-400">Authentication Required</p>
-        </div>
-      )}
 
       {/* Mandatory First-Time Auth Gate */}
       <AuthModal isOpen={!session} onSuccess={() => {}} />
-
     </div>
   );
 }
