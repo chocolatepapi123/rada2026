@@ -55,6 +55,7 @@ import { DynamicLocationSelector } from './DynamicLocationSelector.tsx';
 interface MerchantHubTabProps {
   businesses: BusinessAccount[];
   activeBusinessId: string;
+  userId?: string;
   onSelectBusiness: (bizId: string) => void;
   onCreateBusiness: (newBiz: BusinessAccount) => void;
   onUpdateBusiness: (updatedBiz: BusinessAccount) => void;
@@ -81,6 +82,7 @@ interface MerchantHubTabProps {
 export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   businesses,
   activeBusinessId,
+  userId,
   onSelectBusiness,
   onCreateBusiness,
   onUpdateBusiness,
@@ -103,11 +105,18 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   onClose,
   showToast
 }) => {
-  // Determine active business or default to first
-  const currentBiz = businesses.find(b => b.id === activeBusinessId) || businesses[0];
+// Only businesses actually owned by the logged-in merchant
+const ownedBusinesses = businesses.filter(
+  business => business.ownerId === userId
+);
 
-  // State: Are we in the Onboarding Flow?
-  const [isOnboardingOpen, setIsOnboardingOpen] = useState(!currentBiz);
+// Never automatically use RADA's public/demo businesses
+const currentBiz =
+  ownedBusinesses.find(b => b.id === activeBusinessId) ||
+  ownedBusinesses[0];
+
+// State: open onboarding if this merchant has no business yet
+const [isOnboardingOpen, setIsOnboardingOpen] = useState(!currentBiz);
   const [onboardingStep, setOnboardingStep] = useState<1 | 2>(1);
 
   // Active sub-tab inside the vertical dashboard
