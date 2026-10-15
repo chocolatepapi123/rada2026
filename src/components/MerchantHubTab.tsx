@@ -182,7 +182,7 @@ const [isOnboardingOpen, setIsOnboardingOpen] = useState(!currentBiz);
       bio: onboardBio || `Official ${selectedVertical === 'hospitality' ? 'Spot' : selectedVertical === 'event_organizer' ? 'Event Organizer' : 'Luku Thrift Store'} verified on RADA.`,
       logo: onboardLogo || presetLogos[0],
       coverImage: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
-      verified: true,
+      verified: false,
       instagram: onboardInstagram,
       createdDate: new Date().toISOString().split('T')[0],
       discography: [
