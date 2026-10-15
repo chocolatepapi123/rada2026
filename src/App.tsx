@@ -726,11 +726,17 @@ export default function App() {
         </div>
       )}
 
-      {/* Mandatory Authentication Gate: Hides ALL Mock Data & Tabs when logged out */}
-      {!session ? (
-        <AuthModal isOpen={true} onSuccess={() => {}} />
+
+            {/* Mandatory Authentication Gate with Loading Guard */}
+      {authLoading ? (
+        <div className="min-h-screen bg-black text-stone-400 flex items-center justify-center">
+          Loading RADA...
+        </div>
+      ) : !session ? (
+        <AuthModal isOpen={true} onSuccess={() => setAuthLoading(false)} />
       ) : (
         <>
+
           {/* Animated Splash Screen */}
           {showSplash && (
             <SplashScreen
