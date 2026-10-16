@@ -9,7 +9,8 @@ import {
   DatingProfile, 
   ChatConversation, 
   VaultTicket, 
-  EmergencyContact 
+  EmergencyContact,
+  CollectionFolder
 } from '../types.ts';
 
 // 10 Detailed Realistic Running Offers & Promotions spanning Tickets, Food, Drinks, and Apparel
@@ -511,6 +512,137 @@ export const initialSpots: SpotItem[] = [
     menuItems: [
       { id: 'm20', name: 'Cravers Flame Pork Ribs (1kg)', category: 'Mains', price: 'KES 1,900', description: 'Slow-charred succulent pork ribs glazed in spicy honey mustard sauce' },
       { id: 'm21', name: 'Smirnoff Ice Black Bucket', category: 'Drinks', price: 'KES 1,800', description: 'Bucket of 5 chilled guarana infused beverages' }
+    ]
+  },
+  {
+    id: 11,
+    title: 'Karura Forest Canopy & Biking Trails',
+    category: 'activities',
+    neighborhood: 'Gigiri',
+    exactLocationTag: 'Limuru Road & Gate F Sigiria',
+    landmark: 'Directly Opposite Belgian Embassy & UNEP',
+    lat: -1.2422,
+    lng: 36.8256,
+    rating: '4.9',
+    reviewCount: 540,
+    price: '$',
+    address: 'Limuru Road, Karura Forest Gate A, Nairobi',
+    img: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&auto=format&fit=crop',
+    description: 'Nairobi\'s crown green lung featuring 50km of scenic jogging and bike trails, historic Mau Mau caves, 15m waterfall, and River Cafe.',
+    phone: '+254 728 501 333',
+    openingHours: '6:00 AM - 6:00 PM',
+    menuItems: [
+      { id: 'act-1', name: 'Karura Forest Entry Pass (Citizen/Resident)', category: 'Passes', price: 'KES 100', description: 'Full-day access to running trails, waterfall paths, and picnic lawns' },
+      { id: 'act-2', name: 'Mountain Bike Rental (2 Hours)', category: 'Activities', price: 'KES 500', description: 'Sturdy front-suspension mountain bike with helmet for forest trails' }
+    ]
+  },
+  {
+    id: 12,
+    title: 'Nairobi Arboretum Nature Walk & Picnics',
+    category: 'activities',
+    neighborhood: 'Kilimani',
+    exactLocationTag: 'State House Road & Arboretum Drive',
+    landmark: '500m from State House Girls High School',
+    lat: -1.2774,
+    lng: 36.8078,
+    rating: '4.7',
+    reviewCount: 310,
+    price: '$',
+    address: 'State House Road, Kilimani, Nairobi',
+    img: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop',
+    description: '30 hectares of exotic botanical garden trails, birdwatching, shaded picnic glades, and quiet walking circuits in central Nairobi.',
+    phone: '+254 722 000 111',
+    openingHours: '6:00 AM - 6:30 PM',
+    menuItems: [
+      { id: 'act-3', name: 'Arboretum Day Pass', category: 'Passes', price: 'KES 65', description: 'Full day access to lush walking circuits and photography lawns' },
+      { id: 'act-4', name: 'Group Picnic Lawn Reservation', category: 'Group', price: 'KES 1,500', description: 'Designated shaded grove setup for birthday picnics and family gatherings' }
+    ]
+  },
+  {
+    id: 13,
+    title: 'Paint & Sip Nairobi Studio',
+    category: 'activities',
+    neighborhood: 'Westlands',
+    exactLocationTag: 'Muthithi Road, The Promenade 2nd Floor',
+    landmark: 'Near Mpaka Road Roundabout',
+    lat: -1.2645,
+    lng: 36.8062,
+    rating: '4.9',
+    reviewCount: 195,
+    price: '$$',
+    address: 'Muthithi Road, Westlands, Nairobi',
+    img: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=800&auto=format&fit=crop',
+    description: 'Creative weekend social art experience! Professional step-by-step acrylic canvas painting accompanied by curated wines, sangria, and afro-house tracks.',
+    phone: '+254 719 333 777',
+    openingHours: '1:00 PM - 8:00 PM',
+    menuItems: [
+      { id: 'act-5', name: 'Canvas & Wine Sip Package', category: 'Experience', price: 'KES 2,500', description: 'Includes 40x50 canvas, paints, brushes, easel, and 2 complimentary wine glasses' },
+      { id: 'act-6', name: 'Tapas & Sangria Pitcher (Serves 3)', category: 'Refreshments', price: 'KES 2,200', description: 'Chilled berry sangria paired with mini samosas and bruschetta' }
+    ]
+  },
+  {
+    id: 14,
+    title: 'Nairobi VR & Simulator Gaming Arena',
+    category: 'activities',
+    neighborhood: 'Gigiri',
+    exactLocationTag: 'Village Market New Wing 3rd Level',
+    landmark: 'Adjacent to Under The Sea & Food Court',
+    lat: -1.2295,
+    lng: 36.8043,
+    rating: '4.8',
+    reviewCount: 220,
+    price: '$$',
+    address: 'Limuru Road, Village Market, Nairobi',
+    img: 'https://images.unsplash.com/photo-1593508512255-86ab42a8e620?w=800&auto=format&fit=crop',
+    description: 'East Africa\'s premier virtual reality experience center featuring 6DOF motion simulators, multiplayer VR zombie defense, and Formula 1 motion rigs.',
+    phone: '+254 740 555 123',
+    openingHours: '10:00 AM - 10:00 PM',
+    menuItems: [
+      { id: 'act-7', name: 'VR Escape Room (45 Mins, 4 Players)', category: 'Gaming', price: 'KES 1,800/pp', description: 'Immersive wireless VR team cooperative mission with haptic feedback' },
+      { id: 'act-8', name: 'F1 Motion Sim Session (20 Mins)', category: 'Simulators', price: 'KES 1,200', description: 'Full force-feedback steering rig with VR headset and realistic pedals' }
+    ]
+  },
+  {
+    id: 15,
+    title: 'Oloolua Nature Trail & Waterfall Caves',
+    category: 'activities',
+    neighborhood: 'Karen',
+    exactLocationTag: 'Oloolua Ridge, Near Institute of Primate Research',
+    landmark: 'Opposite Karen Blixen Coffee Garden',
+    lat: -1.3571,
+    lng: 36.7118,
+    rating: '4.8',
+    reviewCount: 280,
+    price: '$',
+    address: 'Oloolua Ridge, Karen, Nairobi',
+    img: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop',
+    description: 'Enchanting 5km tranquil hiking circuit through indigenous forest, bamboo tunnels, wooden suspension footbridges, and 33-foot Mbagathi river waterfall.',
+    phone: '+254 721 889 000',
+    openingHours: '9:00 AM - 6:00 PM',
+    menuItems: [
+      { id: 'act-9', name: 'Oloolua Trail Day Ticket', category: 'Passes', price: 'KES 200', description: 'Full access to bamboo forest, waterfall, cave trails, and papyrus swamp' }
+    ]
+  },
+  {
+    id: 16,
+    title: 'Paintball Fury & Archery Tactical Arena',
+    category: 'activities',
+    neighborhood: 'Karen',
+    exactLocationTag: 'Langata South Road, Near Waterfront Mall',
+    landmark: 'Behind Waterfront Karen Shopping Center',
+    lat: -1.3282,
+    lng: 36.7214,
+    rating: '4.7',
+    reviewCount: 165,
+    price: '$$',
+    address: 'Langata South Road, Karen, Nairobi',
+    img: 'https://images.unsplash.com/photo-1511882150382-421056c89033?w=800&auto=format&fit=crop',
+    description: 'High-energy tactical paintballing field with bunkers, obstacles, and tournament layouts. Includes speedball courts and recurve archery ranges for squads.',
+    phone: '+254 722 456 789',
+    openingHours: '9:00 AM - 7:00 PM',
+    menuItems: [
+      { id: 'act-10', name: 'Tactical Paintball Battle (100 Balls + Gear)', category: 'Gaming', price: 'KES 1,500', description: 'Protective camo overalls, anti-fog mask, semi-auto marker, and gas refills' },
+      { id: 'act-11', name: 'Combat Archery Tag Session (45 Mins)', category: 'Gaming', price: 'KES 1,200', description: 'Foam-tipped arrows and recurve bow for team elimination matches' }
     ]
   }
 ];
@@ -1088,4 +1220,10 @@ export const initialContacts: EmergencyContact[] = [
     name: 'Best Friend (Alex M.)',
     phone: '+254 722 999 888'
   }
+];
+
+export const initialFolders: CollectionFolder[] = [
+  { id: 'folder-1', name: 'Birthday Move', emoji: '🎂', createdAt: '2026-10-14T10:00:00Z', description: 'Birthday celebrations and group dining' },
+  { id: 'folder-2', name: 'Sunday Chill', emoji: '☕', createdAt: '2026-10-14T11:00:00Z', description: 'Relaxed cafe hangouts and nature trails' },
+  { id: 'folder-3', name: 'Date Ideas', emoji: '✨', createdAt: '2026-10-14T12:00:00Z', description: 'Romantic dinners, sunsets and cozy spots' }
 ];

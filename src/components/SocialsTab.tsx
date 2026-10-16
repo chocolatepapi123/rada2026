@@ -425,7 +425,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                           <span
                             key={idx}
                             className={`w-1 rounded-full transition-all duration-150 ${
-                              playingAudioId === msg.id ? 'bg-white animate-pulse' : 'bg-white/60'
+                              playingAudioId === msg.id ? 'bg-white' : 'bg-white/60'
                             }`}
                             style={{ height: `${h}px` }}
                           />
@@ -509,7 +509,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
         {isRecordingAudio && (
           <div className="p-3 bg-red-50 dark:bg-red-950/80 border-t border-red-200 dark:border-red-900 max-w-lg mx-auto w-full flex items-center justify-between text-xs animate-in slide-in-from-bottom duration-150">
             <div className="flex items-center gap-2 text-red-600 font-bold">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping" />
+              <span className="w-2.5 h-2.5 rounded-full bg-red-600" />
               <span>Recording Voice Note... 0:{recordSeconds < 10 ? '0' : ''}{recordSeconds}</span>
             </div>
             <div className="flex items-center gap-2">
@@ -533,7 +533,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
         {isRecordingVideo && (
           <div className="p-3 bg-purple-50 dark:bg-purple-950/80 border-t border-purple-200 dark:border-purple-900 max-w-lg mx-auto w-full flex items-center justify-between text-xs animate-in slide-in-from-bottom duration-150">
             <div className="flex items-center gap-2 text-purple-600 font-bold">
-              <span className="w-2.5 h-2.5 rounded-full bg-purple-600 animate-ping" />
+              <span className="w-2.5 h-2.5 rounded-full bg-purple-600" />
               <span>Circular Video Note... 0:{videoRecordSeconds < 10 ? '0' : ''}{videoRecordSeconds}</span>
             </div>
             <div className="flex items-center gap-2">

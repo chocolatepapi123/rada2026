@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { getTimeOfDayGreeting } from '../utils/greetingUtils';
 
 interface SplashScreenProps {
   onDismiss?: () => void;
@@ -16,6 +17,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
 }) => {
   const [isFadingOut, setIsFadingOut] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
+  const greeting = getTimeOfDayGreeting();
 
   useEffect(() => {
     // Start fade-out slightly before dismissal to provide a smooth transition
@@ -50,7 +52,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
     >
       {/* Decorative ambient background circles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-white/10 blur-2xl animate-pulse" />
+        <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-white/10 blur-2xl" />
         <div className="absolute -bottom-24 -right-24 w-96 h-96 rounded-full bg-black/10 blur-2xl" />
       </div>
 
@@ -68,7 +70,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
           />
         </div>
 
-        {/* Brand Header & Animated Subtitle */}
+        {/* Brand Header & Animated Dynamic Time-of-Day Greeting */}
         <div 
           className="mt-6 space-y-2 transition-all duration-1000 delay-300"
           style={{
@@ -78,8 +80,8 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
           <h1 className="text-white text-3xl sm:text-4xl font-black tracking-widest uppercase drop-shadow-md">
             RADA
           </h1>
-          <p className="text-white/95 text-sm sm:text-base font-semibold tracking-wider lowercase drop-shadow-sm animate-pulse transition-opacity duration-1000">
-            leo rada ni gani
+          <p className="text-white/95 text-sm sm:text-base font-semibold tracking-wide drop-shadow-sm transition-opacity duration-1000">
+            {greeting}
           </p>
         </div>
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { 
   Search, 
   Calendar, 
@@ -24,9 +24,14 @@ import {
   Store,
   ShoppingBag,
   SlidersHorizontal,
-  Smile
+  Smile,
+  Bookmark,
+  Trees,
+  RefreshCw,
+  Compass,
+  Star
 } from 'lucide-react';
-import { EventItem, CinemaMovie, StatusPost, UserProfile, BusinessOffer, OfferCategory, SpotItem } from '../types.ts';
+import { EventItem, CinemaMovie, StatusPost, UserProfile, BusinessOffer, OfferCategory, SpotItem, SavedItem } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { EmojiPicker } from './EmojiPicker.tsx';
 
@@ -36,6 +41,9 @@ interface HomeTabProps {
   statuses: StatusPost[];
   offers?: BusinessOffer[];
   spots?: SpotItem[];
+  savedItems?: SavedItem[];
+  onToggleSave?: (item: any, kind: 'spot' | 'event' | 'thrift' | 'offer') => void;
+  onRefreshFeed?: () => Promise<void> | void;
   onOpenSpotDetails?: (spot: SpotItem) => void;
   onOpenEventDetails: (event: EventItem) => void;
   onBookCinema: (movie: CinemaMovie) => void;
@@ -54,6 +62,9 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   statuses,
   offers = [],
   spots = [],
+  savedItems = [],
+  onToggleSave,
+  onRefreshFeed,
   onOpenSpotDetails,
   onOpenEventDetails,
   onBookCinema,
@@ -79,6 +90,92 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
   // Offers state
   const [selectedOfferCategory, setSelectedOfferCategory] = useState<'all' | OfferCategory>('all');
+
+  // Events sorting state: Upcoming (date) vs Most Popular (going count)
+  const [eventSortBy, setEventSortBy] = useState<'date' | 'popular'>('date');
+
+  // Outdoor & Social Activity sub-category filter
+  const [selectedActivityCategory, setSelectedActivityCategory] = useState<'all' | 'nature' | 'art' | 'gaming' | 'adrenaline'>('all');
+
+  // Universal Bookmark Checker
+  const isSaved = (id: string | number, kind: 'spot' | 'event' | 'thrift' | 'offer') => {
+    return savedItems.some(s => String(s.id) === String(id) && s.kind === kind);
+  };
+
+  // Pull to refresh gesture handler for mobile
+  const [pullY, setPullY] = useState(0);
+  const [isPulling, setIsPulling] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const startYRef = useRef(0);
+  const canPullRef = useRef(false);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (window.scrollY <= 2) {
+      canPullRef.current = true;
+      startYRef.current = e.touches[0].clientY;
+    } else {
+      canPullRef.current = false;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!canPullRef.current || isRefreshing) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - startYRef.current;
+    if (diff > 0 && window.scrollY <= 2) {
+      const damped = Math.min(diff * 0.42, 85);
+      setPullY(damped);
+      setIsPulling(true);
+    }
+  };
+
+  const handleTouchEnd = async () => {
+    if (!canPullRef.current || isRefreshing) return;
+    canPullRef.current = false;
+    if (pullY > 45) {
+      setIsRefreshing(true);
+      setPullY(50);
+      if (navigator.vibrate) {
+        try { navigator.vibrate(15); } catch (e) {}
+      }
+      try {
+        if (onRefreshFeed) {
+          await onRefreshFeed();
+        } else {
+          await new Promise(r => setTimeout(r, 650));
+        }
+        showToast('Nairobi feed refreshed ✨');
+      } finally {
+        setTimeout(() => {
+          setIsRefreshing(false);
+          setPullY(0);
+          setIsPulling(false);
+        }, 300);
+      }
+    } else {
+      setPullY(0);
+      setIsPulling(false);
+    }
+  };
+
+  // Outdoor & Social Activity Spots (Section 4 in feed hierarchy)
+  const outdoorActivitySpots = useMemo(() => {
+    const base = spots.filter(s => s.category === 'activities' || s.category === 'vacation');
+    if (selectedActivityCategory === 'all') return base;
+    if (selectedActivityCategory === 'nature') {
+      return base.filter(s => s.title.toLowerCase().includes('forest') || s.title.toLowerCase().includes('arboretum') || s.title.toLowerCase().includes('trail') || s.title.toLowerCase().includes('nature'));
+    }
+    if (selectedActivityCategory === 'art') {
+      return base.filter(s => s.title.toLowerCase().includes('paint') || s.title.toLowerCase().includes('sip') || s.title.toLowerCase().includes('art') || s.title.toLowerCase().includes('pottery'));
+    }
+    if (selectedActivityCategory === 'gaming') {
+      return base.filter(s => s.title.toLowerCase().includes('vr') || s.title.toLowerCase().includes('game') || s.title.toLowerCase().includes('simulator') || s.title.toLowerCase().includes('arcade'));
+    }
+    if (selectedActivityCategory === 'adrenaline') {
+      return base.filter(s => s.title.toLowerCase().includes('paintball') || s.title.toLowerCase().includes('archery') || s.title.toLowerCase().includes('tactical') || s.title.toLowerCase().includes('kart'));
+    }
+    return base;
+  }, [spots, selectedActivityCategory]);
 
   const handleVisitSpot = (offer: BusinessOffer) => {
     // 1. Check if there is a corresponding spot in spots
@@ -237,6 +334,21 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     );
   });
 
+  // Events Suite: Upcoming events sorted by date/popularity
+  const sortedEvents = useMemo(() => {
+    return [...filteredEvents].sort((a, b) => {
+      if (eventSortBy === 'popular') {
+        return (b.goingCount || 0) - (a.goingCount || 0);
+      }
+      // Date sort: "Today" first, then upcoming dates, then popularity as secondary
+      const aIsToday = a.date.toLowerCase().includes('today') || a.date.toLowerCase().includes('14 oct');
+      const bIsToday = b.date.toLowerCase().includes('today') || b.date.toLowerCase().includes('14 oct');
+      if (aIsToday && !bIsToday) return -1;
+      if (!aIsToday && bIsToday) return 1;
+      return (b.goingCount || 0) - (a.goingCount || 0);
+    });
+  }, [filteredEvents, eventSortBy]);
+
   // Filter cinema movies (Showtime by date removed, movie genre filter added)
   const filteredCinemaMovies = cinemaMovies.filter(m => {
     const matchesLoc = selectedCinemaLoc === 'all' || m.location === selectedCinemaLoc;
@@ -268,7 +380,23 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   });
 
   return (
-    <section className="px-4 py-4 space-y-6">
+    <section 
+      className="px-4 py-4 space-y-6 relative"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Mobile Pull-to-Refresh Indicator */}
+      <div 
+        className="overflow-hidden transition-all duration-150 flex items-center justify-center select-none"
+        style={{ height: `${pullY}px` }}
+      >
+        <div className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3.5 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 shadow-2xs">
+          <RefreshCw className={`w-3.5 h-3.5 text-[#E0533C] ${isRefreshing ? 'animate-spin' : ''}`} />
+          <span>{isRefreshing ? 'Refreshing Nairobi vibes...' : pullY > 45 ? 'Release to refresh' : 'Pull down to refresh'}</span>
+        </div>
+      </div>
+
       {/* Search Bar with Web Speech API & Waveform Animation */}
       <div className="space-y-3">
         <div className="relative flex items-center gap-2">
@@ -285,7 +413,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             <div className="absolute right-2.5 flex items-center gap-1.5">
               {/* Listening Waveform Animation */}
               {isListening && (
-                <div className="flex items-center gap-0.5 px-2 py-1 bg-red-100 dark:bg-red-950/80 rounded-full animate-pulse">
+                <div className="flex items-center gap-0.5 px-2 py-1 bg-red-100 dark:bg-red-950/80 rounded-full">
                   <span className="w-1 h-3 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                   <span className="w-1 h-4 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                   <span className="w-1 h-2 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
@@ -300,7 +428,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 title={isListening ? 'Stop Listening' : 'Voice Search with Web Speech API'}
                 className={`p-2 rounded-xl transition ${
                   isListening 
-                    ? 'bg-[#E0533C] text-white shadow-md animate-ping' 
+                    ? 'bg-[#E0533C] text-white shadow-md' 
                     : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-[#E0533C] hover:text-white'
                 }`}
               >
@@ -324,6 +452,30 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             {(selectedGenre !== 'all' || selectedEventDateRange !== 'all' || selectedEventPriceTier !== 'all') && (
               <span className="w-2 h-2 rounded-full bg-white ml-1.5" />
             )}
+          </button>
+
+          {/* Refresh Feed Button (desktop/1-tap complement to mobile pull-to-refresh) */}
+          <button
+            type="button"
+            onClick={async () => {
+              setIsRefreshing(true);
+              try {
+                if (onRefreshFeed) {
+                  await onRefreshFeed();
+                } else {
+                  await new Promise(r => setTimeout(r, 600));
+                }
+                showToast('Feed refreshed ✨');
+              } finally {
+                setIsRefreshing(false);
+              }
+            }}
+            className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-xs bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:text-[#E0533C] hover:border-slate-300 ${
+              isRefreshing ? 'opacity-80' : ''
+            }`}
+            title="Refresh Nairobi Feed"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-[#E0533C]' : ''}`} />
           </button>
         </div>
 
@@ -596,6 +748,22 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     </span>
                   </div>
 
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleSave?.(offer, 'offer');
+                    }}
+                    className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer backdrop-blur-md z-10 shadow-sm ${
+                      isSaved(offer.id, 'offer')
+                        ? 'bg-[#E0533C] text-white'
+                        : 'bg-black/60 text-white hover:bg-black/80'
+                    }`}
+                    title={isSaved(offer.id, 'offer') ? 'Remove bookmark' : 'Bookmark this offer'}
+                  >
+                    <Bookmark className={`w-3.5 h-3.5 ${isSaved(offer.id, 'offer') ? 'fill-white' : ''}`} />
+                  </button>
+
                   <div className="absolute bottom-2.5 left-2.5 right-2.5">
                     <p className="text-[10px] text-amber-300 font-bold">{offer.validUntil}</p>
                     <h3 className="text-sm font-black text-white line-clamp-1 mt-0.5">{offer.title}</h3>
@@ -708,7 +876,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#E0533C] animate-pulse"></span>
+              <span className="w-2 h-2 rounded-full bg-[#E0533C]"></span>
               <span>Featured Trending Events</span>
             </h2>
             <button
@@ -753,7 +921,9 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           )}
 
           <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-            {filteredEvents.map((evt) => (
+            {filteredEvents.map((evt) => {
+              const isToday = evt.date.toLowerCase().includes('today') || evt.date.toLowerCase().includes('14 oct');
+              return (
               <div
                 key={evt.id}
                 onClick={() => onOpenEventDetails(evt)}
@@ -764,14 +934,39 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     className="h-44 bg-slate-200 dark:bg-slate-800 rounded-2xl mb-2.5 bg-cover bg-center relative overflow-hidden"
                     style={{ backgroundImage: `url('${evt.img}')` }}
                   >
-                    <span className="absolute top-2.5 left-2.5 bg-black/60 backdrop-blur-md text-white text-[9px] font-black px-2.5 py-1 rounded-md">
-                      {evt.date.split(',')[0]}
-                    </span>
-                    {evt.genre && (
-                      <span className="absolute top-2.5 right-2.5 bg-[#E0533C] text-white text-[9px] font-black px-2.5 py-1 rounded-md shadow-xs">
-                        {evt.genre}
+                    <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 flex-wrap max-w-[80%]">
+                      <span className="bg-black/60 backdrop-blur-md text-white text-[9px] font-black px-2.5 py-1 rounded-md">
+                        {evt.date.split(',')[0]}
                       </span>
-                    )}
+                      {isToday && (
+                        <span className="bg-emerald-600/90 backdrop-blur-md text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs">
+                          <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
+                          <span>Happening Today</span>
+                        </span>
+                      )}
+                    </div>
+                    <div className="absolute top-2.5 right-2.5 flex items-center gap-1 z-10">
+                      {evt.genre && (
+                        <span className="bg-[#E0533C] text-white text-[9px] font-black px-2.5 py-1 rounded-md shadow-xs">
+                          {evt.genre}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleSave?.(evt, 'event');
+                        }}
+                        className={`w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer backdrop-blur-md shadow-xs ${
+                          isSaved(evt.id, 'event')
+                            ? 'bg-[#E0533C] text-white'
+                            : 'bg-black/60 text-white hover:bg-black/80'
+                        }`}
+                        title={isSaved(evt.id, 'event') ? 'Remove bookmark' : 'Bookmark this event'}
+                      >
+                        <Bookmark className={`w-3.5 h-3.5 ${isSaved(evt.id, 'event') ? 'fill-white' : ''}`} />
+                      </button>
+                    </div>
                   </div>
                   <h3 className="font-extrabold text-sm line-clamp-1 text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition">
                     {evt.title}
@@ -801,7 +996,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   </button>
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         </div>
       )}
@@ -898,14 +1094,127 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         </div>
       )}
 
-      {/* LIVE COMMUNITY STATUS FEED - "Where Are You At?" */}
+      {/* ========================================================
+          4. OUTDOOR & SOCIAL ACTIVITY CATEGORIES
+          (Arboretum/Karura nature trails, painting & sip, gaming, group activities)
+          ======================================================== */}
+      {outdoorActivitySpots.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-xs">
+                <Trees className="w-3.5 h-3.5" />
+              </div>
+              <div>
+                <h2 className="text-xs font-black tracking-wider uppercase text-slate-800 dark:text-slate-200">
+                  Outdoor & Social Activities
+                </h2>
+                <p className="text-[10px] text-slate-400 font-medium">Nature trails, paint & sip, VR gaming & group adventures</p>
+              </div>
+            </div>
+            <button
+              onClick={() => onOpenDedicatedViewAll('Outdoor & Social Activities', 'activities')}
+              className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
+            >
+              View All ({outdoorActivitySpots.length})
+            </button>
+          </div>
+
+          <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+            {outdoorActivitySpots.map((spot) => {
+              const saved = isSaved(spot.id, 'spot');
+              return (
+                <div
+                  key={spot.id}
+                  onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
+                  className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-[#E0533C] transition group"
+                >
+                  <div>
+                    <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
+                      <div
+                        className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-all duration-300"
+                        style={{ backgroundImage: `url('${spot.img}')` }}
+                      />
+                      <span className="absolute top-2.5 left-2.5 bg-black/70 backdrop-blur-md text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
+                        <Compass className="w-2.5 h-2.5 text-emerald-400" />
+                        <span>Experience</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleSave?.(spot, 'spot');
+                        }}
+                        className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer backdrop-blur-md shadow-xs z-10 ${
+                          saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
+                        }`}
+                        title={saved ? 'Remove from saved' : 'Save experience'}
+                      >
+                        <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
+                      </button>
+                      <span className="absolute bottom-2.5 right-2.5 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
+                        {spot.price}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-[#E0533C] transition">
+                          {spot.title}
+                        </h4>
+                        <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
+                          <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
+                          <span>{spot.rating}</span>
+                        </div>
+                      </div>
+
+                      <p className="text-[11px] text-slate-500 flex items-center gap-1 truncate">
+                        <MapPin className="w-3 h-3 text-[#E0533C] shrink-0" />
+                        <span className="truncate">{spot.address || spot.neighborhood}</span>
+                      </p>
+
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2 mt-1 leading-relaxed">
+                        {spot.description}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
+                      {spot.openingHours || 'Open Daily'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenSpotDetails && onOpenSpotDetails(spot);
+                      }}
+                      className="px-3 py-1.5 bg-[#2D6A4F] hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1"
+                    >
+                      <span>Explore</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          5. LIVE COMMUNITY STATUS FEED - "Where Are You At?" (Last bottom)
+          ======================================================== */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
             <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
             <span>Where Are You At?</span>
           </h2>
-          <span className="text-[10px] text-slate-400 font-bold">Live Hangout Feed</span>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-700/60 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+            <span>Community Feed</span>
+          </span>
         </div>
 
         {/* Post Creation Box */}

@@ -314,7 +314,7 @@ export const DynamicLocationSelector: React.FC<DynamicLocationSelectorProps> = (
               <div>
                 <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
                   <span>{label || 'Select Location (Kenya)'}</span>
-                  {isLoadingMap && <span className="text-[9px] text-[#E0533C] font-normal animate-pulse">Searching maps...</span>}
+                  {isLoadingMap && <span className="text-[9px] text-[#E0533C] font-semibold bg-red-50 dark:bg-red-950/60 px-2 py-0.5 rounded-full border border-red-200 dark:border-red-900">Searching maps...</span>}
                 </h3>
                 <p className="text-[10px] text-slate-400">Search sub-locations, landmarks, bus stops or type custom</p>
               </div>

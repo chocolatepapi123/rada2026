@@ -95,7 +95,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({ tickets, onShowQrCode, showT
               >
                 {day}
                 {isTodayDay && (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-300 animate-ping" />
+                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 shadow-xs" />
                 )}
               </div>
             );
@@ -135,11 +135,11 @@ export const VaultTab: React.FC<VaultTabProps> = ({ tickets, onShowQrCode, showT
                     : 'bg-gradient-to-r from-[#2D6A4F] to-emerald-700'
                 }`}
               >
-                {/* PROMINENT BADGE WHEN EVENT DATE ARRIVES */}
+                {/* Clean, static status badge when event date arrives today */}
                 {isToday && (
-                  <div className="inline-flex items-center gap-1.5 bg-black/85 backdrop-blur-md text-amber-300 text-[10px] font-black px-3 py-1 rounded-full border border-amber-400/50 w-fit animate-pulse mb-1">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                    <span>🔥 HAPPENING TODAY! ACTIVE OUTING</span>
+                  <div className="inline-flex items-center gap-1.5 bg-black/85 backdrop-blur-md text-emerald-400 text-[10px] font-black px-3 py-1 rounded-full border border-emerald-500/40 w-fit mb-1 shadow-sm">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                    <span>HAPPENING TODAY</span>
                   </div>
                 )}
 

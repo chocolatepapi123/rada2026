@@ -24,6 +24,7 @@ import { UserProfileModal } from './components/UserProfileModal.tsx';
 import { SplashScreen } from './components/SplashScreen.tsx';
 import { AccountSettingsModal } from './components/AccountSettingsModal.tsx';
 import { SavedPlacesModal } from './components/SavedPlacesModal.tsx';
+import { getTimeOfDayGreeting } from './utils/greetingUtils';
 
 import {
   initialBusinesses,
@@ -385,6 +386,25 @@ export default function App() {
         return [{ id: item.id, kind, savedAt: new Date().toISOString() }, ...prev];
       }
     });
+  };
+
+  const handleRefreshFeed = async () => {
+    try {
+      const [remoteSpots, remoteEvents, remoteThrift, remoteOffers, remoteStatuses] = await Promise.all([
+        cloud.fetchSpots(),
+        cloud.fetchEvents(),
+        cloud.fetchThrift(),
+        cloud.fetchOffers(),
+        cloud.fetchStatuses()
+      ]);
+      if (remoteSpots && remoteSpots.length > 0) setSpots(remoteSpots);
+      if (remoteEvents && remoteEvents.length > 0) setEvents(remoteEvents);
+      if (remoteThrift && remoteThrift.length > 0) setThriftItems(remoteThrift);
+      if (remoteOffers && remoteOffers.length > 0) setOffers(remoteOffers);
+      if (remoteStatuses && remoteStatuses.length > 0) setStatuses(remoteStatuses);
+    } catch (e) {
+      console.warn('Feed refresh completed with cached data');
+    }
   };
 
   // Modals state for Account Settings, Saved Items, and Auth
@@ -1083,8 +1103,29 @@ export default function App() {
           className="min-h-screen flex flex-col items-center justify-center p-6 text-center select-none"
           style={{ background: 'linear-gradient(135deg, #E05328 0%, #D94E28 100%)' }}
         >
-          <h1 className="text-white text-3xl font-black tracking-widest uppercase mb-2">RADA</h1>
-          <p className="text-white/95 text-sm font-semibold tracking-wider lowercase animate-pulse">leo rada ni gani</p>
+          {/* Prominent RADA Logo Icon */}
+          <div className="relative group mb-6">
+            <div className="absolute -inset-4 bg-white/20 rounded-3xl blur-xl" />
+            <img
+              src="/logo.jpg"
+              alt="RADA"
+              className="relative w-40 sm:w-48 h-auto object-contain rounded-3xl shadow-2xl"
+            />
+          </div>
+
+          <h1 className="text-white text-3xl sm:text-4xl font-black tracking-widest uppercase mb-2 drop-shadow-md">
+            RADA
+          </h1>
+          <p className="text-white/95 text-sm sm:text-base font-semibold tracking-wide drop-shadow-sm">
+            {getTimeOfDayGreeting()}
+          </p>
+
+          {/* Minimal clean loading dots */}
+          <div className="mt-8 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-white/90 animate-bounce" style={{ animationDelay: '0ms' }} />
+            <span className="w-1.5 h-1.5 rounded-full bg-white/90 animate-bounce" style={{ animationDelay: '150ms' }} />
+            <span className="w-1.5 h-1.5 rounded-full bg-white/90 animate-bounce" style={{ animationDelay: '300ms' }} />
+          </div>
         </div>
       ) : !session ? (
         <AuthModal 
@@ -1130,6 +1171,9 @@ export default function App() {
                 statuses={statuses}
                 offers={offers}
                 spots={spots}
+                savedItems={savedItems}
+                onToggleSave={handleToggleSave}
+                onRefreshFeed={handleRefreshFeed}
                 onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
                 onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
                 onBookCinema={handleBookCinema}

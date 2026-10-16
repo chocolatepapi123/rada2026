@@ -56,7 +56,8 @@ import {
   DatingProfile, 
   EmergencyContact,
   Review,
-  UserProfile
+  UserProfile,
+  SavedItem
 } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { shareContent } from '../utils/shareUtils.ts';
@@ -131,6 +132,8 @@ interface OverlaysProps {
   onOpenSaved?: () => void;
   onOpenAccountSettings?: () => void;
   savedCount?: number;
+  savedItems?: SavedItem[];
+  onToggleSave?: (item: any, kind: 'spot' | 'event' | 'thrift' | 'offer') => void;
 }
 
 export const Overlays: React.FC<OverlaysProps> = ({
@@ -142,6 +145,8 @@ export const Overlays: React.FC<OverlaysProps> = ({
   events = [],
   cinemaMovies = [],
   thriftItems = [],
+  savedItems = [],
+  onToggleSave,
   onOpenSpotDetails,
   onOpenEventDetails,
   onBookCinema,
@@ -625,22 +630,36 @@ export const Overlays: React.FC<OverlaysProps> = ({
               <h3 className="font-black text-sm uppercase tracking-wider text-slate-500">
                 Spot Hub & Reviews
               </h3>
-              <button
-                type="button"
-                onClick={() => {
-                  shareContent({
-                    title: `RADA Spot: ${selectedSpot.title}`,
-                    text: `Check out ${selectedSpot.title} (${selectedSpot.category}) in ${selectedSpot.address} on RADA Nairobi! Rating: ★${selectedSpot.rating}.`,
-                    url: window.location.href,
-                    onSuccess: showToast,
-                    onError: showToast
-                  });
-                }}
-                title="Share Spot Link"
-                className="w-9 h-9 rounded-full bg-[#F8F8F6] dark:bg-[#1C1A1E] flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-[#E0533C] transition cursor-pointer"
-              >
-                <Share2 className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => onToggleSave?.(selectedSpot, 'spot')}
+                  className={`w-9 h-9 rounded-full flex items-center justify-center transition cursor-pointer ${
+                    savedItems.some(s => String(s.id) === String(selectedSpot.id) && s.kind === 'spot')
+                      ? 'bg-[#E0533C] text-white shadow-xs'
+                      : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-200 hover:text-[#E0533C]'
+                  }`}
+                  title={savedItems.some(s => String(s.id) === String(selectedSpot.id) && s.kind === 'spot') ? 'Remove from saved' : 'Save spot'}
+                >
+                  <Bookmark className={`w-4 h-4 ${savedItems.some(s => String(s.id) === String(selectedSpot.id) && s.kind === 'spot') ? 'fill-white' : ''}`} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    shareContent({
+                      title: `RADA Spot: ${selectedSpot.title}`,
+                      text: `Check out ${selectedSpot.title} (${selectedSpot.category}) in ${selectedSpot.address} on RADA Nairobi! Rating: ★${selectedSpot.rating}.`,
+                      url: window.location.href,
+                      onSuccess: showToast,
+                      onError: showToast
+                    });
+                  }}
+                  title="Share Spot Link"
+                  className="w-9 h-9 rounded-full bg-[#F8F8F6] dark:bg-[#1C1A1E] flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-[#E0533C] transition cursor-pointer"
+                >
+                  <Share2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -950,10 +969,36 @@ export const Overlays: React.FC<OverlaysProps> = ({
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
-              <h3 className="font-black text-sm uppercase tracking-wider text-slate-500">
-                Official Event Showcase
-              </h3>
-              <div className="w-9" />
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => onToggleSave?.(selectedEvent, 'event')}
+                  className={`w-9 h-9 rounded-full flex items-center justify-center transition cursor-pointer ${
+                    savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event')
+                      ? 'bg-[#E0533C] text-white shadow-xs'
+                      : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-200 hover:text-[#E0533C]'
+                  }`}
+                  title={savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event') ? 'Remove from saved' : 'Save event'}
+                >
+                  <Bookmark className={`w-4 h-4 ${savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event') ? 'fill-white' : ''}`} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    shareContent({
+                      title: `RADA Event: ${selectedEvent.title}`,
+                      text: `Check out ${selectedEvent.title} on ${selectedEvent.date} at ${selectedEvent.location} on RADA Nairobi!`,
+                      url: window.location.href,
+                      onSuccess: showToast,
+                      onError: showToast
+                    });
+                  }}
+                  title="Share Event Link"
+                  className="w-9 h-9 rounded-full bg-[#F8F8F6] dark:bg-[#1C1A1E] flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-[#E0533C] transition cursor-pointer"
+                >
+                  <Share2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
 

@@ -73,7 +73,7 @@ export interface Review {
   images?: string[];
 }
 
-export type SpotCategory = 'restaurants' | 'nightlife' | 'cafes' | 'vacation' | 'hotels' | 'date_spots';
+export type SpotCategory = 'restaurants' | 'nightlife' | 'cafes' | 'vacation' | 'hotels' | 'date_spots' | 'activities';
 
 export interface SpotItem {
   id: number;
@@ -263,9 +263,18 @@ export interface RadaStore {
   thrift: ThriftItem[];
 }
 
+export interface CollectionFolder {
+  id: string;
+  name: string;
+  createdAt: string;
+  emoji?: string;
+  description?: string;
+}
+
 export interface SavedItem {
   id: string | number;
   kind: 'spot' | 'event' | 'thrift' | 'offer';
   savedAt: string;
+  folderId?: string;
 }
 

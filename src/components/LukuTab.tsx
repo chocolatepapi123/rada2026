@@ -15,15 +15,18 @@ import {
   Phone,
   ChevronLeft,
   ChevronRight,
-  Share2
+  Share2,
+  Bookmark
 } from 'lucide-react';
-import { ThriftItem, BusinessAccount } from '../types.ts';
+import { ThriftItem, BusinessAccount, SavedItem } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { shareContent } from '../utils/shareUtils.ts';
 
 interface LukuTabProps {
   thriftItems: ThriftItem[];
   businesses: BusinessAccount[];
+  savedItems?: SavedItem[];
+  onToggleSave?: (item: any, kind: 'spot' | 'event' | 'thrift' | 'offer') => void;
   onOpenStore?: (sellerName: string) => void;
   onOpenCreateFit?: (initialTitle?: string) => void;
   showToast: (msg: string) => void;
@@ -32,6 +35,8 @@ interface LukuTabProps {
 export const LukuTab: React.FC<LukuTabProps> = ({
   thriftItems,
   businesses,
+  savedItems = [],
+  onToggleSave,
   onOpenStore,
   onOpenCreateFit,
   showToast
@@ -158,7 +163,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
 
           <div className="absolute right-2.5 flex items-center gap-1">
             {isListening && (
-              <span className="w-2 h-2 rounded-full bg-[#E0533C] animate-ping mr-1" />
+              <span className="w-2 h-2 rounded-full bg-[#E0533C] mr-1" />
             )}
             <button
               type="button"
@@ -260,6 +265,8 @@ export const LukuTab: React.FC<LukuTabProps> = ({
             const activeIdx = (activeImageIndices[item.id] || 0) % itemImages.length;
             const currentImg = itemImages[activeIdx] || item.img;
 
+            const isItemSaved = savedItems.some(s => String(s.id) === String(item.id) && s.kind === 'thrift');
+
             return (
               <div
                 key={item.id}
@@ -270,6 +277,23 @@ export const LukuTab: React.FC<LukuTabProps> = ({
                     className="h-44 rounded-xl bg-cover bg-center mb-2 relative overflow-hidden group/img select-none"
                     style={{ backgroundImage: `url('${currentImg}')` }}
                   >
+                    {/* Bookmark Toggle Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleSave?.(item, 'thrift');
+                      }}
+                      className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-full flex items-center justify-center transition cursor-pointer backdrop-blur-md shadow-xs ${
+                        isItemSaved
+                          ? 'bg-[#E0533C] text-white'
+                          : 'bg-black/60 text-white hover:bg-black/85'
+                      }`}
+                      title={isItemSaved ? 'Remove bookmark' : 'Bookmark this fit'}
+                    >
+                      <Bookmark className={`w-3 h-3 ${isItemSaved ? 'fill-white' : ''}`} />
+                    </button>
+
                     <span className="absolute top-2 right-2 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2 py-0.5 rounded-md z-10">
                       {item.price}
                     </span>

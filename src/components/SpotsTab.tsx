@@ -13,16 +13,20 @@ import {
   Palmtree,
   Mic,
   Plus,
-  Compass
+  Compass,
+  Bookmark,
+  Trees,
+  ArrowRight
 } from 'lucide-react';
 
-
-import { SpotItem, MenuItem } from '../types.ts';
+import { SpotItem, MenuItem, SavedItem } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { supabase } from '../lib/supabase.ts';
 
 interface SpotsTabProps {
   spots: SpotItem[];
+  savedItems?: SavedItem[];
+  onToggleSave?: (item: any, kind: 'spot' | 'event' | 'thrift' | 'offer') => void;
   onOpenSpotFullView: (spot: SpotItem) => void;
   onViewLocation: (spot: SpotItem) => void;
   onOpenDedicatedViewAll: (title: string, category: string) => void;
@@ -32,6 +36,8 @@ interface SpotsTabProps {
 
 export const SpotsTab: React.FC<SpotsTabProps> = ({
   spots,
+  savedItems = [],
+  onToggleSave,
   onOpenSpotFullView,
   onViewLocation,
   onOpenDedicatedViewAll,
@@ -241,6 +247,11 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   const dateSpots = filteredSpots.filter(s => s.category === 'date_spots');
   const hotels = filteredSpots.filter(s => s.category === 'hotels');
   const vacation = filteredSpots.filter(s => s.category === 'vacation');
+  const activitiesSpots = filteredSpots.filter(s => s.category === 'activities');
+
+  const isSaved = (id: number | string) => {
+    return savedItems.some(s => String(s.id) === String(id) && s.kind === 'spot');
+  };
 
   // Render individual Spot Card with multiple images carousel & reviews
   const renderSpotCard = (spot: SpotItem) => {
@@ -248,6 +259,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     const currentIndex = activeImageIndices[spot.id] || 0;
     const currentImg = imagesList[currentIndex] || spot.img;
     const reviewCount = spot.reviews?.length || spot.reviewCount || 45;
+    const saved = isSaved(spot.id);
 
     return (
       <div
@@ -263,6 +275,21 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               style={{ backgroundImage: `url('${currentImg}')` }}
             />
 
+            {/* Bookmark button */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleSave?.(spot, 'spot');
+              }}
+              className={`absolute top-2.5 left-2.5 z-10 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer backdrop-blur-md shadow-xs ${
+                saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/85'
+              }`}
+              title={saved ? 'Remove bookmark' : 'Bookmark this spot'}
+            >
+              <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
+            </button>
+
             {/* Price Badge */}
             <span className="absolute top-2.5 right-2.5 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
               {spot.price}
@@ -270,7 +297,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
 
             {/* Image Counter Badge if multiple images */}
             {imagesList.length > 1 && (
-              <span className="absolute top-2.5 left-2.5 bg-black/60 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-md">
+              <span className="absolute bottom-2.5 left-2.5 bg-black/60 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-md z-10">
                 {currentIndex + 1} / {imagesList.length} photos
               </span>
             )}
@@ -409,7 +436,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           <div className="absolute right-2.5 flex items-center gap-1.5">
             {/* Listening Waveform Animation */}
             {isListening && (
-              <div className="flex items-center gap-0.5 px-2 py-1 bg-red-100 dark:bg-red-950/80 rounded-full animate-pulse">
+              <div className="flex items-center gap-0.5 px-2 py-1 bg-red-100 dark:bg-red-950/80 rounded-full">
                 <span className="w-1 h-3 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                 <span className="w-1 h-4 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                 <span className="w-1 h-2 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
@@ -424,7 +451,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               title={isListening ? 'Stop Listening' : 'Voice Search with Web Speech API'}
               className={`p-2 rounded-xl transition ${
                 isListening 
-                  ? 'bg-[#E0533C] text-white shadow-md animate-ping' 
+                  ? 'bg-[#E0533C] text-white shadow-md' 
                   : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-[#E0533C] hover:text-white'
               }`}
             >
@@ -438,6 +465,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           {[
             { id: 'all', label: 'All Categories', icon: Compass },
             { id: 'restaurants', label: 'Restaurants', icon: UtensilsCrossed },
+            { id: 'activities', label: 'Outdoor & Activities', icon: Trees },
             { id: 'nightlife', label: 'Nightlife', icon: Music },
             { id: 'cafes', label: 'Cafes', icon: Coffee },
             { id: 'date_spots', label: 'Date Spots', icon: Heart },
@@ -583,6 +611,28 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
 
             <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
               {restaurants.map(renderSpotCard)}
+            </div>
+          </div>
+        )}
+
+        {/* Outdoor & Social Activities */}
+        {(selectedCategory === 'all' || selectedCategory === 'activities') && activitiesSpots.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                <Trees className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Outdoor & Social Activities</span>
+              </h3>
+              <button
+                onClick={() => onOpenDedicatedViewAll('Outdoor & Activities', 'activities')}
+                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+              >
+                View All ({activitiesSpots.length})
+              </button>
+            </div>
+
+            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+              {activitiesSpots.map(renderSpotCard)}
             </div>
           </div>
         )}
