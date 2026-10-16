@@ -22,15 +22,11 @@ import { Overlays } from './components/Overlays.tsx';
 import { LocationMapModal } from './components/LocationMapModal.tsx';
 import { UserProfileModal } from './components/UserProfileModal.tsx';
 import { SplashScreen } from './components/SplashScreen.tsx';
-import { FullScreenGalleryModal } from './components/FullScreenGalleryModal.tsx';
-import { ExperienceDetailModal } from './components/ExperienceDetailModal.tsx';
-import { SavedPlacesModal } from './components/SavedPlacesModal.tsx';
 
 import {
   initialBusinesses,
   initialOffers,
   initialSpots,
-  initialExperiences,
   initialEvents,
   initialThriftItems,
   cinemaMovies,
@@ -45,7 +41,6 @@ import {
   BusinessAccount,
   BusinessOffer,
   SpotItem,
-  ExperienceItem,
   EventItem,
   ThriftItem,
   CinemaMovie,
@@ -55,9 +50,18 @@ import {
   VaultTicket,
   EmergencyContact,
   Review,
-  UserProfile,
-  SavedItem
+  UserProfile
 } from './types.ts';
+
+const DEFAULT_PROFILE: UserProfile = {
+  name: 'Wayne Waweru',
+  handle: '@lowk3yFX',
+  avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop',
+  bio: 'Exploring Nairobi spots, amapiano vibes, and fashion setups. Hit me up for hangouts! ✨',
+  loc: 'Westlands, Nairobi',
+  relationshipStatus: 'single',
+  vibes: ['Nightlife', 'Cocktails', 'Amapiano', 'Art', 'Thrifting']
+};
 
 export default function App() {
   const [session, setSession] = useState<any>(null);
@@ -92,30 +96,25 @@ export default function App() {
     }
 
     const loadUserRole = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', session.user.id)
-          .single();
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .single();
 
-        if (error) {
-          console.warn('Failed to load user role:', error.message);
-          setUserRole('user');
-          return;
-        }
-
-        setUserRole(
-          data?.role === 'admin'
-            ? 'admin'
-            : data?.role === 'merchant'
-              ? 'merchant'
-              : 'user'
-        );
-      } catch (err) {
-        console.warn('Failed to load user role:', err);
+      if (error) {
+        console.error('Failed to load user role:', error);
         setUserRole('user');
+        return;
       }
+
+      setUserRole(
+        data?.role === 'admin'
+          ? 'admin'
+          : data?.role === 'merchant'
+            ? 'merchant'
+            : 'user'
+      );
     };
 
     loadUserRole();
@@ -209,18 +208,6 @@ export default function App() {
     return initialEvents;
   });
 
-  // Experiences State (Workshops, outdoor adventures, cupping, tasting)
-  const [experiences, setExperiences] = useState<ExperienceItem[]>(() => {
-    const saved = localStorage.getItem('rada_experiences');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch (e) {}
-    }
-    return initialExperiences;
-  });
-
   const [thriftItems, setThriftItems] = useState<ThriftItem[]>(() => {
     const saved = localStorage.getItem('rada_thrift');
     if (saved) {
@@ -231,59 +218,6 @@ export default function App() {
     }
     return initialThriftItems;
   });
-
-  // Saved Moves / Bookmarked Listings
-  const [savedItems, setSavedItems] = useState<SavedItem[]>(() => {
-    const saved = localStorage.getItem('rada_saved_items');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      } catch (e) {}
-    }
-    return [
-      { id: 1, kind: 'spot', savedAt: new Date().toISOString() },
-      { id: 101, kind: 'experience', savedAt: new Date().toISOString() },
-      { id: 1, kind: 'event', savedAt: new Date().toISOString() }
-    ];
-  });
-
-  useEffect(() => {
-    localStorage.setItem('rada_saved_items', JSON.stringify(savedItems));
-  }, [savedItems]);
-
-  const handleToggleSave = (item: any, kind: 'spot' | 'experience' | 'event' | 'thrift' | 'offer') => {
-    setSavedItems(prev => {
-      const exists = prev.some(s => String(s.id) === String(item.id) && s.kind === kind);
-      if (exists) {
-        showToast(`Removed from saved collection.`);
-        return prev.filter(s => !(String(s.id) === String(item.id) && s.kind === kind));
-      } else {
-        showToast(`Saved "${item.title || item.name}" to your collection!`);
-        return [{ id: item.id, kind, savedAt: new Date().toISOString() }, ...prev];
-      }
-    });
-  };
-
-  // Full-Screen Image Gallery Modal State
-  const [galleryData, setGalleryData] = useState<{
-    isOpen: boolean;
-    images: string[];
-    initialIndex: number;
-    title?: string;
-    subtitle?: string;
-  } | null>(null);
-
-  const handleOpenGallery = (images: string[], index: number = 0, title?: string, subtitle?: string) => {
-    if (!images || images.length === 0) return;
-    setGalleryData({
-      isOpen: true,
-      images,
-      initialIndex: index,
-      title,
-      subtitle
-    });
-  };
 
   const [statuses, setStatuses] = useState<StatusPost[]>(() => {
     const saved = localStorage.getItem('rada_statuses');
@@ -325,8 +259,6 @@ export default function App() {
   const [isWagwanOpen, setIsWagwanOpen] = useState(false);
   const [selectedSpotModal, setSelectedSpotModal] = useState<SpotItem | null>(null);
   const [selectedEventModal, setSelectedEventModal] = useState<EventItem | null>(null);
-  const [selectedExperienceModal, setSelectedExperienceModal] = useState<ExperienceItem | null>(null);
-  const [isSavedModalOpen, setIsSavedModalOpen] = useState(false);
   const [qrPassTitle, setQrPassTitle] = useState<string | null>(null);
 
   // "View Location" Specific Spot Modal
@@ -402,15 +334,7 @@ export default function App() {
   // Current logged in user profile with Single / Not Single status
   const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile>(() => {
     const saved = localStorage.getItem('rada_current_user');
-    return saved ? JSON.parse(saved) : {
-      name: 'Wayne Waweru',
-      handle: '@lowk3yFX',
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop',
-      bio: 'Exploring Nairobi spots, amapiano vibes, and fashion setups. Hit me up for hangouts! ✨',
-      loc: 'Westlands, Nairobi',
-      relationshipStatus: 'single',
-      vibes: ['Nightlife', 'Cocktails', 'Amapiano', 'Art', 'Thrifting']
-    };
+    return saved ? JSON.parse(saved) : DEFAULT_PROFILE;
   });
 
   // Profile View Modal state (to view anyone's profile and bio)
@@ -533,6 +457,8 @@ export default function App() {
       const remoteListings = await cloud.fetchListings();
       if (!remoteBiz || !remoteListings) return; // offline or tables missing: keep local data
       const remoteReviews = (await cloud.fetchReviews()) || {};
+      const remoteStatuses = await cloud.fetchStatuses();   // null = keep local
+      const remoteGoing = await cloud.fetchGoing(uid);      // null = keep local
 
       const L = latestRef.current;
       const seedBizIds = new Set(initialBusinesses.map(b => b.id));
@@ -603,7 +529,18 @@ export default function App() {
 
         return { ...base, reviews: allReviews, reviewCount, rating, images };
       });
-      const mergedEvents = await mergeKind('event', initialEvents, L.events, remoteListings.event);
+      const mergedEventsRaw = await mergeKind('event', initialEvents, L.events, remoteListings.event);
+
+      // "I'm going" counts come from the rada_going table
+      const remoteEventIds = new Set(remoteListings.event.map((x: any) => String(x.id)));
+      const mergedEvents = remoteGoing
+        ? mergedEventsRaw.map((ev: any) => {
+            const seed = initialEvents.find(x => String(x.id) === String(ev.id));
+            const base: any = remoteEventIds.has(String(ev.id)) ? ev : (seed || ev);
+            const baseCount = seed ? seed.goingCount : 0;
+            return { ...base, goingCount: baseCount + (remoteGoing.counts[String(ev.id)] || 0) };
+          })
+        : mergedEventsRaw;
       const mergedThrift = await mergeKind('thrift', initialThriftItems, L.thriftItems, remoteListings.thrift);
       const mergedOffers = await mergeKind('offer', initialOffers, L.offers, remoteListings.offer);
 
@@ -615,6 +552,13 @@ export default function App() {
       setEvents(mergedEvents);
       setThriftItems(mergedThrift);
       setOffers(mergedOffers);
+      if (remoteStatuses) {
+        setStatuses([
+          ...remoteStatuses,
+          ...initialStatuses.filter(sd => !remoteStatuses.some((r: any) => r.id === sd.id)),
+        ]);
+      }
+      if (remoteGoing && uid) setGoingEventIds(remoteGoing.mine);
       setActiveBusinessId(prev =>
         mergedBiz.some(b => b.id === prev)
           ? prev
@@ -634,6 +578,68 @@ export default function App() {
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [authLoading, session?.user?.id]);
+
+  // ---------------------------------------------------------------
+  // PER-USER DATA (Vault tickets, emergency contacts, own profile)
+  // ---------------------------------------------------------------
+  const [userDataReady, setUserDataReady] = useState(false);
+  const userDataUidRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (authLoading) return;
+    const uid: string | undefined = session?.user?.id;
+    setUserDataReady(false);
+    userDataUidRef.current = null;
+    if (!uid) return;
+    let cancelled = false;
+
+    // A different account signed in on this phone: clear the previous person's personal data
+    const lastUid = localStorage.getItem('rada_last_uid');
+    if (lastUid && lastUid !== uid) {
+      setTickets(initialTickets);
+      setEmergencyContacts(initialContacts);
+      setConversations(initialConversations);
+      setGoingEventIds([]);
+      setCurrentUserProfile(DEFAULT_PROFILE);
+    }
+    localStorage.setItem('rada_last_uid', uid);
+
+    (async () => {
+      const remote = await cloud.fetchUserData(uid);
+      if (cancelled || !remote) return; // offline or table missing: stay local
+      if (remote.tickets) setTickets(remote.tickets);
+      if (remote.contacts) setEmergencyContacts(remote.contacts);
+      if (remote.profile) setCurrentUserProfile(remote.profile);
+      userDataUidRef.current = uid;
+      setUserDataReady(true);
+    })().catch(e => console.warn('User data load failed:', e));
+
+    return () => { cancelled = true; };
+  }, [authLoading, session?.user?.id]);
+
+  useEffect(() => {
+    const uid: string | undefined = session?.user?.id;
+    if (!uid || !userDataReady || userDataUidRef.current !== uid) return;
+
+    const timer = setTimeout(async () => {
+      const res = await cloud.saveUserData(uid, {
+        tickets,
+        contacts: emergencyContacts,
+        profile: currentUserProfile,
+      });
+      if (res.error) {
+        console.warn('User data save failed:', res.error);
+        return;
+      }
+      // swap any photos for their online links (only changes if something was uploaded)
+      const c = res.cleaned;
+      if (JSON.stringify(c.profile) !== JSON.stringify(currentUserProfile)) setCurrentUserProfile(c.profile);
+      if (JSON.stringify(c.tickets) !== JSON.stringify(tickets)) setTickets(c.tickets);
+      if (JSON.stringify(c.contacts) !== JSON.stringify(emergencyContacts)) setEmergencyContacts(c.contacts);
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [tickets, emergencyContacts, currentUserProfile, userDataReady, session?.user?.id]);
 
   // Handlers for Business Hub
   const handleCreateBusiness = (newBiz: BusinessAccount) => {
@@ -840,6 +846,7 @@ export default function App() {
       replies: []
     };
     setStatuses(prev => [newPost, ...prev]);
+    if (currentUserId) cloudWrite(() => cloud.insertStatus(newPost, currentUserId));
     showToast('Status posted live!');
   };
 
@@ -853,6 +860,7 @@ export default function App() {
       timeAgo: 'Just now',
       text
     };
+    if (currentUserId) cloudWrite(() => cloud.insertStatusReply(statusId, newReply, currentUserId));
     setStatuses(prev => prev.map(s => {
       if (s.id === statusId) {
         return {
@@ -868,6 +876,7 @@ export default function App() {
   // Event "I'm Going" Toggle: clickable once to go; if clicked again, remove count
   const handleToggleGoing = (event: EventItem) => {
     const isAlreadyGoing = goingEventIds.includes(event.id);
+    if (currentUserId) cloudWrite(() => cloud.setGoing(event.id, currentUserId, !isAlreadyGoing));
     if (isAlreadyGoing) {
       // Untoggle: remove count
       setGoingEventIds(prev => prev.filter(id => id !== event.id));
@@ -1043,8 +1052,6 @@ export default function App() {
           <Header
             onOpenOverlay={handleOpenOverlay}
             onOpenWagwanAI={() => setIsWagwanOpen(true)}
-            onOpenSaved={() => setIsSavedModalOpen(true)}
-            savedCount={savedItems.length}
             onSwitchTab={(tab) => {
               setActiveTab(tab);
               window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1056,11 +1063,11 @@ export default function App() {
             businessName={currentBusiness?.name}
             isDarkMode={isDarkMode}
             onToggleTheme={handleToggleTheme}
-            onOpenAdmin={() => setIsAdminOpen(true)}
-            userRole={userRole}
-            onLogout={async () => {
-              await supabase.auth.signOut();
-            }}
+              onOpenAdmin={() => setIsAdminOpen(true)}
+  userRole={userRole}
+  onLogout={async () => {
+    await supabase.auth.signOut();
+  }}
           />
 
           {/* Main Content Viewports */}
@@ -1072,14 +1079,8 @@ export default function App() {
                 statuses={statuses}
                 offers={offers}
                 spots={spots}
-                experiences={experiences}
-                thriftItems={thriftItems}
-                savedItems={savedItems}
-                onToggleSave={handleToggleSave}
                 onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
                 onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
-                onOpenExperienceDetails={(exp) => setSelectedExperienceModal(exp)}
-                onOpenGallery={handleOpenGallery}
                 onBookCinema={handleBookCinema}
                 onPostStatus={handlePostStatus}
                 onReplyStatus={handleReplyStatus}
@@ -1090,10 +1091,6 @@ export default function App() {
                 }}
                 onOpenCreateEvent={() => setIsBusinessHubOpen(true)}
                 onOpenBusinessProfile={handleOpenBusinessProfile}
-                onOpenPlanDate={(spot) => {
-                  setDatePlanningSpot(spot || spots[0]);
-                  setIsPlanDateModalOpen(true);
-                }}
                 showToast={showToast}
               />
             )}
@@ -1101,9 +1098,6 @@ export default function App() {
             {activeTab === 'spots' && (
               <SpotsTab
                 spots={spots}
-                savedItems={savedItems}
-                onToggleSave={(spot) => handleToggleSave(spot, 'spot')}
-                onOpenGallery={handleOpenGallery}
                 onOpenSpotFullView={(spot) => setSelectedSpotModal(spot)}
                 onViewLocation={(spot) => setSelectedLocationMapSpot(spot)}
                 onOpenDedicatedViewAll={(title, cat) => {
@@ -1282,9 +1276,6 @@ export default function App() {
             }}
             isDarkMode={isDarkMode}
             onToggleTheme={handleToggleTheme}
-            savedItems={savedItems}
-            onToggleSave={handleToggleSave}
-            onOpenGallery={handleOpenGallery}
             showToast={showToast}
           />
 
@@ -1313,47 +1304,6 @@ export default function App() {
             thriftItems={thriftItems}
             onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
             onOpenEventDetails={(event) => setSelectedEventModal(event)}
-            showToast={showToast}
-          />
-
-          {/* Full-Screen Swipeable Gallery Modal */}
-          <FullScreenGalleryModal
-            isOpen={Boolean(galleryData?.isOpen)}
-            images={galleryData?.images || []}
-            initialIndex={galleryData?.initialIndex || 0}
-            title={galleryData?.title}
-            subtitle={galleryData?.subtitle}
-            onClose={() => setGalleryData(null)}
-          />
-
-          {/* Dedicated Experience Detail View Modal */}
-          <ExperienceDetailModal
-            experience={selectedExperienceModal}
-            isSaved={Boolean(selectedExperienceModal && savedItems.some(s => String(s.id) === String(selectedExperienceModal.id) && s.kind === 'experience'))}
-            onToggleSave={(exp) => handleToggleSave(exp, 'experience')}
-            onClose={() => setSelectedExperienceModal(null)}
-            onOpenGallery={handleOpenGallery}
-            showToast={showToast}
-          />
-
-          {/* Saved Places & Bookmarked Moves Modal */}
-          <SavedPlacesModal
-            isOpen={isSavedModalOpen}
-            onClose={() => setIsSavedModalOpen(false)}
-            savedItems={savedItems}
-            spots={spots}
-            experiences={experiences}
-            events={events}
-            thriftItems={thriftItems}
-            offers={offers}
-            onToggleSave={handleToggleSave}
-            onOpenSpot={(spot) => setSelectedSpotModal(spot)}
-            onOpenExperience={(exp) => setSelectedExperienceModal(exp)}
-            onOpenEvent={(evt) => setSelectedEventModal(evt)}
-            onExploreMoves={() => {
-              setActiveTab('home');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
             showToast={showToast}
           />
           {isAdminOpen && userRole === 'admin' && (

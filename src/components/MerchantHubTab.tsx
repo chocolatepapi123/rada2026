@@ -47,10 +47,9 @@ import {
   ThriftItem, 
   MenuItem, 
   TicketTier, 
-  Artist,
-  DISCOVERY_TAGS
+  Artist 
 } from '../types.ts';
-import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
+import { BusinessBadge } from './BusinessBadge.tsx';
 import { DynamicLocationSelector } from './DynamicLocationSelector.tsx';
 
 interface MerchantHubTabProps {
@@ -261,24 +260,9 @@ verificationStatus: 'pending',
     });
   };
 
-  const [spotTags, setSpotTags] = useState<string[]>(['Cocktails', 'Rooftop']);
-
   const handleRemoveGalleryImage = (indexToRemove: number) => {
     setSpotGalleryImgs(prev => prev.filter((_, idx) => idx !== indexToRemove));
     showToast('Gallery image removed.');
-  };
-
-  const handleMoveGalleryImage = (fromIndex: number, direction: 'left' | 'right') => {
-    setSpotGalleryImgs(prev => {
-      const targetIndex = direction === 'left' ? fromIndex - 1 : fromIndex + 1;
-      if (targetIndex < 0 || targetIndex >= prev.length) return prev;
-      const next = [...prev];
-      const temp = next[fromIndex];
-      next[fromIndex] = next[targetIndex];
-      next[targetIndex] = temp;
-      return next;
-    });
-    showToast(`Moved image ${direction}.`);
   };
 
   const openCreateSpotModal = () => {
@@ -293,7 +277,6 @@ verificationStatus: 'pending',
     setSpotPhone(currentBiz?.phone || '+254 ');
     setSpotOpeningHours('12:00 PM - 01:00 AM');
     setSpotDescription(currentBiz?.bio || '');
-    setSpotTags(['Cocktails', 'Rooftop', 'Date Night']);
     setSpotCoverImg('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop');
     setSpotGalleryImgs(['https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop']);
     setSpotMenuItems([
@@ -314,7 +297,6 @@ verificationStatus: 'pending',
     setSpotPhone(spot.phone || '');
     setSpotOpeningHours(spot.openingHours || '11:00 AM - 11:00 PM');
     setSpotDescription(spot.description || '');
-    setSpotTags(spot.tags || ['Cocktails', 'Date Night']);
     setSpotCoverImg(spot.img);
     setSpotGalleryImgs(spot.images && spot.images.length > 0 ? spot.images : [spot.img]);
     setSpotMenuItems(spot.menuItems || []);
@@ -346,7 +328,6 @@ verificationStatus: 'pending',
       price: spotPrice || 'KES $$',
       img: spotCoverImg,
       images: spotGalleryImgs.length > 0 ? spotGalleryImgs : [spotCoverImg],
-      tags: spotTags,
       description: spotDescription || 'Verified spot on RADA.',
       phone: spotPhone,
       openingHours: spotOpeningHours,
@@ -986,7 +967,7 @@ verificationStatus: 'pending',
                         <div>
                           <div className="flex items-center gap-2">
                             <h3 className="font-black text-sm text-slate-900 dark:text-slate-100">Spot Merchant</h3>
-                            <MerchantVerificationBadge category="hospitality" size="xs" />
+                            <BusinessBadge businessId={currentBiz.id} category="hospitality" size="xs" />
                           </div>
                           <p className="text-[11px] text-slate-500 font-medium">Restaurants, Clubs, Lounges, Cafes & Hotels</p>
                         </div>
@@ -1030,7 +1011,7 @@ verificationStatus: 'pending',
                         <div>
                           <div className="flex items-center gap-2">
                             <h3 className="font-black text-sm text-slate-900 dark:text-slate-100">Event Organizer</h3>
-                            <MerchantVerificationBadge category="event_organizer" size="xs" />
+                            <BusinessBadge businessId={currentBiz.id} category="event_organizer" size="xs" />
                           </div>
                           <p className="text-[11px] text-slate-500 font-medium">Parties, Raves, Concerts, Festivals & Art Shows</p>
                         </div>
@@ -1074,7 +1055,7 @@ verificationStatus: 'pending',
                         <div>
                           <div className="flex items-center gap-2">
                             <h3 className="font-black text-sm text-slate-900 dark:text-slate-100">Thrift & Luku Seller</h3>
-                            <MerchantVerificationBadge category="thrift_store" size="xs" />
+                            <BusinessBadge businessId={currentBiz.id} category="thrift_store" size="xs" />
                           </div>
                           <p className="text-[11px] text-slate-500 font-medium">Vintage Apparel, Streetwear & Market Stalls</p>
                         </div>
@@ -1155,12 +1136,7 @@ verificationStatus: 'pending',
                     <span className="text-[10px] text-slate-400">▼</span>
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    {currentBiz.verified && (
-  <MerchantVerificationBadge
-    category={currentBiz.category}
-    size="xs"
-  />
-)}
+                    <BusinessBadge businessId={currentBiz.id} category={currentBiz.category} size="xs" />
                   </div>
                 </div>
               </button>
@@ -1190,7 +1166,7 @@ verificationStatus: 'pending',
                           <img src={biz.logo} alt={biz.name} className="w-6 h-6 rounded-lg object-cover" />
                           <span className="truncate">{biz.name}</span>
                         </div>
-                        <MerchantVerificationBadge category={biz.category} size="xs" showLabel={false} />
+                        <BusinessBadge businessId={biz.id} category={biz.category} size="xs" />
                       </button>
                     ))}
                   </div>
@@ -1417,7 +1393,7 @@ verificationStatus: 'pending',
                   <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Quick Operations</h3>
                   <p className="text-[11px] text-slate-500">Fast tasks for {currentBiz.name}</p>
                 </div>
-                <MerchantVerificationBadge category={currentBiz.category} size="xs" />
+                <BusinessBadge businessId={currentBiz.id} category={currentBiz.category} size="xs" />
               </div>
 
               <div className="grid grid-cols-2 gap-2.5">
@@ -1644,7 +1620,7 @@ verificationStatus: 'pending',
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
                               <h4 className="font-black text-sm truncate">{spot.title}</h4>
-                              <MerchantVerificationBadge category="hospitality" size="xs" />
+                              <BusinessBadge businessId={currentBiz.id} category="hospitality" size="xs" />
                             </div>
                             <p className="text-xs text-slate-500 truncate flex items-center gap-1 mt-0.5">
                               <MapPin className="w-3 h-3 text-[#E0533C]" />
@@ -1746,7 +1722,7 @@ verificationStatus: 'pending',
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
                               <h4 className="font-black text-sm truncate">{evt.title}</h4>
-                              <MerchantVerificationBadge category="event_organizer" size="xs" />
+                              <BusinessBadge businessId={currentBiz.id} category="event_organizer" size="xs" />
                             </div>
                             <p className="text-xs text-slate-500 truncate mt-0.5">{evt.date} • {evt.time}</p>
                             <p className="text-xs text-slate-400 truncate flex items-center gap-1">
@@ -1862,7 +1838,7 @@ verificationStatus: 'pending',
                           <p className="text-[10px] text-slate-400 truncate">Size: {item.size} • {item.storeLocation}</p>
                         </div>
                         <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800/80">
-                          <MerchantVerificationBadge category="thrift_store" size="xs" showLabel={false} />
+                          <BusinessBadge businessId={currentBiz.id} category="thrift_store" size="xs" />
                           <div className="flex items-center gap-1">
                             <button
                               onClick={() => openEditThriftModal(item)}
@@ -2189,42 +2165,6 @@ verificationStatus: 'pending',
                     className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C]"
                   />
                 </div>
-
-                {/* Many-to-Many Discovery Tags Multi-Select */}
-                <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                      Discovery Tags & Vibes (Select Multiple)
-                    </label>
-                    <span className="text-[10px] text-slate-400 font-mono">
-                      {spotTags.length} selected
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1 bg-[#FBFBF9] dark:bg-[#121113] rounded-2xl border border-slate-200 dark:border-slate-800">
-                    {DISCOVERY_TAGS.map(tag => {
-                      const isSelected = spotTags.includes(tag);
-                      return (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => {
-                            setSpotTags(prev => 
-                              prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
-                            );
-                          }}
-                          className={`px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
-                            isSelected
-                              ? 'bg-[#E0533C] text-white shadow-xs'
-                              : 'bg-white dark:bg-[#1C1A1E] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
-                          }`}
-                        >
-                          <span>#{tag}</span>
-                          {isSelected && <Check className="w-3 h-3" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
               </div>
 
               {/* Location & Directions Card with Dynamic Auto-search */}
@@ -2442,43 +2382,21 @@ verificationStatus: 'pending',
                             alt={`Gallery photo ${idx + 1}`} 
                             className="w-full h-full object-cover group-hover:scale-105 transition duration-200" 
                           />
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center gap-1.5 p-2">
-                            <div className="flex items-center gap-1">
-                              {idx > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleMoveGalleryImage(idx, 'left')}
-                                  className="px-2 py-0.5 bg-black/80 hover:bg-black text-white text-[10px] font-bold rounded"
-                                  title="Move Photo Left"
-                                >
-                                  ←
-                                </button>
-                              )}
-                              {idx < spotGalleryImgs.length - 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleMoveGalleryImage(idx, 'right')}
-                                  className="px-2 py-0.5 bg-black/80 hover:bg-black text-white text-[10px] font-bold rounded"
-                                  title="Move Photo Right"
-                                >
-                                  →
-                                </button>
-                              )}
-                            </div>
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center gap-2 p-2">
                             <button
                               type="button"
                               onClick={() => {
                                 setSpotCoverImg(imgUrl);
                                 showToast('Set as primary cover photo!');
                               }}
-                              className="px-2 py-1 bg-white text-slate-900 rounded-lg text-[10px] font-black hover:bg-slate-100 transition"
+                              className="px-2.5 py-1 bg-white text-slate-900 rounded-lg text-[10px] font-black hover:bg-slate-100 transition"
                             >
                               Set as Cover
                             </button>
                             <button
                               type="button"
                               onClick={() => handleRemoveGalleryImage(idx)}
-                              className="px-2 py-1 bg-red-600 text-white rounded-lg text-[10px] font-bold hover:bg-red-700 flex items-center gap-1 transition"
+                              className="px-2.5 py-1 bg-red-600 text-white rounded-lg text-[10px] font-bold hover:bg-red-700 flex items-center gap-1 transition"
                             >
                               <Trash2 className="w-3 h-3" />
                               <span>Delete</span>
@@ -2650,7 +2568,7 @@ verificationStatus: 'pending',
                   <h2 className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100">
                     {editingEventId ? 'Edit Concert / Rave Listing' : 'Publish Concert or Rave Listing'}
                   </h2>
-                  <MerchantVerificationBadge category="event_organizer" size="xs" />
+                  <BusinessBadge businessId={currentBiz.id} category="event_organizer" size="xs" />
                 </div>
                 <p className="text-[11px] text-slate-400">
                   Organizer: <strong className="text-slate-700 dark:text-slate-300">{currentBiz.name}</strong> • Live RADA Events Feed
@@ -3251,7 +3169,7 @@ verificationStatus: 'pending',
                   <h2 className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100">
                     {editingThriftId ? 'Edit LUKU Fit Listing' : 'Upload LUKU Fit Piece'}
                   </h2>
-                  <MerchantVerificationBadge category="thrift_store" size="xs" />
+                  <BusinessBadge businessId={currentBiz.id} category="thrift_store" size="xs" />
                 </div>
                 <p className="text-[11px] text-slate-400">
                   Store: <strong className="text-slate-700 dark:text-slate-300">{currentBiz.name}</strong> • Live RADA LUKU Catalog
