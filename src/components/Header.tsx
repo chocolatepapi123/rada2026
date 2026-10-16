@@ -9,7 +9,8 @@ import {
   MapPin,
   IdCard,
   Sun,
-  Moon
+  Moon,
+  Bookmark
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -27,6 +28,9 @@ interface HeaderProps {
   onOpenAdmin?: () => void;
   userRole?: 'user' | 'merchant' | 'admin';
   onLogout?: () => void;
+  onOpenSaved?: () => void;
+  savedCount?: number;
+  onOpenAccountSettings?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -41,7 +45,10 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleTheme,
   onOpenAdmin,
   userRole,
-  onLogout
+  onLogout,
+  onOpenSaved,
+  savedCount,
+  onOpenAccountSettings
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -137,10 +144,33 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                 </button>
 
+                {/* Prominent Saved Items */}
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    if (onOpenSaved) {
+                      onOpenSaved();
+                    } else {
+                      handleMenuClick('savedOverlay');
+                    }
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-xs font-bold hover:bg-orange-50/80 dark:hover:bg-orange-950/20 flex items-center justify-between text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800/80 transition group cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <Bookmark className="w-4 h-4 text-[#E0533C] fill-[#E0533C]/20 group-hover:fill-[#E0533C] transition" />
+                    <span>Saved Items</span>
+                  </div>
+                  {savedCount !== undefined && savedCount > 0 && (
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#E0533C]/10 text-[#E0533C]">
+                      {savedCount}
+                    </span>
+                  )}
+                </button>
+
                 {/* Profile */}
                 <button
                   onClick={() => handleMenuClick('profileOverlay')}
-                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-3 text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition"
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-3 text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
                 >
                   <IdCard className="w-4 h-4 text-[#E0533C]" />
                   <span>Profile</span>
@@ -149,7 +179,7 @@ export const Header: React.FC<HeaderProps> = ({
                 {/* Settings & Appearance */}
                 <button
                   onClick={() => handleMenuClick('settingsOverlay')}
-                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-3 text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition"
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-3 text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
                 >
                   <Settings className="w-4 h-4 text-[#2D6A4F]" />
                   <span>Settings</span>
@@ -161,7 +191,7 @@ export const Header: React.FC<HeaderProps> = ({
                     onToggleTheme();
                     setMenuOpen(false);
                   }}
-                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center justify-between text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition"
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center justify-between text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     {isDarkMode ? <Moon className="w-4 h-4 text-amber-400" /> : <Sun className="w-4 h-4 text-amber-500" />}
@@ -174,8 +204,15 @@ export const Header: React.FC<HeaderProps> = ({
 
                 {/* Account & Security */}
                 <button
-                  onClick={() => handleMenuClick('youOverlay')}
-                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-3 text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    if (onOpenAccountSettings) {
+                      onOpenAccountSettings();
+                    } else {
+                      handleMenuClick('youOverlay');
+                    }
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-3 text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
                 >
                   <UserCheck className="w-4 h-4 text-[#E9C46A]" />
                   <span>Account & Security</span>

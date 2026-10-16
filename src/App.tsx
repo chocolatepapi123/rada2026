@@ -22,6 +22,8 @@ import { Overlays } from './components/Overlays.tsx';
 import { LocationMapModal } from './components/LocationMapModal.tsx';
 import { UserProfileModal } from './components/UserProfileModal.tsx';
 import { SplashScreen } from './components/SplashScreen.tsx';
+import { AccountSettingsModal } from './components/AccountSettingsModal.tsx';
+import { SavedPlacesModal } from './components/SavedPlacesModal.tsx';
 
 import {
   initialBusinesses,
@@ -50,7 +52,8 @@ import {
   VaultTicket,
   EmergencyContact,
   Review,
-  UserProfile
+  UserProfile,
+  SavedItem
 } from './types.ts';
 
 const DEFAULT_PROFILE: UserProfile = {
@@ -351,6 +354,43 @@ export default function App() {
       setActiveToast(null);
     }, 2200);
   };
+
+  // Saved Moves / Bookmarked Listings State
+  const [savedItems, setSavedItems] = useState<SavedItem[]>(() => {
+    const saved = localStorage.getItem('rada_saved_items');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
+    }
+    return [
+      { id: 1, kind: 'spot', savedAt: new Date().toISOString() },
+      { id: 1, kind: 'event', savedAt: new Date().toISOString() }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('rada_saved_items', JSON.stringify(savedItems));
+  }, [savedItems]);
+
+  const handleToggleSave = (item: any, kind: 'spot' | 'event' | 'thrift' | 'offer') => {
+    setSavedItems(prev => {
+      const exists = prev.some(s => String(s.id) === String(item.id) && s.kind === kind);
+      if (exists) {
+        showToast('Removed from saved collection.');
+        return prev.filter(s => !(String(s.id) === String(item.id) && s.kind === kind));
+      } else {
+        showToast(`Saved "${item.title || item.name}" to your collection!`);
+        return [{ id: item.id, kind, savedAt: new Date().toISOString() }, ...prev];
+      }
+    });
+  };
+
+  // Modals state for Account Settings, Saved Items, and Auth
+  const [isSavedModalOpen, setIsSavedModalOpen] = useState(false);
+  const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // Sync state to localStorage
   useEffect(() => {
@@ -1015,6 +1055,10 @@ export default function App() {
   const handleOpenOverlay = (overlayId: string) => {
     if (overlayId === 'businessHub') {
       setIsBusinessHubOpen(true);
+    } else if (overlayId === 'savedOverlay') {
+      setIsSavedModalOpen(true);
+    } else if (overlayId === 'youOverlay' || overlayId === 'accountSettings') {
+      setIsAccountSettingsOpen(true);
     } else {
       setActiveOverlay(overlayId);
     }
@@ -1043,7 +1087,11 @@ export default function App() {
           <p className="text-white/95 text-sm font-semibold tracking-wider lowercase animate-pulse">leo rada ni gani</p>
         </div>
       ) : !session ? (
-        <AuthModal isOpen={true} onSuccess={() => setAuthLoading(false)} />
+        <AuthModal 
+          isOpen={true} 
+          onSuccess={() => setAuthLoading(false)} 
+          onClose={() => setSession({ user: { id: 'guest-session', email: 'guest@rada.ke', created_at: new Date().toISOString(), app_metadata: { provider: 'guest' } } })} 
+        />
       ) : (
         <>
 
@@ -1063,11 +1111,14 @@ export default function App() {
             businessName={currentBusiness?.name}
             isDarkMode={isDarkMode}
             onToggleTheme={handleToggleTheme}
-              onOpenAdmin={() => setIsAdminOpen(true)}
-  userRole={userRole}
-  onLogout={async () => {
-    await supabase.auth.signOut();
-  }}
+            onOpenAdmin={() => setIsAdminOpen(true)}
+            userRole={userRole}
+            onLogout={async () => {
+              await supabase.auth.signOut();
+            }}
+            onOpenSaved={() => setIsSavedModalOpen(true)}
+            savedCount={savedItems.length}
+            onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
           />
 
           {/* Main Content Viewports */}
@@ -1277,6 +1328,9 @@ export default function App() {
             isDarkMode={isDarkMode}
             onToggleTheme={handleToggleTheme}
             showToast={showToast}
+            onOpenSaved={() => setIsSavedModalOpen(true)}
+            onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
+            savedCount={savedItems.length}
           />
 
           <UserProfileModal
@@ -1293,6 +1347,8 @@ export default function App() {
               setViewingProfile(null);
             }}
             showToast={showToast}
+            onOpenSavedItems={() => setIsSavedModalOpen(true)}
+            onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
           />
 
           <PublicBusinessProfileModal
@@ -1306,6 +1362,44 @@ export default function App() {
             onOpenEventDetails={(event) => setSelectedEventModal(event)}
             showToast={showToast}
           />
+
+          <AccountSettingsModal
+            isOpen={isAccountSettingsOpen}
+            onClose={() => setIsAccountSettingsOpen(false)}
+            session={session}
+            currentUserProfile={currentUserProfile}
+            showToast={showToast}
+            onOpenAuth={() => setIsAuthModalOpen(true)}
+            onSignOut={async () => {
+              await supabase.auth.signOut();
+              setSession(null);
+            }}
+          />
+
+          <SavedPlacesModal
+            isOpen={isSavedModalOpen}
+            onClose={() => setIsSavedModalOpen(false)}
+            savedItems={savedItems}
+            spots={spots}
+            events={events}
+            thriftItems={thriftItems}
+            offers={offers}
+            onToggleSave={handleToggleSave}
+            onOpenSpot={(spot) => setSelectedSpotModal(spot)}
+            onOpenEvent={(evt) => setSelectedEventModal(evt)}
+            showToast={showToast}
+          />
+
+          {isAuthModalOpen && (
+            <AuthModal
+              isOpen={isAuthModalOpen}
+              onSuccess={() => {
+                setIsAuthModalOpen(false);
+                showToast('Authenticated successfully!');
+              }}
+              onClose={() => setIsAuthModalOpen(false)}
+            />
+          )}
           {isAdminOpen && userRole === 'admin' && (
 <AdminDashboard
   businesses={businesses}

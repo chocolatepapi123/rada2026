@@ -44,7 +44,9 @@ import {
   Store,
   Percent,
   Tag,
-  Check
+  Check,
+  Bookmark,
+  KeyRound
 } from 'lucide-react';
 import { 
   SpotItem, 
@@ -126,6 +128,9 @@ interface OverlaysProps {
   onToggleTheme: () => void;
 
   showToast: (msg: string) => void;
+  onOpenSaved?: () => void;
+  onOpenAccountSettings?: () => void;
+  savedCount?: number;
 }
 
 export const Overlays: React.FC<OverlaysProps> = ({
@@ -172,7 +177,10 @@ export const Overlays: React.FC<OverlaysProps> = ({
   onAddEmergencyContact,
   isDarkMode,
   onToggleTheme,
-  showToast
+  showToast,
+  onOpenSaved,
+  onOpenAccountSettings,
+  savedCount
 }) => {
   // Wagwan AI Chat State (SPEC 6: Fix Wagwan AI functionality to process custom typed text & suggested chips)
   const [wagwanInput, setWagwanInput] = useState('');
@@ -1598,6 +1606,54 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 </div>
               </div>
 
+              {/* Group: Account & Saved Collection */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-1">
+                  Account & Data
+                </span>
+                <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden divide-y divide-slate-200/60 dark:divide-slate-800/80">
+                  <button
+                    onClick={() => {
+                      onCloseOverlay();
+                      if (onOpenSaved) onOpenSaved();
+                    }}
+                    className="w-full p-3.5 flex items-center justify-between text-left hover:bg-slate-100 dark:hover:bg-slate-800/50 transition cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Bookmark className="w-4 h-4 text-[#E0533C]" />
+                      <div>
+                        <h4 className="font-bold">My Saved Items & Moves</h4>
+                        <p className="text-[10px] text-slate-400">View bookmarked spots, raves, fits & offers</p>
+                      </div>
+                    </div>
+                    {savedCount !== undefined && savedCount > 0 ? (
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#E0533C]/10 text-[#E0533C]">
+                        {savedCount}
+                      </span>
+                    ) : (
+                      <ChevronRight className="w-4 h-4 text-slate-400" />
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      onCloseOverlay();
+                      if (onOpenAccountSettings) onOpenAccountSettings();
+                    }}
+                    className="w-full p-3.5 flex items-center justify-between text-left hover:bg-slate-100 dark:hover:bg-slate-800/50 transition cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <KeyRound className="w-4 h-4 text-amber-500" />
+                      <div>
+                        <h4 className="font-bold">Account Details & Security</h4>
+                        <p className="text-[10px] text-slate-400">Manage credentials, authentication & password</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-400" />
+                  </button>
+                </div>
+              </div>
+
               {/* Group 3: Support & Information */}
               <div className="space-y-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-1">
@@ -1672,12 +1728,18 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
                   />
                 </div>
-                <button
-                  onClick={() => showToast('Account details saved!')}
-                  className="w-full py-2.5 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl shadow transition"
-                >
-                  Update Account Info
-                </button>
+                <div className="pt-2 flex flex-col gap-2">
+                  <button
+                    onClick={() => {
+                      onCloseOverlay();
+                      if (onOpenAccountSettings) onOpenAccountSettings();
+                    }}
+                    className="w-full py-2.5 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl shadow transition flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <KeyRound className="w-4 h-4" />
+                    <span>Security & Change Password</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>

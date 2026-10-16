@@ -262,3 +262,10 @@ export interface RadaStore {
   events: EventItem[];
   thrift: ThriftItem[];
 }
+
+export interface SavedItem {
+  id: string | number;
+  kind: 'spot' | 'event' | 'thrift' | 'offer';
+  savedAt: string;
+}
+

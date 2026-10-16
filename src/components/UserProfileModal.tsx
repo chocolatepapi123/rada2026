@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Heart, MessageSquare, MapPin, Sparkles, Shield, User, CheckCircle2, Lock } from 'lucide-react';
+import { X, Heart, MessageSquare, MapPin, Sparkles, Shield, User, CheckCircle2, Lock, Bookmark, ChevronRight } from 'lucide-react';
 import { UserProfile } from '../types.ts';
 
 interface UserProfileModalProps {
@@ -9,6 +9,8 @@ interface UserProfileModalProps {
   onSendMatchRequest?: (user: UserProfile) => void;
   onSendMessage?: (user: UserProfile) => void;
   showToast: (msg: string) => void;
+  onOpenSavedItems?: () => void;
+  onOpenAccountSettings?: () => void;
 }
 
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({
@@ -17,7 +19,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onClose,
   onSendMatchRequest,
   onSendMessage,
-  showToast
+  showToast,
+  onOpenSavedItems,
+  onOpenAccountSettings
 }) => {
   if (!user) return null;
 
@@ -160,6 +164,32 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               </p>
             )}
           </div>
+
+          {/* Prominent Saved Items Entry Point */}
+          {onOpenSavedItems && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenSavedItems();
+              }}
+              className="w-full p-3 rounded-2xl bg-[#F8F8F6] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 hover:border-[#E0533C]/50 text-left flex items-center justify-between transition cursor-pointer group shadow-2xs"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-orange-500/10 text-[#E0533C] flex items-center justify-center group-hover:scale-105 transition">
+                  <Bookmark className="w-4 h-4 fill-[#E0533C]" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                    <span>Saved Items & Moves</span>
+                    <span className="text-[9px] font-extrabold px-1.5 py-0.2 bg-[#E0533C]/10 text-[#E0533C] rounded">Collection</span>
+                  </h4>
+                  <p className="text-[10px] text-slate-400">View bookmarked spots, raves, fits & offers</p>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition" />
+            </button>
+          )}
 
           {/* Action Buttons */}
           <div className="pt-2 flex gap-2">
