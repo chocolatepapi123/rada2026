@@ -13,28 +13,37 @@ import {
   Palmtree,
   Mic,
   Plus,
-  Compass
+  Compass,
+  Bookmark,
+  Images,
+  Tag,
+  Check
 } from 'lucide-react';
 
-
-import { SpotItem, MenuItem } from '../types.ts';
+import { SpotItem, MenuItem, DISCOVERY_TAGS, SavedItem } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { supabase } from '../lib/supabase.ts';
 
 interface SpotsTabProps {
   spots: SpotItem[];
+  savedItems?: SavedItem[];
+  onToggleSave?: (item: SpotItem, kind: 'spot') => void;
   onOpenSpotFullView: (spot: SpotItem) => void;
   onViewLocation: (spot: SpotItem) => void;
   onOpenDedicatedViewAll: (title: string, category: string) => void;
+  onOpenGallery?: (images: string[], index?: number, title?: string, subtitle?: string) => void;
   onOpenCreateSpot?: (initialTitle?: string) => void;
   showToast?: (msg: string) => void;
 }
 
 export const SpotsTab: React.FC<SpotsTabProps> = ({
   spots,
+  savedItems = [],
+  onToggleSave,
   onOpenSpotFullView,
   onViewLocation,
   onOpenDedicatedViewAll,
+  onOpenGallery,
   onOpenCreateSpot,
   showToast
 }) => {
@@ -42,6 +51,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedNeighborhood, setSelectedNeighborhood] = useState<string>('all');
   const [selectedPriceTier, setSelectedPriceTier] = useState<string>('all');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [activeImageIndices, setActiveImageIndices] = useState<Record<number, number>>({});
   const [isListening, setIsListening] = useState(false);
   const [customNeighborhoodInput, setCustomNeighborhoodInput] = useState('');
@@ -198,6 +208,17 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     // Price Tier filter
     const matchesPrice = selectedPriceTier === 'all' || s.price === selectedPriceTier;
 
+    // Tag filter
+    if (selectedTags.length > 0) {
+      const spotTags = s.tags || [];
+      const hasTagMatch = selectedTags.some(tag => 
+        spotTags.some((st: string) => st.toLowerCase() === tag.toLowerCase()) ||
+        s.title.toLowerCase().includes(tag.toLowerCase()) ||
+        (s.description && s.description.toLowerCase().includes(tag.toLowerCase()))
+      );
+      if (!hasTagMatch) return false;
+    }
+
     if (!matchesCategory || !matchesNeigh || !matchesPrice) return false;
 
     if (!searchQuery.trim()) return true;
@@ -248,6 +269,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     const currentIndex = activeImageIndices[spot.id] || 0;
     const currentImg = imagesList[currentIndex] || spot.img;
     const reviewCount = spot.reviews?.length || spot.reviewCount || 45;
+    const isSaved = savedItems.some(item => String(item.id) === String(spot.id) && item.kind === 'spot');
 
     return (
       <div
@@ -267,6 +289,37 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
             <span className="absolute top-2.5 right-2.5 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
               {spot.price}
             </span>
+
+            {/* Bookmark Button */}
+            {onToggleSave && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleSave(spot, 'spot');
+                }}
+                className="absolute top-2.5 right-14 w-7 h-7 rounded-full bg-black/60 backdrop-blur-md text-white flex items-center justify-center hover:text-[#E0533C] transition z-10"
+                title={isSaved ? 'Remove from Saved' : 'Save Spot'}
+              >
+                <Bookmark className={`w-3.5 h-3.5 ${isSaved ? 'fill-[#E0533C] text-[#E0533C]' : ''}`} />
+              </button>
+            )}
+
+            {/* Gallery Full-View Trigger */}
+            {onOpenGallery && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenGallery(imagesList, currentIndex, spot.title, spot.address);
+                }}
+                className="absolute bottom-2.5 right-2.5 bg-black/75 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1 z-10 hover:bg-black"
+                title="View Full-Screen Gallery"
+              >
+                <Images className="w-3 h-3" />
+                <span>Gallery</span>
+              </button>
+            )}
 
             {/* Image Counter Badge if multiple images */}
             {imagesList.length > 1 && (

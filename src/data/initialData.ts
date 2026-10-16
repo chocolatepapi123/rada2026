@@ -2,6 +2,7 @@ import {
   BusinessAccount, 
   BusinessOffer,
   SpotItem, 
+  ExperienceItem,
   EventItem, 
   ThriftItem, 
   CinemaMovie, 
@@ -1089,3 +1090,145 @@ export const initialContacts: EmergencyContact[] = [
     phone: '+254 722 999 888'
   }
 ];
+
+export const initialExperiences: ExperienceItem[] = [
+  {
+    id: 101,
+    title: 'Nairobi Pottery & Wheel Throwing Masterclass',
+    category: 'workshops',
+    neighborhood: 'Karen',
+    address: 'Marula Studios, Marula Lane, Karen, Nairobi',
+    lat: -1.3210,
+    lng: 36.7110,
+    rating: '4.9',
+    reviewCount: 68,
+    price: 'KES 3,500',
+    duration: '2.5 Hours',
+    img: 'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=800&auto=format&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=800&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=800&auto=format&fit=crop'
+    ],
+    tags: ['Art & Culture', 'Date Night', 'Activities & Games', 'Outdoor & Nature'],
+    description: 'Get your hands dirty at an artisanal open-air pottery studio in Karen. Learn clay sculpting, wheel throwing, and glaze firing with master Kenyan ceramicists. Take home your own fired glazed mug or bowl!',
+    bookingUrl: 'https://wa.me/254705999888?text=Hi!%20I%20want%20to%20book%20the%20Pottery%20Masterclass%20via%20RADA',
+    whatsapp: '+254705999888',
+    included: ['All Clay & Tools', 'Bisque & Glaze Firing', 'Herbal Tea / Coffee', 'Take-home Ceramic Piece']
+  },
+  {
+    id: 102,
+    title: 'Rooftop Sunset Paint & Sip Session',
+    category: 'workshops',
+    neighborhood: 'Westlands',
+    address: 'The Promenade Rooftop, General Mathenge, Westlands',
+    lat: -1.2580,
+    lng: 36.8010,
+    rating: '4.8',
+    reviewCount: 114,
+    price: 'KES 2,800',
+    duration: '3.0 Hours',
+    img: 'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=800&auto=format&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=800&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=800&auto=format&fit=crop'
+    ],
+    tags: ['Cocktails', 'Rooftop', 'Date Night', 'Art & Culture', 'Scenic Views'],
+    description: 'Sip chilled prosecco and craft cocktails while painting the Nairobi skyline as the golden hour sun sets over Karura forest. Guided by resident contemporary visual artists, no previous painting experience needed!',
+    bookingUrl: 'https://hustlesasa.com/paintsipnairobi',
+    whatsapp: '+254722123456',
+    included: ['Canvas & Easel', 'Acrylic Paints & Brushes', '2 Complimentary Cocktails', 'Finger Food Platter']
+  },
+  {
+    id: 103,
+    title: 'Karura Forest E-Biking & Secret Waterfall Trail',
+    category: 'outdoor',
+    neighborhood: 'Gigiri / UN',
+    address: 'Gate A, Limuru Road, Karura Forest, Nairobi',
+    lat: -1.2410,
+    lng: 36.8240,
+    rating: '4.9',
+    reviewCount: 152,
+    price: 'KES 2,200',
+    duration: '3.0 Hours',
+    img: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&auto=format&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=800&auto=format&fit=crop'
+    ],
+    tags: ['Outdoor & Nature', 'Activities & Games', 'Budget Friendly', 'Scenic Views'],
+    description: 'Cruise through 1,000 hectares of indigenous canopy on high-torque electric all-terrain bikes. Tour the Mau Mau caves, sacred waterfalls, bamboo forest corridors, and finish with fresh pressed cane juice at the River Cafe.',
+    bookingUrl: 'https://wa.me/254711223344?text=Hi!%20Booking%20Karura%20E-Bike%20Trail%20via%20RADA',
+    whatsapp: '+254711223344',
+    included: ['Smart Electric All-Terrain Bike', 'Safety Helmet', 'Forest Reserve Entry Permit', 'Certified Trail Guide']
+  },
+  {
+    id: 104,
+    title: 'Artisan Kenyan Specialty Coffee Cupping & Roasting',
+    category: 'tasting',
+    neighborhood: 'Kilimani',
+    address: 'Argwings Kodhek Rd, Near Yaya Centre, Kilimani',
+    lat: -1.2940,
+    lng: 36.7860,
+    rating: '4.9',
+    reviewCount: 89,
+    price: 'KES 2,000',
+    duration: '2.0 Hours',
+    img: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&auto=format&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=800&auto=format&fit=crop'
+    ],
+    tags: ['Specialty Coffee', 'Brunch', 'Activities & Games', 'Work Friendly'],
+    description: 'Deep dive into Kenya’s world-renowned SL28 and Ruiru 11 beans with Q-graders. Roast your own small-batch green beans on a sample roaster, practice professional aroma cupping, and master espresso calibration.',
+    bookingUrl: 'https://kenyabuzz.com/coffee-experience',
+    whatsapp: '+254733445566',
+    included: ['Cupping of 5 Single-Origin Lots', '250g Freshly Roasted Custom Beans to Take Home', 'Pastry Board']
+  },
+  {
+    id: 105,
+    title: 'Ngong Hills Ridge Quad Biking & Sunset Safari',
+    category: 'adventure',
+    neighborhood: 'Karen',
+    address: 'Wind Turbines Gate, Ngong Hills, Kajiado/Nairobi',
+    lat: -1.4050,
+    lng: 36.6540,
+    rating: '4.8',
+    reviewCount: 97,
+    price: 'KES 4,500',
+    duration: '2.5 Hours',
+    img: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=800&auto=format&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=800&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1508974239320-0a029497e820?w=800&auto=format&fit=crop'
+    ],
+    tags: ['Outdoor & Nature', 'Scenic Views', 'Activities & Games'],
+    description: 'Adrenaline-fueled quad bike trail riding along the rolling green peaks of Ngong Hills. Enjoy panoramic 360-degree vistas overlooking the Great Rift Valley on one side and Nairobi skyline on the other.',
+    bookingUrl: 'https://wa.me/254722998877?text=Hi!%20Booking%20Ngong%20Quad%20Biking%20via%20RADA',
+    whatsapp: '+254722998877',
+    included: ['450cc 4x4 Automatic Quad Bike', 'Riding Goggles & Helmet', 'KWS Conservancy Pass', 'Safety Marshall Escort']
+  },
+  {
+    id: 106,
+    title: 'Acoustic Sound Bath & Rooftop Himalayan Yoga',
+    category: 'wellness',
+    neighborhood: 'Westlands',
+    address: 'Parklands Road, Westlands, Nairobi',
+    lat: -1.2620,
+    lng: 36.8050,
+    rating: '4.9',
+    reviewCount: 76,
+    price: 'KES 1,800',
+    duration: '1.5 Hours',
+    img: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&auto=format&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1545205597-3d9d02c29597?w=800&auto=format&fit=crop'
+    ],
+    tags: ['Wellness & Spa', 'Rooftop', 'Scenic Views'],
+    description: 'Immerse in deep restorative frequencies of Tibetan singing bowls, gongs, and chimes on a serene open rooftop overlooking tree-lined Westlands. Leaves you refreshed, relaxed, and recharged.',
+    bookingUrl: 'https://wa.me/254700112233?text=Hi!%20Booking%20Sound%20Bath%20via%20RADA',
+    whatsapp: '+254700112233',
+    included: ['Organic Mat & Bolster', 'Aromatherapy Lavender Spritz', 'Sound Immersion', 'Herbal Detox Infusion']
+  }
+];
+

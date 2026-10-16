@@ -1,6 +1,53 @@
 export type BusinessCategory = 'hospitality' | 'event_organizer' | 'thrift_store';
 
-export type OfferCategory = 'Tickets' | 'Food' | 'Drinks' | 'Apparel' | 'Special Deals';
+export type OfferCategory = 'Tickets' | 'Food' | 'Drinks' | 'Apparel' | 'Special Deals' | 'Experiences';
+
+export type DiscoveryCategory = 'all' | 'places' | 'experiences' | 'events' | 'fashion' | 'deals';
+
+export const DISCOVERY_TAGS = [
+  'Rooftop',
+  'Cocktails',
+  'Date Night',
+  'Amapiano',
+  'Brunch',
+  'Live Music',
+  'Outdoor & Nature',
+  'Specialty Coffee',
+  'Fine Dining',
+  'Art & Culture',
+  'Streetwear',
+  'Vintage & Thrift',
+  'Craft Beer',
+  'Work Friendly',
+  'Budget Friendly',
+  'Late Night',
+  'Dancing',
+  'Scenic Views',
+  'Wellness & Spa',
+  'Activities & Games'
+] as const;
+
+export const NAIROBI_NEIGHBORHOODS = [
+  'Westlands',
+  'Kilimani',
+  'Karen',
+  'Nairobi CBD',
+  'Lavington',
+  'Parklands',
+  'Gigiri / UN',
+  'Ngong Road',
+  'Upper Hill',
+  'Kileleshwa',
+  'Kiambu / Thika Road',
+  'Ruiru',
+  'Langata'
+] as const;
+
+export interface SavedItem {
+  id: string | number;
+  kind: 'spot' | 'experience' | 'event' | 'thrift' | 'offer';
+  savedAt: string;
+}
 
 export interface BusinessOffer {
   id: string;
@@ -16,6 +63,9 @@ export interface BusinessOffer {
   claimCode?: string;
   actionUrl?: string;
   createdAt?: string;
+  tags?: string[];
+  startDate?: string;
+  terms?: string;
 }
 
 export interface SpecialOffer {
@@ -39,6 +89,7 @@ export interface BusinessAccount {
   bio: string;
   logo: string;
   coverImage?: string;
+  tags?: string[];
   
 verified: boolean;
 verificationStatus?: 'pending' | 'approved' | 'rejected';
@@ -90,6 +141,7 @@ export interface SpotItem {
   address: string;
   img: string;
   images?: string[];
+  tags?: string[];
   reviews?: Review[];
   description?: string;
   menuImages?: string[];
@@ -99,6 +151,28 @@ export interface SpotItem {
   isUserUploaded?: boolean;
   phone?: string;
   openingHours?: string;
+}
+
+export interface ExperienceItem {
+  id: number;
+  title: string;
+  category: 'workshops' | 'adventure' | 'tasting' | 'wellness' | 'culture' | 'outdoor';
+  neighborhood: string;
+  address: string;
+  lat: number;
+  lng: number;
+  rating: string;
+  reviewCount?: number;
+  price: string;
+  duration?: string;
+  img: string;
+  images?: string[];
+  description?: string;
+  bookingUrl?: string;
+  whatsapp?: string;
+  tags?: string[];
+  businessId?: string;
+  included?: string[];
 }
 
 export interface Artist {
@@ -125,6 +199,7 @@ export interface EventItem {
   lng: number;
   img: string;
   images?: string[];
+  tags?: string[];
   goingCount: number;
   url: string;
   dressCode?: string;
@@ -146,6 +221,7 @@ export interface ThriftItem {
   size: string;
   img: string;
   images?: string[];
+  tags?: string[];
   verified: boolean;
   businessId?: string;
   whatsapp?: string;

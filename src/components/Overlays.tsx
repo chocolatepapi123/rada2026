@@ -44,7 +44,9 @@ import {
   Store,
   Percent,
   Tag,
-  Check
+  Check,
+  Bookmark,
+  Images
 } from 'lucide-react';
 import { 
   SpotItem, 
@@ -54,7 +56,8 @@ import {
   DatingProfile, 
   EmergencyContact,
   Review,
-  UserProfile
+  UserProfile,
+  SavedItem
 } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { shareContent } from '../utils/shareUtils.ts';
@@ -88,6 +91,11 @@ interface OverlaysProps {
   onToggleGoing: (event: EventItem) => void;
   goingEventIds: number[];
   onBuyEventTicket: (event: EventItem) => void;
+
+  // Gallery & Bookmarks
+  savedItems?: SavedItem[];
+  onToggleSave?: (item: any, kind: 'spot' | 'experience' | 'event' | 'thrift' | 'offer') => void;
+  onOpenGallery?: (images: string[], index?: number, title?: string, subtitle?: string) => void;
 
   // Current User Profile
   currentUserProfile: UserProfile;
@@ -150,6 +158,9 @@ export const Overlays: React.FC<OverlaysProps> = ({
   onToggleGoing,
   goingEventIds,
   onBuyEventTicket,
+  savedItems = [],
+  onToggleSave,
+  onOpenGallery,
   currentUserProfile,
   onUpdateCurrentUserProfile,
   qrPassTitle,
@@ -648,20 +659,54 @@ export const Overlays: React.FC<OverlaysProps> = ({
               return (
                 <div className="space-y-2">
                   <div
-                    className="h-64 rounded-3xl bg-cover bg-center relative shadow-md transition-all duration-300"
+                    onClick={() => {
+                      if (onOpenGallery) {
+                        onOpenGallery(allImages, safeIndex, selectedSpot.title, selectedSpot.neighborhood);
+                      }
+                    }}
+                    className="h-64 rounded-3xl bg-cover bg-center relative shadow-md transition-all duration-300 cursor-pointer overflow-hidden group"
                     style={{ backgroundImage: `url('${currentHeroImg}')` }}
+                    title="Tap to view full-screen gallery"
                   >
-                    <span className="absolute top-3 right-3 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
-                      {selectedSpot.price}
-                    </span>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 group-hover:from-black/70 transition" />
+                    
+                    <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
+                      <span className="bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
+                        {selectedSpot.price}
+                      </span>
+                      {onToggleSave && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleSave(selectedSpot, 'spot');
+                          }}
+                          className="w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md text-white flex items-center justify-center transition"
+                          title="Save Spot"
+                        >
+                          <Bookmark className={`w-3.5 h-3.5 ${savedItems.some(s => String(s.id) === String(selectedSpot.id) && s.kind === 'spot') ? 'fill-[#E0533C] text-[#E0533C]' : ''}`} />
+                        </button>
+                      )}
+                    </div>
+
                     <span className="absolute bottom-3 left-3 bg-white/90 dark:bg-black/90 backdrop-blur-md text-slate-900 dark:text-white text-[10px] font-black px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-xs">
                       <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                       <span>{selectedSpot.rating} ({selectedSpot.reviewCount ?? selectedSpot.reviews?.length ?? 0} reviews)</span>
                     </span>
-                    {allImages.length > 1 && (
-                      <span className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-md">
-                        {safeIndex + 1} / {allImages.length} photos
-                      </span>
+
+                    {/* Full-screen Gallery Trigger Button */}
+                    {onOpenGallery && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenGallery(allImages, safeIndex, selectedSpot.title, selectedSpot.neighborhood);
+                        }}
+                        className="absolute bottom-3 right-3 bg-black/75 hover:bg-black text-white text-[10px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-md backdrop-blur-md transition"
+                      >
+                        <Images className="w-3.5 h-3.5" />
+                        <span>{safeIndex + 1}/{allImages.length} Fullscreen</span>
+                      </button>
                     )}
                   </div>
 
@@ -945,15 +990,51 @@ export const Overlays: React.FC<OverlaysProps> = ({
               <h3 className="font-black text-sm uppercase tracking-wider text-slate-500">
                 Official Event Showcase
               </h3>
-              <div className="w-9" />
+              <div className="flex items-center gap-1.5">
+                {onToggleSave && (
+                  <button
+                    type="button"
+                    onClick={() => onToggleSave(selectedEvent, 'event')}
+                    className="w-9 h-9 rounded-full bg-[#F8F8F6] dark:bg-[#1C1A1E] flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-[#E0533C] transition"
+                    title="Save Event"
+                  >
+                    <Bookmark className={`w-4 h-4 ${savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event') ? 'fill-[#E0533C] text-[#E0533C]' : ''}`} />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    shareContent({
+                      title: `RADA Event: ${selectedEvent.title}`,
+                      text: `Check out ${selectedEvent.title} on ${selectedEvent.date} at ${selectedEvent.location} on RADA Nairobi!`,
+                      url: window.location.href,
+                      onSuccess: showToast,
+                      onError: showToast
+                    });
+                  }}
+                  className="w-9 h-9 rounded-full bg-[#F8F8F6] dark:bg-[#1C1A1E] flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-[#E0533C] transition"
+                  title="Share Event"
+                >
+                  <Share2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
 
           <div className="max-w-lg mx-auto w-full p-4 space-y-5 flex-1 text-xs pb-16">
             <div
-              className="h-60 rounded-3xl bg-cover bg-center relative shadow-md"
+              onClick={() => {
+                if (onOpenGallery) {
+                  const imgs = selectedEvent.images && selectedEvent.images.length > 0 ? selectedEvent.images : [selectedEvent.img];
+                  onOpenGallery(imgs, 0, selectedEvent.title, selectedEvent.location);
+                }
+              }}
+              className="h-60 rounded-3xl bg-cover bg-center relative shadow-md cursor-pointer group overflow-hidden"
               style={{ backgroundImage: `url('${selectedEvent.img}')` }}
+              title="Tap to view full-screen image"
             >
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 group-hover:from-black/70 transition" />
+              
               <div className="absolute top-3 right-3 bg-black/75 backdrop-blur-md text-white text-[11px] font-black px-3 py-1.5 rounded-full flex items-center gap-1.5">
                 <Users className="w-3.5 h-3.5 text-[#E0533C]" />
                 <span>{selectedEvent.goingCount} people going</span>
@@ -962,6 +1043,20 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 <div className="absolute bottom-3 left-3 bg-[#E0533C] text-white text-[10px] font-black px-3 py-1 rounded-full shadow">
                   {selectedEvent.genre}
                 </div>
+              )}
+              {onOpenGallery && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const imgs = selectedEvent.images && selectedEvent.images.length > 0 ? selectedEvent.images : [selectedEvent.img];
+                    onOpenGallery(imgs, 0, selectedEvent.title, selectedEvent.location);
+                  }}
+                  className="absolute bottom-3 right-3 bg-black/75 hover:bg-black text-white text-[10px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-md backdrop-blur-md transition"
+                >
+                  <Images className="w-3.5 h-3.5" />
+                  <span>Poster Gallery</span>
+                </button>
               )}
             </div>
 

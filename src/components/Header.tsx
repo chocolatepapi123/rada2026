@@ -9,12 +9,15 @@ import {
   MapPin,
   IdCard,
   Sun,
-  Moon
+  Moon,
+  Bookmark
 } from 'lucide-react';
 
 interface HeaderProps {
   onOpenOverlay: (overlayId: string) => void;
   onOpenWagwanAI: () => void;
+  onOpenSaved?: () => void;
+  savedCount?: number;
   onSwitchTab: (tabId: string) => void;
   currentLocation: string;
   isGpsActive?: boolean;
@@ -32,6 +35,8 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   onOpenOverlay,
   onOpenWagwanAI,
+  onOpenSaved,
+  savedCount = 0,
   onSwitchTab,
   currentLocation,
   isGpsActive = true,
@@ -93,6 +98,22 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
+          {/* Saved Moves & Bookmarks */}
+          {onOpenSaved && (
+            <button
+              onClick={onOpenSaved}
+              title="Saved Moves & Bookmarks"
+              className="w-9 h-9 rounded-full bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center hover:text-[#E0533C] transition relative"
+            >
+              <Bookmark className="w-4 h-4" />
+              {savedCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#E0533C] text-white text-[9px] font-bold flex items-center justify-center shadow-xs">
+                  {savedCount > 9 ? '9+' : savedCount}
+                </span>
+              )}
+            </button>
+          )}
+
           {/* Wagwan AI Quick Recommender */}
           <button
             onClick={onOpenWagwanAI}
@@ -136,6 +157,27 @@ export const Header: React.FC<HeaderProps> = ({
                     </p>
                   </div>
                 </button>
+
+                {/* Saved Moves */}
+                {onOpenSaved && (
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onOpenSaved();
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center justify-between text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Bookmark className="w-4 h-4 text-[#E0533C]" />
+                      <span>Saved Moves & Places</span>
+                    </div>
+                    {savedCount > 0 && (
+                      <span className="text-[10px] font-bold text-[#E0533C] bg-red-50 dark:bg-red-950/60 px-2 py-0.5 rounded-full">
+                        {savedCount}
+                      </span>
+                    )}
+                  </button>
+                )}
 
                 {/* Profile */}
                 <button

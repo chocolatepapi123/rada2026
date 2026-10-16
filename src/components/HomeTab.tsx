@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Search, 
   Calendar, 
@@ -24,9 +24,30 @@ import {
   Store,
   ShoppingBag,
   SlidersHorizontal,
-  Smile
+  Smile,
+  Bookmark,
+  Images,
+  Compass,
+  Star,
+  CheckCircle2,
+  UtensilsCrossed,
+  Tag
 } from 'lucide-react';
-import { EventItem, CinemaMovie, StatusPost, UserProfile, BusinessOffer, OfferCategory, SpotItem } from '../types.ts';
+import { 
+  EventItem, 
+  CinemaMovie, 
+  StatusPost, 
+  UserProfile, 
+  BusinessOffer, 
+  OfferCategory, 
+  SpotItem,
+  ExperienceItem,
+  ThriftItem,
+  DiscoveryCategory,
+  DISCOVERY_TAGS,
+  NAIROBI_NEIGHBORHOODS,
+  SavedItem
+} from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { EmojiPicker } from './EmojiPicker.tsx';
 
@@ -36,8 +57,15 @@ interface HomeTabProps {
   statuses: StatusPost[];
   offers?: BusinessOffer[];
   spots?: SpotItem[];
+  experiences?: ExperienceItem[];
+  thriftItems?: ThriftItem[];
+  savedItems?: SavedItem[];
+  onToggleSave?: (item: any, kind: 'spot' | 'experience' | 'event' | 'thrift' | 'offer') => void;
   onOpenSpotDetails?: (spot: SpotItem) => void;
   onOpenEventDetails: (event: EventItem) => void;
+  onOpenExperienceDetails?: (exp: ExperienceItem) => void;
+  onOpenThriftDetails?: (item: ThriftItem) => void;
+  onOpenGallery?: (images: string[], index?: number, title?: string, subtitle?: string) => void;
   onBookCinema: (movie: CinemaMovie) => void;
   onPostStatus: (text: string, mediaUrl?: string, locationName?: string) => void;
   onReplyStatus: (statusId: string, text: string) => void;
@@ -45,6 +73,7 @@ interface HomeTabProps {
   onOpenDedicatedViewAll: (title: string, category: string) => void;
   onOpenCreateEvent?: (initialTitle?: string) => void;
   onOpenBusinessProfile?: (businessId: string) => void;
+  onOpenPlanDate?: (initialSpot?: SpotItem) => void;
   showToast: (msg: string) => void;
 }
 
@@ -54,8 +83,15 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   statuses,
   offers = [],
   spots = [],
+  experiences = [],
+  thriftItems = [],
+  savedItems = [],
+  onToggleSave,
   onOpenSpotDetails,
   onOpenEventDetails,
+  onOpenExperienceDetails,
+  onOpenThriftDetails,
+  onOpenGallery,
   onBookCinema,
   onPostStatus,
   onReplyStatus,
@@ -63,9 +99,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   onOpenDedicatedViewAll,
   onOpenCreateEvent,
   onOpenBusinessProfile,
+  onOpenPlanDate,
   showToast
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDiscoveryCategory, setSelectedDiscoveryCategory] = useState<DiscoveryCategory>('all');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedArea, setSelectedArea] = useState<string>('all');
+
   const [selectedVibe, setSelectedVibe] = useState('all');
   const [selectedGenre, setSelectedGenre] = useState('all');
   const [selectedCinemaLoc, setSelectedCinemaLoc] = useState('all');
@@ -79,9 +120,53 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
   // Offers state
   const [selectedOfferCategory, setSelectedOfferCategory] = useState<'all' | OfferCategory>('all');
+  const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
+
+  // Helper to check if an item is saved
+  const isItemSaved = (id: string | number, kind: string) => {
+    return savedItems.some(s => String(s.id) === String(id) && s.kind === kind);
+  };
+
+  // Dynamic time-of-day greeting for Nairobi
+  const getDynamicGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return { title: "What's the move Nairobi? ☀️", subtitle: "Breakfast, specialty coffee & morning chill spots" };
+    if (hour < 17) return { title: "What's the move this afternoon? 🌤️", subtitle: "Daytime hangouts, exhibitions & casual bites" };
+    if (hour < 21) return { title: "What's the move tonight? 🌆", subtitle: "Golden hour sundowners, rooftop dawas & dining" };
+    return { title: "Late Night Moves Nairobi 🌙", subtitle: "Amapiano raves, club sets & late choma spots" };
+  };
+
+  const greeting = getDynamicGreeting();
+
+  // Multi-tag toggle handler
+  const handleToggleTag = (tag: string) => {
+    setSelectedTags(prev => 
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    );
+  };
+
+  const handleClearAllFilters = () => {
+    setSelectedTags([]);
+    setSelectedArea('all');
+    setSelectedDiscoveryCategory('all');
+    setSelectedGenre('all');
+    setSelectedEventPriceTier('all');
+    setSelectedEventDateRange('all');
+    setSearchQuery('');
+  };
+
+  // Handle promo code copy
+  const handleCopyPromoCode = (code: string, offerId: string) => {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopiedCodeId(offerId);
+      showToast(`Promo code "${code}" copied to clipboard!`);
+      setTimeout(() => setCopiedCodeId(null), 2500);
+    }).catch(() => {
+      showToast(`Promo code: ${code}`);
+    });
+  };
 
   const handleVisitSpot = (offer: BusinessOffer) => {
-    // 1. Check if there is a corresponding spot in spots
     const matchingSpot = spots.find(
       s => (s.businessId && s.businessId === offer.businessId) ||
            s.title.toLowerCase().trim() === offer.businessName.toLowerCase().trim() ||
@@ -95,7 +180,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       return;
     }
 
-    // 2. Open merchant storefront profile (shows physical address, bus stop/directions, contact & catalog)
     if (onOpenBusinessProfile) {
       onOpenBusinessProfile(offer.businessId);
       showToast(`Viewing venue details for ${offer.businessName}`);
@@ -190,85 +274,229 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     setReplyInputText('');
   };
 
+  // Filter spots with tags, location, search
+  const filteredSpots = useMemo(() => {
+    return spots.filter(spot => {
+      if (selectedArea !== 'all' && !spot.neighborhood.toLowerCase().includes(selectedArea.toLowerCase())) {
+        return false;
+      }
+      if (selectedTags.length > 0) {
+        const spotTags = spot.tags || [];
+        const hasMatch = selectedTags.some(tag => 
+          spotTags.some(st => st.toLowerCase() === tag.toLowerCase()) ||
+          spot.title.toLowerCase().includes(tag.toLowerCase()) ||
+          (spot.description && spot.description.toLowerCase().includes(tag.toLowerCase()))
+        );
+        if (!hasMatch) return false;
+      }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        return (
+          spot.title.toLowerCase().includes(q) ||
+          spot.neighborhood.toLowerCase().includes(q) ||
+          spot.address.toLowerCase().includes(q) ||
+          (spot.description && spot.description.toLowerCase().includes(q))
+        );
+      }
+      return true;
+    });
+  }, [spots, selectedArea, selectedTags, searchQuery]);
+
+  // Filter experiences with tags, location, search
+  const filteredExperiences = useMemo(() => {
+    return experiences.filter(exp => {
+      if (selectedArea !== 'all' && !exp.neighborhood.toLowerCase().includes(selectedArea.toLowerCase())) {
+        return false;
+      }
+      if (selectedTags.length > 0) {
+        const expTags = exp.tags || [];
+        const hasMatch = selectedTags.some(tag => 
+          expTags.some(et => et.toLowerCase() === tag.toLowerCase()) ||
+          exp.title.toLowerCase().includes(tag.toLowerCase()) ||
+          (exp.description && exp.description.toLowerCase().includes(tag.toLowerCase()))
+        );
+        if (!hasMatch) return false;
+      }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        return (
+          exp.title.toLowerCase().includes(q) ||
+          exp.neighborhood.toLowerCase().includes(q) ||
+          exp.category.toLowerCase().includes(q) ||
+          (exp.description && exp.description.toLowerCase().includes(q))
+        );
+      }
+      return true;
+    });
+  }, [experiences, selectedArea, selectedTags, searchQuery]);
+
   // Filter events with real-time query, vibe, genre, price tier, and date
-  const filteredEvents = events.filter(e => {
-    const matchesVibe = selectedVibe === 'all' || e.category === selectedVibe;
-    const matchesGenre = selectedGenre === 'all' || (e.genre && e.genre.toLowerCase().includes(selectedGenre.toLowerCase()));
+  const filteredEvents = useMemo(() => {
+    return events.filter(e => {
+      if (selectedArea !== 'all' && !e.location.toLowerCase().includes(selectedArea.toLowerCase())) {
+        return false;
+      }
+      if (selectedTags.length > 0) {
+        const evtTags = e.tags || [];
+        const hasMatch = selectedTags.some(tag => 
+          evtTags.some(et => et.toLowerCase() === tag.toLowerCase()) ||
+          e.title.toLowerCase().includes(tag.toLowerCase()) ||
+          (e.genre && e.genre.toLowerCase().includes(tag.toLowerCase()))
+        );
+        if (!hasMatch) return false;
+      }
 
-    // Price tier filtering
-    let matchesPrice = true;
-    if (selectedEventPriceTier === 'free') {
-      matchesPrice = e.tiers.some(t => t.price.toLowerCase().includes('free') || t.price.includes('0'));
-    } else if (selectedEventPriceTier === 'under1k') {
-      matchesPrice = e.tiers.some(t => {
-        const num = parseInt(t.price.replace(/\D/g, ''), 10);
-        return num && num < 1000;
-      });
-    } else if (selectedEventPriceTier === '1k-3k') {
-      matchesPrice = e.tiers.some(t => {
-        const num = parseInt(t.price.replace(/\D/g, ''), 10);
-        return num && num >= 1000 && num <= 3000;
-      });
-    } else if (selectedEventPriceTier === '3k+') {
-      matchesPrice = e.tiers.some(t => {
-        const num = parseInt(t.price.replace(/\D/g, ''), 10);
-        return num && num > 3000;
-      });
-    }
+      const matchesVibe = selectedVibe === 'all' || e.category === selectedVibe;
+      const matchesGenre = selectedGenre === 'all' || (e.genre && e.genre.toLowerCase().includes(selectedGenre.toLowerCase()));
 
-    // Date range filtering
-    let matchesDate = true;
-    if (selectedEventDateRange === 'today') {
-      matchesDate = e.date.toLowerCase().includes('today') || e.date.toLowerCase().includes('14 oct');
-    } else if (selectedEventDateRange === 'weekend') {
-      matchesDate = e.date.toLowerCase().includes('sat') || e.date.toLowerCase().includes('sun') || e.date.toLowerCase().includes('weekend') || e.date.toLowerCase().includes('17 oct') || e.date.toLowerCase().includes('18 oct');
-    }
+      let matchesPrice = true;
+      if (selectedEventPriceTier === 'free') {
+        matchesPrice = e.tiers.some(t => t.price.toLowerCase().includes('free') || t.price.includes('0'));
+      } else if (selectedEventPriceTier === 'under1k') {
+        matchesPrice = e.tiers.some(t => {
+          const num = parseInt(t.price.replace(/\D/g, ''), 10);
+          return num && num < 1000;
+        });
+      } else if (selectedEventPriceTier === '1k-3k') {
+        matchesPrice = e.tiers.some(t => {
+          const num = parseInt(t.price.replace(/\D/g, ''), 10);
+          return num && num >= 1000 && num <= 3000;
+        });
+      } else if (selectedEventPriceTier === '3k+') {
+        matchesPrice = e.tiers.some(t => {
+          const num = parseInt(t.price.replace(/\D/g, ''), 10);
+          return num && num > 3000;
+        });
+      }
 
-    if (!matchesVibe || !matchesGenre || !matchesPrice || !matchesDate) return false;
+      let matchesDate = true;
+      if (selectedEventDateRange === 'today') {
+        matchesDate = e.date.toLowerCase().includes('today') || e.date.includes('15 Oct') || e.date.includes('16 Oct');
+      } else if (selectedEventDateRange === 'weekend') {
+        matchesDate = e.date.toLowerCase().includes('sat') || e.date.toLowerCase().includes('sun') || e.date.toLowerCase().includes('fri');
+      }
 
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase().trim();
-    return (
-      e.title.toLowerCase().includes(q) ||
-      e.location.toLowerCase().includes(q) ||
-      (e.genre && e.genre.toLowerCase().includes(q)) ||
-      (e.description && e.description.toLowerCase().includes(q)) ||
-      (e.artists && e.artists.some(a => a.name.toLowerCase().includes(q)))
-    );
-  });
+      if (!matchesVibe || !matchesGenre || !matchesPrice || !matchesDate) return false;
 
-  // Filter cinema movies (Showtime by date removed, movie genre filter added)
-  const filteredCinemaMovies = cinemaMovies.filter(m => {
-    const matchesLoc = selectedCinemaLoc === 'all' || m.location === selectedCinemaLoc;
-    const matchesGenre = selectedGenre === 'all' || (m.genre && m.genre.toLowerCase().includes(selectedGenre.toLowerCase()));
-    
-    if (!matchesLoc || !matchesGenre) return false;
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase().trim();
+      return (
+        e.title.toLowerCase().includes(q) ||
+        e.location.toLowerCase().includes(q) ||
+        (e.genre && e.genre.toLowerCase().includes(q)) ||
+        (e.description && e.description.toLowerCase().includes(q))
+      );
+    });
+  }, [events, selectedArea, selectedTags, selectedVibe, selectedGenre, selectedEventPriceTier, selectedEventDateRange, searchQuery]);
 
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase().trim();
-    return (
-      m.title.toLowerCase().includes(q) ||
-      m.locationName.toLowerCase().includes(q) ||
-      (m.genre && m.genre.toLowerCase().includes(q))
-    );
-  });
+  // Filter thrift items
+  const filteredThrift = useMemo(() => {
+    return thriftItems.filter(item => {
+      if (selectedArea !== 'all' && !item.storeLocation.toLowerCase().includes(selectedArea.toLowerCase())) {
+        return false;
+      }
+      if (selectedTags.length > 0) {
+        const itemTags = item.tags || [];
+        const hasMatch = selectedTags.some(tag => 
+          itemTags.some(it => it.toLowerCase() === tag.toLowerCase()) ||
+          item.name.toLowerCase().includes(tag.toLowerCase()) ||
+          item.category.toLowerCase().includes(tag.toLowerCase())
+        );
+        if (!hasMatch) return false;
+      }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        return (
+          item.name.toLowerCase().includes(q) ||
+          item.storeLocation.toLowerCase().includes(q) ||
+          item.category.toLowerCase().includes(q) ||
+          item.seller.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [thriftItems, selectedArea, selectedTags, searchQuery]);
+
+  // Filter cinema movies
+  const filteredCinemaMovies = useMemo(() => {
+    return cinemaMovies.filter(m => {
+      const matchesLoc = selectedCinemaLoc === 'all' || m.location === selectedCinemaLoc;
+      const matchesGenre = selectedGenre === 'all' || (m.genre && m.genre.toLowerCase().includes(selectedGenre.toLowerCase()));
+      
+      if (!matchesLoc || !matchesGenre) return false;
+
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase().trim();
+      return (
+        m.title.toLowerCase().includes(q) ||
+        m.locationName.toLowerCase().includes(q) ||
+        (m.genre && m.genre.toLowerCase().includes(q))
+      );
+    });
+  }, [cinemaMovies, selectedCinemaLoc, selectedGenre, searchQuery]);
 
   // Filter offers by category and search query
-  const filteredOffers = (offers || []).filter(o => {
-    if (selectedOfferCategory !== 'all' && o.category !== selectedOfferCategory) return false;
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase().trim();
-    return (
-      o.title.toLowerCase().includes(q) ||
-      o.businessName.toLowerCase().includes(q) ||
-      o.description.toLowerCase().includes(q) ||
-      o.category.toLowerCase().includes(q) ||
-      o.discount.toLowerCase().includes(q)
-    );
-  });
+  const filteredOffers = useMemo(() => {
+    return (offers || []).filter(o => {
+      if (selectedOfferCategory !== 'all' && o.category !== selectedOfferCategory) return false;
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase().trim();
+      return (
+        o.title.toLowerCase().includes(q) ||
+        o.businessName.toLowerCase().includes(q) ||
+        o.description.toLowerCase().includes(q) ||
+        o.category.toLowerCase().includes(q) ||
+        o.discount.toLowerCase().includes(q)
+      );
+    });
+  }, [offers, selectedOfferCategory, searchQuery]);
+
+  // Total active filter count
+  const activeFilterCount = selectedTags.length + (selectedArea !== 'all' ? 1 : 0) + (selectedDiscoveryCategory !== 'all' ? 1 : 0);
 
   return (
     <section className="px-4 py-4 space-y-6">
+      {/* Editorial Hero Header ("What's the move?") */}
+      <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-[#1C1A1E] text-white rounded-3xl p-5 shadow-lg border border-slate-800 relative overflow-hidden">
+        <div className="absolute top-0 right-0 -mr-8 -mt-8 w-36 h-36 bg-[#E0533C]/20 rounded-full blur-2xl pointer-events-none" />
+        <div className="relative z-10 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-full bg-[#E0533C] text-white text-[10px] font-black uppercase tracking-wider shadow-xs">
+              RADA Discovery
+            </span>
+            <span className="text-slate-400 text-xs">·</span>
+            <span className="text-slate-300 text-xs font-semibold">Nairobi & Kiambu Guide</span>
+          </div>
+
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+            {greeting.title}
+          </h1>
+          <p className="text-xs text-slate-300 font-medium">
+            {greeting.subtitle}
+          </p>
+
+          {/* Quick Curated Weekend / Date Action Buttons */}
+          <div className="pt-2 flex flex-wrap gap-2">
+            {onOpenPlanDate && (
+              <button
+                onClick={() => onOpenPlanDate()}
+                className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs backdrop-blur-sm transition flex items-center gap-1.5 border border-white/10 shadow-xs"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-[#E9C46A]" />
+                <span>Plan a Date</span>
+              </button>
+            )}
+            <button
+              onClick={() => setSelectedDiscoveryCategory('experiences')}
+              className="px-3.5 py-1.5 rounded-xl bg-[#E0533C] hover:bg-orange-700 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-sm"
+            >
+              <Compass className="w-3.5 h-3.5" />
+              <span>Explore Experiences</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Search Bar with Web Speech API & Waveform Animation */}
       <div className="space-y-3">
         <div className="relative flex items-center gap-2">
@@ -278,12 +506,11 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search Kenyan events, venues, movies, or DJs..."
+              placeholder="Search places, experiences, events, thrift fits..."
               className="w-full pl-10 pr-20 py-3 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] shadow-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
             />
 
             <div className="absolute right-2.5 flex items-center gap-1.5">
-              {/* Listening Waveform Animation */}
               {isListening && (
                 <div className="flex items-center gap-0.5 px-2 py-1 bg-red-100 dark:bg-red-950/80 rounded-full animate-pulse">
                   <span className="w-1 h-3 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -293,7 +520,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 </div>
               )}
 
-              {/* Microphone Button */}
               <button
                 type="button"
                 onClick={handleToggleVoiceSearch}
@@ -309,266 +535,169 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             </div>
           </div>
 
-          {/* Clean Filter Icon Button (Replaces top genre pill row) */}
+          {/* Filter Modal Trigger */}
           <button
             type="button"
             onClick={() => setIsEventFilterModalOpen(true)}
             className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-xs ${
-              selectedGenre !== 'all' || selectedEventDateRange !== 'all' || selectedEventPriceTier !== 'all'
+              activeFilterCount > 0
                 ? 'bg-[#E0533C] text-white border-[#E0533C] shadow-md'
                 : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
             }`}
-            title="Filter Events (Date, Price, Expanded Genres)"
+            title="Filter by Dates, Price, and Genres"
           >
             <SlidersHorizontal className="w-4 h-4" />
-            {(selectedGenre !== 'all' || selectedEventDateRange !== 'all' || selectedEventPriceTier !== 'all') && (
+            {activeFilterCount > 0 && (
               <span className="w-2 h-2 rounded-full bg-white ml-1.5" />
             )}
           </button>
         </div>
 
-        {/* Active Filter Indicators */}
-        {(selectedGenre !== 'all' || selectedEventDateRange !== 'all' || selectedEventPriceTier !== 'all') && (
-          <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pt-0.5">
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Active:</span>
-            {selectedGenre !== 'all' && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#E0533C] text-white">
-                <span>{selectedGenre.toUpperCase()}</span>
-                <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedGenre('all')} />
-              </span>
+        {/* 1. FLEXIBLE DISCOVERY CATEGORIES (Places, Experiences, Events, Fashion, Deals) */}
+        <div className="flex gap-1.5 overflow-x-auto hide-scrollbar pb-1 text-xs">
+          {[
+            { id: 'all', label: '🔥 All Moves' },
+            { id: 'places', label: '🍸 Places & Venues' },
+            { id: 'experiences', label: '✨ Experiences' },
+            { id: 'events', label: '🎟️ Events' },
+            { id: 'fashion', label: '👟 Luku & Thrift' },
+            { id: 'deals', label: '⚡ Exclusive Deals' }
+          ].map((cat) => {
+            const isActive = selectedDiscoveryCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedDiscoveryCategory(cat.id as DiscoveryCategory)}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
+                  isActive
+                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
+                    : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                }`}
+              >
+                {cat.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 2. MANY-TO-MANY TAG SYSTEM (Interactive Multi-Select Chips) */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+              Vibes & Tags
+            </span>
+            {selectedTags.length > 0 && (
+              <button
+                onClick={() => setSelectedTags([])}
+                className="text-[10px] font-bold text-[#E0533C] hover:underline"
+              >
+                Clear tags ({selectedTags.length})
+              </button>
             )}
-            {selectedEventDateRange !== 'all' && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900">
-                <span>{selectedEventDateRange}</span>
-                <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedEventDateRange('all')} />
-              </span>
-            )}
-            {selectedEventPriceTier !== 'all' && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#2D6A4F] text-white">
-                <span>{selectedEventPriceTier}</span>
-                <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedEventPriceTier('all')} />
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedGenre('all');
-                setSelectedEventDateRange('all');
-                setSelectedEventPriceTier('all');
-              }}
-              className="text-[10px] text-[#E0533C] font-bold underline ml-1 cursor-pointer"
-            >
-              Reset
-            </button>
           </div>
-        )}
-
-        {/* Streamlined Events & Entertainment Filter Modal */}
-        {isEventFilterModalOpen && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-            <div className="bg-white dark:bg-[#1C1A1E] w-full max-w-md rounded-3xl p-5 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 max-h-[88vh] overflow-y-auto">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-red-50 dark:bg-red-950/60 text-[#E0533C] flex items-center justify-center">
-                    <SlidersHorizontal className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-                      Filter Events & Movies
-                    </h3>
-                    <p className="text-[10px] text-slate-400">Date, price tier & expanded genres</p>
-                  </div>
-                </div>
+          <div className="flex gap-1.5 overflow-x-auto hide-scrollbar pb-1">
+            {DISCOVERY_TAGS.map((tag) => {
+              const isSelected = selectedTags.includes(tag);
+              return (
                 <button
-                  type="button"
-                  onClick={() => setIsEventFilterModalOpen(false)}
-                  className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+                  key={tag}
+                  onClick={() => handleToggleTag(tag)}
+                  className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition whitespace-nowrap shrink-0 flex items-center gap-1 ${
+                    isSelected
+                      ? 'bg-[#E0533C] text-white shadow-xs'
+                      : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                  }`}
                 >
-                  <X className="w-4 h-4" />
+                  <span>#{tag}</span>
+                  {isSelected && <Check className="w-3 h-3" />}
                 </button>
-              </div>
+              );
+            })}
+          </div>
+        </div>
 
-              {/* Date Filter Options */}
-              <div className="space-y-2">
-                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5 text-[#E0533C]" />
-                  <span>When:</span>
-                </span>
-                <div className="grid grid-cols-3 gap-1.5 text-xs">
-                  {[
-                    { id: 'all', label: 'All Dates' },
-                    { id: 'today', label: 'Happening Today' },
-                    { id: 'weekend', label: 'This Weekend' }
-                  ].map((d) => (
-                    <button
-                      key={d.id}
-                      type="button"
-                      onClick={() => setSelectedEventDateRange(d.id)}
-                      className={`p-2 rounded-xl font-bold transition text-center cursor-pointer ${
-                        selectedEventDateRange === d.id
-                          ? 'bg-[#E0533C] text-white shadow-xs'
-                          : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
-                      }`}
-                    >
-                      {d.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Price Tier Options */}
-              <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
-                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                  <Ticket className="w-3.5 h-3.5 text-[#2D6A4F]" />
-                  <span>Price / Budget:</span>
-                </span>
-                <div className="grid grid-cols-2 gap-1.5 text-xs">
-                  {[
-                    { id: 'all', label: 'All Prices' },
-                    { id: 'free', label: 'Free Entry / RSVP' },
-                    { id: 'under1k', label: 'Under KES 1,000' },
-                    { id: '1k-3k', label: 'KES 1,000 - 3,000' },
-                    { id: '3k+', label: 'VIP (KES 3,000+)' }
-                  ].map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => setSelectedEventPriceTier(p.id)}
-                      className={`p-2 rounded-xl font-bold transition text-center cursor-pointer ${
-                        selectedEventPriceTier === p.id
-                          ? 'bg-[#2D6A4F] text-white shadow-xs'
-                          : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
-                      }`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Expanded Genres */}
-              <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
-                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                  <Music className="w-3.5 h-3.5 text-purple-500" />
-                  <span>Genre & Style:</span>
-                </span>
-                <div className="flex flex-wrap gap-1.5 text-xs">
-                  {[
-                    { id: 'all', label: 'All Genres' },
-                    { id: 'hip hop', label: 'Hip Hop & Rap' },
-                    { id: 'afrobeats', label: 'Afrobeats' },
-                    { id: 'amapiano', label: 'Amapiano' },
-                    { id: 'gengetone', label: 'Gengetone' },
-                    { id: 'reggae', label: 'Reggae & Dancehall' },
-                    { id: 'electronic', label: 'Electronic & Tech' },
-                    { id: 'acoustic', label: 'Acoustic & Live Bands' },
-                    { id: 'sci-fi', label: 'Sci-Fi' },
-                    { id: 'action', label: 'Action Movies' },
-                    { id: 'comedy', label: 'Comedy' },
-                    { id: 'animation', label: 'Animation' }
-                  ].map((g) => (
-                    <button
-                      key={g.id}
-                      type="button"
-                      onClick={() => setSelectedGenre(g.id)}
-                      className={`px-3 py-1.5 rounded-xl font-bold transition cursor-pointer ${
-                        selectedGenre === g.id
-                          ? 'bg-purple-600 text-white shadow-xs'
-                          : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
-                      }`}
-                    >
-                      {g.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+        {/* 3. LOCATION-BASED DISCOVERY (Nairobi Neighborhoods) */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
+              <MapPin className="w-3 h-3 text-[#E0533C]" />
+              <span>Nairobi Areas & Hubs</span>
+            </span>
+            {selectedArea !== 'all' && (
+              <button
+                onClick={() => setSelectedArea('all')}
+                className="text-[10px] font-bold text-[#E0533C] hover:underline"
+              >
+                Reset area
+              </button>
+            )}
+          </div>
+          <div className="flex gap-1.5 overflow-x-auto hide-scrollbar pb-1 text-xs">
+            <button
+              onClick={() => setSelectedArea('all')}
+              className={`px-3 py-1 rounded-full text-[11px] font-bold transition whitespace-nowrap shrink-0 ${
+                selectedArea === 'all'
+                  ? 'bg-[#2D6A4F] text-white shadow-xs'
+                  : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800'
+              }`}
+            >
+              All Nairobi
+            </button>
+            {NAIROBI_NEIGHBORHOODS.map((area) => {
+              const isSelected = selectedArea.toLowerCase() === area.toLowerCase();
+              return (
                 <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedGenre('all');
-                    setSelectedEventDateRange('all');
-                    setSelectedEventPriceTier('all');
-                  }}
-                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 cursor-pointer"
+                  key={area}
+                  onClick={() => setSelectedArea(isSelected ? 'all' : area)}
+                  className={`px-3 py-1 rounded-full text-[11px] font-bold transition whitespace-nowrap shrink-0 ${
+                    isSelected
+                      ? 'bg-[#2D6A4F] text-white shadow-xs'
+                      : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800'
+                  }`}
                 >
-                  Reset
+                  {area}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setIsEventFilterModalOpen(false)}
-                  className="flex-1 py-2.5 bg-[#E0533C] text-white rounded-xl text-xs font-black shadow-md hover:bg-orange-700 transition cursor-pointer"
-                >
-                  Apply Filters ({filteredEvents.length} events)
-                </button>
-              </div>
-            </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Active Filters Summary Bar */}
+        {activeFilterCount > 0 && (
+          <div className="p-2 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200/60 dark:border-amber-900/60 flex items-center justify-between text-[11px]">
+            <span className="font-bold text-amber-900 dark:text-amber-200">
+              {activeFilterCount} active filter{activeFilterCount > 1 ? 's' : ''} applied
+            </span>
+            <button
+              onClick={handleClearAllFilters}
+              className="font-bold text-[#E0533C] hover:underline"
+            >
+              Clear all
+            </button>
           </div>
         )}
       </div>
 
-      {/* Empty Search Result State for Home Tab */}
-      {filteredEvents.length === 0 && filteredCinemaMovies.length === 0 && filteredOffers.length === 0 && (
-        <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-dashed border-slate-300 dark:border-slate-800 rounded-3xl p-6 text-center space-y-3 shadow-xs">
-          <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/60 text-[#E0533C] mx-auto flex items-center justify-center font-black">
-            <Calendar className="w-6 h-6" />
-          </div>
-          <div className="space-y-1">
-            <h4 className="font-black text-sm text-slate-900 dark:text-slate-100">
-              No events, movie showtimes or offers found for "{searchQuery}"
-            </h4>
-            <p className="text-xs text-slate-500 max-w-xs mx-auto">
-              Are you an event organizer or promoter? Publish this event live on RADA!
-            </p>
-          </div>
-          <button
-            onClick={() => onOpenCreateEvent ? onOpenCreateEvent(searchQuery) : showToast('Open Business Hub to publish an event')}
-            className="px-5 py-2.5 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Create Event "{searchQuery || 'New Showcase'}"</span>
-          </button>
-        </div>
-      )}
-
       {/* ========================================================
-          RUNNING OFFERS & PROMOTIONS FEED (SPEC 4)
+          RUNNING OFFERS & PROMOTIONS (Deals Architecture)
           ======================================================== */}
-      {filteredOffers.length > 0 && (
+      {(selectedDiscoveryCategory === 'all' || selectedDiscoveryCategory === 'deals') && filteredOffers.length > 0 && (
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-[#E0533C] to-amber-400 flex items-center justify-center text-white shadow-xs">
-              <Flame className="w-3 h-3 fill-white" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-[#E0533C] to-amber-400 flex items-center justify-center text-white shadow-xs">
+                <Flame className="w-3 h-3 fill-white" />
+              </div>
+              <h2 className="text-xs font-black tracking-wider uppercase text-slate-800 dark:text-slate-200">
+                Running Offers & Promo Codes
+              </h2>
             </div>
-            <h2 className="text-xs font-black tracking-wider uppercase text-slate-800 dark:text-slate-200">
-              Running Offers & Promotions
-            </h2>
-          </div>
-
-          {/* Offer Category Filter System */}
-          <div className="flex gap-1.5 overflow-x-auto hide-scrollbar pb-1">
-            {[
-              { id: 'all', label: 'All Deals' },
-              { id: 'Tickets', label: 'Tickets' },
-              { id: 'Food', label: 'Food' },
-              { id: 'Drinks', label: 'Drinks' },
-              { id: 'Apparel', label: 'Apparel' },
-              { id: 'Special Deals', label: 'Special Deals' }
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setSelectedOfferCategory(tab.id as any)}
-                className={`px-3 py-1 rounded-full text-[11px] shrink-0 font-bold transition cursor-pointer ${
-                  selectedOfferCategory === tab.id
-                    ? 'bg-rose-600 text-white shadow-xs'
-                    : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+            <button
+              onClick={() => onOpenDedicatedViewAll('Special Offers & Deals', 'offers')}
+              className="text-[11px] font-bold text-[#E0533C] hover:underline"
+            >
+              View All ({filteredOffers.length})
+            </button>
           </div>
 
           {/* Offers Horizontal Showcase */}
@@ -583,6 +712,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   <img
                     src={offer.posterUrl || 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&auto=format&fit=crop'}
                     alt={offer.title}
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
                     className="w-full h-full object-cover group-hover:scale-105 transition duration-300 opacity-90"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
@@ -596,6 +727,20 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     </span>
                   </div>
 
+                  {/* Bookmark Button */}
+                  {onToggleSave && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleSave(offer, 'offer');
+                      }}
+                      className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-black/60 backdrop-blur-md text-white flex items-center justify-center hover:text-[#E0533C] transition"
+                      title={isItemSaved(offer.id, 'offer') ? 'Saved' : 'Save Offer'}
+                    >
+                      <Bookmark className={`w-3.5 h-3.5 ${isItemSaved(offer.id, 'offer') ? 'fill-[#E0533C] text-[#E0533C]' : ''}`} />
+                    </button>
+                  )}
+
                   <div className="absolute bottom-2.5 left-2.5 right-2.5">
                     <p className="text-[10px] text-amber-300 font-bold">{offer.validUntil}</p>
                     <h3 className="text-sm font-black text-white line-clamp-1 mt-0.5">{offer.title}</h3>
@@ -605,7 +750,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 {/* Offer Details & Actions */}
                 <div className="p-3.5 space-y-2.5 flex-1 flex flex-col justify-between">
                   <div className="space-y-1.5">
-                    {/* Merchant Attribution with Tailored Verification Badge */}
                     <div 
                       onClick={() => onOpenBusinessProfile && onOpenBusinessProfile(offer.businessId)}
                       className="flex items-center justify-between cursor-pointer group/biz"
@@ -621,79 +765,35 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     </p>
                   </div>
 
-                  {/* Customized CTA Button: View Tickets, Visit Shop, or Visit Spot */}
-                  <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
-                    {(() => {
-                      const isEventOffer = offer.category === 'Tickets' || offer.businessCategory === 'event_organizer';
-                      const isThriftOffer = offer.category === 'Apparel' || offer.businessCategory === 'thrift_store';
+                  {/* Promo Code Copy Bar */}
+                  {offer.claimCode && (
+                    <div className="flex items-center justify-between bg-[#F8F8F6] dark:bg-[#121113] p-2 rounded-xl border border-slate-200 dark:border-slate-800">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Tag className="w-3.5 h-3.5 text-[#E0533C] shrink-0" />
+                        <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200 truncate">
+                          {offer.claimCode}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPromoCode(offer.claimCode!, offer.id)}
+                        className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[10px] font-bold flex items-center gap-1 transition shrink-0"
+                      >
+                        {copiedCodeId === offer.id ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                        <span>{copiedCodeId === offer.id ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+                  )}
 
-                      if (isEventOffer) {
-                        return (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const matchingEvent = events.find(
-                                e => e.businessId === offer.businessId || 
-                                     e.title.toLowerCase().includes(offer.title.toLowerCase()) ||
-                                     offer.title.toLowerCase().includes(e.title.toLowerCase())
-                              );
-                              if (matchingEvent) {
-                                onOpenEventDetails(matchingEvent);
-                              } else {
-                                onOpenDedicatedViewAll('Featured Trending Events', 'events');
-                              }
-                            }}
-                            className="flex-1 py-2 px-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98]"
-                            title={`View Tickets: ${offer.title}`}
-                          >
-                            <Ticket className="w-3.5 h-3.5 shrink-0" />
-                            <span>View Tickets</span>
-                            <ArrowRight className="w-3.5 h-3.5 shrink-0" />
-                          </button>
-                        );
-                      }
-
-                      if (isThriftOffer) {
-                        return (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (onOpenBusinessProfile) {
-                                onOpenBusinessProfile(offer.businessId);
-                              } else {
-                                onOpenDedicatedViewAll('Streetwear & Fits', 'thrift');
-                              }
-                            }}
-                            className="flex-1 py-2 px-3 bg-[#2D6A4F] hover:bg-emerald-800 text-white rounded-xl text-xs font-extrabold shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98]"
-                            title={`Visit Shop: ${offer.businessName}`}
-                          >
-                            <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
-                            <span>Visit Shop</span>
-                            <ArrowRight className="w-3.5 h-3.5 shrink-0" />
-                          </button>
-                        );
-                      }
-
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => handleVisitSpot(offer)}
-                          className="flex-1 py-2 px-3 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98]"
-                          title={`Visit Spot: ${offer.businessName}`}
-                        >
-                          <MapPin className="w-3.5 h-3.5 shrink-0" />
-                          <span>Visit Spot</span>
-                          <ArrowRight className="w-3.5 h-3.5 shrink-0" />
-                        </button>
-                      );
-                    })()}
-
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
                     <button
-                      onClick={() => onOpenBusinessProfile && onOpenBusinessProfile(offer.businessId)}
-                      className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-800 transition shrink-0"
-                      title="View Merchant Profile"
+                      type="button"
+                      onClick={() => handleVisitSpot(offer)}
+                      className="flex-1 py-2 px-3 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98]"
                     >
-                      <Store className="w-4 h-4" />
+                      <MapPin className="w-3.5 h-3.5 shrink-0" />
+                      <span>Redeem / Visit Venue</span>
+                      <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                     </button>
                   </div>
                 </div>
@@ -703,8 +803,119 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         </div>
       )}
 
-      {/* Featured Trending Events Section */}
-      {(selectedVibe === 'all' || selectedVibe === 'concerts' || selectedVibe === 'nightlife' || selectedVibe === 'art') && filteredEvents.length > 0 && (
+      {/* ========================================================
+          CURATED EXPERIENCES (New Experience System)
+          ======================================================== */}
+      {(selectedDiscoveryCategory === 'all' || selectedDiscoveryCategory === 'experiences') && filteredExperiences.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#2D6A4F]"></span>
+              <span>Unique Nairobi Experiences</span>
+            </h2>
+            <button
+              onClick={() => setSelectedDiscoveryCategory('experiences')}
+              className="text-[11px] font-bold text-[#E0533C] hover:underline"
+            >
+              View All ({filteredExperiences.length})
+            </button>
+          </div>
+
+          <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+            {filteredExperiences.map((exp) => (
+              <div
+                key={exp.id}
+                onClick={() => onOpenExperienceDetails && onOpenExperienceDetails(exp)}
+                className="w-72 sm:w-80 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm cursor-pointer hover:border-[#2D6A4F] transition group flex flex-col justify-between"
+              >
+                <div>
+                  <div
+                    className="h-44 bg-slate-200 dark:bg-slate-800 rounded-2xl mb-2.5 bg-cover bg-center relative overflow-hidden"
+                    style={{ backgroundImage: `url('${exp.img}')` }}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
+                    
+                    <span className="absolute top-2.5 left-2.5 bg-black/60 backdrop-blur-md text-white text-[9px] font-black px-2.5 py-1 rounded-md uppercase">
+                      {exp.category}
+                    </span>
+
+                    {/* Bookmark Button */}
+                    {onToggleSave && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleSave(exp, 'experience');
+                        }}
+                        className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-black/60 backdrop-blur-md text-white flex items-center justify-center hover:text-[#E0533C] transition"
+                        title={isItemSaved(exp.id, 'experience') ? 'Saved' : 'Save Experience'}
+                      >
+                        <Bookmark className={`w-3.5 h-3.5 ${isItemSaved(exp.id, 'experience') ? 'fill-[#E0533C] text-[#E0533C]' : ''}`} />
+                      </button>
+                    )}
+
+                    {/* Full-Screen Gallery Trigger */}
+                    {onOpenGallery && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const imgs = exp.images && exp.images.length > 0 ? exp.images : [exp.img];
+                          onOpenGallery(imgs, 0, exp.title, exp.neighborhood);
+                        }}
+                        className="absolute bottom-2.5 right-2.5 bg-black/75 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1"
+                        title="View Full-Screen Gallery"
+                      >
+                        <Images className="w-3 h-3" />
+                        <span>Gallery</span>
+                      </button>
+                    )}
+
+                    <span className="absolute bottom-2.5 left-2.5 bg-white/95 dark:bg-black/90 backdrop-blur-md text-slate-900 dark:text-white text-[10px] font-black px-2.5 py-0.5 rounded-lg flex items-center gap-1 shadow-xs">
+                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                      <span>{exp.rating} ({exp.reviewCount || 42})</span>
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 group-hover:text-[#2D6A4F] transition line-clamp-1">
+                      {exp.title}
+                    </h3>
+                    <p className="text-[11px] text-slate-500 flex items-center gap-1 truncate">
+                      <MapPin className="w-3 h-3 text-[#E0533C] shrink-0" />
+                      <span>{exp.neighborhood} · {exp.duration || '2-3 hrs'}</span>
+                    </p>
+
+                    {/* Tags preview */}
+                    {exp.tags && exp.tags.length > 0 && (
+                      <div className="flex gap-1 overflow-x-auto hide-scrollbar pt-1">
+                        {exp.tags.slice(0, 3).map(t => (
+                          <span key={t} className="text-[9px] px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold border border-slate-200 dark:border-slate-800">
+                            #{t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between mt-2">
+                  <span className="font-black text-xs text-[#2D6A4F]">
+                    {exp.price}
+                  </span>
+                  <span className="text-[11px] font-bold text-[#E0533C] flex items-center gap-1">
+                    <span>Book Experience</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          FEATURED TRENDING EVENTS
+          ======================================================== */}
+      {(selectedDiscoveryCategory === 'all' || selectedDiscoveryCategory === 'events') && filteredEvents.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
@@ -719,45 +930,12 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             </button>
           </div>
 
-          {/* Active Filter Indicators if any */}
-          {(selectedGenre !== 'all' || selectedEventPriceTier !== 'all' || selectedEventDateRange !== 'all') && (
-            <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-1 text-[11px]">
-              <span className="text-slate-400 font-bold uppercase text-[10px]">Active Filters:</span>
-              {selectedGenre !== 'all' && (
-                <span className="bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 px-2.5 py-0.5 rounded-full font-bold">
-                  {selectedGenre}
-                </span>
-              )}
-              {selectedEventPriceTier !== 'all' && (
-                <span className="bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 px-2.5 py-0.5 rounded-full font-bold">
-                  {selectedEventPriceTier}
-                </span>
-              )}
-              {selectedEventDateRange !== 'all' && (
-                <span className="bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 px-2.5 py-0.5 rounded-full font-bold">
-                  {selectedEventDateRange}
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedGenre('all');
-                  setSelectedEventPriceTier('all');
-                  setSelectedEventDateRange('all');
-                }}
-                className="text-[10px] text-red-500 font-bold hover:underline cursor-pointer ml-1"
-              >
-                Clear all
-              </button>
-            </div>
-          )}
-
           <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
             {filteredEvents.map((evt) => (
               <div
                 key={evt.id}
                 onClick={() => onOpenEventDetails(evt)}
-                className="event-card flex flex-col justify-between w-64 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm cursor-pointer hover:border-[#E0533C] transition group"
+                className="w-64 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm cursor-pointer hover:border-[#E0533C] transition group flex flex-col justify-between"
               >
                 <div>
                   <div
@@ -767,38 +945,60 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     <span className="absolute top-2.5 left-2.5 bg-black/60 backdrop-blur-md text-white text-[9px] font-black px-2.5 py-1 rounded-md">
                       {evt.date.split(',')[0]}
                     </span>
+
+                    {/* Bookmark Button */}
+                    {onToggleSave && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleSave(evt, 'event');
+                        }}
+                        className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-black/60 backdrop-blur-md text-white flex items-center justify-center hover:text-[#E0533C] transition"
+                        title={isItemSaved(evt.id, 'event') ? 'Saved' : 'Save Event'}
+                      >
+                        <Bookmark className={`w-3.5 h-3.5 ${isItemSaved(evt.id, 'event') ? 'fill-[#E0533C] text-[#E0533C]' : ''}`} />
+                      </button>
+                    )}
+
+                    {onOpenGallery && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const imgs = evt.images && evt.images.length > 0 ? evt.images : [evt.img];
+                          onOpenGallery(imgs, 0, evt.title, evt.location);
+                        }}
+                        className="absolute bottom-2.5 right-2.5 bg-black/75 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1"
+                        title="View Event Gallery"
+                      >
+                        <Images className="w-3 h-3" />
+                        <span>Gallery</span>
+                      </button>
+                    )}
+
                     {evt.genre && (
-                      <span className="absolute top-2.5 right-2.5 bg-[#E0533C] text-white text-[9px] font-black px-2.5 py-1 rounded-md shadow-xs">
+                      <span className="absolute bottom-2.5 left-2.5 bg-[#E0533C] text-white text-[9px] font-extrabold px-2 py-0.5 rounded-md">
                         {evt.genre}
                       </span>
                     )}
                   </div>
-                  <h3 className="font-extrabold text-sm line-clamp-1 text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition">
+
+                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition line-clamp-1">
                     {evt.title}
                   </h3>
-                  <p className="text-[11px] font-semibold text-[#E0533C] mt-0.5 flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    <span>{evt.date}</span>
-                  </p>
-                  <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
-                    <MapPin className="w-3 h-3" />
-                    <span className="truncate">{evt.location}</span>
+                  <p className="text-[11px] text-slate-500 flex items-center gap-1 truncate mt-0.5">
+                    <MapPin className="w-3 h-3 text-[#E0533C] shrink-0" />
+                    <span>{evt.location}</span>
                   </p>
                 </div>
 
-                <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800">
-                  <span className="text-[10px] font-bold text-slate-500">
+                <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between mt-2">
+                  <span className="text-[10px] text-slate-400 font-semibold">
                     {evt.goingCount} going
                   </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onOpenEventDetails(evt);
-                    }}
-                    className="px-3 py-1.5 bg-[#E0533C] text-white rounded-xl text-xs font-bold shadow-xs hover:bg-orange-700 transition"
-                  >
-                    Get Tickets
-                  </button>
+                  <span className="text-[11px] font-bold text-[#E0533C] flex items-center gap-1">
+                    <span>Get Tickets</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </span>
                 </div>
               </div>
             ))}
@@ -806,147 +1006,300 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         </div>
       )}
 
-      {/* CENTURY CINEMAX SHOWINGS (Official Posters, Showtime by Date removed, Movie Genre filter added) */}
-      {(selectedVibe === 'all' || selectedVibe === 'cinemas') && filteredCinemaMovies.length > 0 && (
+      {/* ========================================================
+          PLACES & HANGOUT VENUES
+          ======================================================== */}
+      {(selectedDiscoveryCategory === 'all' || selectedDiscoveryCategory === 'places') && filteredSpots.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Film className="w-4 h-4 text-[#2D6A4F]" />
-              <h2 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400">
-                Century Cinemax Showings
-              </h2>
-            </div>
+            <h2 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+              <span>Popular Nairobi Spots & Rooftops</span>
+            </h2>
             <button
-              onClick={() => onOpenDedicatedViewAll('Century Cinemax Movies', 'cinemas')}
+              onClick={() => onOpenDedicatedViewAll('Top Hangout Spots', 'spots')}
               className="text-[11px] font-bold text-[#E0533C] hover:underline"
             >
-              All Movies ({filteredCinemaMovies.length})
+              View All ({filteredSpots.length})
             </button>
           </div>
 
-          {/* Mall Location Pills */}
-          <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
-            {[
-              { id: 'all', label: 'All Malls' },
-              { id: 'gardencity', label: 'Garden City IMAX' },
-              { id: 'sarit', label: 'Sarit Centre' },
-              { id: 'junction', label: 'Junction Mall' },
-              { id: 'tworivers', label: 'Two Rivers Mall' }
-            ].map((loc) => (
-              <button
-                key={loc.id}
-                onClick={() => setSelectedCinemaLoc(loc.id)}
-                className={`px-3 py-1.5 rounded-full text-xs shrink-0 transition ${
-                  selectedCinemaLoc === loc.id
-                    ? 'bg-[#2D6A4F] text-white font-black shadow-xs'
-                    : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-800'
-                }`}
+          <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+            {filteredSpots.map((spot) => (
+              <div
+                key={spot.id}
+                onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
+                className="w-64 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm cursor-pointer hover:border-amber-500 transition group flex flex-col justify-between"
               >
-                {loc.label}
-              </button>
+                <div>
+                  <div
+                    className="h-44 bg-slate-200 dark:bg-slate-800 rounded-2xl mb-2.5 bg-cover bg-center relative overflow-hidden"
+                    style={{ backgroundImage: `url('${spot.img}')` }}
+                  >
+                    <span className="absolute top-2.5 left-2.5 bg-black/60 backdrop-blur-md text-white text-[9px] font-black px-2.5 py-1 rounded-md uppercase">
+                      {spot.category}
+                    </span>
+
+                    {/* Bookmark Button */}
+                    {onToggleSave && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleSave(spot, 'spot');
+                        }}
+                        className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-black/60 backdrop-blur-md text-white flex items-center justify-center hover:text-[#E0533C] transition"
+                        title={isItemSaved(spot.id, 'spot') ? 'Saved' : 'Save Spot'}
+                      >
+                        <Bookmark className={`w-3.5 h-3.5 ${isItemSaved(spot.id, 'spot') ? 'fill-[#E0533C] text-[#E0533C]' : ''}`} />
+                      </button>
+                    )}
+
+                    {onOpenGallery && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const imgs = spot.images && spot.images.length > 0 ? spot.images : [spot.img];
+                          onOpenGallery(imgs, 0, spot.title, spot.address);
+                        }}
+                        className="absolute bottom-2.5 right-2.5 bg-black/75 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1"
+                        title="View Spot Gallery"
+                      >
+                        <Images className="w-3 h-3" />
+                        <span>Gallery</span>
+                      </button>
+                    )}
+
+                    <span className="absolute bottom-2.5 left-2.5 bg-white/95 dark:bg-black/90 backdrop-blur-md text-slate-900 dark:text-white text-[10px] font-black px-2.5 py-0.5 rounded-lg flex items-center gap-1 shadow-xs">
+                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                      <span>{spot.rating} ({spot.reviewCount || spot.reviews?.length || 0})</span>
+                    </span>
+                  </div>
+
+                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition line-clamp-1">
+                    {spot.title}
+                  </h3>
+                  <p className="text-[11px] text-slate-500 flex items-center gap-1 truncate mt-0.5">
+                    <MapPin className="w-3 h-3 text-[#E0533C] shrink-0" />
+                    <span>{spot.neighborhood} · {spot.price}</span>
+                  </p>
+                </div>
+
+                <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between mt-2">
+                  <span className="text-[10px] font-bold text-[#E0533C]">
+                    {spot.exactLocationTag ? '📍 Exact Pin' : 'Verified Venue'}
+                  </span>
+                  <span className="text-[11px] font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1">
+                    <span>View Spot</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </span>
+                </div>
+              </div>
             ))}
           </div>
+        </div>
+      )}
 
-          {/* Movies Carousel with Official Posters & Genres */}
+      {/* ========================================================
+          LUKU FASHION & THRIFT DROPS
+          ======================================================== */}
+      {(selectedDiscoveryCategory === 'all' || selectedDiscoveryCategory === 'fashion') && filteredThrift.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span>Luku Fashion & Vintage Thrift Drops</span>
+            </h2>
+            <button
+              onClick={() => onOpenDedicatedViewAll('Streetwear & Fits', 'thrift')}
+              className="text-[11px] font-bold text-[#E0533C] hover:underline"
+            >
+              View All ({filteredThrift.length})
+            </button>
+          </div>
+
+          <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+            {filteredThrift.map((item) => (
+              <div
+                key={item.id}
+                onClick={() => onOpenThriftDetails && onOpenThriftDetails(item)}
+                className="w-56 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm cursor-pointer hover:border-emerald-500 transition group flex flex-col justify-between"
+              >
+                <div>
+                  <div
+                    className="h-40 bg-slate-200 dark:bg-slate-800 rounded-2xl mb-2.5 bg-cover bg-center relative overflow-hidden"
+                    style={{ backgroundImage: `url('${item.img}')` }}
+                  >
+                    <span className="absolute top-2.5 left-2.5 bg-black/60 backdrop-blur-md text-white text-[9px] font-black px-2 py-0.5 rounded-md">
+                      Size {item.size}
+                    </span>
+
+                    {/* Bookmark Button */}
+                    {onToggleSave && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleSave(item, 'thrift');
+                        }}
+                        className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-black/60 backdrop-blur-md text-white flex items-center justify-center hover:text-[#E0533C] transition"
+                        title={isItemSaved(item.id, 'thrift') ? 'Saved' : 'Save Fit'}
+                      >
+                        <Bookmark className={`w-3.5 h-3.5 ${isItemSaved(item.id, 'thrift') ? 'fill-[#E0533C] text-[#E0533C]' : ''}`} />
+                      </button>
+                    )}
+
+                    <span className="absolute bottom-2.5 left-2.5 bg-[#2D6A4F] text-white text-[9px] font-extrabold px-2 py-0.5 rounded-md">
+                      {item.condition}
+                    </span>
+                  </div>
+
+                  <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 group-hover:text-[#2D6A4F] transition line-clamp-1">
+                    {item.name}
+                  </h3>
+                  <p className="text-[10px] text-slate-500 truncate mt-0.5">
+                    {item.seller} · {item.storeLocation}
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between mt-2">
+                  <span className="font-black text-xs text-[#2D6A4F]">
+                    {item.price}
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">
+                    Inquire Fit →
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          CINEMA SHOWTIMES (GARDEN CITY, SARIT, JUNCTION, TWO RIVERS)
+          ======================================================== */}
+      {filteredCinemaMovies.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              <Film className="w-3.5 h-3.5 text-blue-500" />
+              <span>Cinema Movies & Showtimes</span>
+            </h2>
+            <div className="flex gap-1">
+              {[
+                { id: 'all', label: 'All' },
+                { id: 'sarit', label: 'Sarit' },
+                { id: 'gardencity', label: 'Garden City' },
+                { id: 'tworivers', label: 'Two Rivers' }
+              ].map(c => (
+                <button
+                  key={c.id}
+                  onClick={() => setSelectedCinemaLoc(c.id)}
+                  className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${
+                    selectedCinemaLoc === c.id
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
             {filteredCinemaMovies.map((movie) => (
               <div
                 key={movie.id}
                 onClick={() => onBookCinema(movie)}
-                className="cinema-card flex flex-col justify-between w-52 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-2.5 shrink-0 shadow-sm cursor-pointer hover:border-[#2D6A4F] transition group"
+                className="w-56 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm cursor-pointer hover:border-blue-500 transition group flex flex-col justify-between"
               >
                 <div>
                   <div
-                    className="h-60 bg-slate-200 dark:bg-slate-800 rounded-2xl mb-2.5 bg-cover bg-center relative overflow-hidden shadow-xs"
+                    className="h-40 bg-slate-200 dark:bg-slate-800 rounded-2xl mb-2.5 bg-cover bg-center relative overflow-hidden"
                     style={{ backgroundImage: `url('${movie.img}')` }}
                   >
-                    <span className="absolute top-2 right-2 bg-[#2D6A4F] text-white text-[9px] font-black px-2 py-0.5 rounded-md shadow-xs">
+                    <span className="absolute top-2.5 left-2.5 bg-black/60 backdrop-blur-md text-white text-[9px] font-black px-2 py-0.5 rounded-md">
                       {movie.format}
                     </span>
-                    {movie.genre && (
-                      <span className="absolute bottom-2 left-2 bg-black/75 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-md">
-                        {movie.genre}
-                      </span>
-                    )}
+                    <span className="absolute bottom-2.5 left-2.5 bg-blue-600 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-md">
+                      {movie.locationName}
+                    </span>
                   </div>
-                  <h3 className="font-extrabold text-xs line-clamp-1 text-slate-900 dark:text-slate-100 group-hover:text-[#2D6A4F] transition">
+
+                  <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 group-hover:text-blue-500 transition line-clamp-1">
                     {movie.title}
                   </h3>
-                  <p className="text-[11px] font-semibold text-[#E0533C] mt-0.5 flex items-center gap-1">
-                    <MapPin className="w-3 h-3" />
-                    <span>{movie.locationName}</span>
-                  </p>
-                  <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    <span className="truncate">{movie.times}</span>
+                  <p className="text-[10px] text-slate-500 truncate mt-0.5">
+                    {movie.times} · {movie.genre || 'Action'}
                   </p>
                 </div>
 
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onBookCinema(movie);
-                  }}
-                  className="mt-3 w-full py-2 bg-[#2D6A4F] hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center justify-center gap-1.5"
-                >
-                  <span>Book & Sync Vault</span>
-                  <Ticket className="w-3 h-3" />
-                </button>
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between mt-2">
+                  <span className="text-[10px] text-blue-500 font-bold">
+                    Now Showing
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-900 dark:text-slate-100">
+                    Book Seats →
+                  </span>
+                </div>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* LIVE COMMUNITY STATUS FEED - "Where Are You At?" */}
-      <div className="space-y-3">
+      {/* ========================================================
+          COMMUNITY STATUS FEED & STORIES (Broadcast Nairobi Vibes)
+          ======================================================== */}
+      <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">
         <div className="flex items-center justify-between">
-          <h2 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-            <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
-            <span>Where Are You At?</span>
-          </h2>
-          <span className="text-[10px] text-slate-400 font-bold">Live Hangout Feed</span>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full bg-[#E0533C]/10 text-[#E0533C] flex items-center justify-center font-bold text-xs">
+              ⚡
+            </div>
+            <h3 className="font-black text-sm text-slate-900 dark:text-slate-100">
+              Nairobi Vibe Check & Live Updates
+            </h3>
+          </div>
+          <span className="text-[10px] text-slate-400 font-medium">Real-time status broadcast</span>
         </div>
 
-        {/* Post Creation Box */}
-        <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3.5 shadow-sm space-y-3">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] text-white flex items-center justify-center font-black text-xs shrink-0">
-              W
-            </div>
-            <textarea
-              rows={2}
-              value={statusText}
-              onChange={(e) => setStatusText(e.target.value)}
-              placeholder="What spot are you at right now? Share vibes, DJs, or crowd tips..."
-              className="flex-1 bg-transparent border-none text-xs focus:outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 resize-none"
-            />
-          </div>
+        {/* Status Input Box */}
+        <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3.5 shadow-xs space-y-3">
+          <textarea
+            rows={2}
+            value={statusText}
+            onChange={(e) => setStatusText(e.target.value)}
+            placeholder="What's the move right now? Post a hangout update, party vibe, or ask the crowd..."
+            className="w-full bg-transparent text-xs text-slate-900 dark:text-slate-100 focus:outline-none placeholder:text-slate-400 resize-none"
+          />
 
           {statusMediaUrl && (
-            <div className="relative w-28 h-20 rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700">
-              <img src={statusMediaUrl} alt="Status upload" className="w-full h-full object-cover" />
+            <div className="relative inline-block">
+              <img src={statusMediaUrl} alt="Attached media" className="w-20 h-20 rounded-xl object-cover border border-slate-300 dark:border-slate-700" />
               <button
                 onClick={() => setStatusMediaUrl(null)}
-                className="absolute top-1 right-1 w-5 h-5 bg-black/70 text-white rounded-full flex items-center justify-center text-[10px]"
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-600 text-white rounded-full flex items-center justify-center text-[10px]"
               >
-                ✕
+                ×
               </button>
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800/80">
-            <div className="flex items-center gap-1.5">
-              <label className="cursor-pointer p-1.5 text-slate-500 hover:text-[#E0533C] transition" title="Attach Photo">
+          <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-2">
+              <label className="p-2 bg-slate-200 dark:bg-slate-800 rounded-xl text-slate-700 dark:text-slate-200 hover:text-[#E0533C] cursor-pointer transition">
                 <Camera className="w-4 h-4" />
-                <input type="file" accept="image/*" className="hidden" onChange={handleMediaUpload} />
+                <input type="file" accept="image/*" onChange={handleMediaUpload} className="hidden" />
               </label>
 
               <button
                 type="button"
                 onClick={() => setShowStatusEmojiPicker(!showStatusEmojiPicker)}
-                className={`p-1.5 rounded-lg transition cursor-pointer ${
-                  showStatusEmojiPicker ? 'text-[#E0533C] bg-orange-50 dark:bg-orange-950/40' : 'text-slate-500 hover:text-[#E0533C]'
+                className={`p-2 rounded-xl transition ${
+                  showStatusEmojiPicker 
+                    ? 'bg-[#E0533C] text-white shadow-xs' 
+                    : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:text-[#E0533C]'
                 }`}
                 title="Pick Emoji"
               >
@@ -967,7 +1320,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             </button>
           </div>
 
-          {/* Expanded Emoji Picker for Status Updates */}
           {showStatusEmojiPicker && (
             <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
               <EmojiPicker
@@ -1030,7 +1382,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 </div>
               )}
 
-              {/* Action Buttons: Reply */}
               <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800 text-xs">
                 <button
                   onClick={() => setActiveReplyStatusId(activeReplyStatusId === post.id ? null : post.id)}
@@ -1041,7 +1392,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 </button>
               </div>
 
-              {/* Replies Drawer */}
               {activeReplyStatusId === post.id && (
                 <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800 animate-in fade-in duration-150">
                   {post.replies && post.replies.map((rep) => (
