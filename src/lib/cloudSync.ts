@@ -235,6 +235,10 @@ export async function upsertListing(
     // Reviews, rating and count come from the reviews table, never from the spot row
     const { reviews, reviewCount, rating, ...rest } = item;
     payload = rest;
+  } else if (kind === 'event') {
+    // The going count comes from the rada_going table
+    const { goingCount, ...rest } = item;
+    payload = rest;
   }
 
   try {
@@ -304,4 +308,145 @@ export async function insertReview(spotId: number | string, review: any, userId:
     data: clean,
   });
   return error ? error.message : null;
+}
+
+// =====================================================================
+// STATUSES (public feed) + replies
+// =====================================================================
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  if (isNaN(diff) || diff < 60_000) return 'Just now';
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+/** Statuses newest first, each with its replies (oldest first). */
+export async function fetchStatuses(): Promise<any[] | null> {
+  const [st, rp] = await Promise.all([
+    supabase.from('rada_statuses').select('*').order('created_at', { ascending: false }),
+    supabase.from('rada_status_replies').select('*').order('created_at', { ascending: true }),
+  ]);
+  if (st.error || rp.error) {
+    console.warn('fetchStatuses failed:', st.error?.message || rp.error?.message);
+    return null;
+  }
+
+  const repliesByStatus: Record<string, any[]> = {};
+  for (const row of rp.data || []) {
+    (repliesByStatus[row.status_id] = repliesByStatus[row.status_id] || []).push({
+      ...row.data,
+      id: row.id,
+      timeAgo: timeAgo(row.created_at),
+    });
+  }
+
+  return (st.data || []).map((row: any) => ({
+    ...row.data,
+    id: row.id,
+    timeAgo: timeAgo(row.created_at),
+    replies: repliesByStatus[row.id] || [],
+  }));
+}
+
+/** Returns an error message, or null on success. */
+export async function insertStatus(post: any, userId: string): Promise<string | null> {
+  const { replies, timeAgo: _ta, ...rest } = post;
+  let clean: any;
+  try {
+    clean = await uploadImagesDeep(rest, userId);
+  } catch (e) {
+    return `photo upload failed: ${errMsg(e)}`;
+  }
+  const { error } = await supabase.from('rada_statuses').insert({
+    id: String(post.id),
+    user_id: userId,
+    data: clean,
+  });
+  return error ? error.message : null;
+}
+
+/** Returns an error message, or null on success. */
+export async function insertStatusReply(statusId: string, reply: any, userId: string): Promise<string | null> {
+  const { timeAgo: _ta, ...rest } = reply;
+  const { error } = await supabase.from('rada_status_replies').insert({
+    id: String(reply.id),
+    status_id: String(statusId),
+    user_id: userId,
+    data: rest,
+  });
+  return error ? error.message : null;
+}
+
+// =====================================================================
+// "I'M GOING" (real counts per event)
+// =====================================================================
+export async function fetchGoing(uid?: string): Promise<{ counts: Record<string, number>; mine: number[] } | null> {
+  const { data, error } = await supabase.from('rada_going').select('event_id,user_id');
+  if (error) {
+    console.warn('fetchGoing failed:', error.message);
+    return null;
+  }
+  const counts: Record<string, number> = {};
+  const mine: number[] = [];
+  for (const row of data || []) {
+    counts[row.event_id] = (counts[row.event_id] || 0) + 1;
+    if (uid && row.user_id === uid) mine.push(Number(row.event_id));
+  }
+  return { counts, mine };
+}
+
+/** Returns an error message, or null on success. */
+export async function setGoing(eventId: number | string, uid: string, going: boolean): Promise<string | null> {
+  if (going) {
+    const { error } = await supabase
+      .from('rada_going')
+      .upsert({ event_id: String(eventId), user_id: uid }, { onConflict: 'event_id,user_id', ignoreDuplicates: true });
+    return error ? error.message : null;
+  }
+  const { error } = await supabase
+    .from('rada_going')
+    .delete()
+    .eq('event_id', String(eventId))
+    .eq('user_id', uid);
+  return error ? error.message : null;
+}
+
+// =====================================================================
+// PRIVATE PER-USER DATA (tickets, emergency contacts, own profile)
+// =====================================================================
+export async function fetchUserData(uid: string): Promise<Record<string, any> | null> {
+  const { data, error } = await supabase.from('rada_user_data').select('key,data').eq('user_id', uid);
+  if (error) {
+    console.warn('fetchUserData failed:', error.message);
+    return null;
+  }
+  const out: Record<string, any> = {};
+  for (const row of data || []) out[row.key] = row.data;
+  return out;
+}
+
+/** Saves each key as its own row. Returns the version with photos swapped for online links. */
+export async function saveUserData(
+  uid: string,
+  bundle: Record<string, any>
+): Promise<{ error: string | null; cleaned: Record<string, any> }> {
+  let cleaned: Record<string, any>;
+  try {
+    cleaned = await uploadImagesDeep(bundle, uid);
+  } catch (e) {
+    return { error: `photo upload failed: ${errMsg(e)}`, cleaned: bundle };
+  }
+  const rows = Object.entries(cleaned).map(([key, data]) => ({
+    user_id: uid,
+    key,
+    data,
+    updated_at: new Date().toISOString(),
+  }));
+  const { error } = await supabase.from('rada_user_data').upsert(rows, { onConflict: 'user_id,key' });
+  return { error: error ? error.message : null, cleaned };
 }
