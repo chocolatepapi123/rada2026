@@ -53,6 +53,16 @@ import {
   UserProfile
 } from './types.ts';
 
+const DEFAULT_PROFILE: UserProfile = {
+  name: 'Wayne Waweru',
+  handle: '@lowk3yFX',
+  avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop',
+  bio: 'Exploring Nairobi spots, amapiano vibes, and fashion setups. Hit me up for hangouts! ✨',
+  loc: 'Westlands, Nairobi',
+  relationshipStatus: 'single',
+  vibes: ['Nightlife', 'Cocktails', 'Amapiano', 'Art', 'Thrifting']
+};
+
 export default function App() {
   const [session, setSession] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -324,15 +334,7 @@ export default function App() {
   // Current logged in user profile with Single / Not Single status
   const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile>(() => {
     const saved = localStorage.getItem('rada_current_user');
-    return saved ? JSON.parse(saved) : {
-      name: 'Wayne Waweru',
-      handle: '@lowk3yFX',
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop',
-      bio: 'Exploring Nairobi spots, amapiano vibes, and fashion setups. Hit me up for hangouts! ✨',
-      loc: 'Westlands, Nairobi',
-      relationshipStatus: 'single',
-      vibes: ['Nightlife', 'Cocktails', 'Amapiano', 'Art', 'Thrifting']
-    };
+    return saved ? JSON.parse(saved) : DEFAULT_PROFILE;
   });
 
   // Profile View Modal state (to view anyone's profile and bio)
@@ -455,6 +457,8 @@ export default function App() {
       const remoteListings = await cloud.fetchListings();
       if (!remoteBiz || !remoteListings) return; // offline or tables missing: keep local data
       const remoteReviews = (await cloud.fetchReviews()) || {};
+      const remoteStatuses = await cloud.fetchStatuses();   // null = keep local
+      const remoteGoing = await cloud.fetchGoing(uid);      // null = keep local
 
       const L = latestRef.current;
       const seedBizIds = new Set(initialBusinesses.map(b => b.id));
@@ -525,7 +529,18 @@ export default function App() {
 
         return { ...base, reviews: allReviews, reviewCount, rating, images };
       });
-      const mergedEvents = await mergeKind('event', initialEvents, L.events, remoteListings.event);
+      const mergedEventsRaw = await mergeKind('event', initialEvents, L.events, remoteListings.event);
+
+      // "I'm going" counts come from the rada_going table
+      const remoteEventIds = new Set(remoteListings.event.map((x: any) => String(x.id)));
+      const mergedEvents = remoteGoing
+        ? mergedEventsRaw.map((ev: any) => {
+            const seed = initialEvents.find(x => String(x.id) === String(ev.id));
+            const base: any = remoteEventIds.has(String(ev.id)) ? ev : (seed || ev);
+            const baseCount = seed ? seed.goingCount : 0;
+            return { ...base, goingCount: baseCount + (remoteGoing.counts[String(ev.id)] || 0) };
+          })
+        : mergedEventsRaw;
       const mergedThrift = await mergeKind('thrift', initialThriftItems, L.thriftItems, remoteListings.thrift);
       const mergedOffers = await mergeKind('offer', initialOffers, L.offers, remoteListings.offer);
 
@@ -537,6 +552,13 @@ export default function App() {
       setEvents(mergedEvents);
       setThriftItems(mergedThrift);
       setOffers(mergedOffers);
+      if (remoteStatuses) {
+        setStatuses([
+          ...remoteStatuses,
+          ...initialStatuses.filter(sd => !remoteStatuses.some((r: any) => r.id === sd.id)),
+        ]);
+      }
+      if (remoteGoing && uid) setGoingEventIds(remoteGoing.mine);
       setActiveBusinessId(prev =>
         mergedBiz.some(b => b.id === prev)
           ? prev
@@ -556,6 +578,68 @@ export default function App() {
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [authLoading, session?.user?.id]);
+
+  // ---------------------------------------------------------------
+  // PER-USER DATA (Vault tickets, emergency contacts, own profile)
+  // ---------------------------------------------------------------
+  const [userDataReady, setUserDataReady] = useState(false);
+  const userDataUidRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (authLoading) return;
+    const uid: string | undefined = session?.user?.id;
+    setUserDataReady(false);
+    userDataUidRef.current = null;
+    if (!uid) return;
+    let cancelled = false;
+
+    // A different account signed in on this phone: clear the previous person's personal data
+    const lastUid = localStorage.getItem('rada_last_uid');
+    if (lastUid && lastUid !== uid) {
+      setTickets(initialTickets);
+      setEmergencyContacts(initialContacts);
+      setConversations(initialConversations);
+      setGoingEventIds([]);
+      setCurrentUserProfile(DEFAULT_PROFILE);
+    }
+    localStorage.setItem('rada_last_uid', uid);
+
+    (async () => {
+      const remote = await cloud.fetchUserData(uid);
+      if (cancelled || !remote) return; // offline or table missing: stay local
+      if (remote.tickets) setTickets(remote.tickets);
+      if (remote.contacts) setEmergencyContacts(remote.contacts);
+      if (remote.profile) setCurrentUserProfile(remote.profile);
+      userDataUidRef.current = uid;
+      setUserDataReady(true);
+    })().catch(e => console.warn('User data load failed:', e));
+
+    return () => { cancelled = true; };
+  }, [authLoading, session?.user?.id]);
+
+  useEffect(() => {
+    const uid: string | undefined = session?.user?.id;
+    if (!uid || !userDataReady || userDataUidRef.current !== uid) return;
+
+    const timer = setTimeout(async () => {
+      const res = await cloud.saveUserData(uid, {
+        tickets,
+        contacts: emergencyContacts,
+        profile: currentUserProfile,
+      });
+      if (res.error) {
+        console.warn('User data save failed:', res.error);
+        return;
+      }
+      // swap any photos for their online links (only changes if something was uploaded)
+      const c = res.cleaned;
+      if (JSON.stringify(c.profile) !== JSON.stringify(currentUserProfile)) setCurrentUserProfile(c.profile);
+      if (JSON.stringify(c.tickets) !== JSON.stringify(tickets)) setTickets(c.tickets);
+      if (JSON.stringify(c.contacts) !== JSON.stringify(emergencyContacts)) setEmergencyContacts(c.contacts);
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [tickets, emergencyContacts, currentUserProfile, userDataReady, session?.user?.id]);
 
   // Handlers for Business Hub
   const handleCreateBusiness = (newBiz: BusinessAccount) => {
@@ -762,6 +846,7 @@ export default function App() {
       replies: []
     };
     setStatuses(prev => [newPost, ...prev]);
+    if (currentUserId) cloudWrite(() => cloud.insertStatus(newPost, currentUserId));
     showToast('Status posted live!');
   };
 
@@ -775,6 +860,7 @@ export default function App() {
       timeAgo: 'Just now',
       text
     };
+    if (currentUserId) cloudWrite(() => cloud.insertStatusReply(statusId, newReply, currentUserId));
     setStatuses(prev => prev.map(s => {
       if (s.id === statusId) {
         return {
@@ -790,6 +876,7 @@ export default function App() {
   // Event "I'm Going" Toggle: clickable once to go; if clicked again, remove count
   const handleToggleGoing = (event: EventItem) => {
     const isAlreadyGoing = goingEventIds.includes(event.id);
+    if (currentUserId) cloudWrite(() => cloud.setGoing(event.id, currentUserId, !isAlreadyGoing));
     if (isAlreadyGoing) {
       // Untoggle: remove count
       setGoingEventIds(prev => prev.filter(id => id !== event.id));
