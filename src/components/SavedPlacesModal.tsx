@@ -97,7 +97,7 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
         const spot = spots.find(s => String(s.id) === String(saved.id));
         if (spot) {
           data = spot;
-          if (spot.category === 'activities' || spot.category === 'vacation') {
+          if (spot.category === 'outdoors' || spot.category === 'social_activities' || spot.category === 'activities' || spot.category === 'vacation') {
             calculatedCategory = 'experiences';
           } else {
             calculatedCategory = 'places';

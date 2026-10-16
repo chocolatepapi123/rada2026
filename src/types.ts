@@ -73,7 +73,7 @@ export interface Review {
   images?: string[];
 }
 
-export type SpotCategory = 'restaurants' | 'nightlife' | 'cafes' | 'vacation' | 'hotels' | 'date_spots' | 'activities';
+export type SpotCategory = 'restaurants' | 'nightlife' | 'cafes' | 'vacation' | 'hotels' | 'date_spots' | 'activities' | 'outdoors' | 'social_activities';
 
 export interface SpotItem {
   id: number;

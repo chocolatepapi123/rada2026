@@ -61,6 +61,7 @@ import {
 } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { shareContent } from '../utils/shareUtils.ts';
+import { getSpotMenuHeading } from '../utils/spotMenuUtils.ts';
 
 interface OverlaysProps {
   // Overlays state
@@ -803,26 +804,42 @@ export const Overlays: React.FC<OverlaysProps> = ({
               </div>
             )}
 
-            {/* Digital Menu Items */}
-            {selectedSpot.menuItems && selectedSpot.menuItems.length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-                <h4 className="font-black text-slate-900 dark:text-slate-100 uppercase text-[11px] tracking-wider flex items-center gap-1.5">
-                  <Tag className="w-3.5 h-3.5 text-[#2D6A4F]" />
-                  <span>Popular Dishes & Drinks</span>
-                </h4>
-                <div className="space-y-1.5">
-                  {selectedSpot.menuItems.map(item => (
-                    <div key={item.id} className="p-2.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] rounded-xl flex items-center justify-between">
-                      <div className="min-w-0 pr-2">
-                        <span className="font-bold text-xs block truncate">{item.name}</span>
-                        <p className="text-[10px] text-slate-400 truncate">{item.description}</p>
-                      </div>
-                      <span className="font-extrabold text-xs text-[#E0533C] shrink-0">{item.price}</span>
+            {/* Digital Menu Items / Experience Packages */}
+            {selectedSpot.menuItems && selectedSpot.menuItems.length > 0 && (() => {
+              const heading = getSpotMenuHeading(selectedSpot);
+              return (
+                <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h4 className="font-black text-slate-900 dark:text-slate-100 uppercase text-[11px] tracking-wider flex items-center gap-1.5">
+                        <Tag className="w-3.5 h-3.5 text-[#2D6A4F]" />
+                        <span>{heading.title}</span>
+                      </h4>
+                      {heading.subtitle && (
+                        <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                          {heading.subtitle}
+                        </p>
+                      )}
                     </div>
-                  ))}
+                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 shrink-0">
+                      {heading.badge}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {selectedSpot.menuItems.map(item => (
+                      <div key={item.id} className="p-2.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] rounded-xl flex items-center justify-between">
+                        <div className="min-w-0 pr-2">
+                          <span className="font-bold text-xs block truncate">{item.name}</span>
+                          <p className="text-[10px] text-slate-400 truncate">{item.description}</p>
+                        </div>
+                        <span className="font-extrabold text-xs text-[#E0533C] shrink-0">{item.price}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
+
 
             {/* COMMUNITY REVIEWS & POST A REVIEW (SPEC 1: Regular users upload photos only inside reviews) */}
             <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
@@ -1978,7 +1995,16 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 /* STRICTLY DISPLAY MATCHING SPOTS */
                 <div className="grid grid-cols-2 gap-3">
                   {spots
-                    .filter(s => !viewAllCategory || viewAllCategory === 'spots' || s.category === viewAllCategory)
+                    .filter(s => {
+                      if (!viewAllCategory || viewAllCategory === 'spots') return true;
+                      if (viewAllCategory === 'outdoors') {
+                        return s.category === 'outdoors' || (s.category === 'activities' && (s.title.toLowerCase().includes('forest') || s.title.toLowerCase().includes('arboretum') || s.title.toLowerCase().includes('trail') || s.title.toLowerCase().includes('nature') || s.title.toLowerCase().includes('biking')));
+                      }
+                      if (viewAllCategory === 'social_activities') {
+                        return s.category === 'social_activities' || (s.category === 'activities' && !(s.title.toLowerCase().includes('forest') || s.title.toLowerCase().includes('arboretum') || s.title.toLowerCase().includes('trail') || s.title.toLowerCase().includes('nature') || s.title.toLowerCase().includes('biking')));
+                      }
+                      return s.category === viewAllCategory;
+                    })
                     .map((s, idx) => (
                       <div
                         key={idx}

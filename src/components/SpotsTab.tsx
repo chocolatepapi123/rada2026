@@ -16,7 +16,8 @@ import {
   Compass,
   Bookmark,
   Trees,
-  ArrowRight
+  ArrowRight,
+  Sparkles
 } from 'lucide-react';
 
 import { SpotItem, MenuItem, SavedItem } from '../types.ts';
@@ -195,7 +196,12 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   const filteredSpots = displaySpots.filter(s => {
 
     // Category filter
-    const matchesCategory = selectedCategory === 'all' || s.category === selectedCategory;
+    let matchesCategory = selectedCategory === 'all' || s.category === selectedCategory;
+    if (selectedCategory === 'outdoors') {
+      matchesCategory = s.category === 'outdoors' || (s.category === 'activities' && (s.title.toLowerCase().includes('forest') || s.title.toLowerCase().includes('arboretum') || s.title.toLowerCase().includes('trail') || s.title.toLowerCase().includes('nature') || s.title.toLowerCase().includes('biking')));
+    } else if (selectedCategory === 'social_activities') {
+      matchesCategory = s.category === 'social_activities' || (s.category === 'activities' && !(s.title.toLowerCase().includes('forest') || s.title.toLowerCase().includes('arboretum') || s.title.toLowerCase().includes('trail') || s.title.toLowerCase().includes('nature') || s.title.toLowerCase().includes('biking')));
+    }
 
     // Neighborhood filter
     const matchesNeigh = selectedNeighborhood === 'all' || 
@@ -247,7 +253,15 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   const dateSpots = filteredSpots.filter(s => s.category === 'date_spots');
   const hotels = filteredSpots.filter(s => s.category === 'hotels');
   const vacation = filteredSpots.filter(s => s.category === 'vacation');
-  const activitiesSpots = filteredSpots.filter(s => s.category === 'activities');
+  const outdoorSpots = filteredSpots.filter(s => 
+    s.category === 'outdoors' || 
+    (s.category === 'activities' && (s.title.toLowerCase().includes('forest') || s.title.toLowerCase().includes('arboretum') || s.title.toLowerCase().includes('trail') || s.title.toLowerCase().includes('nature') || s.title.toLowerCase().includes('biking')))
+  );
+  const socialActivitySpots = filteredSpots.filter(s => 
+    s.category === 'social_activities' || 
+    (s.category === 'activities' && !(s.title.toLowerCase().includes('forest') || s.title.toLowerCase().includes('arboretum') || s.title.toLowerCase().includes('trail') || s.title.toLowerCase().includes('nature') || s.title.toLowerCase().includes('biking')))
+  );
+
 
   const isSaved = (id: number | string) => {
     return savedItems.some(s => String(s.id) === String(id) && s.kind === 'spot');
@@ -465,7 +479,8 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           {[
             { id: 'all', label: 'All Categories', icon: Compass },
             { id: 'restaurants', label: 'Restaurants', icon: UtensilsCrossed },
-            { id: 'activities', label: 'Outdoor & Activities', icon: Trees },
+            { id: 'outdoors', label: 'Outdoor Activities', icon: Trees },
+            { id: 'social_activities', label: 'Social Activities', icon: Sparkles },
             { id: 'nightlife', label: 'Nightlife', icon: Music },
             { id: 'cafes', label: 'Cafes', icon: Coffee },
             { id: 'date_spots', label: 'Date Spots', icon: Heart },
@@ -615,27 +630,50 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           </div>
         )}
 
-        {/* Outdoor & Social Activities */}
-        {(selectedCategory === 'all' || selectedCategory === 'activities') && activitiesSpots.length > 0 && (
+        {/* Outdoor Activities */}
+        {(selectedCategory === 'all' || selectedCategory === 'outdoors') && outdoorSpots.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                 <Trees className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Outdoor & Social Activities</span>
+                <span>Outdoor Activities</span>
               </h3>
               <button
-                onClick={() => onOpenDedicatedViewAll('Outdoor & Activities', 'activities')}
+                onClick={() => onOpenDedicatedViewAll('Outdoor Activities', 'outdoors')}
                 className="text-[11px] font-bold text-[#E0533C] hover:underline"
               >
-                View All ({activitiesSpots.length})
+                View All ({outdoorSpots.length})
               </button>
             </div>
 
             <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {activitiesSpots.map(renderSpotCard)}
+              {outdoorSpots.map(renderSpotCard)}
             </div>
           </div>
         )}
+
+        {/* Social Activities */}
+        {(selectedCategory === 'all' || selectedCategory === 'social_activities') && socialActivitySpots.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>Social Activities</span>
+              </h3>
+              <button
+                onClick={() => onOpenDedicatedViewAll('Social Activities', 'social_activities')}
+                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+              >
+                View All ({socialActivitySpots.length})
+              </button>
+            </div>
+
+            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+              {socialActivitySpots.map(renderSpotCard)}
+            </div>
+          </div>
+        )}
+
 
         {/* Date Spots */}
         {(selectedCategory === 'all' || selectedCategory === 'date_spots') && dateSpots.length > 0 && (

@@ -54,8 +54,10 @@ import {
   EmergencyContact,
   Review,
   UserProfile,
-  SavedItem
+  SavedItem,
+  CollectionFolder
 } from './types.ts';
+
 
 const DEFAULT_PROFILE: UserProfile = {
   name: 'Wayne Waweru',
@@ -75,19 +77,30 @@ export default function App() {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   // Safe Supabase Session Listener
   useEffect(() => {
+    let mounted = true;
+    const timeout = setTimeout(() => {
+      if (mounted) setAuthLoading(false);
+    }, 600);
+
     if (supabase && supabase.auth) {
       supabase.auth.getSession().then(({ data: { session } }) => {
-        setSession(session);
-        setAuthLoading(false);
+        if (mounted) {
+          setSession(session);
+          setAuthLoading(false);
+        }
       }).catch(() => {
-        setAuthLoading(false);
+        if (mounted) setAuthLoading(false);
       });
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        setSession(session);
+        if (mounted) setSession(session);
       });
 
-      return () => subscription.unsubscribe();
+      return () => {
+        mounted = false;
+        clearTimeout(timeout);
+        subscription.unsubscribe();
+      };
     } else {
       setAuthLoading(false);
     }
@@ -375,6 +388,50 @@ export default function App() {
     localStorage.setItem('rada_saved_items', JSON.stringify(savedItems));
   }, [savedItems]);
 
+  // Saved Collection Folders State
+  const [savedFolders, setSavedFolders] = useState<CollectionFolder[]>(() => {
+    const saved = localStorage.getItem('rada_saved_folders');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
+    }
+    return [
+      { id: 'f-1', name: 'Weekend Vibes', emoji: '🌴', createdAt: new Date().toISOString() },
+      { id: 'f-2', name: 'Date Ideas', emoji: '🥂', createdAt: new Date().toISOString() },
+      { id: 'f-3', name: 'Outdoor Moves', emoji: '🏕️', createdAt: new Date().toISOString() }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('rada_saved_folders', JSON.stringify(savedFolders));
+  }, [savedFolders]);
+
+  const handleCreateFolder = (name: string, emoji?: string) => {
+    const newFolder: CollectionFolder = {
+      id: `f-${Date.now()}`,
+      name,
+      emoji: emoji || '✨',
+      createdAt: new Date().toISOString()
+    };
+    setSavedFolders(prev => [newFolder, ...prev]);
+  };
+
+  const handleDeleteFolder = (folderId: string) => {
+    setSavedFolders(prev => prev.filter(f => f.id !== folderId));
+    setSavedItems(prev => prev.map(item => item.folderId === folderId ? { ...item, folderId: undefined } : item));
+  };
+
+  const handleAssignItemFolder = (itemId: string | number, kind: string, folderId: string | undefined) => {
+    setSavedItems(prev => prev.map(item => {
+      if (String(item.id) === String(itemId) && item.kind === kind) {
+        return { ...item, folderId };
+      }
+      return item;
+    }));
+  };
+
   const handleToggleSave = (item: any, kind: 'spot' | 'event' | 'thrift' | 'offer') => {
     setSavedItems(prev => {
       const exists = prev.some(s => String(s.id) === String(item.id) && s.kind === kind);
@@ -387,6 +444,7 @@ export default function App() {
       }
     });
   };
+
 
   const handleRefreshFeed = async () => {
     try {
@@ -1127,12 +1185,6 @@ export default function App() {
             <span className="w-1.5 h-1.5 rounded-full bg-white/90 animate-bounce" style={{ animationDelay: '300ms' }} />
           </div>
         </div>
-      ) : !session ? (
-        <AuthModal 
-          isOpen={true} 
-          onSuccess={() => setAuthLoading(false)} 
-          onClose={() => setSession({ user: { id: 'guest-session', email: 'guest@rada.ke', created_at: new Date().toISOString(), app_metadata: { provider: 'guest' } } })} 
-        />
       ) : (
         <>
 
@@ -1193,6 +1245,8 @@ export default function App() {
             {activeTab === 'spots' && (
               <SpotsTab
                 spots={spots}
+                savedItems={savedItems}
+                onToggleSave={handleToggleSave}
                 onOpenSpotFullView={(spot) => setSelectedSpotModal(spot)}
                 onViewLocation={(spot) => setSelectedLocationMapSpot(spot)}
                 onOpenDedicatedViewAll={(title, cat) => {
@@ -1208,6 +1262,8 @@ export default function App() {
               <LukuTab
                 thriftItems={thriftItems}
                 businesses={businesses}
+                savedItems={savedItems}
+                onToggleSave={handleToggleSave}
                 onOpenStore={(storeName) => {
                   const biz = businesses.find(b => b.name.toLowerCase() === storeName.toLowerCase());
                   if (biz) setSelectedPublicBusiness(biz);
@@ -1375,6 +1431,8 @@ export default function App() {
             onOpenSaved={() => setIsSavedModalOpen(true)}
             onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
             savedCount={savedItems.length}
+            savedItems={savedItems}
+            onToggleSave={handleToggleSave}
           />
 
           <UserProfileModal
@@ -1424,6 +1482,10 @@ export default function App() {
             isOpen={isSavedModalOpen}
             onClose={() => setIsSavedModalOpen(false)}
             savedItems={savedItems}
+            savedFolders={savedFolders}
+            onCreateFolder={handleCreateFolder}
+            onDeleteFolder={handleDeleteFolder}
+            onAssignItemFolder={handleAssignItemFolder}
             spots={spots}
             events={events}
             thriftItems={thriftItems}

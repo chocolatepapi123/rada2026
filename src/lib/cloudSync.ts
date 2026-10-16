@@ -223,6 +223,27 @@ export async function fetchListings(): Promise<CloudListings | null> {
   return out;
 }
 
+export async function fetchSpots(): Promise<any[] | null> {
+  const listings = await fetchListings();
+  return listings ? listings.spot : null;
+}
+
+export async function fetchEvents(): Promise<any[] | null> {
+  const listings = await fetchListings();
+  return listings ? listings.event : null;
+}
+
+export async function fetchThrift(): Promise<any[] | null> {
+  const listings = await fetchListings();
+  return listings ? listings.thrift : null;
+}
+
+export async function fetchOffers(): Promise<any[] | null> {
+  const listings = await fetchListings();
+  return listings ? listings.offer : null;
+}
+
+
 /** Returns an error message, or null on success. */
 export async function upsertListing(
   kind: ListingKind,

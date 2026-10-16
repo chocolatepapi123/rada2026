@@ -517,7 +517,7 @@ export const initialSpots: SpotItem[] = [
   {
     id: 11,
     title: 'Karura Forest Canopy & Biking Trails',
-    category: 'activities',
+    category: 'outdoors',
     neighborhood: 'Gigiri',
     exactLocationTag: 'Limuru Road & Gate F Sigiria',
     landmark: 'Directly Opposite Belgian Embassy & UNEP',
@@ -539,7 +539,7 @@ export const initialSpots: SpotItem[] = [
   {
     id: 12,
     title: 'Nairobi Arboretum Nature Walk & Picnics',
-    category: 'activities',
+    category: 'outdoors',
     neighborhood: 'Kilimani',
     exactLocationTag: 'State House Road & Arboretum Drive',
     landmark: '500m from State House Girls High School',
@@ -561,7 +561,7 @@ export const initialSpots: SpotItem[] = [
   {
     id: 13,
     title: 'Paint & Sip Nairobi Studio',
-    category: 'activities',
+    category: 'social_activities',
     neighborhood: 'Westlands',
     exactLocationTag: 'Muthithi Road, The Promenade 2nd Floor',
     landmark: 'Near Mpaka Road Roundabout',
@@ -583,7 +583,7 @@ export const initialSpots: SpotItem[] = [
   {
     id: 14,
     title: 'Nairobi VR & Simulator Gaming Arena',
-    category: 'activities',
+    category: 'social_activities',
     neighborhood: 'Gigiri',
     exactLocationTag: 'Village Market New Wing 3rd Level',
     landmark: 'Adjacent to Under The Sea & Food Court',
@@ -605,7 +605,7 @@ export const initialSpots: SpotItem[] = [
   {
     id: 15,
     title: 'Oloolua Nature Trail & Waterfall Caves',
-    category: 'activities',
+    category: 'outdoors',
     neighborhood: 'Karen',
     exactLocationTag: 'Oloolua Ridge, Near Institute of Primate Research',
     landmark: 'Opposite Karen Blixen Coffee Garden',
@@ -626,7 +626,8 @@ export const initialSpots: SpotItem[] = [
   {
     id: 16,
     title: 'Paintball Fury & Archery Tactical Arena',
-    category: 'activities',
+    category: 'social_activities',
+
     neighborhood: 'Karen',
     exactLocationTag: 'Langata South Road, Near Waterfront Mall',
     landmark: 'Behind Waterfront Karen Shopping Center',
