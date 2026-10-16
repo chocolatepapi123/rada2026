@@ -517,7 +517,7 @@ export const initialSpots: SpotItem[] = [
   {
     id: 11,
     title: 'Karura Forest Canopy & Biking Trails',
-    category: 'outdoors',
+    category: 'connect_with_nature',
     neighborhood: 'Gigiri',
     exactLocationTag: 'Limuru Road & Gate F Sigiria',
     landmark: 'Directly Opposite Belgian Embassy & UNEP',
@@ -528,18 +528,21 @@ export const initialSpots: SpotItem[] = [
     price: '$',
     address: 'Limuru Road, Karura Forest Gate A, Nairobi',
     img: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&auto=format&fit=crop',
-    description: 'Nairobi\'s crown green lung featuring 50km of scenic jogging and bike trails, historic Mau Mau caves, 15m waterfall, and River Cafe.',
+    description: 'Premier nature sanctuary featuring 50km of scenic hiking and bike trails, historic Mau Mau caves, 15m waterfall, and River Cafe.',
     phone: '+254 728 501 333',
     openingHours: '6:00 AM - 6:00 PM',
-    menuItems: [
-      { id: 'act-1', name: 'Karura Forest Entry Pass (Citizen/Resident)', category: 'Passes', price: 'KES 100', description: 'Full-day access to running trails, waterfall paths, and picnic lawns' },
-      { id: 'act-2', name: 'Mountain Bike Rental (2 Hours)', category: 'Activities', price: 'KES 500', description: 'Sturdy front-suspension mountain bike with helmet for forest trails' }
+    activityType: 'Hiking, Nature Trails & Forest Biking',
+    equipmentProvided: 'Mountain bikes, safety helmets, trail maps, and forest ranger guides',
+    bookingSlots: 'Daily walk-ins 6:00 AM - 6:00 PM (Last entry 5:30 PM)',
+    activitiesList: [
+      { id: 'act-1', name: 'Karura Trail Entry & Mau Mau Caves Hike', price: 'KES 100', duration: 'Full Day', description: 'Scenic trail access to indigenous forest, waterfall & Mau Mau historic caves.' },
+      { id: 'act-2', name: 'Forest Mountain Bike Rental', price: 'KES 500', duration: '2 Hours', description: 'Front-suspension mountain bike with helmet for forest dirt circuits.' }
     ]
   },
   {
     id: 12,
-    title: 'Nairobi Arboretum Nature Walk & Picnics',
-    category: 'outdoors',
+    title: 'Nairobi Arboretum Nature Walk & Botanical Groves',
+    category: 'connect_with_nature',
     neighborhood: 'Kilimani',
     exactLocationTag: 'State House Road & Arboretum Drive',
     landmark: '500m from State House Girls High School',
@@ -550,18 +553,20 @@ export const initialSpots: SpotItem[] = [
     price: '$',
     address: 'State House Road, Kilimani, Nairobi',
     img: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop',
-    description: '30 hectares of exotic botanical garden trails, birdwatching, shaded picnic glades, and quiet walking circuits in central Nairobi.',
+    description: '30 hectares of exotic botanical garden trails, birdwatching, shaded picnic glades, and quiet walking circuits.',
     phone: '+254 722 000 111',
     openingHours: '6:00 AM - 6:30 PM',
-    menuItems: [
-      { id: 'act-3', name: 'Arboretum Day Pass', category: 'Passes', price: 'KES 65', description: 'Full day access to lush walking circuits and photography lawns' },
-      { id: 'act-4', name: 'Group Picnic Lawn Reservation', category: 'Group', price: 'KES 1,500', description: 'Designated shaded grove setup for birthday picnics and family gatherings' }
+    activityType: 'Botanical Nature Walks & Birdwatching',
+    equipmentProvided: 'Guided nature tour headsets, park benches & marked trail maps',
+    bookingSlots: 'Daily 6:00 AM - 6:30 PM',
+    activitiesList: [
+      { id: 'act-3', name: 'Botanical Trail Day Pass', price: 'KES 65', duration: 'Full Day', description: 'Access to shaded canopy forest trails and photography groves.' }
     ]
   },
   {
     id: 13,
     title: 'Paint & Sip Nairobi Studio',
-    category: 'social_activities',
+    category: 'creative_leisure',
     neighborhood: 'Westlands',
     exactLocationTag: 'Muthithi Road, The Promenade 2nd Floor',
     landmark: 'Near Mpaka Road Roundabout',
@@ -572,18 +577,21 @@ export const initialSpots: SpotItem[] = [
     price: '$$',
     address: 'Muthithi Road, Westlands, Nairobi',
     img: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=800&auto=format&fit=crop',
-    description: 'Creative weekend social art experience! Professional step-by-step acrylic canvas painting accompanied by curated wines, sangria, and afro-house tracks.',
+    description: 'Creative social art studio! Step-by-step acrylic canvas painting, pottery sculpting, and social craft workshops accompanied by curated wines and afro-house tracks.',
     phone: '+254 719 333 777',
     openingHours: '1:00 PM - 8:00 PM',
-    menuItems: [
-      { id: 'act-5', name: 'Canvas & Wine Sip Package', category: 'Experience', price: 'KES 2,500', description: 'Includes 40x50 canvas, paints, brushes, easel, and 2 complimentary wine glasses' },
-      { id: 'act-6', name: 'Tapas & Sangria Pitcher (Serves 3)', category: 'Refreshments', price: 'KES 2,200', description: 'Chilled berry sangria paired with mini samosas and bruschetta' }
+    activityType: 'Acrylic Painting & Hands-on Crafting',
+    equipmentProvided: 'Canvas 40x50, acrylic paints, brushes, wooden easel, aprons, palettes & complimentary beverage',
+    bookingSlots: 'Saturdays & Sundays 2:00 PM - 5:00 PM & 6:00 PM - 9:00 PM (Advance Booking)',
+    activitiesList: [
+      { id: 'act-5', name: 'Canvas & Wine Sip Package', price: 'KES 2,500', duration: '3 Hours', description: 'Instructor-led session with canvas, paints, brushes, easel, and 2 complimentary wine glasses.' },
+      { id: 'act-5b', name: 'Hand-Built Pottery & Clay Sculpting', price: 'KES 2,800', duration: '2.5 Hours', description: 'Ceramic clay block, sculpting tools, firing and color glazing.' }
     ]
   },
   {
     id: 14,
     title: 'Nairobi VR & Simulator Gaming Arena',
-    category: 'social_activities',
+    category: 'tech_gaming',
     neighborhood: 'Gigiri',
     exactLocationTag: 'Village Market New Wing 3rd Level',
     landmark: 'Adjacent to Under The Sea & Food Court',
@@ -594,18 +602,21 @@ export const initialSpots: SpotItem[] = [
     price: '$$',
     address: 'Limuru Road, Village Market, Nairobi',
     img: 'https://images.unsplash.com/photo-1593508512255-86ab42a8e620?w=800&auto=format&fit=crop',
-    description: 'East Africa\'s premier virtual reality experience center featuring 6DOF motion simulators, multiplayer VR zombie defense, and Formula 1 motion rigs.',
+    description: 'Premier virtual reality and tech entertainment center featuring 6DOF motion simulators, multiplayer VR cooperative missions, arcade rigs, and gaming lounges.',
     phone: '+254 740 555 123',
     openingHours: '10:00 AM - 10:00 PM',
-    menuItems: [
-      { id: 'act-7', name: 'VR Escape Room (45 Mins, 4 Players)', category: 'Gaming', price: 'KES 1,800/pp', description: 'Immersive wireless VR team cooperative mission with haptic feedback' },
-      { id: 'act-8', name: 'F1 Motion Sim Session (20 Mins)', category: 'Simulators', price: 'KES 1,200', description: 'Full force-feedback steering rig with VR headset and realistic pedals' }
+    activityType: 'Virtual Reality, Motion Simulators & Arcades',
+    equipmentProvided: 'Wireless 4K VR headsets, haptic vests, force-feedback racing wheels, motion platforms',
+    bookingSlots: 'Daily 10:00 AM - 10:00 PM (15-min to 60-min session slots)',
+    activitiesList: [
+      { id: 'act-7', name: 'VR Escape Mission (Co-op 4 Players)', price: 'KES 1,800/pp', duration: '45 Mins', description: 'Immersive wireless team survival or puzzle mission with haptic feedback.' },
+      { id: 'act-8', name: 'F1 Motion Sim Racing Rig Session', price: 'KES 1,200', duration: '20 Mins', description: 'Direct-drive force-feedback steering wheel with VR headset and telemetry pedals.' }
     ]
   },
   {
     id: 15,
     title: 'Oloolua Nature Trail & Waterfall Caves',
-    category: 'outdoors',
+    category: 'connect_with_nature',
     neighborhood: 'Karen',
     exactLocationTag: 'Oloolua Ridge, Near Institute of Primate Research',
     landmark: 'Opposite Karen Blixen Coffee Garden',
@@ -619,15 +630,17 @@ export const initialSpots: SpotItem[] = [
     description: 'Enchanting 5km tranquil hiking circuit through indigenous forest, bamboo tunnels, wooden suspension footbridges, and 33-foot Mbagathi river waterfall.',
     phone: '+254 721 889 000',
     openingHours: '9:00 AM - 6:00 PM',
-    menuItems: [
-      { id: 'act-9', name: 'Oloolua Trail Day Ticket', category: 'Passes', price: 'KES 200', description: 'Full access to bamboo forest, waterfall, cave trails, and papyrus swamp' }
+    activityType: 'Forest Hiking, Cave Exploration & Waterfalls',
+    equipmentProvided: 'Walking sticks, trail path markers, forest guides upon request',
+    bookingSlots: 'Daily 9:00 AM - 6:00 PM',
+    activitiesList: [
+      { id: 'act-9', name: 'Oloolua Trail Day Ticket', price: 'KES 200', duration: 'Full Day', description: 'Full access to bamboo forest, waterfall, cave trails, and papyrus swamp.' }
     ]
   },
   {
     id: 16,
     title: 'Paintball Fury & Archery Tactical Arena',
-    category: 'social_activities',
-
+    category: 'action_sports',
     neighborhood: 'Karen',
     exactLocationTag: 'Langata South Road, Near Waterfront Mall',
     landmark: 'Behind Waterfront Karen Shopping Center',
@@ -638,12 +651,115 @@ export const initialSpots: SpotItem[] = [
     price: '$$',
     address: 'Langata South Road, Karen, Nairobi',
     img: 'https://images.unsplash.com/photo-1511882150382-421056c89033?w=800&auto=format&fit=crop',
-    description: 'High-energy tactical paintballing field with bunkers, obstacles, and tournament layouts. Includes speedball courts and recurve archery ranges for squads.',
+    description: 'High-energy tactical sports facility featuring outdoor speedball paintball fields, go-karting track, combat archery tag, and squad obstacle challenges.',
     phone: '+254 722 456 789',
     openingHours: '9:00 AM - 7:00 PM',
-    menuItems: [
-      { id: 'act-10', name: 'Tactical Paintball Battle (100 Balls + Gear)', category: 'Gaming', price: 'KES 1,500', description: 'Protective camo overalls, anti-fog mask, semi-auto marker, and gas refills' },
-      { id: 'act-11', name: 'Combat Archery Tag Session (45 Mins)', category: 'Gaming', price: 'KES 1,200', description: 'Foam-tipped arrows and recurve bow for team elimination matches' }
+    activityType: 'Paintball, Combat Archery & Tactical Sports',
+    equipmentProvided: 'Protective camo overalls, anti-fog masks, Tippmann markers, ammo hoppers & target rigs',
+    bookingSlots: 'Daily 9:00 AM - 7:00 PM (Hourly squad game slots)',
+    activitiesList: [
+      { id: 'act-10', name: 'Tactical Paintball Battle (100 Balls + Full Gear)', price: 'KES 1,500', duration: '1 Hour', description: 'Semi-auto marker, protective mask, body armor, gas refills & squad referee.' },
+      { id: 'act-11', name: 'Combat Archery Tag Tournament', price: 'KES 1,200', duration: '45 Mins', description: 'Recurve bows and foam-tipped safe arrows for team deathmatch battles.' }
+    ]
+  },
+  {
+    id: 17,
+    title: 'MadMax Karting & Two Rivers Grand Prix',
+    category: 'action_sports',
+    neighborhood: 'Runda',
+    exactLocationTag: 'Two Rivers Mall Outdoor Circuit',
+    landmark: 'Behind Two Rivers Theme Park',
+    lat: -1.2132,
+    lng: 36.7981,
+    rating: '4.9',
+    reviewCount: 310,
+    price: '$$',
+    address: 'Limuru Road, Two Rivers Mall, Nairobi',
+    img: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800&auto=format&fit=crop',
+    description: 'High-speed tarmac go-kart racing track with hairpin turns, professional lap timing systems, podium celebrations, and night race floodlights.',
+    phone: '+254 700 888 123',
+    openingHours: '10:00 AM - 11:00 PM',
+    activityType: 'Go-Karting Racing & Time Trials',
+    equipmentProvided: 'DOT-approved full-face helmets, racing overalls, neck collars, electronic transponders',
+    bookingSlots: 'Daily 10:00 AM - 11:00 PM (10-lap sprint heats & 25-lap endurance races)',
+    activitiesList: [
+      { id: 'act-12', name: 'Sprint Heat (10 Laps with Live Telemetry)', price: 'KES 1,600', duration: '15 Mins', description: '200cc Honda-powered racing kart with live scoreboard timing.' },
+      { id: 'act-13', name: 'Grand Prix Squad Battle (25 Laps)', price: 'KES 3,200/pp', duration: '35 Mins', description: 'Qualifying heat, grid start, final race and top-3 podium ceremony.' }
+    ]
+  },
+  {
+    id: 18,
+    title: 'Pins & Strikes Luxury Bowling Alley',
+    category: 'action_sports',
+    neighborhood: 'Westlands',
+    exactLocationTag: 'The Oval 3rd Floor, Ring Road Parklands',
+    landmark: 'The Oval Westlands',
+    lat: -1.2618,
+    lng: 36.8045,
+    rating: '4.8',
+    reviewCount: 240,
+    price: '$$',
+    address: 'Ring Road Parklands, Westlands, Nairobi',
+    img: 'https://images.unsplash.com/photo-1538388177566-72d3663b85d4?w=800&auto=format&fit=crop',
+    description: 'Boutique 10-pin bowling lounge with neon glow lanes, electronic score screens, arcade hoops, and squad competition tournaments.',
+    phone: '+254 711 444 999',
+    openingHours: '11:00 AM - Midnight',
+    activityType: '10-Pin Bowling & Social Games',
+    equipmentProvided: 'Professional bowling shoes, varied ball weights (6lb to 15lb), automated bumper rails',
+    bookingSlots: 'Daily 11:00 AM - Midnight (Lane bookings per hour or per game)',
+    activitiesList: [
+      { id: 'act-14', name: '10-Pin Bowling Game (Per Person)', price: 'KES 800', duration: '1 Game', description: 'Full 10-frame game with complimentary shoe rental and digital scoring.' },
+      { id: 'act-15', name: 'VIP Lane Rental (1 Hour, Up to 6 Players)', price: 'KES 4,500', duration: '1 Hour', description: 'Private lane reservation with unlimited games for the hour.' }
+    ]
+  },
+  {
+    id: 19,
+    title: 'ClayWorks Pottery & Glaze Studio',
+    category: 'creative_leisure',
+    neighborhood: 'Karen',
+    exactLocationTag: 'Marula Lane, Opposite The Hub',
+    landmark: 'Marula Studios Courtyard',
+    lat: -1.3211,
+    lng: 36.7089,
+    rating: '4.9',
+    reviewCount: 145,
+    price: '$$',
+    address: 'Marula Lane, Karen, Nairobi',
+    img: 'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=800&auto=format&fit=crop',
+    description: 'Hands-on pottery throwing and ceramic glazing studio. Learn wheel throwing, slab building, and craft your own mugs, bowls, and home decor pieces.',
+    phone: '+254 722 654 321',
+    openingHours: '10:00 AM - 6:00 PM (Tue-Sun)',
+    activityType: 'Wheel Throwing & Ceramic Glazing',
+    equipmentProvided: 'Electric pottery wheels, natural clay, carving tools, kiln firing, colored glazes, cotton aprons',
+    bookingSlots: 'Tue-Sun 10:30 AM, 1:30 PM & 4:00 PM (Max 8 students per session)',
+    activitiesList: [
+      { id: 'act-16', name: 'Intro to Wheel Throwing Workshop', price: 'KES 3,000', duration: '2 Hours', description: 'Guided wheel session where you throw 2 ceramic pieces to be fired and glazed.' },
+      { id: 'act-17', name: 'Ceramic Painting & Glazing Pass', price: 'KES 1,800', duration: '1.5 Hours', description: 'Select a pre-bisqued mug or plate to paint with specialty glazes.' }
+    ]
+  },
+  {
+    id: 20,
+    title: 'Ngong Hills Ridge Hike & Windmill Summit',
+    category: 'connect_with_nature',
+    neighborhood: 'Karen',
+    exactLocationTag: 'Ngong Hills KFS Station Gate',
+    landmark: 'Ngong Police Station / KFS Barrier',
+    lat: -1.3985,
+    lng: 36.6432,
+    rating: '4.9',
+    reviewCount: 480,
+    price: '$',
+    address: 'KFS Gate, Ngong Hills, Kajiado / Karen Border',
+    img: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&auto=format&fit=crop',
+    description: 'Iconic 7-hill panoramic ridgeline trek overlooking the Great Rift Valley, towering wind turbine farms, and crisp mountain breeze.',
+    phone: '+254 720 112 233',
+    openingHours: '6:30 AM - 5:30 PM',
+    activityType: 'Mountain Ridgeline Trekking & Scenic Views',
+    equipmentProvided: 'Armed Kenya Forest Service ranger escort, walking sticks, trail guide',
+    bookingSlots: 'Daily 6:30 AM - 5:30 PM (Recommended morning start 7AM - 9AM)',
+    activitiesList: [
+      { id: 'act-18', name: '7-Hills Traverse Hiking Pass', price: 'KES 200', duration: '4-5 Hours', description: 'Traverse across the 7 rolling green knuckles from Ngong to Corner Baridi.' },
+      { id: 'act-19', name: 'KFS Ranger Escort (Group of 1-10)', price: 'KES 1,500', duration: 'Half Day', description: 'Dedicated armed ranger escort for group security across the entire ridge.' }
     ]
   }
 ];

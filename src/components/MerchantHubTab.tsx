@@ -46,6 +46,7 @@ import {
   EventItem, 
   ThriftItem, 
   MenuItem, 
+  ActivityItem,
   TicketTier, 
   Artist 
 } from '../types.ts';

@@ -146,7 +146,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
             LUKU: What to wear
           </h2>
           <span className="text-[10px] text-slate-400 font-bold">
-            Curated Nairobi Streetwear & Fits
+            Curated Streetwear & Fits
           </span>
         </div>
 
@@ -430,7 +430,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
           <h2 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400">
             Stores & Vendors Directory
           </h2>
-          <span className="text-[10px] text-slate-400 font-bold">Nairobi Markets</span>
+          <span className="text-[10px] text-slate-400 font-bold">Local Markets & Thrift Stalls</span>
         </div>
 
         <div className="space-y-2.5">

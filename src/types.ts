@@ -73,7 +73,29 @@ export interface Review {
   images?: string[];
 }
 
-export type SpotCategory = 'restaurants' | 'nightlife' | 'cafes' | 'vacation' | 'hotels' | 'date_spots' | 'activities' | 'outdoors' | 'social_activities';
+export type SpotCategory = 
+  | 'restaurants' 
+  | 'nightlife' 
+  | 'cafes' 
+  | 'vacation' 
+  | 'hotels' 
+  | 'date_spots' 
+  | 'activities' 
+  | 'outdoors' 
+  | 'social_activities'
+  | 'connect_with_nature'
+  | 'creative_leisure'
+  | 'tech_gaming'
+  | 'action_sports';
+
+export interface ActivityItem {
+  id: string;
+  name: string;
+  price: string;
+  duration?: string;
+  description: string;
+  equipmentProvided?: string;
+}
 
 export interface SpotItem {
   id: number;
@@ -99,6 +121,11 @@ export interface SpotItem {
   isUserUploaded?: boolean;
   phone?: string;
   openingHours?: string;
+  // Tailored activity fields for non-food categories
+  activityType?: string;
+  equipmentProvided?: string;
+  bookingSlots?: string;
+  activitiesList?: ActivityItem[];
 }
 
 export interface Artist {

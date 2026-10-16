@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, isSupabaseConfigured } from './supabase';
 import type { BusinessAccount } from '../types';
 
 export type ListingKind = 'spot' | 'event' | 'thrift' | 'offer';
@@ -59,17 +59,26 @@ async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
 }
 
 async function uploadDataUrl(dataUrl: string, uid: string): Promise<string> {
-  const blob = await dataUrlToBlob(dataUrl);
-  const ext = blob.type === 'image/png' ? 'png' : blob.type === 'image/webp' ? 'webp' : 'jpg';
-  const path = `${uid}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+  if (!isSupabaseConfigured) return dataUrl;
+  try {
+    const blob = await dataUrlToBlob(dataUrl);
+    const ext = blob.type === 'image/png' ? 'png' : blob.type === 'image/webp' ? 'webp' : 'jpg';
+    const path = `${uid}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
 
-  const { error } = await supabase.storage.from(MEDIA_BUCKET).upload(path, blob, {
-    contentType: blob.type || 'image/jpeg',
-    cacheControl: '31536000',
-  });
-  if (error) throw new Error(error.message);
+    const { error } = await supabase.storage.from(MEDIA_BUCKET).upload(path, blob, {
+      contentType: blob.type || 'image/jpeg',
+      cacheControl: '31536000',
+    });
+    if (error) {
+      console.warn('Storage upload fallback to dataUrl:', error.message);
+      return dataUrl;
+    }
 
-  return supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path).data.publicUrl;
+    return supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path).data.publicUrl;
+  } catch (err) {
+    console.warn('Image processing fallback to dataUrl:', err);
+    return dataUrl;
+  }
 }
 
 /** Walks any object/array and replaces every data:image string with an uploaded URL. */
@@ -120,6 +129,7 @@ function rowToBusiness(row: any): BusinessAccount {
 }
 
 export async function fetchBusinesses(): Promise<BusinessAccount[] | null> {
+  if (!isSupabaseConfigured) return null;
   const { data, error } = await supabase
     .from('rada_businesses')
     .select('*')
@@ -134,6 +144,7 @@ export async function fetchBusinesses(): Promise<BusinessAccount[] | null> {
 
 /** Returns an error message, or null on success. */
 export async function insertBusiness(biz: BusinessAccount, ownerId: string): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
   let clean: BusinessAccount;
   try {
     clean = await uploadImagesDeep(biz, ownerId);
@@ -151,6 +162,7 @@ export async function insertBusiness(biz: BusinessAccount, ownerId: string): Pro
 
 /** Owner editing their own business profile. Returns an error message, or null on success. */
 export async function updateBusiness(biz: BusinessAccount, uid: string): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
   let clean: BusinessAccount;
   try {
     clean = await uploadImagesDeep(biz, uid);
@@ -176,6 +188,7 @@ export async function reviewBusiness(
   id: string,
   updates: Partial<BusinessAccount>
 ): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
   const { data: row, error: readErr } = await supabase
     .from('rada_businesses')
     .select('data')
@@ -204,6 +217,7 @@ export async function reviewBusiness(
 // LISTINGS (spots, events, thrift items, offers)
 // =====================================================================
 export async function fetchListings(): Promise<CloudListings | null> {
+  if (!isSupabaseConfigured) return null;
   const { data, error } = await supabase
     .from('rada_listings')
     .select('*')
@@ -251,6 +265,7 @@ export async function upsertListing(
   businessId: string | undefined | null,
   ownerId: string
 ): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
   let payload: any = item;
   if (kind === 'spot') {
     // Reviews, rating and count come from the reviews table, never from the spot row
@@ -284,6 +299,7 @@ export async function upsertListing(
 
 /** Returns an error message, or null on success. */
 export async function deleteListing(kind: ListingKind, id: string | number): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
   const { error } = await supabase
     .from('rada_listings')
     .delete()
@@ -297,6 +313,7 @@ export async function deleteListing(kind: ListingKind, id: string | number): Pro
 // =====================================================================
 /** Returns reviews grouped by spot id, newest first. */
 export async function fetchReviews(): Promise<Record<string, any[]> | null> {
+  if (!isSupabaseConfigured) return null;
   const { data, error } = await supabase
     .from('rada_reviews')
     .select('*')
@@ -316,6 +333,7 @@ export async function fetchReviews(): Promise<Record<string, any[]> | null> {
 
 /** Returns an error message, or null on success. */
 export async function insertReview(spotId: number | string, review: any, userId: string): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
   let clean: any;
   try {
     clean = await uploadImagesDeep(review, userId);
@@ -348,6 +366,7 @@ function timeAgo(iso: string): string {
 
 /** Statuses newest first, each with its replies (oldest first). */
 export async function fetchStatuses(): Promise<any[] | null> {
+  if (!isSupabaseConfigured) return null;
   const [st, rp] = await Promise.all([
     supabase.from('rada_statuses').select('*').order('created_at', { ascending: false }),
     supabase.from('rada_status_replies').select('*').order('created_at', { ascending: true }),
@@ -376,6 +395,7 @@ export async function fetchStatuses(): Promise<any[] | null> {
 
 /** Returns an error message, or null on success. */
 export async function insertStatus(post: any, userId: string): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
   const { replies, timeAgo: _ta, ...rest } = post;
   let clean: any;
   try {
@@ -393,6 +413,7 @@ export async function insertStatus(post: any, userId: string): Promise<string | 
 
 /** Returns an error message, or null on success. */
 export async function insertStatusReply(statusId: string, reply: any, userId: string): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
   const { timeAgo: _ta, ...rest } = reply;
   const { error } = await supabase.from('rada_status_replies').insert({
     id: String(reply.id),
@@ -407,6 +428,7 @@ export async function insertStatusReply(statusId: string, reply: any, userId: st
 // "I'M GOING" (real counts per event)
 // =====================================================================
 export async function fetchGoing(uid?: string): Promise<{ counts: Record<string, number>; mine: number[] } | null> {
+  if (!isSupabaseConfigured) return null;
   const { data, error } = await supabase.from('rada_going').select('event_id,user_id');
   if (error) {
     console.warn('fetchGoing failed:', error.message);
@@ -423,6 +445,7 @@ export async function fetchGoing(uid?: string): Promise<{ counts: Record<string,
 
 /** Returns an error message, or null on success. */
 export async function setGoing(eventId: number | string, uid: string, going: boolean): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
   if (going) {
     const { error } = await supabase
       .from('rada_going')
@@ -441,6 +464,7 @@ export async function setGoing(eventId: number | string, uid: string, going: boo
 // PRIVATE PER-USER DATA (tickets, emergency contacts, own profile)
 // =====================================================================
 export async function fetchUserData(uid: string): Promise<Record<string, any> | null> {
+  if (!isSupabaseConfigured) return null;
   const { data, error } = await supabase.from('rada_user_data').select('key,data').eq('user_id', uid);
   if (error) {
     console.warn('fetchUserData failed:', error.message);
@@ -456,6 +480,7 @@ export async function saveUserData(
   uid: string,
   bundle: Record<string, any>
 ): Promise<{ error: string | null; cleaned: Record<string, any> }> {
+  if (!isSupabaseConfigured) return { error: null, cleaned: bundle };
   let cleaned: Record<string, any>;
   try {
     cleaned = await uploadImagesDeep(bundle, uid);

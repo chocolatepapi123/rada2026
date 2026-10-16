@@ -70,17 +70,14 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
           />
         </div>
 
-        {/* Brand Header & Animated Dynamic Time-of-Day Greeting */}
+        {/* Animated Dynamic Time-of-Day Greeting */}
         <div 
-          className="mt-6 space-y-2 transition-all duration-1000 delay-300"
+          className="mt-6 transition-all duration-1000 delay-300"
           style={{
             animation: 'splashTaglineFade 1600ms ease-out 400ms backwards',
           }}
         >
-          <h1 className="text-white text-3xl sm:text-4xl font-black tracking-widest uppercase drop-shadow-md">
-            RADA
-          </h1>
-          <p className="text-white/95 text-sm sm:text-base font-semibold tracking-wide drop-shadow-sm transition-opacity duration-1000">
+          <p className="text-white text-base sm:text-lg font-semibold tracking-wide drop-shadow-sm transition-opacity duration-1000">
             {greeting}
           </p>
         </div>

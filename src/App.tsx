@@ -208,7 +208,11 @@ export default function App() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length >= 10) return parsed;
+        if (Array.isArray(parsed) && parsed.length >= 10) {
+          const existingIds = new Set(parsed.map((p: any) => String(p.id)));
+          const missing = initialSpots.filter(init => !existingIds.has(String(init.id)));
+          return [...parsed, ...missing];
+        }
       } catch (e) {}
     }
     return initialSpots;
@@ -525,6 +529,155 @@ export default function App() {
       document.body.style.overflow = 'unset';
     }
   }, [isBusinessHubOpen]);
+
+  // Hardware Back Button Protection (Mobile Back Button does not close/exit the app)
+  const isAnyModalOpen = Boolean(
+    isAuthModalOpen ||
+    isAccountSettingsOpen ||
+    isSavedModalOpen ||
+    isAdminOpen ||
+    viewingProfile ||
+    selectedPublicBusiness ||
+    selectedLocationMapSpot ||
+    qrPassTitle ||
+    isPlanDateModalOpen ||
+    isCreateGroupOpen ||
+    viewAllTitle ||
+    selectedSpotModal ||
+    selectedEventModal ||
+    isWagwanOpen ||
+    activeOverlay ||
+    isBusinessHubOpen
+  );
+
+  const lastBackPressRef = useRef<number>(0);
+  const prevModalOpenRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    // Anchor base history state on app startup
+    if (!window.history.state || !window.history.state.radaApp) {
+      window.history.replaceState({ radaApp: true, tab: 'home' }, '');
+    }
+
+    const handlePopState = (e: PopStateEvent) => {
+      // 1. If any modal or overlay is open, dismiss it and stay inside app
+      if (isAuthModalOpen) {
+        setIsAuthModalOpen(false);
+        return;
+      }
+      if (isAccountSettingsOpen) {
+        setIsAccountSettingsOpen(false);
+        return;
+      }
+      if (isSavedModalOpen) {
+        setIsSavedModalOpen(false);
+        return;
+      }
+      if (isAdminOpen) {
+        setIsAdminOpen(false);
+        return;
+      }
+      if (viewingProfile) {
+        setViewingProfile(null);
+        return;
+      }
+      if (selectedPublicBusiness) {
+        setSelectedPublicBusiness(null);
+        return;
+      }
+      if (selectedLocationMapSpot) {
+        setSelectedLocationMapSpot(null);
+        return;
+      }
+      if (qrPassTitle) {
+        setQrPassTitle(null);
+        return;
+      }
+      if (isPlanDateModalOpen) {
+        setIsPlanDateModalOpen(false);
+        setDatePlanningSpot(null);
+        return;
+      }
+      if (isCreateGroupOpen) {
+        setIsCreateGroupOpen(false);
+        return;
+      }
+      if (viewAllTitle) {
+        setViewAllTitle(null);
+        setViewAllCategory(null);
+        return;
+      }
+      if (selectedSpotModal) {
+        setSelectedSpotModal(null);
+        return;
+      }
+      if (selectedEventModal) {
+        setSelectedEventModal(null);
+        return;
+      }
+      if (isWagwanOpen) {
+        setIsWagwanOpen(false);
+        return;
+      }
+      if (activeOverlay) {
+        setActiveOverlay(null);
+        return;
+      }
+      if (isBusinessHubOpen) {
+        setIsBusinessHubOpen(false);
+        return;
+      }
+
+      // 2. If user is on an inner tab, navigate back to home feed first
+      if (activeTab !== 'home') {
+        setActiveTab('home');
+        return;
+      }
+
+      // 3. User is on home feed with no modals open:
+      // Prevent accidental phone hardware back button app exit using double-press confirmation
+      const now = Date.now();
+      if (now - lastBackPressRef.current < 2000) {
+        // Double-press within 2 seconds: let default browser/OS exit occur
+        return;
+      }
+
+      lastBackPressRef.current = now;
+      // Re-anchor history state to keep the user safely inside the web app
+      window.history.pushState({ radaApp: true, tab: 'home' }, '');
+      showToast('Press back again to exit RADA');
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [
+    isAuthModalOpen,
+    isAccountSettingsOpen,
+    isSavedModalOpen,
+    isAdminOpen,
+    viewingProfile,
+    selectedPublicBusiness,
+    selectedLocationMapSpot,
+    qrPassTitle,
+    isPlanDateModalOpen,
+    isCreateGroupOpen,
+    viewAllTitle,
+    selectedSpotModal,
+    selectedEventModal,
+    isWagwanOpen,
+    activeOverlay,
+    isBusinessHubOpen,
+    activeTab,
+    showToast
+  ]);
+
+  // When any modal opens, push a history entry so the phone hardware back button pops it cleanly
+  useEffect(() => {
+    if (isAnyModalOpen && !prevModalOpenRef.current) {
+      window.history.pushState({ radaApp: true, modal: true }, '');
+    }
+    prevModalOpenRef.current = isAnyModalOpen;
+  }, [isAnyModalOpen]);
 
   // Active business reference
   const currentBusiness = businesses.find(b => b.id === activeBusinessId) || businesses[0];
@@ -1171,10 +1324,7 @@ export default function App() {
             />
           </div>
 
-          <h1 className="text-white text-3xl sm:text-4xl font-black tracking-widest uppercase mb-2 drop-shadow-md">
-            RADA
-          </h1>
-          <p className="text-white/95 text-sm sm:text-base font-semibold tracking-wide drop-shadow-sm">
+          <p className="text-white text-base sm:text-lg font-bold tracking-wide drop-shadow-sm mt-3">
             {getTimeOfDayGreeting()}
           </p>
 
@@ -1331,8 +1481,13 @@ export default function App() {
           <Navigation
             activeTab={activeTab}
             onTabChange={(tab) => {
-              setActiveTab(tab);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
+              if (tab !== activeTab) {
+                if (tab !== 'home') {
+                  window.history.pushState({ radaApp: true, tab }, '');
+                }
+                setActiveTab(tab);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }
             }}
           />
 

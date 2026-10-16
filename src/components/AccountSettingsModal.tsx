@@ -4,12 +4,9 @@ import {
   ShieldCheck, 
   Lock, 
   Mail, 
-  Fingerprint, 
   Calendar, 
   Globe, 
   LogOut, 
-  Copy, 
-  Check, 
   KeyRound, 
   Loader2,
   AlertCircle,
@@ -41,7 +38,6 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [copiedId, setCopiedId] = useState(false);
 
   if (!isOpen) return null;
 
@@ -50,7 +46,6 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
 
   // Account details
   const email = user?.email || (currentUserProfile ? `${currentUserProfile.handle.replace('@', '')}@rada.ke` : 'guest@rada.ke');
-  const userId = user?.id || 'guest-session-local';
   const createdAtFormatted = user?.created_at
     ? new Date(user.created_at).toLocaleDateString('en-US', {
         year: 'numeric',
@@ -67,13 +62,6 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
     : rawProvider === 'email' 
       ? 'Email & Password' 
       : rawProvider;
-
-  const handleCopyUserId = () => {
-    navigator.clipboard?.writeText(userId);
-    setCopiedId(true);
-    showToast('User ID copied to clipboard');
-    setTimeout(() => setCopiedId(false), 2000);
-  };
 
   const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,27 +181,6 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
                     Verified
                   </span>
                 )}
-              </div>
-
-              {/* User ID */}
-              <div className="p-3.5 flex items-center justify-between">
-                <div className="flex items-center gap-3 min-w-0">
-                  <Fingerprint className="w-4 h-4 text-purple-500 shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-[10px] text-slate-400 font-bold uppercase">User Identifier (UID)</p>
-                    <p className="font-mono text-[11px] text-slate-600 dark:text-slate-300 truncate max-w-[200px] sm:max-w-xs">
-                      {userId}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleCopyUserId}
-                  className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-900 dark:hover:text-white transition cursor-pointer shrink-0"
-                  title="Copy User ID"
-                >
-                  {copiedId ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                </button>
               </div>
 
               {/* Creation Date */}

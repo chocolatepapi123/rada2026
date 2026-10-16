@@ -85,8 +85,6 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
   // Active Dropdown for assigning an item to a folder
   const [activeFolderMenuForItemId, setActiveFolderMenuForItemId] = useState<string | null>(null);
 
-  if (!isOpen) return null;
-
   // Hydrate saved items with full details
   const hydratedItems = useMemo(() => {
     return savedItems.map(saved => {
@@ -198,6 +196,8 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
     setNewFolderName('');
     setIsCreatingFolder(false);
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
