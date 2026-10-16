@@ -17,12 +17,16 @@ import {
   Bookmark,
   Trees,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Palette,
+  Gamepad2,
+  X
 } from 'lucide-react';
 
 import { SpotItem, MenuItem, SavedItem } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { supabase } from '../lib/supabase.ts';
+import { LocationCombobox } from './LocationCombobox.tsx';
 
 interface SpotsTabProps {
   spots: SpotItem[];
@@ -51,21 +55,6 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   const [selectedPriceTier, setSelectedPriceTier] = useState<string>('all');
   const [activeImageIndices, setActiveImageIndices] = useState<Record<number, number>>({});
   const [isListening, setIsListening] = useState(false);
-  const [customNeighborhoodInput, setCustomNeighborhoodInput] = useState('');
-  const [isAddingCustomNeigh, setIsAddingCustomNeigh] = useState(false);
-  const [neighborhoodOptions, setNeighborhoodOptions] = useState<string[]>([
-    'All',
-    'Westlands',
-    'Kilimani',
-    'CBD',
-    'Karen',
-    'Lavington',
-    'Parklands',
-    'Mombasa Rd',
-    'Ruiru',
-    'Kiambu Town',
-    'Thika'
-  ]);
 
   const [dbSpots, setDbSpots] = useState<any[]>([]);
 
@@ -129,7 +118,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
 
       recognition.onstart = () => {
         setIsListening(true);
-        if (showToast) showToast('Listening... Speak a spot or neighborhood in Nairobi');
+        if (showToast) showToast('Listening... Speak a spot or location');
       };
 
       recognition.onresult = (event: any) => {
@@ -153,17 +142,6 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     }
   };
 
-  const handleAddCustomNeighborhood = () => {
-    const trimmed = customNeighborhoodInput.trim();
-    if (!trimmed) return;
-    if (!neighborhoodOptions.map(n => n.toLowerCase()).includes(trimmed.toLowerCase())) {
-      setNeighborhoodOptions(prev => [...prev, trimmed]);
-    }
-    setSelectedNeighborhood(trimmed);
-    setCustomNeighborhoodInput('');
-    setIsAddingCustomNeigh(false);
-    if (showToast) showToast(`Added "${trimmed}" to neighborhoods!`);
-  };
 // Show BOTH local spots (merchant-published, stored in app state) and Supabase spots.
   // Previously, if Supabase had any rows, local spots were hidden entirely.
   const displaySpots = useMemo(() => {
@@ -191,21 +169,67 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     return [...spots, ...extraDbSpots];
   }, [spots, dbSpots]);
 
+  const isNatureSpot = (s: SpotItem) =>
+    s.category === 'connect_with_nature' ||
+    s.category === 'outdoors' ||
+    (s.category === 'activities' && (s.title.toLowerCase().includes('forest') || s.title.toLowerCase().includes('arboretum') || s.title.toLowerCase().includes('trail') || s.title.toLowerCase().includes('nature') || s.title.toLowerCase().includes('biking') || s.title.toLowerCase().includes('hike') || s.title.toLowerCase().includes('waterfall') || s.title.toLowerCase().includes('mountain') || s.title.toLowerCase().includes('hills')));
+
+  const isCreativeSpot = (s: SpotItem): boolean =>
+    Boolean(
+      s.category === 'creative_leisure' ||
+      s.category === 'social_activities' ||
+      s.title.toLowerCase().includes('paint') ||
+      s.title.toLowerCase().includes('pottery') ||
+      s.title.toLowerCase().includes('craft') ||
+      s.title.toLowerCase().includes('clay') ||
+      s.description?.toLowerCase().includes('pottery') ||
+      s.description?.toLowerCase().includes('canvas') ||
+      s.description?.toLowerCase().includes('painting')
+    );
+
+  const isTechGamingSpot = (s: SpotItem): boolean =>
+    Boolean(
+      s.category === 'tech_gaming' ||
+      s.title.toLowerCase().includes('vr') ||
+      s.title.toLowerCase().includes('gaming') ||
+      s.title.toLowerCase().includes('arcade') ||
+      s.title.toLowerCase().includes('simulator') ||
+      s.description?.toLowerCase().includes('virtual reality') ||
+      s.description?.toLowerCase().includes('gaming')
+    );
+
+  const isActionSportsSpot = (s: SpotItem): boolean =>
+    Boolean(
+      s.category === 'action_sports' ||
+      s.title.toLowerCase().includes('kart') ||
+      s.title.toLowerCase().includes('paintball') ||
+      s.title.toLowerCase().includes('bowling') ||
+      s.title.toLowerCase().includes('archery') ||
+      s.title.toLowerCase().includes('tactical') ||
+      s.description?.toLowerCase().includes('paintball') ||
+      s.description?.toLowerCase().includes('racing')
+    );
+
   // Real-time fuzzy natural query search
   // e.g. "Sushi in Westlands" parses "sushi" and "westlands"
   const filteredSpots = displaySpots.filter(s => {
 
     // Category filter
     let matchesCategory = selectedCategory === 'all' || s.category === selectedCategory;
-    if (selectedCategory === 'outdoors') {
-      matchesCategory = s.category === 'outdoors' || (s.category === 'activities' && (s.title.toLowerCase().includes('forest') || s.title.toLowerCase().includes('arboretum') || s.title.toLowerCase().includes('trail') || s.title.toLowerCase().includes('nature') || s.title.toLowerCase().includes('biking')));
-    } else if (selectedCategory === 'social_activities') {
-      matchesCategory = s.category === 'social_activities' || (s.category === 'activities' && !(s.title.toLowerCase().includes('forest') || s.title.toLowerCase().includes('arboretum') || s.title.toLowerCase().includes('trail') || s.title.toLowerCase().includes('nature') || s.title.toLowerCase().includes('biking')));
+    if (selectedCategory === 'connect_with_nature' || selectedCategory === 'outdoors') {
+      matchesCategory = isNatureSpot(s);
+    } else if (selectedCategory === 'creative_leisure' || selectedCategory === 'social_activities') {
+      matchesCategory = isCreativeSpot(s);
+    } else if (selectedCategory === 'tech_gaming') {
+      matchesCategory = isTechGamingSpot(s);
+    } else if (selectedCategory === 'action_sports') {
+      matchesCategory = isActionSportsSpot(s);
     }
 
     // Neighborhood filter
     const matchesNeigh = selectedNeighborhood === 'all' || 
-      s.neighborhood.toLowerCase().includes(selectedNeighborhood.toLowerCase());
+      s.neighborhood.toLowerCase().includes(selectedNeighborhood.toLowerCase()) ||
+      selectedNeighborhood.toLowerCase().includes(s.neighborhood.toLowerCase());
 
     // Price Tier filter
     const matchesPrice = selectedPriceTier === 'all' || s.price === selectedPriceTier;
@@ -253,14 +277,10 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   const dateSpots = filteredSpots.filter(s => s.category === 'date_spots');
   const hotels = filteredSpots.filter(s => s.category === 'hotels');
   const vacation = filteredSpots.filter(s => s.category === 'vacation');
-  const outdoorSpots = filteredSpots.filter(s => 
-    s.category === 'outdoors' || 
-    (s.category === 'activities' && (s.title.toLowerCase().includes('forest') || s.title.toLowerCase().includes('arboretum') || s.title.toLowerCase().includes('trail') || s.title.toLowerCase().includes('nature') || s.title.toLowerCase().includes('biking')))
-  );
-  const socialActivitySpots = filteredSpots.filter(s => 
-    s.category === 'social_activities' || 
-    (s.category === 'activities' && !(s.title.toLowerCase().includes('forest') || s.title.toLowerCase().includes('arboretum') || s.title.toLowerCase().includes('trail') || s.title.toLowerCase().includes('nature') || s.title.toLowerCase().includes('biking')))
-  );
+  const natureSpots = filteredSpots.filter(isNatureSpot);
+  const creativeSpots = filteredSpots.filter(isCreativeSpot);
+  const techGamingSpots = filteredSpots.filter(isTechGamingSpot);
+  const actionSportsSpots = filteredSpots.filter(isActionSportsSpot);
 
 
   const isSaved = (id: number | string) => {
@@ -429,7 +449,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400">
-            Nairobi Hangouts & Experiences
+            Hangouts & Experiences
           </h2>
           <span className="text-[10px] text-slate-400 font-bold">
             {filteredSpots.length} venues found
@@ -443,7 +463,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search spots, food, bars, cafes, or neighborhoods in Nairobi & Kiambu..."
+            placeholder="Search spots, activities, or locations..."
             className="w-full pl-10 pr-24 py-3 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 shadow-xs"
           />
 
@@ -474,13 +494,15 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           </div>
         </div>
 
-        {/* Category Filter Pills (Including Vacation Spots, Hotels, Date Spots) */}
+        {/* Category Filter Pills */}
         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
           {[
             { id: 'all', label: 'All Categories', icon: Compass },
             { id: 'restaurants', label: 'Restaurants', icon: UtensilsCrossed },
-            { id: 'outdoors', label: 'Outdoor Activities', icon: Trees },
-            { id: 'social_activities', label: 'Social Activities', icon: Sparkles },
+            { id: 'connect_with_nature', label: 'Connect with Nature', icon: Trees },
+            { id: 'creative_leisure', label: 'Creative & Leisure', icon: Palette },
+            { id: 'tech_gaming', label: 'Tech & Gaming', icon: Gamepad2 },
+            { id: 'action_sports', label: 'Action & Sports', icon: Sparkles },
             { id: 'nightlife', label: 'Nightlife', icon: Music },
             { id: 'cafes', label: 'Cafes', icon: Coffee },
             { id: 'date_spots', label: 'Date Spots', icon: Heart },
@@ -529,56 +551,16 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           ))}
         </div>
 
-        {/* Neighborhood Filter & Searchable Typeahead with Custom Additions */}
-        <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-1">
-          {neighborhoodOptions.map((item) => (
-            <button
-              key={item}
-              onClick={() => setSelectedNeighborhood(item.toLowerCase() === 'all' ? 'all' : item.toLowerCase())}
-              className={`px-3 py-1 rounded-full text-[11px] shrink-0 transition-all ${
-                (selectedNeighborhood === 'all' && item.toLowerCase() === 'all') || selectedNeighborhood.toLowerCase() === item.toLowerCase()
-                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-black shadow-xs'
-                  : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-600 dark:text-slate-400 font-semibold border border-slate-200 dark:border-slate-800'
-              }`}
-            >
-              {item}
-            </button>
-          ))}
-
-          {/* Add custom neighborhood */}
-          {isAddingCustomNeigh ? (
-            <div className="flex items-center gap-1 shrink-0 bg-white dark:bg-[#121113] p-0.5 rounded-full border border-[#E0533C]">
-              <input
-                type="text"
-                value={customNeighborhoodInput}
-                onChange={(e) => setCustomNeighborhoodInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddCustomNeighborhood()}
-                placeholder="Custom location..."
-                className="text-[11px] px-2 py-0.5 bg-transparent border-none focus:outline-none w-24 text-slate-900 dark:text-slate-100"
-                autoFocus
-              />
-              <button
-                onClick={handleAddCustomNeighborhood}
-                className="px-2 py-0.5 bg-[#E0533C] text-white rounded-full text-[10px] font-bold"
-              >
-                Add
-              </button>
-              <button
-                onClick={() => setIsAddingCustomNeigh(false)}
-                className="px-1.5 py-0.5 text-slate-400 text-[10px]"
-              >
-                ✕
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setIsAddingCustomNeigh(true)}
-              className="px-2.5 py-1 rounded-full text-[11px] shrink-0 bg-transparent text-[#E0533C] border border-dashed border-[#E0533C] font-bold flex items-center gap-1 hover:bg-orange-50 dark:hover:bg-orange-950/30 transition"
-            >
-              <Plus className="w-3 h-3" />
-              <span>Location</span>
-            </button>
-          )}
+        {/* Searchable Location Combobox Filter */}
+        <div className="pt-0.5">
+          <LocationCombobox
+            value={selectedNeighborhood}
+            onChange={(val) => setSelectedNeighborhood(val)}
+            spots={displaySpots}
+            placeholder="Filter by neighborhood, area, or location..."
+            allowAll={true}
+            showSelectedChip={true}
+          />
         </div>
       </div>
 
@@ -630,46 +612,90 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           </div>
         )}
 
-        {/* Outdoor Activities */}
-        {(selectedCategory === 'all' || selectedCategory === 'outdoors') && outdoorSpots.length > 0 && (
+        {/* Connect with Nature */}
+        {(selectedCategory === 'all' || selectedCategory === 'connect_with_nature' || selectedCategory === 'outdoors') && natureSpots.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                 <Trees className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Outdoor Activities</span>
+                <span>Connect with Nature</span>
               </h3>
               <button
-                onClick={() => onOpenDedicatedViewAll('Outdoor Activities', 'outdoors')}
+                onClick={() => onOpenDedicatedViewAll('Connect with Nature', 'connect_with_nature')}
                 className="text-[11px] font-bold text-[#E0533C] hover:underline"
               >
-                View All ({outdoorSpots.length})
+                View All ({natureSpots.length})
               </button>
             </div>
 
             <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {outdoorSpots.map(renderSpotCard)}
+              {natureSpots.map(renderSpotCard)}
             </div>
           </div>
         )}
 
-        {/* Social Activities */}
-        {(selectedCategory === 'all' || selectedCategory === 'social_activities') && socialActivitySpots.length > 0 && (
+        {/* Creative & Leisure */}
+        {(selectedCategory === 'all' || selectedCategory === 'creative_leisure' || selectedCategory === 'social_activities') && creativeSpots.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                <span>Social Activities</span>
+                <Palette className="w-3.5 h-3.5 text-[#2D6A4F]" />
+                <span>Creative & Leisure</span>
               </h3>
               <button
-                onClick={() => onOpenDedicatedViewAll('Social Activities', 'social_activities')}
+                onClick={() => onOpenDedicatedViewAll('Creative & Leisure', 'creative_leisure')}
                 className="text-[11px] font-bold text-[#E0533C] hover:underline"
               >
-                View All ({socialActivitySpots.length})
+                View All ({creativeSpots.length})
               </button>
             </div>
 
             <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {socialActivitySpots.map(renderSpotCard)}
+              {creativeSpots.map(renderSpotCard)}
+            </div>
+          </div>
+        )}
+
+        {/* Tech & Gaming */}
+        {(selectedCategory === 'all' || selectedCategory === 'tech_gaming') && techGamingSpots.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                <Gamepad2 className="w-3.5 h-3.5 text-blue-500" />
+                <span>Tech & Gaming</span>
+              </h3>
+              <button
+                onClick={() => onOpenDedicatedViewAll('Tech & Gaming', 'tech_gaming')}
+                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+              >
+                View All ({techGamingSpots.length})
+              </button>
+            </div>
+
+            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+              {techGamingSpots.map(renderSpotCard)}
+            </div>
+          </div>
+        )}
+
+        {/* Action & Sports */}
+        {(selectedCategory === 'all' || selectedCategory === 'action_sports') && actionSportsSpots.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>Action & Sports</span>
+              </h3>
+              <button
+                onClick={() => onOpenDedicatedViewAll('Action & Sports', 'action_sports')}
+                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+              >
+                View All ({actionSportsSpots.length})
+              </button>
+            </div>
+
+            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+              {actionSportsSpots.map(renderSpotCard)}
             </div>
           </div>
         )}

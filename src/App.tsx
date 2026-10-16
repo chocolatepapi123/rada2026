@@ -552,6 +552,9 @@ export default function App() {
 
   const lastBackPressRef = useRef<number>(0);
   const prevModalOpenRef = useRef<boolean>(false);
+  const modalHistoryPushedRef = useRef<boolean>(false);
+  const isProgrammaticBackRef = useRef<boolean>(false);
+  const isExitingRef = useRef<boolean>(false);
 
   useEffect(() => {
     // Anchor base history state on app startup
@@ -560,71 +563,42 @@ export default function App() {
     }
 
     const handlePopState = (e: PopStateEvent) => {
+      // If this pop was triggered programmatically to clean up a UI modal close, ignore it
+      if (isProgrammaticBackRef.current) {
+        isProgrammaticBackRef.current = false;
+        return;
+      }
+
+      if (isExitingRef.current) {
+        return;
+      }
+
       // 1. If any modal or overlay is open, dismiss it and stay inside app
-      if (isAuthModalOpen) {
-        setIsAuthModalOpen(false);
-        return;
-      }
-      if (isAccountSettingsOpen) {
-        setIsAccountSettingsOpen(false);
-        return;
-      }
-      if (isSavedModalOpen) {
-        setIsSavedModalOpen(false);
-        return;
-      }
-      if (isAdminOpen) {
-        setIsAdminOpen(false);
-        return;
-      }
-      if (viewingProfile) {
-        setViewingProfile(null);
-        return;
-      }
-      if (selectedPublicBusiness) {
-        setSelectedPublicBusiness(null);
-        return;
-      }
-      if (selectedLocationMapSpot) {
-        setSelectedLocationMapSpot(null);
-        return;
-      }
-      if (qrPassTitle) {
-        setQrPassTitle(null);
-        return;
-      }
-      if (isPlanDateModalOpen) {
-        setIsPlanDateModalOpen(false);
-        setDatePlanningSpot(null);
-        return;
-      }
-      if (isCreateGroupOpen) {
-        setIsCreateGroupOpen(false);
-        return;
-      }
-      if (viewAllTitle) {
-        setViewAllTitle(null);
-        setViewAllCategory(null);
-        return;
-      }
-      if (selectedSpotModal) {
-        setSelectedSpotModal(null);
-        return;
-      }
-      if (selectedEventModal) {
-        setSelectedEventModal(null);
-        return;
-      }
-      if (isWagwanOpen) {
-        setIsWagwanOpen(false);
-        return;
-      }
-      if (activeOverlay) {
-        setActiveOverlay(null);
-        return;
-      }
-      if (isBusinessHubOpen) {
-        setIsBusinessHubOpen(false);
+      if (isAnyModalOpen) {
+        // Modal is closed by browser hardware back button, so history entry is already popped
+        modalHistoryPushedRef.current = false;
+        if (isAuthModalOpen) setIsAuthModalOpen(false);
+        if (isAccountSettingsOpen) setIsAccountSettingsOpen(false);
+        if (isSavedModalOpen) setIsSavedModalOpen(false);
+        if (isAdminOpen) setIsAdminOpen(false);
+        if (viewingProfile) setViewingProfile(null);
+        if (selectedPublicBusiness) setSelectedPublicBusiness(null);
+        if (selectedLocationMapSpot) setSelectedLocationMapSpot(null);
+        if (qrPassTitle) setQrPassTitle(null);
+        if (isPlanDateModalOpen) {
+          setIsPlanDateModalOpen(false);
+          setDatePlanningSpot(null);
+        }
+        if (isCreateGroupOpen) setIsCreateGroupOpen(false);
+        if (viewAllTitle) {
+          setViewAllTitle(null);
+          setViewAllCategory(null);
+        }
+        if (selectedSpotModal) setSelectedSpotModal(null);
+        if (selectedEventModal) setSelectedEventModal(null);
+        if (isWagwanOpen) setIsWagwanOpen(false);
+        if (activeOverlay) setActiveOverlay(null);
+        if (isBusinessHubOpen) setIsBusinessHubOpen(false);
         return;
       }
 
@@ -638,7 +612,12 @@ export default function App() {
       // Prevent accidental phone hardware back button app exit using double-press confirmation
       const now = Date.now();
       if (now - lastBackPressRef.current < 2000) {
-        // Double-press within 2 seconds: let default browser/OS exit occur
+        // Double-press within 2 seconds: leave the app on the second press
+        isExitingRef.current = true;
+        window.history.back();
+        try {
+          window.close();
+        } catch (_) {}
         return;
       }
 
@@ -651,6 +630,7 @@ export default function App() {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [
+    isAnyModalOpen,
     isAuthModalOpen,
     isAccountSettingsOpen,
     isSavedModalOpen,
@@ -671,10 +651,21 @@ export default function App() {
     showToast
   ]);
 
-  // When any modal opens, push a history entry so the phone hardware back button pops it cleanly
+  // When any modal opens, push a history entry.
+  // When closed through its UI (not by back), call history.back() once so entries don't pile up.
   useEffect(() => {
-    if (isAnyModalOpen && !prevModalOpenRef.current) {
-      window.history.pushState({ radaApp: true, modal: true }, '');
+    if (isAnyModalOpen) {
+      if (!prevModalOpenRef.current) {
+        window.history.pushState({ radaApp: true, modal: true }, '');
+        modalHistoryPushedRef.current = true;
+      }
+    } else {
+      if (prevModalOpenRef.current && modalHistoryPushedRef.current) {
+        // Modal was closed through UI (not via back button)
+        modalHistoryPushedRef.current = false;
+        isProgrammaticBackRef.current = true;
+        window.history.back();
+      }
     }
     prevModalOpenRef.current = isAnyModalOpen;
   }, [isAnyModalOpen]);

@@ -146,7 +146,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         } else {
           await new Promise(r => setTimeout(r, 650));
         }
-        showToast('Nairobi feed refreshed ✨');
+        showToast('Feed refreshed ✨');
       } finally {
         setTimeout(() => {
           setIsRefreshing(false);
@@ -427,7 +427,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       >
         <div className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3.5 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 shadow-2xs">
           <RefreshCw className={`w-3.5 h-3.5 text-[#E0533C] ${isRefreshing ? 'animate-spin' : ''}`} />
-          <span>{isRefreshing ? 'Refreshing Nairobi vibes...' : pullY > 45 ? 'Release to refresh' : 'Pull down to refresh'}</span>
+          <span>{isRefreshing ? 'Refreshing vibes...' : pullY > 45 ? 'Release to refresh' : 'Pull down to refresh'}</span>
         </div>
       </div>
 
@@ -507,7 +507,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-xs bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:text-[#E0533C] hover:border-slate-300 ${
               isRefreshing ? 'opacity-80' : ''
             }`}
-            title="Refresh Nairobi Feed"
+            title="Refresh Feed"
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-[#E0533C]' : ''}`} />
           </button>

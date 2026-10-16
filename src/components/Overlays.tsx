@@ -46,7 +46,8 @@ import {
   Tag,
   Check,
   Bookmark,
-  KeyRound
+  KeyRound,
+  Trees
 } from 'lucide-react';
 import { 
   SpotItem, 
@@ -839,6 +840,116 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 </div>
               );
             })()}
+
+            {/* Activities & Pricing List if present */}
+            {selectedSpot.activitiesList && selectedSpot.activitiesList.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h4 className="font-black text-slate-900 dark:text-slate-100 uppercase text-[11px] tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-[#E0533C]" />
+                      <span>Activities & Pricing</span>
+                    </h4>
+                    <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                      Available experiences, gear & activity rates
+                    </p>
+                  </div>
+                  <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-red-500/10 text-[#E0533C] shrink-0">
+                    {selectedSpot.activitiesList.length} Options
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {selectedSpot.activitiesList.map(item => (
+                    <div key={item.id} className="p-3 bg-[#F8F8F6] dark:bg-[#1C1A1E] rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-bold text-xs text-slate-900 dark:text-slate-100">{item.name}</span>
+                        <div className="flex items-center gap-1.5">
+                          {item.duration && (
+                            <span className="text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded-md font-semibold">
+                              ⏱ {item.duration}
+                            </span>
+                          )}
+                          <span className="font-extrabold text-xs text-[#E0533C]">{item.price}</span>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">{item.description}</p>
+                      {item.equipmentProvided && (
+                        <p className="text-[10px] text-[#2D6A4F] font-semibold pt-0.5 flex items-center gap-1">
+                          <span>🎒 Gear provided:</span>
+                          <span className="text-slate-700 dark:text-slate-300 font-normal">{item.equipmentProvided}</span>
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Equipment / What to bring */}
+            {(selectedSpot.equipmentProvided || selectedSpot.whatToBring) && (
+              <div className="p-3 bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 rounded-2xl space-y-1">
+                <span className="font-black text-xs text-amber-800 dark:text-amber-300 flex items-center gap-1.5 uppercase tracking-wider">
+                  <span>🎒 Equipment & What to Bring</span>
+                </span>
+                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                  {selectedSpot.whatToBring || selectedSpot.equipmentProvided}
+                </p>
+              </div>
+            )}
+
+            {/* Booking Slots & Group Sizes */}
+            {(selectedSpot.bookingSlots || selectedSpot.groupSizeMin || selectedSpot.groupSizeMax) && (
+              <div className="p-3 bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-1.5 text-xs">
+                <span className="font-black text-slate-900 dark:text-slate-100 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+                  <Clock className="w-3.5 h-3.5 text-[#E0533C]" />
+                  <span>Booking Slots & Group Sizes</span>
+                </span>
+                {selectedSpot.bookingSlots && (
+                  <p className="text-slate-700 dark:text-slate-300">
+                    <strong className="text-slate-900 dark:text-slate-100">Schedule: </strong>
+                    {selectedSpot.bookingSlots}
+                  </p>
+                )}
+                {(selectedSpot.groupSizeMin || selectedSpot.groupSizeMax) && (
+                  <p className="text-slate-700 dark:text-slate-300">
+                    <strong className="text-slate-900 dark:text-slate-100">Group Size: </strong>
+                    {selectedSpot.groupSizeMin ? `${selectedSpot.groupSizeMin} min` : ''}
+                    {selectedSpot.groupSizeMin && selectedSpot.groupSizeMax ? ' • ' : ''}
+                    {selectedSpot.groupSizeMax ? `${selectedSpot.groupSizeMax} max participants` : ''}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Connect with Nature Trail Specifics */}
+            {(selectedSpot.difficulty || selectedSpot.distanceDuration || selectedSpot.meetingPoint) && (
+              <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 rounded-2xl space-y-2 text-xs">
+                <span className="font-black text-[#2D6A4F] dark:text-emerald-300 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+                  <Trees className="w-3.5 h-3.5" />
+                  <span>Nature Trail & Hike Details</span>
+                </span>
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  {selectedSpot.difficulty && (
+                    <div className="bg-white dark:bg-[#121113] p-2 rounded-xl border border-emerald-100 dark:border-emerald-900/30">
+                      <span className="text-slate-400 block text-[10px]">Difficulty</span>
+                      <strong className="text-emerald-700 dark:text-emerald-300">{selectedSpot.difficulty}</strong>
+                    </div>
+                  )}
+                  {selectedSpot.distanceDuration && (
+                    <div className="bg-white dark:bg-[#121113] p-2 rounded-xl border border-emerald-100 dark:border-emerald-900/30">
+                      <span className="text-slate-400 block text-[10px]">Distance & Duration</span>
+                      <strong className="text-slate-800 dark:text-slate-200">{selectedSpot.distanceDuration}</strong>
+                    </div>
+                  )}
+                </div>
+                {selectedSpot.meetingPoint && (
+                  <p className="text-[11px] text-slate-700 dark:text-slate-300 pt-1">
+                    <strong className="text-slate-900 dark:text-slate-100">📍 Meeting Point: </strong>
+                    {selectedSpot.meetingPoint}
+                  </p>
+                )}
+              </div>
+            )}
 
 
             {/* COMMUNITY REVIEWS & POST A REVIEW (SPEC 1: Regular users upload photos only inside reviews) */}
@@ -1997,11 +2108,17 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   {spots
                     .filter(s => {
                       if (!viewAllCategory || viewAllCategory === 'spots') return true;
-                      if (viewAllCategory === 'outdoors') {
-                        return s.category === 'outdoors' || (s.category === 'activities' && (s.title.toLowerCase().includes('forest') || s.title.toLowerCase().includes('arboretum') || s.title.toLowerCase().includes('trail') || s.title.toLowerCase().includes('nature') || s.title.toLowerCase().includes('biking')));
+                      if (viewAllCategory === 'connect_with_nature' || viewAllCategory === 'outdoors') {
+                        return s.category === 'connect_with_nature' || s.category === 'outdoors' || (s.category === 'activities' && (s.title.toLowerCase().includes('forest') || s.title.toLowerCase().includes('arboretum') || s.title.toLowerCase().includes('trail') || s.title.toLowerCase().includes('nature') || s.title.toLowerCase().includes('biking') || s.title.toLowerCase().includes('hike') || s.title.toLowerCase().includes('waterfall') || s.title.toLowerCase().includes('mountain') || s.title.toLowerCase().includes('hills')));
                       }
-                      if (viewAllCategory === 'social_activities') {
-                        return s.category === 'social_activities' || (s.category === 'activities' && !(s.title.toLowerCase().includes('forest') || s.title.toLowerCase().includes('arboretum') || s.title.toLowerCase().includes('trail') || s.title.toLowerCase().includes('nature') || s.title.toLowerCase().includes('biking')));
+                      if (viewAllCategory === 'creative_leisure' || viewAllCategory === 'social_activities') {
+                        return s.category === 'creative_leisure' || s.category === 'social_activities' || s.title.toLowerCase().includes('paint') || s.title.toLowerCase().includes('pottery') || s.title.toLowerCase().includes('craft') || s.title.toLowerCase().includes('clay') || s.description?.toLowerCase().includes('pottery') || s.description?.toLowerCase().includes('canvas') || s.description?.toLowerCase().includes('painting');
+                      }
+                      if (viewAllCategory === 'tech_gaming') {
+                        return s.category === 'tech_gaming' || s.title.toLowerCase().includes('vr') || s.title.toLowerCase().includes('gaming') || s.title.toLowerCase().includes('arcade') || s.title.toLowerCase().includes('simulator') || s.description?.toLowerCase().includes('virtual reality') || s.description?.toLowerCase().includes('gaming');
+                      }
+                      if (viewAllCategory === 'action_sports') {
+                        return s.category === 'action_sports' || s.title.toLowerCase().includes('kart') || s.title.toLowerCase().includes('paintball') || s.title.toLowerCase().includes('bowling') || s.title.toLowerCase().includes('archery') || s.title.toLowerCase().includes('tactical') || s.description?.toLowerCase().includes('paintball') || s.description?.toLowerCase().includes('racing');
                       }
                       return s.category === viewAllCategory;
                     })

@@ -124,8 +124,14 @@ export interface SpotItem {
   // Tailored activity fields for non-food categories
   activityType?: string;
   equipmentProvided?: string;
+  whatToBring?: string;
   bookingSlots?: string;
+  groupSizeMin?: number | string;
+  groupSizeMax?: number | string;
   activitiesList?: ActivityItem[];
+  difficulty?: 'Easy' | 'Moderate' | 'Challenging' | 'Expert' | string;
+  distanceDuration?: string;
+  meetingPoint?: string;
 }
 
 export interface Artist {
