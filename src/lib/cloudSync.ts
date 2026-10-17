@@ -113,6 +113,8 @@ function errMsg(e: unknown): string {
 function isValidUuid(id: any): boolean {
   return typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 }
+
+/** Returns the value if it is already a valid UUID, otherwise generates a new one. */
 export function toValidUuid(value?: unknown): string {
   if (isValidUuid(value)) return value as string;
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -123,6 +125,7 @@ export function toValidUuid(value?: unknown): string {
     return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
   });
 }
+
 // =====================================================================
 // BUSINESSES
 // =====================================================================
