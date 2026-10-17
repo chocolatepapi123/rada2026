@@ -904,20 +904,40 @@ export default function App() {
   }, [tickets, emergencyContacts, currentUserProfile, userDataReady, session?.user?.id]);
 
   // Handlers for Business Hub
-  const handleCreateBusiness = (newBiz: BusinessAccount) => {
+  // Returns an error message (string) on failure, or null on success.
+  // The cloud insert happens HERE only (MerchantHubTab no longer inserts), so the
+  // business is never inserted twice (a duplicate insert caused a primary-key error).
+  const handleCreateBusiness = async (newBiz: BusinessAccount): Promise<string | null> => {
+    if (!currentUserId) {
+      return 'Please sign in first to create a merchant account.';
+    }
     const biz: BusinessAccount = {
       ...newBiz,
-      ownerId: newBiz.ownerId || currentUserId,
+      ownerId: currentUserId,
       verified: false,
       verificationStatus: 'pending',
     };
-    setBusinesses(prev => [biz, ...prev]);
-    setActiveBusinessId(biz.id);
-    if (currentUserId) {
-      cloudWrite(() => cloud.insertBusiness(biz, currentUserId));
-    } else {
-      showToast('Sign in to save your business online.');
+
+    mutationRef.current += 1;
+    pendingRef.current += 1;
+    try {
+      const err = await cloud.insertBusiness(biz, currentUserId);
+      if (err) {
+        console.error('insertBusiness failed:', err);
+        return err;
+      }
+    } catch (e) {
+      console.error('insertBusiness threw:', e);
+      return e instanceof Error ? e.message : String(e);
+    } finally {
+      pendingRef.current -= 1;
     }
+
+    setBusinesses(prev => [biz, ...prev.filter(b => b.id !== biz.id)]);
+    setActiveBusinessId(biz.id);
+    // reload from cloud so photos become online links
+    if (pendingRef.current === 0) syncRef.current?.();
+    return null;
   };
 
   const handleUpdateBusiness = (updatedBiz: BusinessAccount) => {
