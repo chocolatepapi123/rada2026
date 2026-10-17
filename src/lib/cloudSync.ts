@@ -533,6 +533,37 @@ export async function fetchOffers(): Promise<any[] | null> {
   return listings ? listings.offer : null;
 }
 
+/**
+ * rada_listings.id is a UUID column, but the app's listings use numeric / text ids
+ * (e.g. 1792256702908 or 'off-123'). We derive a stable UUID from kind + app id so the
+ * same listing always maps to the same row (upsert works, delete works).
+ * The original app id is preserved inside the `data` JSON, which is what the app reads back.
+ */
+function cyrb128(str: string): [number, number, number, number] {
+  let h1 = 1779033703, h2 = 3144134277, h3 = 1013904242, h4 = 2773480762;
+  for (let i = 0, k: number; i < str.length; i++) {
+    k = str.charCodeAt(i);
+    h1 = h2 ^ Math.imul(h1 ^ k, 597399067);
+    h2 = h3 ^ Math.imul(h2 ^ k, 2869860233);
+    h3 = h4 ^ Math.imul(h3 ^ k, 951274213);
+    h4 = h1 ^ Math.imul(h4 ^ k, 2716044179);
+  }
+  h1 = Math.imul(h3 ^ (h1 >>> 18), 597399067);
+  h2 = Math.imul(h4 ^ (h2 >>> 19), 2869860233);
+  h3 = Math.imul(h1 ^ (h2 >>> 17), 951274213);
+  h4 = Math.imul(h2 ^ (h3 >>> 19), 2716044179);
+  h1 ^= h2 ^ h3 ^ h4; h2 ^= h1; h3 ^= h1; h4 ^= h1;
+  return [h1 >>> 0, h2 >>> 0, h3 >>> 0, h4 >>> 0];
+}
+
+export function listingUuid(kind: string, appId: string | number): string {
+  const raw = String(appId);
+  if (isValidUuid(raw)) return raw;
+  const hex = cyrb128(`${kind}:${raw}`).map(n => n.toString(16).padStart(8, '0')).join('');
+  const variant = ['8', '9', 'a', 'b'][parseInt(hex[16], 16) % 4];
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
 export async function upsertListing(
   kind: ListingKind,
   item: any,
@@ -540,6 +571,10 @@ export async function upsertListing(
   ownerId: string
 ): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
+  if (!isValidUuid(ownerId)) {
+    return 'you must be signed in (valid owner id) to save listings online';
+  }
+
   let payload: any = item;
   if (kind === 'spot') {
     const { reviews, reviewCount, rating, ...rest } = item;
@@ -555,90 +590,42 @@ export async function upsertListing(
     return `photo upload failed: ${errMsg(e)}`;
   }
 
-  // If this is a Spot, also upsert directly into the 'spots' table so all users querying 'spots' see it
-  if (kind === 'spot') {
-    const rawId = item.id;
-    const numId = typeof rawId === 'number' ? rawId : (parseInt(String(rawId).replace(/\D/g, ''), 10) || Date.now());
-    const spotRow: any = {
-      id: numId,
-      title: item.title || 'Untitled Spot',
-      category: item.category || 'restaurants',
-      neighborhood: item.neighborhood || 'Nairobi',
-      address: item.address || '',
-      exact_location_tag: item.exactLocationTag || item.address || '',
-      landmark: item.landmark || item.neighborhood || '',
-      lat: item.lat ?? -1.2675,
-      lng: item.lng ?? 36.8115,
-      price: item.price || 'KES $$',
-      rating: String(item.rating || '4.8'),
-      img: item.img || (item.images && item.images[0]) || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
-      description: item.description || '',
-      phone: item.phone || '',
-      business_id: businessId ?? item.businessId ?? null,
-      is_user_uploaded: item.isUserUploaded ?? false,
-    };
-    try {
-      await supabase.from('spots').upsert(spotRow, { onConflict: 'id' });
-    } catch (sErr) {
-      console.warn('Direct upsert to spots table fallback:', sErr);
-    }
-  }
-
-  const safeOwnerId = isValidUuid(ownerId) ? ownerId : null;
-
-  const radaListingPayload: any = {
+  // rada_listings columns (confirmed from Supabase):
+  //   id uuid NOT NULL, kind text NOT NULL, owner_id uuid NOT NULL, title text NOT NULL,
+  //   business_id uuid, description, area, city, country, price numeric, status, data jsonb,
+  //   created_at, updated_at.
+  const bizRef = businessId ?? item.businessId ?? null;
+  const row: any = {
+    id: listingUuid(kind, item.id),
     kind,
-    id: String(item.id),
-    business_id: businessId ?? null,
+    owner_id: ownerId,
+    business_id: isValidUuid(bizRef) ? bizRef : null, // seed ids like 'biz-1' are not UUIDs
+    title: String(item.title || item.name || item.businessName || 'Untitled').slice(0, 300),
+    description: item.description ? String(item.description) : null,
+    area: item.neighborhood || item.location || item.storeLocation || null,
     data: payload,
     updated_at: new Date().toISOString(),
   };
-  if (safeOwnerId) {
-    radaListingPayload.owner_id = safeOwnerId;
-  }
 
-  let { error } = await supabase.from('rada_listings').upsert(
-    radaListingPayload,
-    { onConflict: 'kind,id' }
-  );
+  let { error } = await supabase.from('rada_listings').upsert(row, { onConflict: 'id' });
 
-  // Fallback 1: In case the constraint is on 'id' instead of 'kind,id'
+  // In case the unique constraint is on (kind, id) instead of id
   if (error && (error.message?.includes('ON CONFLICT') || error.message?.includes('constraint'))) {
-    const retry = await supabase.from('rada_listings').upsert(
-      radaListingPayload,
-      { onConflict: 'id' }
-    );
+    const retry = await supabase.from('rada_listings').upsert(row, { onConflict: 'kind,id' });
     error = retry.error;
   }
 
-  // Fallback 2: In case owner_id fails UUID validation in Postgres
-  if (error && error.message?.includes('uuid')) {
-    delete radaListingPayload.owner_id;
-    const retryNoOwner = await supabase.from('rada_listings').upsert(
-      radaListingPayload,
-      { onConflict: 'kind,id' }
-    );
-    error = retryNoOwner.error;
-  }
-
+  if (error) console.warn('rada_listings upsert error:', error.message);
   return error ? error.message : null;
 }
 
 export async function deleteListing(kind: ListingKind, id: string | number): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
-  if (kind === 'spot') {
-    try {
-      const numId = typeof id === 'number' ? id : parseInt(String(id).replace(/\D/g, ''), 10);
-      if (numId) {
-        await supabase.from('spots').delete().eq('id', numId);
-      }
-    } catch {}
-  }
   const { error } = await supabase
     .from('rada_listings')
     .delete()
     .eq('kind', kind)
-    .eq('id', String(id));
+    .eq('id', listingUuid(kind, id));
   return error ? error.message : null;
 }
 
