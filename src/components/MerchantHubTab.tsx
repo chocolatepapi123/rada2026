@@ -1,3 +1,4 @@
+import { insertBusiness } from '../lib/cloudSync';
 import React, { useState } from 'react';
 import { 
   Store, 
@@ -180,7 +181,7 @@ const [isOnboardingOpen, setIsOnboardingOpen] = useState(ownedBusinesses.length 
     setIsOnboardingOpen(true);
   };
 
-  const handleCompleteOnboarding = () => {
+    const handleCompleteOnboarding = async () => {
     if (!onboardName.trim()) {
       showToast('Please enter your business name.');
       return;
@@ -188,10 +189,10 @@ const [isOnboardingOpen, setIsOnboardingOpen] = useState(ownedBusinesses.length 
 
     const newBizId = `biz-${Date.now()}`;
     const newBiz: BusinessAccount = {
-  id: newBizId,
-  ownerId: userId,
-  name: onboardName.trim(),
-  category: selectedVertical,
+      id: newBizId,
+      ownerId: userId,
+      name: onboardName.trim(),
+      category: selectedVertical,
       email: onboardEmail || 'contact@business.ke',
       phone: onboardPhone || '+254 700 000 000',
       whatsapp: onboardWhatsapp.replace(/\s+/g, '') || '+254700000000',
@@ -201,7 +202,7 @@ const [isOnboardingOpen, setIsOnboardingOpen] = useState(ownedBusinesses.length 
       logo: onboardLogo || presetLogos[0],
       coverImage: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
       verified: false,
-verificationStatus: 'pending',
+      verificationStatus: 'pending',
       instagram: onboardInstagram,
       createdDate: new Date().toISOString().split('T')[0],
       discography: [
@@ -213,12 +214,23 @@ verificationStatus: 'pending',
       ]
     };
 
+    // 1. Push directly to Supabase cloud database so Admin can see it
+    if (userId) {
+      const err = await insertBusiness(newBiz, userId);
+      if (err) {
+        showToast(`Cloud save error: ${err}`);
+        return;
+      }
+    }
+
+    // 2. Update local state and launch dashboard
     onCreateBusiness(newBiz);
     onSelectBusiness(newBizId);
     setIsOnboardingOpen(false);
     setActiveSubTab('overview');
-    showToast(`Welcome! ${newBiz.name} merchant workspace is ready.`);
+    showToast(`Welcome! ${newBiz.name} submitted for admin review.`);
   };
+
 
   // ----------------------------------------------------
   // SPOT MERCHANT: CREATE / EDIT SPOT FORM
