@@ -52,6 +52,7 @@ import {
 } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { DynamicLocationSelector } from './DynamicLocationSelector.tsx';
+import { toValidUuid } from '../lib/cloudSync.ts';
 
 interface MerchantHubTabProps {
   businesses: BusinessAccount[];
@@ -202,7 +203,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
 
     const effectiveOwnerId = userId || effectiveUserId;
 
-    const newBizId = `biz-${Date.now()}`;
+    const newBizId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : toValidUuid(`biz-${Date.now()}`);
     const newBiz: BusinessAccount = {
       id: newBizId,
       ownerId: effectiveOwnerId,

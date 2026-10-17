@@ -955,8 +955,10 @@ export default function App() {
     }
 
     const effectiveOwner = session?.user?.id || currentUserId || newBiz.ownerId || localUserId;
+    const finalBizId = cloud.toValidUuid(newBiz.id);
     const biz: BusinessAccount = {
       ...newBiz,
+      id: finalBizId,
       ownerId: effectiveOwner,
       verified: false,
       verificationStatus: 'pending',
@@ -979,8 +981,8 @@ export default function App() {
       pendingRef.current -= 1;
     }
 
-    setBusinesses(prev => [biz, ...prev.filter(b => b.id !== biz.id)]);
-    setActiveBusinessId(biz.id);
+    setBusinesses(prev => [biz, ...prev.filter(b => b.id !== finalBizId && b.id !== newBiz.id)]);
+    setActiveBusinessId(finalBizId);
 
     // If hospitality venue, automatically create & publish corresponding Spot so it appears live in SpotsTab for all users
     if (biz.category === 'hospitality') {
@@ -1002,19 +1004,19 @@ export default function App() {
         description: biz.bio || 'Official spot verified on RADA.',
         phone: biz.phone || '',
         openingHours: '10:00 AM - 11:00 PM',
-        businessId: biz.id,
+        businessId: finalBizId,
         isUserUploaded: false,
         reviews: []
       };
 
       setSpots(prev => {
-        const filtered = prev.filter(s => s.businessId !== biz.id && s.title.toLowerCase() !== biz.name.toLowerCase());
+        const filtered = prev.filter(s => s.businessId !== finalBizId && s.title.toLowerCase() !== biz.name.toLowerCase());
         return [newSpot, ...filtered];
       });
 
       if (isSupabaseConfigured) {
         try {
-          await cloud.upsertListing('spot', newSpot, biz.id, effectiveOwner);
+          await cloud.upsertListing('spot', newSpot, finalBizId, effectiveOwner);
         } catch (sErr) {
           console.warn('Could not upsert initial spot for business:', sErr);
         }

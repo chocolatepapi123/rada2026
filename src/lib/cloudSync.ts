@@ -110,8 +110,26 @@ function errMsg(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
-function isValidUuid(id: any): boolean {
+export function isValidUuid(id: any): boolean {
   return typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+}
+
+export function toValidUuid(str: string): string {
+  if (!str) return '00000000-0000-4000-a000-000000000000';
+  if (isValidUuid(str)) return str;
+  let hash1 = 0x811c9dc5;
+  let hash2 = 0x41c64e6d;
+  for (let i = 0; i < str.length; i++) {
+    const code = str.charCodeAt(i);
+    hash1 = Math.imul(hash1 ^ code, 0x01000193);
+    hash2 = Math.imul(hash2 ^ (code << 3), 0x5bd1e995);
+  }
+  const hex1 = (hash1 >>> 0).toString(16).padStart(8, '0');
+  const hex2 = (hash2 >>> 0).toString(16).padStart(8, '0');
+  const hex3 = (Math.imul(hash1, hash2) >>> 0).toString(16).padStart(8, '0');
+  const hex4 = (Math.imul(hash2, 0x27d4eb2d) >>> 0).toString(16).padStart(8, '0');
+  const raw = `${hex1}${hex2}${hex3}${hex4}`.slice(0, 32);
+  return `${raw.slice(0, 8)}-${raw.slice(8, 12)}-4${raw.slice(13, 16)}-a${raw.slice(17, 20)}-${raw.slice(20, 32)}`;
 }
 
 // =====================================================================
@@ -228,13 +246,14 @@ export async function insertBusiness(biz: BusinessAccount, ownerId: string): Pro
     return `photo upload failed: ${errMsg(e)}`;
   }
 
+  const validBizId = toValidUuid(biz.id);
   const status = biz.verificationStatus || 'pending';
   const isApproved = status === 'approved';
   const safeOwnerId = isValidUuid(ownerId) ? ownerId : (isValidUuid(biz.ownerId) ? biz.ownerId : null);
 
   const businessDataPayload = {
     ...clean,
-    id: biz.id,
+    id: validBizId,
     ownerId,
     verificationStatus: status,
     verified: isApproved,
@@ -247,7 +266,7 @@ export async function insertBusiness(biz: BusinessAccount, ownerId: string): Pro
   // Note: 'rada_businesses' table does NOT have a 'verified' column (status is in verification_status and/or data JSONB).
   try {
     const radaPayload: any = {
-      id: biz.id,
+      id: validBizId,
       verification_status: status,
       data: businessDataPayload,
     };
@@ -262,7 +281,7 @@ export async function insertBusiness(biz: BusinessAccount, ownerId: string): Pro
     // Fallback A: If verification_status column does not exist in schema cache
     if (radaErr && (radaErr.message?.includes('schema cache') || radaErr.message?.includes('column'))) {
       const minimalRada: any = {
-        id: biz.id,
+        id: validBizId,
         data: businessDataPayload,
       };
       if (safeOwnerId) minimalRada.owner_id = safeOwnerId;
@@ -276,7 +295,7 @@ export async function insertBusiness(biz: BusinessAccount, ownerId: string): Pro
     // Fallback B: If owner_id UUID type constraint errors
     if (radaErr && radaErr.message?.includes('uuid')) {
       const noOwnerRada = {
-        id: biz.id,
+        id: validBizId,
         data: businessDataPayload,
       };
       const retryNoOwner = await supabase
@@ -300,7 +319,7 @@ export async function insertBusiness(biz: BusinessAccount, ownerId: string): Pro
   // 2. Also try 'businesses' table if available
   try {
     const flatPayload: any = {
-      id: biz.id,
+      id: validBizId,
       name: biz.name,
       category: biz.category,
       email: biz.email || '',
@@ -336,6 +355,7 @@ export async function insertBusiness(biz: BusinessAccount, ownerId: string): Pro
 
 export async function updateBusiness(biz: BusinessAccount, uid: string): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
+  const validBizId = toValidUuid(biz.id);
   let clean: BusinessAccount;
   try {
     clean = await uploadImagesDeep(biz, uid);
@@ -347,7 +367,7 @@ export async function updateBusiness(biz: BusinessAccount, uid: string): Promise
   const isApproved = status === 'approved';
   const businessDataPayload = {
     ...clean,
-    id: biz.id,
+    id: validBizId,
     verificationStatus: status,
     verified: isApproved,
   };
@@ -360,7 +380,7 @@ export async function updateBusiness(biz: BusinessAccount, uid: string): Promise
         data: businessDataPayload,
         verification_status: status,
       })
-      .eq('id', biz.id);
+      .eq('id', validBizId);
 
     if (rErr && (rErr.message?.includes('schema cache') || rErr.message?.includes('column'))) {
       await supabase
@@ -368,7 +388,7 @@ export async function updateBusiness(biz: BusinessAccount, uid: string): Promise
         .update({
           data: businessDataPayload,
         })
-        .eq('id', biz.id);
+        .eq('id', validBizId);
     }
   } catch (e) {
     console.warn('rada_businesses update warning:', e);
@@ -394,7 +414,7 @@ export async function updateBusiness(biz: BusinessAccount, uid: string): Promise
     await supabase
       .from('businesses')
       .update(flatUpdates)
-      .eq('id', biz.id);
+      .eq('id', validBizId);
   } catch {}
 
   return null;
@@ -405,6 +425,7 @@ export async function reviewBusiness(
   updates: Partial<BusinessAccount>
 ): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
+  const validId = toValidUuid(id);
   const newStatus = updates.verificationStatus || (updates.verified ? 'approved' : 'pending');
   const isApproved = newStatus === 'approved';
 
@@ -415,7 +436,7 @@ export async function reviewBusiness(
     const { data: row } = await supabase
       .from('rada_businesses')
       .select('data')
-      .eq('id', id)
+      .eq('id', validId)
       .maybeSingle();
 
     const merged = {
@@ -431,7 +452,7 @@ export async function reviewBusiness(
         data: merged,
         verification_status: newStatus,
       })
-      .eq('id', id);
+      .eq('id', validId);
 
     if (rErr && (rErr.message?.includes('schema cache') || rErr.message?.includes('column'))) {
       const retry = await supabase
@@ -439,7 +460,7 @@ export async function reviewBusiness(
         .update({
           data: merged,
         })
-        .eq('id', id);
+        .eq('id', validId);
       rErr = retry.error;
     }
 
@@ -459,7 +480,7 @@ export async function reviewBusiness(
     const { error: bErr } = await supabase
       .from('businesses')
       .update(flatUpdates)
-      .eq('id', id);
+      .eq('id', validId);
     if (!bErr) hadSuccess = true;
   } catch {}
 
@@ -609,7 +630,7 @@ export async function upsertListing(
       img: item.img || (item.images && item.images[0]) || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
       description: item.description || '',
       phone: item.phone || '',
-      business_id: businessId ?? item.businessId ?? null,
+      business_id: (businessId ?? item.businessId) ? toValidUuid(businessId ?? item.businessId) : null,
       is_user_uploaded: item.isUserUploaded ?? false,
     };
     try {
@@ -620,11 +641,12 @@ export async function upsertListing(
   }
 
   const safeOwnerId = isValidUuid(ownerId) ? ownerId : null;
+  const safeBusinessId = (businessId ?? item.businessId) ? toValidUuid(businessId ?? item.businessId) : null;
 
   const radaListingPayload: any = {
     kind,
     id: String(item.id),
-    business_id: businessId ?? null,
+    business_id: safeBusinessId,
     data: payload,
     updated_at: new Date().toISOString(),
   };
