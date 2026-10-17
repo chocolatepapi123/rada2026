@@ -110,13 +110,33 @@ const ownedBusinesses = businesses.filter(
   business => business.ownerId === userId
 );
 
-// Never automatically use RADA's public/demo businesses
+// Safe fallback: never crash if ownedBusinesses is empty
 const currentBiz =
   ownedBusinesses.find(b => b.id === activeBusinessId) ||
-  ownedBusinesses[0];
+  ownedBusinesses[0] || {
+    id: 'placeholder-biz',
+    ownerId: userId,
+    name: 'My Business',
+    category: 'hospitality',
+    email: 'contact@business.ke',
+    phone: '+254 700 000 000',
+    whatsapp: '+254700000000',
+    neighborhood: 'Westlands',
+    address: 'Westlands, Nairobi',
+    bio: 'Official verified business on RADA.',
+    logo: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=200&auto=format&fit=crop',
+    coverImage: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
+    verified: false,
+    verificationStatus: 'pending',
+    instagram: '@',
+    createdDate: new Date().toISOString().split('T')[0],
+    discography: [],
+    pinnedImages: []
+  };
 
-// State: open onboarding if this merchant has no business yet
-const [isOnboardingOpen, setIsOnboardingOpen] = useState(!currentBiz);
+// State: open onboarding if this merchant has no actual owned businesses yet
+const [isOnboardingOpen, setIsOnboardingOpen] = useState(ownedBusinesses.length === 0);
+
   const [onboardingStep, setOnboardingStep] = useState<1 | 2>(1);
 
   // Active sub-tab inside the vertical dashboard
