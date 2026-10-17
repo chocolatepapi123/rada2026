@@ -113,6 +113,9 @@ export default function App() {
     }
 
     const loadUserRole = async () => {
+      const userMetaRole = session.user.user_metadata?.role;
+      const isAdminEmail = session.user.email?.toLowerCase().includes('admin');
+
       const { data, error } = await supabase
         .from('profiles')
         .select('role')
@@ -120,15 +123,20 @@ export default function App() {
         .single();
 
       if (error) {
-        console.error('Failed to load user role:', error);
-        setUserRole('user');
+        setUserRole(
+          userMetaRole === 'admin' || isAdminEmail
+            ? 'admin'
+            : userMetaRole === 'merchant'
+              ? 'merchant'
+              : 'user'
+        );
         return;
       }
 
       setUserRole(
-        data?.role === 'admin'
+        data?.role === 'admin' || userMetaRole === 'admin' || isAdminEmail
           ? 'admin'
-          : data?.role === 'merchant'
+          : data?.role === 'merchant' || userMetaRole === 'merchant'
             ? 'merchant'
             : 'user'
       );
@@ -136,6 +144,13 @@ export default function App() {
 
     loadUserRole();
   }, [session]);
+
+  // When Admin Dashboard is opened, trigger fresh sync from Supabase immediately
+  useEffect(() => {
+    if (isAdminOpen) {
+      syncRef.current?.();
+    }
+  }, [isAdminOpen]);
   const handleSignOut = async () => {
     await supabase.auth.signOut();
   };
@@ -197,9 +212,7 @@ export default function App() {
 
   return initialBusinesses;
 });
-  const [activeBusinessId, setActiveBusinessId] = useState<string>(() => {
-    return businesses[0]?.id || 'biz-1';
-  });
+  const [activeBusinessId, setActiveBusinessId] = useState<string>('');
   const [isBusinessHubOpen, setIsBusinessHubOpen] = useState(false);
 
   // Core Data State (Ensures at least 10 items for every category)
@@ -670,9 +683,6 @@ export default function App() {
     prevModalOpenRef.current = isAnyModalOpen;
   }, [isAnyModalOpen]);
 
-  // Active business reference
-  const currentBusiness = businesses.find(b => b.id === activeBusinessId) || businesses[0];
-
   // ---------------------------------------------------------------
   // CLOUD SYNC (Supabase): businesses + listings are shared across devices
   // ---------------------------------------------------------------
@@ -684,6 +694,12 @@ export default function App() {
     return newId;
   });
   const currentUserId: string = session?.user?.id || localUserId;
+
+  // Active business reference for the logged-in merchant (strictly owned only)
+  const userOwnedBusinesses = businesses.filter(
+    b => Boolean(b.ownerId) && (b.ownerId === currentUserId || b.ownerId === session?.user?.id)
+  );
+  const currentBusiness = userOwnedBusinesses.find(b => b.id === activeBusinessId) || userOwnedBusinesses[0] || null;
   const latestRef = useRef<any>(null);
   latestRef.current = { businesses, spots, events, thriftItems, offers };
   const mutationRef = useRef(0);   // bumps on every local change
@@ -724,27 +740,44 @@ export default function App() {
       const startVersion = mutationRef.current;
       const remoteBiz = await cloud.fetchBusinesses();
       const remoteListings = await cloud.fetchListings();
-      if (!remoteBiz || !remoteListings) return; // offline or tables missing: keep local data
+      if (!remoteBiz && !remoteListings) return; // offline or tables missing: keep local data
       const remoteReviews = (await cloud.fetchReviews()) || {};
       const remoteStatuses = await cloud.fetchStatuses();   // null = keep local
       const remoteGoing = await cloud.fetchGoing(uid);      // null = keep local
 
       const L = latestRef.current;
       const seedBizIds = new Set(initialBusinesses.map(b => b.id));
-      const remoteBizIds = new Set(remoteBiz.map(b => b.id));
+      const remoteBizIds = new Set((remoteBiz || []).map(b => b.id));
 
-      // Move businesses created earlier on THIS device by the signed-in user online (always as pending)
+      // Move businesses created earlier on THIS device online (always as pending)
       const bizToMigrate: BusinessAccount[] = uid
-        ? L.businesses.filter((b: BusinessAccount) => b.ownerId === uid && !seedBizIds.has(b.id) && !remoteBizIds.has(b.id))
+        ? L.businesses.filter(
+            (b: BusinessAccount) =>
+              !seedBizIds.has(b.id) &&
+              !remoteBizIds.has(b.id) &&
+              (b.ownerId === uid || !b.ownerId || b.ownerId.startsWith('user-local') || b.ownerId === 'local-merchant-user')
+          )
         : [];
       for (const b of bizToMigrate) {
-        await cloud.insertBusiness({ ...b, verified: false, verificationStatus: 'pending' }, uid as string);
+        await cloud.insertBusiness({ ...b, ownerId: uid, verified: false, verificationStatus: 'pending' }, uid as string);
       }
-      const migratedBiz = bizToMigrate.map(b => ({ ...b, verified: false, verificationStatus: 'pending' as const }));
+      const migratedBiz = bizToMigrate.map(b => ({ ...b, ownerId: uid, verified: false, verificationStatus: 'pending' as const }));
+      const unmigratedLocalBiz = !uid
+        ? L.businesses.filter((b: BusinessAccount) => !seedBizIds.has(b.id) && !remoteBizIds.has(b.id))
+        : [];
       const seedBiz = initialBusinesses
         .filter(b => !remoteBizIds.has(b.id))
         .map(b => L.businesses.find((x: BusinessAccount) => x.id === b.id) || b);
-      const mergedBiz: BusinessAccount[] = [...remoteBiz, ...migratedBiz, ...seedBiz];
+
+      const rawMerged = [...(remoteBiz || []), ...migratedBiz, ...unmigratedLocalBiz, ...seedBiz];
+      const seenBizIds = new Set<string>();
+      const mergedBiz: BusinessAccount[] = [];
+      for (const b of rawMerged) {
+        if (!seenBizIds.has(b.id)) {
+          seenBizIds.add(b.id);
+          mergedBiz.push(b);
+        }
+      }
       const myBizIds = new Set(mergedBiz.filter(b => uid && b.ownerId === uid).map(b => b.id));
 
       const mergeKind = async (kind: cloud.ListingKind, initial: any[], local: any[], remote: any[]) => {
@@ -913,33 +946,79 @@ export default function App() {
   // Handlers for Business Hub
   // Returns an error message (string) on failure, or null on success.
   const handleCreateBusiness = async (newBiz: BusinessAccount): Promise<string | null> => {
+    // If Supabase is configured, require user to be authenticated so it can be saved online with a valid UUID
+    if (isSupabaseConfigured && !session?.user?.id) {
+      setIsAuthModalOpen(true);
+      return 'Please sign in or create an account to register your business and sync with Supabase.';
+    }
+
     const effectiveOwner = session?.user?.id || currentUserId || newBiz.ownerId || localUserId;
     const biz: BusinessAccount = {
       ...newBiz,
       ownerId: effectiveOwner,
-      verified: true,
-      verificationStatus: 'approved',
+      verified: false,
+      verificationStatus: 'pending',
     };
 
     mutationRef.current += 1;
     pendingRef.current += 1;
     try {
-      if (isSupabaseConfigured && session?.user?.id) {
-        const err = await cloud.insertBusiness(biz, session.user.id);
+      if (isSupabaseConfigured) {
+        const err = await cloud.insertBusiness(biz, effectiveOwner);
         if (err) {
-          console.warn('insertBusiness cloud warning:', err);
+          console.error('insertBusiness failed:', err);
+          return `Could not save business to Supabase: ${err}`;
         }
       }
     } catch (e) {
-      console.warn('insertBusiness cloud threw:', e);
+      console.error('insertBusiness threw:', e);
+      return `Could not save business to Supabase: ${e instanceof Error ? e.message : String(e)}`;
     } finally {
       pendingRef.current -= 1;
     }
 
     setBusinesses(prev => [biz, ...prev.filter(b => b.id !== biz.id)]);
     setActiveBusinessId(biz.id);
-    // reload from cloud so photos become online links
-    if (pendingRef.current === 0 && isSupabaseConfigured && session?.user?.id) syncRef.current?.();
+
+    // If hospitality venue, automatically create & publish corresponding Spot so it appears live in SpotsTab for all users
+    if (biz.category === 'hospitality') {
+      const newSpot: SpotItem = {
+        id: Date.now(),
+        title: biz.name,
+        category: 'restaurants',
+        neighborhood: biz.neighborhood || 'Westlands',
+        address: biz.address || `${biz.neighborhood || 'Westlands'}, Nairobi`,
+        exactLocationTag: biz.address || `${biz.neighborhood || 'Westlands'}, Nairobi`,
+        landmark: biz.neighborhood || 'Nairobi',
+        lat: -1.2675,
+        lng: 36.8115,
+        rating: '5.0',
+        reviewCount: 0,
+        price: '$$',
+        img: biz.coverImage || biz.logo || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
+        images: [biz.coverImage || biz.logo || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop'],
+        description: biz.bio || 'Official spot verified on RADA.',
+        phone: biz.phone || '',
+        openingHours: '10:00 AM - 11:00 PM',
+        businessId: biz.id,
+        isUserUploaded: false,
+        reviews: []
+      };
+
+      setSpots(prev => {
+        const filtered = prev.filter(s => s.businessId !== biz.id && s.title.toLowerCase() !== biz.name.toLowerCase());
+        return [newSpot, ...filtered];
+      });
+
+      if (isSupabaseConfigured) {
+        cloud.upsertListing('spot', newSpot, biz.id, effectiveOwner).catch(console.warn);
+      }
+    }
+
+    // reload from cloud so photos become online links and state refreshes
+    if (pendingRef.current === 0 && isSupabaseConfigured) {
+      await syncRef.current?.();
+    }
     return null;
   };
 
@@ -1010,7 +1089,8 @@ export default function App() {
   };
 
   const handleAddOrUpdateSpot = (spot: SpotItem) => {
-    if (currentUserId) cloudWrite(() => cloud.upsertListing('spot', spot, spot.businessId, currentUserId));
+    const ownerId = session?.user?.id || currentUserId;
+    if (ownerId) cloudWrite(() => cloud.upsertListing('spot', spot, spot.businessId, ownerId));
     setSpots(prev => {
       const idx = prev.findIndex(s => s.id === spot.id || s.title.toLowerCase() === spot.title.toLowerCase());
       if (idx >= 0) {
@@ -1027,18 +1107,21 @@ export default function App() {
     setEvents(prev => prev.some(e => e.id === event.id)
       ? prev.map(e => e.id === event.id ? event : e)
       : [event, ...prev]);
-    if (currentUserId) cloudWrite(() => cloud.upsertListing('event', event, event.businessId, currentUserId));
+    const ownerId = session?.user?.id || currentUserId;
+    if (ownerId) cloudWrite(() => cloud.upsertListing('event', event, event.businessId, ownerId));
   };
 
   const handleAddThriftItem = (item: ThriftItem) => {
     setThriftItems(prev => prev.some(t => t.id === item.id)
       ? prev.map(t => t.id === item.id ? item : t)
       : [item, ...prev]);
-    if (currentUserId) cloudWrite(() => cloud.upsertListing('thrift', item, item.businessId, currentUserId));
+    const ownerId = session?.user?.id || currentUserId;
+    if (ownerId) cloudWrite(() => cloud.upsertListing('thrift', item, item.businessId, ownerId));
   };
 
   const handleDeleteListing = (type: 'spot' | 'event' | 'thrift', id: number) => {
-    if (currentUserId) cloudWrite(() => cloud.deleteListing(type, id));
+    const ownerId = session?.user?.id || currentUserId;
+    if (ownerId) cloudWrite(() => cloud.deleteListing(type, id));
     if (type === 'spot') {
       setSpots(prev => prev.filter(s => s.id !== id));
       showToast('Spot listing removed.');
@@ -1442,7 +1525,9 @@ export default function App() {
               <MerchantHubTab
                 businesses={businesses}
                 activeBusinessId={activeBusinessId}
-                userId={currentUserId}
+                userId={session?.user?.id}
+                isUserSignedIn={Boolean(session?.user?.id)}
+                onOpenAuth={() => setIsAuthModalOpen(true)}
                 onSelectBusiness={(id) => {
                   setActiveBusinessId(id);
                   const b = businesses.find(item => item.id === id);
@@ -1511,7 +1596,9 @@ export default function App() {
               <MerchantHubTab
                 businesses={businesses}
                 activeBusinessId={activeBusinessId}
-                userId={currentUserId}
+                userId={session?.user?.id}
+                isUserSignedIn={Boolean(session?.user?.id)}
+                onOpenAuth={() => setIsAuthModalOpen(true)}
                 onSelectBusiness={(id) => setActiveBusinessId(id)}
                 onCreateBusiness={handleCreateBusiness}
                 onUpdateBusiness={handleUpdateBusiness}

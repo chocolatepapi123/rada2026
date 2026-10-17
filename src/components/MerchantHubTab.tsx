@@ -107,22 +107,15 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
 }) => {
   const effectiveUserId = userId || (typeof window !== 'undefined' ? localStorage.getItem('rada_local_user_id') : null) || 'local-merchant-user';
 
-  // Only businesses actually owned by the logged-in/local merchant
-  const userOwnedBusinesses = businesses.filter(
-    business => business.ownerId && (business.ownerId === effectiveUserId || business.ownerId === userId)
+  // Only businesses actually owned by the logged-in/local merchant (strictly exclude unowned mock businesses)
+  const ownedBusinesses = businesses.filter(
+    business => Boolean(business.ownerId) && (business.ownerId === effectiveUserId || business.ownerId === userId)
   );
 
-  // If user has created their own businesses, show them; otherwise show all available businesses so they can manage/explore
-  const ownedBusinesses = userOwnedBusinesses.length > 0 
-    ? userOwnedBusinesses 
-    : businesses;
-
-  // Safe fallback placeholder or active business
-  const currentBiz =
-    businesses.find(b => b.id === activeBusinessId) ||
+  // Safe fallback placeholder or active business owned by this merchant
+  const currentBiz: BusinessAccount =
     ownedBusinesses.find(b => b.id === activeBusinessId) ||
-    ownedBusinesses[0] ||
-    businesses[0] || {
+    ownedBusinesses[0] || {
       id: 'placeholder-biz',
       ownerId: effectiveUserId,
       name: 'Your Business',
@@ -142,7 +135,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       pinnedImages: []
     };
 
-  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(ownedBusinesses.length === 0);
 
   const [onboardingStep, setOnboardingStep] = useState<1 | 2>(1);
 
@@ -789,7 +782,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {businesses.length > 0 && (
+              {ownedBusinesses.length > 0 && (
                 <button 
                   onClick={() => setIsOnboardingOpen(false)}
                   className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 bg-white dark:bg-[#1C1A1E] px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 flex items-center gap-1 cursor-pointer"

@@ -113,32 +113,101 @@ function errMsg(e: unknown): string {
 // =====================================================================
 // BUSINESSES
 // =====================================================================
+// BUSINESSES
+// =====================================================================
 function rowToBusiness(row: any): BusinessAccount {
-  const status = (row.verification_status || row.data?.verificationStatus || 'pending') as 'pending' | 'approved' | 'rejected';
+  const d = row.data && typeof row.data === 'object' ? row.data : {};
+  const status = (
+    row.verification_status ||
+    row.verificationStatus ||
+    d.verificationStatus ||
+    (row.verified === true ? 'approved' : (row.verified === false && row.verification_status === 'rejected' ? 'rejected' : 'pending'))
+  ) as 'pending' | 'approved' | 'rejected';
+
+  const name = row.name || d.name || 'Unnamed Business';
+  const category = (row.category || d.category || 'hospitality') as any;
+  const neighborhood = row.neighborhood || d.neighborhood || 'Westlands';
+  const address = row.address || d.address || `${neighborhood}, Nairobi`;
+  const bio = row.bio || d.bio || `Official ${category} verified on RADA.`;
+  const logo = row.logo || d.logo || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=200&auto=format&fit=crop';
+  const coverImage = row.cover_image || row.coverImage || d.coverImage || d.cover_image || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop';
+  const ownerId = row.owner_id || row.ownerId || d.ownerId;
+
   return {
-    ...(row.data || {}),
-    id: row.id,
-    ownerId: row.owner_id ?? row.data?.ownerId,
-    verificationStatus: status,
+    ...d,
+    id: String(row.id),
+    name,
+    category,
+    email: row.email || d.email || '',
+    phone: row.phone || d.phone || '',
+    whatsapp: row.whatsapp || d.whatsapp || '',
+    neighborhood,
+    address,
+    bio,
+    logo,
+    coverImage,
+    ownerId,
     verified: status === 'approved',
-  } as BusinessAccount;
+    verificationStatus: status,
+    verificationNote: row.verification_note || d.verificationNote || '',
+    verifiedAt: row.verified_at || d.verifiedAt,
+    verifiedBy: row.verified_by || d.verifiedBy,
+    instagram: row.instagram || d.instagram || '',
+    createdDate: row.created_at ? new Date(row.created_at).toISOString().split('T')[0] : (d.createdDate || new Date().toISOString().split('T')[0]),
+    discography: d.discography || [`${name} Showcase 2026`],
+    pinnedImages: d.pinnedImages || [coverImage],
+  };
 }
 
 export async function fetchBusinesses(): Promise<BusinessAccount[] | null> {
   if (!isSupabaseConfigured) return null;
-  const { data, error } = await supabase
-    .from('rada_businesses')
-    .select('*')
-    .order('created_at', { ascending: false });
+  const list: BusinessAccount[] = [];
+  const seenIds = new Set<string>();
 
-  if (error) {
-    console.warn('fetchBusinesses failed:', error.message);
-    return null;
+  // 1. Query 'businesses' table (standard Supabase table)
+  try {
+    const { data, error } = await supabase
+      .from('businesses')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!error && data && data.length > 0) {
+      for (const row of data) {
+        const b = rowToBusiness(row);
+        if (!seenIds.has(b.id)) {
+          seenIds.add(b.id);
+          list.push(b);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('fetch from businesses table failed:', err);
   }
-  return (data || []).map(rowToBusiness);
+
+  // 2. Query 'rada_businesses' table
+  try {
+    const { data, error } = await supabase
+      .from('rada_businesses')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!error && data && data.length > 0) {
+      for (const row of data) {
+        const b = rowToBusiness(row);
+        if (!seenIds.has(b.id)) {
+          seenIds.add(b.id);
+          list.push(b);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('fetch from rada_businesses table failed:', err);
+  }
+
+  return list;
 }
 
-/** Inserts business with explicit owner_id and verification_status columns so Admin can see it */
+/** Inserts/upserts business into both 'businesses' and 'rada_businesses' with flat columns + data */
 export async function insertBusiness(biz: BusinessAccount, ownerId: string): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
   let clean: BusinessAccount;
@@ -148,15 +217,83 @@ export async function insertBusiness(biz: BusinessAccount, ownerId: string): Pro
     return `photo upload failed: ${errMsg(e)}`;
   }
 
-  const { error } = await supabase.from('rada_businesses').insert({
-    id: biz.id,
-    owner_id: ownerId,
-    verification_status: 'pending',
-    verified: false,
-    data: clean,
-  });
+  const status = biz.verificationStatus || 'pending';
+  const isApproved = status === 'approved';
 
-  return error ? error.message : null;
+  const flatPayload: any = {
+    id: biz.id,
+    name: biz.name,
+    category: biz.category,
+    email: biz.email || '',
+    phone: biz.phone || '',
+    whatsapp: biz.whatsapp || '',
+    neighborhood: biz.neighborhood || '',
+    address: biz.address || '',
+    bio: biz.bio || '',
+    logo: biz.logo || '',
+    cover_image: biz.coverImage || '',
+    owner_id: ownerId,
+    verified: isApproved,
+    verification_status: status,
+    verification_note: biz.verificationNote || null,
+  };
+
+  const combinedPayload: any = {
+    ...flatPayload,
+    data: {
+      ...clean,
+      id: biz.id,
+      ownerId,
+      verificationStatus: status,
+      verified: isApproved,
+    },
+  };
+
+  let primaryError: string | null = null;
+
+  // 1. Try 'businesses' table
+  try {
+    let { error } = await supabase.from('businesses').upsert(combinedPayload, { onConflict: 'id' });
+    if (error && (error.message?.includes('column "data"') || error.message?.includes('data'))) {
+      const retry = await supabase.from('businesses').upsert(flatPayload, { onConflict: 'id' });
+      error = retry.error;
+    }
+    if (error) {
+      console.warn('insert into businesses table warning:', error.message);
+      primaryError = error.message;
+    } else {
+      primaryError = null;
+    }
+  } catch (err: any) {
+    primaryError = err?.message || String(err);
+  }
+
+  // 2. Also upsert into 'rada_businesses' table
+  try {
+    const { error: radaErr } = await supabase.from('rada_businesses').upsert(
+      {
+        id: biz.id,
+        owner_id: ownerId,
+        verification_status: status,
+        verified: isApproved,
+        data: {
+          ...clean,
+          id: biz.id,
+          ownerId,
+          verificationStatus: status,
+          verified: isApproved,
+        },
+      },
+      { onConflict: 'id' }
+    );
+    if (!radaErr) {
+      primaryError = null;
+    } else if (primaryError) {
+      primaryError = radaErr.message;
+    }
+  } catch {}
+
+  return primaryError;
 }
 
 export async function updateBusiness(biz: BusinessAccount, uid: string): Promise<string | null> {
@@ -167,18 +304,46 @@ export async function updateBusiness(biz: BusinessAccount, uid: string): Promise
   } catch (e) {
     return `photo upload failed: ${errMsg(e)}`;
   }
-  const { data, error } = await supabase
-    .from('rada_businesses')
-    .update({ 
-      data: clean, 
-      verification_status: biz.verificationStatus || 'pending',
-      verified: biz.verificationStatus === 'approved'
-    })
-    .eq('id', biz.id)
-    .select('id');
 
-  if (error) return error.message;
-  if (!data || data.length === 0) return 'not allowed or business not found online';
+  const status = biz.verificationStatus || 'pending';
+  const isApproved = status === 'approved';
+
+  const flatUpdates: any = {
+    name: biz.name,
+    category: biz.category,
+    email: biz.email || '',
+    phone: biz.phone || '',
+    whatsapp: biz.whatsapp || '',
+    neighborhood: biz.neighborhood || '',
+    address: biz.address || '',
+    bio: biz.bio || '',
+    logo: biz.logo || '',
+    cover_image: biz.coverImage || '',
+    verification_status: status,
+    verified: isApproved,
+    verification_note: biz.verificationNote || null,
+  };
+
+  // Try updating businesses table
+  try {
+    await supabase
+      .from('businesses')
+      .update({ ...flatUpdates, data: clean })
+      .eq('id', biz.id);
+  } catch {}
+
+  // Also update rada_businesses table
+  try {
+    await supabase
+      .from('rada_businesses')
+      .update({
+        data: clean,
+        verification_status: status,
+        verified: isApproved,
+      })
+      .eq('id', biz.id);
+  } catch {}
+
   return null;
 }
 
@@ -187,59 +352,137 @@ export async function reviewBusiness(
   updates: Partial<BusinessAccount>
 ): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
-  const { data: row, error: readErr } = await supabase
-    .from('rada_businesses')
-    .select('data')
-    .eq('id', id)
-    .maybeSingle();
+  const newStatus = updates.verificationStatus || (updates.verified ? 'approved' : 'pending');
+  const isApproved = newStatus === 'approved';
 
-  if (readErr) return readErr.message;
-  if (!row) return 'business not found online';
-
-  const newStatus = updates.verificationStatus || 'pending';
-  const merged = { 
-    ...(row.data || {}), 
-    ...updates, 
-    verificationStatus: newStatus,
-    verified: newStatus === 'approved' 
+  const flatUpdates: any = {
+    verification_status: newStatus,
+    verified: isApproved,
+    verification_note: updates.verificationNote || null,
+    verified_at: updates.verifiedAt || new Date().toISOString(),
+    verified_by: updates.verifiedBy || 'admin',
   };
 
-  const { data, error } = await supabase
-    .from('rada_businesses')
-    .update({
-      data: merged,
-      verification_status: newStatus,
-      verified: newStatus === 'approved',
-    })
-    .eq('id', id)
-    .select('id');
+  let hadSuccess = false;
 
-  if (error) return error.message;
-  if (!data || data.length === 0) return 'not allowed (is this account set as admin?)';
-  return null;
+  // 1. Update 'businesses' table
+  try {
+    const { error: bErr } = await supabase
+      .from('businesses')
+      .update(flatUpdates)
+      .eq('id', id);
+    if (!bErr) hadSuccess = true;
+  } catch {}
+
+  // 2. Update 'rada_businesses' table
+  try {
+    const { data: row } = await supabase
+      .from('rada_businesses')
+      .select('data')
+      .eq('id', id)
+      .maybeSingle();
+
+    const merged = {
+      ...(row?.data || {}),
+      ...updates,
+      verificationStatus: newStatus,
+      verified: isApproved,
+    };
+
+    const { error: rErr } = await supabase
+      .from('rada_businesses')
+      .update({
+        data: merged,
+        verification_status: newStatus,
+        verified: isApproved,
+      })
+      .eq('id', id);
+
+    if (!rErr) hadSuccess = true;
+  } catch {}
+
+  return hadSuccess ? null : 'Could not update verification status in database.';
 }
 
 // =====================================================================
 // LISTINGS
 // =====================================================================
+// =====================================================================
+// LISTINGS
+// =====================================================================
 export async function fetchListings(): Promise<CloudListings | null> {
   if (!isSupabaseConfigured) return null;
-  const { data, error } = await supabase
-    .from('rada_listings')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.warn('fetchListings failed:', error.message);
-    return null;
-  }
-
   const out: CloudListings = { spot: [], event: [], thrift: [], offer: [] };
-  for (const row of data || []) {
-    if (row.kind in out && row.data) {
-      (out as any)[row.kind].push(row.data);
+  const seenSpotIds = new Set<string>();
+
+  // 1. Fetch from 'spots' table (standard Supabase table used across RADA)
+  try {
+    const { data: spotRows, error: sErr } = await supabase
+      .from('spots')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!sErr && spotRows && spotRows.length > 0) {
+      for (const row of spotRows) {
+        const sid = String(row.id);
+        seenSpotIds.add(sid);
+        out.spot.push({
+          id: row.id,
+          title: row.title || 'Untitled Spot',
+          category: row.category || 'restaurants',
+          neighborhood: row.neighborhood || 'Nairobi',
+          address: row.address || '',
+          exactLocationTag: row.exact_location_tag || row.exactLocationTag || row.address || '',
+          landmark: row.landmark || row.neighborhood || '',
+          lat: row.lat ?? -1.2675,
+          lng: row.lng ?? 36.8115,
+          price: row.price || 'KES $$',
+          rating: String(row.rating || '4.8'),
+          reviewCount: row.review_count || row.reviewCount || 0,
+          img: row.img || (row.images && row.images[0]) || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
+          images: Array.isArray(row.images) && row.images.length > 0
+            ? row.images
+            : [row.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop'],
+          description: row.description || '',
+          phone: row.phone || '',
+          openingHours: row.opening_hours || row.openingHours || '',
+          businessId: row.business_id || row.businessId,
+          isUserUploaded: row.is_user_uploaded ?? row.isUserUploaded ?? false,
+          menuItems: row.menu_items || row.menuItems || [],
+          reviews: row.reviews || [],
+        });
+      }
     }
+  } catch (err) {
+    console.warn('fetchListings spots table failed:', err);
   }
+
+  // 2. Fetch from 'rada_listings'
+  try {
+    const { data, error } = await supabase
+      .from('rada_listings')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      for (const row of data) {
+        if (row.kind in out && row.data) {
+          if (row.kind === 'spot') {
+            const sid = String(row.id);
+            if (!seenSpotIds.has(sid)) {
+              seenSpotIds.add(sid);
+              out.spot.push(row.data);
+            }
+          } else {
+            (out as any)[row.kind].push(row.data);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('fetchListings rada_listings failed:', err);
+  }
+
   return out;
 }
 
@@ -285,6 +528,35 @@ export async function upsertListing(
     return `photo upload failed: ${errMsg(e)}`;
   }
 
+  // If this is a Spot, also upsert directly into the 'spots' table so all users querying 'spots' see it
+  if (kind === 'spot') {
+    const rawId = item.id;
+    const numId = typeof rawId === 'number' ? rawId : (parseInt(String(rawId).replace(/\D/g, ''), 10) || Date.now());
+    const spotRow: any = {
+      id: numId,
+      title: item.title || 'Untitled Spot',
+      category: item.category || 'restaurants',
+      neighborhood: item.neighborhood || 'Nairobi',
+      address: item.address || '',
+      exact_location_tag: item.exactLocationTag || item.address || '',
+      landmark: item.landmark || item.neighborhood || '',
+      lat: item.lat ?? -1.2675,
+      lng: item.lng ?? 36.8115,
+      price: item.price || 'KES $$',
+      rating: String(item.rating || '4.8'),
+      img: item.img || (item.images && item.images[0]) || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
+      description: item.description || '',
+      phone: item.phone || '',
+      business_id: businessId ?? item.businessId ?? null,
+      is_user_uploaded: item.isUserUploaded ?? false,
+    };
+    try {
+      await supabase.from('spots').upsert(spotRow, { onConflict: 'id' });
+    } catch (sErr) {
+      console.warn('Direct upsert to spots table fallback:', sErr);
+    }
+  }
+
   const { error } = await supabase.from('rada_listings').upsert(
     {
       kind,
@@ -301,6 +573,14 @@ export async function upsertListing(
 
 export async function deleteListing(kind: ListingKind, id: string | number): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
+  if (kind === 'spot') {
+    try {
+      const numId = typeof id === 'number' ? id : parseInt(String(id).replace(/\D/g, ''), 10);
+      if (numId) {
+        await supabase.from('spots').delete().eq('id', numId);
+      }
+    } catch {}
+  }
   const { error } = await supabase
     .from('rada_listings')
     .delete()

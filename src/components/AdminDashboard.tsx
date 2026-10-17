@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { X, Search, ShieldCheck, Clock, XCircle } from 'lucide-react';
+import { X, Search, ShieldCheck, Clock, XCircle, RefreshCw } from 'lucide-react';
 
 type VerificationStatus = 'pending' | 'approved' | 'rejected';
 
@@ -15,11 +15,16 @@ interface BusinessAccount {
   verificationNote?: string;
   verifiedAt?: string;
   verifiedBy?: string;
+  logo?: string;
+  coverImage?: string;
+  email?: string;
+  phone?: string;
 }
 
 interface AdminDashboardProps {
   businesses: BusinessAccount[];
   onClose: () => void;
+  onRefresh?: () => void;
   showToast?: (message: string) => void;
   onUpdateBusiness?: (
     businessId: string,
@@ -30,6 +35,7 @@ interface AdminDashboardProps {
 export function AdminDashboard({
   businesses,
   onClose,
+  onRefresh,
   showToast,
   onUpdateBusiness,
 }: AdminDashboardProps) {
@@ -37,6 +43,7 @@ export function AdminDashboard({
     useState<VerificationStatus>('pending');
 
   const [search, setSearch] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedBusiness, setSelectedBusiness] =
     useState<BusinessAccount | null>(null);
 
@@ -54,9 +61,9 @@ export function AdminDashboard({
 
       const matchesSearch =
         !query ||
-        business.name.toLowerCase().includes(query) ||
-        business.category?.toLowerCase().includes(query) ||
-        business.address?.toLowerCase().includes(query);
+        (business.name || '').toLowerCase().includes(query) ||
+        (business.category || '').toLowerCase().includes(query) ||
+        (business.address || '').toLowerCase().includes(query);
 
       return matchesStatus && matchesSearch;
     });
@@ -141,19 +148,43 @@ export function AdminDashboard({
               </h1>
             </div>
 
-            <button
-              onClick={onClose}
-              className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-900"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              {onRefresh && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRefreshing(true);
+                    onRefresh();
+                    showToast?.('Checking database for new businesses...');
+                    setTimeout(() => setIsRefreshing(false), 800);
+                  }}
+                  disabled={isRefreshing}
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 transition flex items-center gap-1.5 text-xs font-bold cursor-pointer"
+                  title="Refresh businesses from Supabase"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-purple-600' : ''}`} />
+                  <span className="hidden sm:inline">Refresh Data</span>
+                </button>
+              )}
+
+              <button
+                onClick={onClose}
+                className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-900"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* STATS */}
           <div className="grid grid-cols-3 gap-3 p-4 border-b border-slate-200 dark:border-slate-800">
             <button
               onClick={() => setActiveTab('pending')}
-              className="rounded-xl border p-3 text-left hover:bg-slate-50 dark:hover:bg-slate-900"
+              className={`rounded-xl border p-3 text-left transition ${
+                activeTab === 'pending'
+                  ? 'border-amber-500 bg-amber-50/50 dark:bg-amber-950/20 shadow-xs'
+                  : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900'
+              }`}
             >
               <Clock className="w-5 h-5 text-amber-500 mb-2" />
               <p className="text-2xl font-black">{counts.pending}</p>
@@ -162,7 +193,11 @@ export function AdminDashboard({
 
             <button
               onClick={() => setActiveTab('approved')}
-              className="rounded-xl border p-3 text-left hover:bg-slate-50 dark:hover:bg-slate-900"
+              className={`rounded-xl border p-3 text-left transition ${
+                activeTab === 'approved'
+                  ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-xs'
+                  : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900'
+              }`}
             >
               <ShieldCheck className="w-5 h-5 text-emerald-500 mb-2" />
               <p className="text-2xl font-black">{counts.approved}</p>
@@ -171,7 +206,11 @@ export function AdminDashboard({
 
             <button
               onClick={() => setActiveTab('rejected')}
-              className="rounded-xl border p-3 text-left hover:bg-slate-50 dark:hover:bg-slate-900"
+              className={`rounded-xl border p-3 text-left transition ${
+                activeTab === 'rejected'
+                  ? 'border-red-500 bg-red-50/50 dark:bg-red-950/20 shadow-xs'
+                  : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900'
+              }`}
             >
               <XCircle className="w-5 h-5 text-red-500 mb-2" />
               <p className="text-2xl font-black">{counts.rejected}</p>
@@ -196,14 +235,32 @@ export function AdminDashboard({
           {/* BUSINESS LIST */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {filteredBusinesses.length === 0 ? (
-              <div className="py-16 text-center">
+              <div className="py-16 text-center space-y-3">
                 <p className="font-bold text-slate-700 dark:text-slate-300">
-                  No {activeTab} businesses
+                  No {activeTab} businesses found
                 </p>
 
-                <p className="text-sm text-slate-500 mt-1">
-                  Businesses will appear here when they match this status.
+                <p className="text-sm text-slate-500 max-w-sm mx-auto">
+                  {activeTab === 'pending'
+                    ? 'New merchant submissions requiring verification will appear here.'
+                    : `Businesses with status "${activeTab}" will be listed here.`}
                 </p>
+
+                {onRefresh && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsRefreshing(true);
+                      onRefresh();
+                      showToast?.('Checking database for new businesses...');
+                      setTimeout(() => setIsRefreshing(false), 800);
+                    }}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 text-xs font-bold hover:bg-purple-100 transition cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    <span>Check Supabase Now</span>
+                  </button>
+                )}
               </div>
             ) : (
               filteredBusinesses.map((business) => (
