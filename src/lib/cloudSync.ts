@@ -14,8 +14,6 @@ const MEDIA_BUCKET = 'rada-media';
 
 // =====================================================================
 // IMAGE UPLOADS
-// Photos picked from the phone arrive as huge base64 "data:image/..." strings.
-// We shrink them, upload to Supabase Storage, and keep only the short URL.
 // =====================================================================
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -81,7 +79,6 @@ async function uploadDataUrl(dataUrl: string, uid: string): Promise<string> {
   }
 }
 
-/** Walks any object/array and replaces every data:image string with an uploaded URL. */
 export async function uploadImagesDeep<T>(
   value: T,
   uid: string,
@@ -117,12 +114,11 @@ function errMsg(e: unknown): string {
 // BUSINESSES
 // =====================================================================
 function rowToBusiness(row: any): BusinessAccount {
-  const status = (row.verification_status || 'pending') as 'pending' | 'approved' | 'rejected';
+  const status = (row.verification_status || row.data?.verificationStatus || 'pending') as 'pending' | 'approved' | 'rejected';
   return {
     ...(row.data || {}),
     id: row.id,
     ownerId: row.owner_id ?? row.data?.ownerId,
-    // The database column is the source of truth for verification
     verificationStatus: status,
     verified: status === 'approved',
   } as BusinessAccount;
@@ -142,7 +138,7 @@ export async function fetchBusinesses(): Promise<BusinessAccount[] | null> {
   return (data || []).map(rowToBusiness);
 }
 
-/** Returns an error message, or null on success. */
+/** Inserts business with explicit owner_id and verification_status columns so Admin can see it */
 export async function insertBusiness(biz: BusinessAccount, ownerId: string): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
   let clean: BusinessAccount;
@@ -151,16 +147,18 @@ export async function insertBusiness(biz: BusinessAccount, ownerId: string): Pro
   } catch (e) {
     return `photo upload failed: ${errMsg(e)}`;
   }
+
   const { error } = await supabase.from('rada_businesses').insert({
     id: biz.id,
     owner_id: ownerId,
     verification_status: 'pending',
+    verified: false,
     data: clean,
   });
+
   return error ? error.message : null;
 }
 
-/** Owner editing their own business profile. Returns an error message, or null on success. */
 export async function updateBusiness(biz: BusinessAccount, uid: string): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
   let clean: BusinessAccount;
@@ -171,7 +169,11 @@ export async function updateBusiness(biz: BusinessAccount, uid: string): Promise
   }
   const { data, error } = await supabase
     .from('rada_businesses')
-    .update({ data: clean, verification_status: biz.verificationStatus || 'pending' })
+    .update({ 
+      data: clean, 
+      verification_status: biz.verificationStatus || 'pending',
+      verified: biz.verificationStatus === 'approved'
+    })
     .eq('id', biz.id)
     .select('id');
 
@@ -180,10 +182,6 @@ export async function updateBusiness(biz: BusinessAccount, uid: string): Promise
   return null;
 }
 
-/**
- * Admin approve / reject. Merges ONLY the verification fields into the latest saved
- * copy, so it can't overwrite edits the owner made after the admin loaded the page.
- */
 export async function reviewBusiness(
   id: string,
   updates: Partial<BusinessAccount>
@@ -198,12 +196,20 @@ export async function reviewBusiness(
   if (readErr) return readErr.message;
   if (!row) return 'business not found online';
 
-  const merged = { ...(row.data || {}), ...updates };
+  const newStatus = updates.verificationStatus || 'pending';
+  const merged = { 
+    ...(row.data || {}), 
+    ...updates, 
+    verificationStatus: newStatus,
+    verified: newStatus === 'approved' 
+  };
+
   const { data, error } = await supabase
     .from('rada_businesses')
     .update({
       data: merged,
-      verification_status: updates.verificationStatus || merged.verificationStatus || 'pending',
+      verification_status: newStatus,
+      verified: newStatus === 'approved',
     })
     .eq('id', id)
     .select('id');
@@ -214,7 +220,7 @@ export async function reviewBusiness(
 }
 
 // =====================================================================
-// LISTINGS (spots, events, thrift items, offers)
+// LISTINGS
 // =====================================================================
 export async function fetchListings(): Promise<CloudListings | null> {
   if (!isSupabaseConfigured) return null;
@@ -257,8 +263,6 @@ export async function fetchOffers(): Promise<any[] | null> {
   return listings ? listings.offer : null;
 }
 
-
-/** Returns an error message, or null on success. */
 export async function upsertListing(
   kind: ListingKind,
   item: any,
@@ -268,11 +272,9 @@ export async function upsertListing(
   if (!isSupabaseConfigured) return null;
   let payload: any = item;
   if (kind === 'spot') {
-    // Reviews, rating and count come from the reviews table, never from the spot row
     const { reviews, reviewCount, rating, ...rest } = item;
     payload = rest;
   } else if (kind === 'event') {
-    // The going count comes from the rada_going table
     const { goingCount, ...rest } = item;
     payload = rest;
   }
@@ -297,7 +299,6 @@ export async function upsertListing(
   return error ? error.message : null;
 }
 
-/** Returns an error message, or null on success. */
 export async function deleteListing(kind: ListingKind, id: string | number): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
   const { error } = await supabase
@@ -309,9 +310,8 @@ export async function deleteListing(kind: ListingKind, id: string | number): Pro
 }
 
 // =====================================================================
-// REVIEWS (anyone signed in can post; everyone can read)
+// REVIEWS
 // =====================================================================
-/** Returns reviews grouped by spot id, newest first. */
 export async function fetchReviews(): Promise<Record<string, any[]> | null> {
   if (!isSupabaseConfigured) return null;
   const { data, error } = await supabase
@@ -331,7 +331,6 @@ export async function fetchReviews(): Promise<Record<string, any[]> | null> {
   return out;
 }
 
-/** Returns an error message, or null on success. */
 export async function insertReview(spotId: number | string, review: any, userId: string): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
   let clean: any;
@@ -350,7 +349,7 @@ export async function insertReview(spotId: number | string, review: any, userId:
 }
 
 // =====================================================================
-// STATUSES (public feed) + replies
+// STATUSES
 // =====================================================================
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -364,7 +363,6 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-/** Statuses newest first, each with its replies (oldest first). */
 export async function fetchStatuses(): Promise<any[] | null> {
   if (!isSupabaseConfigured) return null;
   const [st, rp] = await Promise.all([
@@ -393,7 +391,6 @@ export async function fetchStatuses(): Promise<any[] | null> {
   }));
 }
 
-/** Returns an error message, or null on success. */
 export async function insertStatus(post: any, userId: string): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
   const { replies, timeAgo: _ta, ...rest } = post;
@@ -411,7 +408,6 @@ export async function insertStatus(post: any, userId: string): Promise<string | 
   return error ? error.message : null;
 }
 
-/** Returns an error message, or null on success. */
 export async function insertStatusReply(statusId: string, reply: any, userId: string): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
   const { timeAgo: _ta, ...rest } = reply;
@@ -425,7 +421,7 @@ export async function insertStatusReply(statusId: string, reply: any, userId: st
 }
 
 // =====================================================================
-// "I'M GOING" (real counts per event)
+// GOING
 // =====================================================================
 export async function fetchGoing(uid?: string): Promise<{ counts: Record<string, number>; mine: number[] } | null> {
   if (!isSupabaseConfigured) return null;
@@ -443,7 +439,6 @@ export async function fetchGoing(uid?: string): Promise<{ counts: Record<string,
   return { counts, mine };
 }
 
-/** Returns an error message, or null on success. */
 export async function setGoing(eventId: number | string, uid: string, going: boolean): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
   if (going) {
@@ -461,7 +456,7 @@ export async function setGoing(eventId: number | string, uid: string, going: boo
 }
 
 // =====================================================================
-// PRIVATE PER-USER DATA (tickets, emergency contacts, own profile)
+// USER DATA
 // =====================================================================
 export async function fetchUserData(uid: string): Promise<Record<string, any> | null> {
   if (!isSupabaseConfigured) return null;
@@ -475,7 +470,6 @@ export async function fetchUserData(uid: string): Promise<Record<string, any> | 
   return out;
 }
 
-/** Saves each key as its own row. Returns the version with photos swapped for online links. */
 export async function saveUserData(
   uid: string,
   bundle: Record<string, any>
