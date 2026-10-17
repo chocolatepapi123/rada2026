@@ -107,34 +107,32 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
 }) => {
 // Only businesses actually owned by the logged-in merchant
 const ownedBusinesses = businesses.filter(
-  business => business.ownerId === userId
+  business => business.ownerId && business.ownerId === userId
 );
 
-// Safe fallback: never crash if ownedBusinesses is empty
+// Safe fallback placeholder if they don't own any business yet
 const currentBiz =
   ownedBusinesses.find(b => b.id === activeBusinessId) ||
   ownedBusinesses[0] || {
     id: 'placeholder-biz',
-    ownerId: userId,
-    name: 'My Business',
+    ownerId: undefined,
+    name: 'Your Business',
     category: 'hospitality',
-    email: 'contact@business.ke',
-    phone: '+254 700 000 000',
-    whatsapp: '+254700000000',
+    email: '',
+    phone: '',
+    whatsapp: '',
     neighborhood: 'Westlands',
-    address: 'Westlands, Nairobi',
-    bio: 'Official verified business on RADA.',
+    address: '',
+    bio: '',
     logo: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=200&auto=format&fit=crop',
-    coverImage: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
+    coverImage: '',
     verified: false,
     verificationStatus: 'pending',
-    instagram: '@',
     createdDate: new Date().toISOString().split('T')[0],
     discography: [],
     pinnedImages: []
   };
 
-// State: open onboarding if this merchant has no actual owned businesses yet
 const [isOnboardingOpen, setIsOnboardingOpen] = useState(ownedBusinesses.length === 0);
 
   const [onboardingStep, setOnboardingStep] = useState<1 | 2>(1);
