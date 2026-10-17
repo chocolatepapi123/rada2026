@@ -181,15 +181,19 @@ const [isOnboardingOpen, setIsOnboardingOpen] = useState(ownedBusinesses.length 
   };
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const handleCompleteOnboarding = async () => {
     if (isSubmitting) return;
+    setSubmitError('');
     if (!onboardName.trim()) {
+      setSubmitError('Please enter your business name (go back to the profile step).');
       showToast('Please enter your business name.');
       setOnboardingStep(1);
       return;
     }
     if (!userId) {
+      setSubmitError('You are not signed in. Sign in first, then create your merchant account.');
       showToast('Please sign in first to create a merchant account.');
       return;
     }
@@ -227,6 +231,7 @@ const [isOnboardingOpen, setIsOnboardingOpen] = useState(ownedBusinesses.length 
       const err = await onCreateBusiness(newBiz);
       if (typeof err === 'string' && err) {
         console.error('Create business error:', err);
+        setSubmitError(`Could not save business: ${err}`);
         showToast(`Could not save business: ${err}`);
         return;
       }
@@ -236,6 +241,7 @@ const [isOnboardingOpen, setIsOnboardingOpen] = useState(ownedBusinesses.length 
       showToast(`Welcome! ${newBiz.name} submitted for admin review.`);
     } catch (e) {
       console.error('Onboarding failed:', e);
+      setSubmitError(`Something went wrong: ${e instanceof Error ? e.message : String(e)}`);
       showToast('Something went wrong saving your business.');
     } finally {
       setIsSubmitting(false);
@@ -1125,6 +1131,12 @@ const [isOnboardingOpen, setIsOnboardingOpen] = useState(ownedBusinesses.length 
                   </div>
                 </div>
 
+                {submitError && (
+                  <div className="mt-6 rounded-2xl border border-red-300 bg-red-50 dark:bg-red-950/30 dark:border-red-800 text-red-800 dark:text-red-200 text-xs font-semibold p-3 break-words">
+                    {submitError}
+                  </div>
+                )}
+
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-8">
                   <button
                     type="button"
@@ -1974,17 +1986,4 @@ const [isOnboardingOpen, setIsOnboardingOpen] = useState(ownedBusinesses.length 
                             </span>
                           )}
                         </div>
-                        <p className="text-[11px] text-slate-400 truncate flex items-center gap-1 mt-0.5">
-                          <MapPin className="w-3 h-3 text-[#E0533C]" />
-                          <span>{spot.neighborhood} • {spot.address}</span>
-                        </p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">
-                          Rating ★ {spot.rating} ({spot.reviewCount || 0} reviews)
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        onClaimSpot(spot.id, currentBiz.id);
-                        showToast(`Ownership claimed! "${spot.title}" now managed by ${currentBiz.n
+                        <p class
