@@ -370,7 +370,7 @@ export default function App() {
     setActiveToast(text);
     toastTimeoutRef.current = setTimeout(() => {
       setActiveToast(null);
-    }, 2200);
+    }, 3500);
   };
 
   // Saved Moves / Bookmarked Listings State
@@ -1313,7 +1313,7 @@ export default function App() {
 
       {/* Sleek Minimal Single-Line Toast Notification */}
       {activeToast && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-150">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[200] pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-150">
           <div className="bg-slate-900/90 dark:bg-white/95 text-white dark:text-slate-900 backdrop-blur-md text-xs font-semibold px-4 py-2 rounded-full shadow-lg border border-slate-700/50 dark:border-slate-200/50 flex items-center gap-2 whitespace-nowrap">
             <span>{activeToast}</span>
           </div>
