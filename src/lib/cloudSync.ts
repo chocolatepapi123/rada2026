@@ -110,8 +110,10 @@ function errMsg(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
-// =====================================================================
-// BUSINESSES
+function isValidUuid(id: any): boolean {
+  return typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+}
+
 // =====================================================================
 // BUSINESSES
 // =====================================================================
@@ -121,7 +123,7 @@ function rowToBusiness(row: any): BusinessAccount {
     row.verification_status ||
     row.verificationStatus ||
     d.verificationStatus ||
-    (row.verified === true ? 'approved' : (row.verified === false && row.verification_status === 'rejected' ? 'rejected' : 'pending'))
+    (d.verified === true ? 'approved' : (d.verified === false && d.verificationStatus === 'rejected' ? 'rejected' : 'pending'))
   ) as 'pending' | 'approved' | 'rejected';
 
   const name = row.name || d.name || 'Unnamed Business';
@@ -164,35 +166,20 @@ export async function fetchBusinesses(): Promise<BusinessAccount[] | null> {
   const list: BusinessAccount[] = [];
   const seenIds = new Set<string>();
 
-  // 1. Query 'businesses' table (standard Supabase table)
+  // 1. Query 'rada_businesses' table (primary RADA business table)
   try {
-    const { data, error } = await supabase
-      .from('businesses')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (!error && data && data.length > 0) {
-      for (const row of data) {
-        const b = rowToBusiness(row);
-        if (!seenIds.has(b.id)) {
-          seenIds.add(b.id);
-          list.push(b);
-        }
-      }
-    }
-  } catch (err) {
-    console.warn('fetch from businesses table failed:', err);
-  }
-
-  // 2. Query 'rada_businesses' table
-  try {
-    const { data, error } = await supabase
+    let res = await supabase
       .from('rada_businesses')
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (!error && data && data.length > 0) {
-      for (const row of data) {
+    if (res.error) {
+      // Fallback in case created_at column does not exist
+      res = await supabase.from('rada_businesses').select('*');
+    }
+
+    if (!res.error && res.data && res.data.length > 0) {
+      for (const row of res.data) {
         const b = rowToBusiness(row);
         if (!seenIds.has(b.id)) {
           seenIds.add(b.id);
@@ -204,10 +191,34 @@ export async function fetchBusinesses(): Promise<BusinessAccount[] | null> {
     console.warn('fetch from rada_businesses table failed:', err);
   }
 
+  // 2. Query 'businesses' table (if populated or used in some environments)
+  try {
+    let res = await supabase
+      .from('businesses')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (res.error) {
+      res = await supabase.from('businesses').select('*');
+    }
+
+    if (!res.error && res.data && res.data.length > 0) {
+      for (const row of res.data) {
+        const b = rowToBusiness(row);
+        if (!seenIds.has(b.id)) {
+          seenIds.add(b.id);
+          list.push(b);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('fetch from businesses table failed:', err);
+  }
+
   return list;
 }
 
-/** Inserts/upserts business into both 'businesses' and 'rada_businesses' with flat columns + data */
+/** Inserts/upserts business into 'rada_businesses' and 'businesses' */
 export async function insertBusiness(biz: BusinessAccount, ownerId: string): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
   let clean: BusinessAccount;
@@ -219,81 +230,108 @@ export async function insertBusiness(biz: BusinessAccount, ownerId: string): Pro
 
   const status = biz.verificationStatus || 'pending';
   const isApproved = status === 'approved';
+  const safeOwnerId = isValidUuid(ownerId) ? ownerId : (isValidUuid(biz.ownerId) ? biz.ownerId : null);
 
-  const flatPayload: any = {
+  const businessDataPayload = {
+    ...clean,
     id: biz.id,
-    name: biz.name,
-    category: biz.category,
-    email: biz.email || '',
-    phone: biz.phone || '',
-    whatsapp: biz.whatsapp || '',
-    neighborhood: biz.neighborhood || '',
-    address: biz.address || '',
-    bio: biz.bio || '',
-    logo: biz.logo || '',
-    cover_image: biz.coverImage || '',
-    owner_id: ownerId,
+    ownerId,
+    verificationStatus: status,
     verified: isApproved,
-    verification_status: status,
-    verification_note: biz.verificationNote || null,
-  };
-
-  const combinedPayload: any = {
-    ...flatPayload,
-    data: {
-      ...clean,
-      id: biz.id,
-      ownerId,
-      verificationStatus: status,
-      verified: isApproved,
-    },
   };
 
   let primaryError: string | null = null;
+  let success = false;
 
-  // 1. Try 'businesses' table
+  // 1. Primary: Upsert into 'rada_businesses'
+  // Note: 'rada_businesses' table does NOT have a 'verified' column (status is in verification_status and/or data JSONB).
   try {
-    let { error } = await supabase.from('businesses').upsert(combinedPayload, { onConflict: 'id' });
-    if (error && (error.message?.includes('column "data"') || error.message?.includes('data'))) {
-      const retry = await supabase.from('businesses').upsert(flatPayload, { onConflict: 'id' });
-      error = retry.error;
+    const radaPayload: any = {
+      id: biz.id,
+      verification_status: status,
+      data: businessDataPayload,
+    };
+    if (safeOwnerId) {
+      radaPayload.owner_id = safeOwnerId;
     }
-    if (error) {
-      console.warn('insert into businesses table warning:', error.message);
-      primaryError = error.message;
-    } else {
+
+    let { error: radaErr } = await supabase
+      .from('rada_businesses')
+      .upsert(radaPayload, { onConflict: 'id' });
+
+    // Fallback A: If verification_status column does not exist in schema cache
+    if (radaErr && (radaErr.message?.includes('schema cache') || radaErr.message?.includes('column'))) {
+      const minimalRada: any = {
+        id: biz.id,
+        data: businessDataPayload,
+      };
+      if (safeOwnerId) minimalRada.owner_id = safeOwnerId;
+
+      const retryResult = await supabase
+        .from('rada_businesses')
+        .upsert(minimalRada, { onConflict: 'id' });
+      radaErr = retryResult.error;
+    }
+
+    // Fallback B: If owner_id UUID type constraint errors
+    if (radaErr && radaErr.message?.includes('uuid')) {
+      const noOwnerRada = {
+        id: biz.id,
+        data: businessDataPayload,
+      };
+      const retryNoOwner = await supabase
+        .from('rada_businesses')
+        .upsert(noOwnerRada, { onConflict: 'id' });
+      radaErr = retryNoOwner.error;
+    }
+
+    if (!radaErr) {
+      success = true;
       primaryError = null;
+    } else {
+      console.warn('rada_businesses upsert error:', radaErr.message);
+      primaryError = radaErr.message;
     }
   } catch (err: any) {
+    console.warn('rada_businesses upsert threw:', err);
     primaryError = err?.message || String(err);
   }
 
-  // 2. Also upsert into 'rada_businesses' table
+  // 2. Also try 'businesses' table if available
   try {
-    const { error: radaErr } = await supabase.from('rada_businesses').upsert(
-      {
-        id: biz.id,
-        owner_id: ownerId,
-        verification_status: status,
-        verified: isApproved,
-        data: {
-          ...clean,
-          id: biz.id,
-          ownerId,
-          verificationStatus: status,
-          verified: isApproved,
-        },
-      },
-      { onConflict: 'id' }
-    );
-    if (!radaErr) {
-      primaryError = null;
-    } else if (primaryError) {
-      primaryError = radaErr.message;
-    }
-  } catch {}
+    const flatPayload: any = {
+      id: biz.id,
+      name: biz.name,
+      category: biz.category,
+      email: biz.email || '',
+      phone: biz.phone || '',
+      whatsapp: biz.whatsapp || '',
+      neighborhood: biz.neighborhood || '',
+      address: biz.address || '',
+      bio: biz.bio || '',
+      logo: biz.logo || '',
+      cover_image: biz.coverImage || '',
+      verification_status: status,
+      verification_note: biz.verificationNote || null,
+      data: businessDataPayload,
+    };
+    if (safeOwnerId) flatPayload.owner_id = safeOwnerId;
 
-  return primaryError;
+    let { error: bErr } = await supabase.from('businesses').upsert(flatPayload, { onConflict: 'id' });
+    if (bErr && (bErr.message?.includes('column "data"') || bErr.message?.includes('data'))) {
+      const { data: _dropData, ...noDataPayload } = flatPayload;
+      const retry = await supabase.from('businesses').upsert(noDataPayload, { onConflict: 'id' });
+      bErr = retry.error;
+    }
+    if (!bErr) {
+      success = true;
+      primaryError = null;
+    }
+  } catch (err: any) {
+    console.warn('businesses table fallback ignored:', err);
+  }
+
+  return success ? null : primaryError;
 }
 
 export async function updateBusiness(biz: BusinessAccount, uid: string): Promise<string | null> {
@@ -307,40 +345,55 @@ export async function updateBusiness(biz: BusinessAccount, uid: string): Promise
 
   const status = biz.verificationStatus || 'pending';
   const isApproved = status === 'approved';
-
-  const flatUpdates: any = {
-    name: biz.name,
-    category: biz.category,
-    email: biz.email || '',
-    phone: biz.phone || '',
-    whatsapp: biz.whatsapp || '',
-    neighborhood: biz.neighborhood || '',
-    address: biz.address || '',
-    bio: biz.bio || '',
-    logo: biz.logo || '',
-    cover_image: biz.coverImage || '',
-    verification_status: status,
+  const businessDataPayload = {
+    ...clean,
+    id: biz.id,
+    verificationStatus: status,
     verified: isApproved,
-    verification_note: biz.verificationNote || null,
   };
 
-  // Try updating businesses table
+  // 1. Update rada_businesses (NEVER pass 'verified' column!)
   try {
-    await supabase
-      .from('businesses')
-      .update({ ...flatUpdates, data: clean })
-      .eq('id', biz.id);
-  } catch {}
-
-  // Also update rada_businesses table
-  try {
-    await supabase
+    let { error: rErr } = await supabase
       .from('rada_businesses')
       .update({
-        data: clean,
+        data: businessDataPayload,
         verification_status: status,
-        verified: isApproved,
       })
+      .eq('id', biz.id);
+
+    if (rErr && (rErr.message?.includes('schema cache') || rErr.message?.includes('column'))) {
+      await supabase
+        .from('rada_businesses')
+        .update({
+          data: businessDataPayload,
+        })
+        .eq('id', biz.id);
+    }
+  } catch (e) {
+    console.warn('rada_businesses update warning:', e);
+  }
+
+  // 2. Also try businesses table
+  try {
+    const flatUpdates: any = {
+      name: biz.name,
+      category: biz.category,
+      email: biz.email || '',
+      phone: biz.phone || '',
+      whatsapp: biz.whatsapp || '',
+      neighborhood: biz.neighborhood || '',
+      address: biz.address || '',
+      bio: biz.bio || '',
+      logo: biz.logo || '',
+      cover_image: biz.coverImage || '',
+      verification_status: status,
+      verification_note: biz.verificationNote || null,
+      data: businessDataPayload,
+    };
+    await supabase
+      .from('businesses')
+      .update(flatUpdates)
       .eq('id', biz.id);
   } catch {}
 
@@ -355,26 +408,9 @@ export async function reviewBusiness(
   const newStatus = updates.verificationStatus || (updates.verified ? 'approved' : 'pending');
   const isApproved = newStatus === 'approved';
 
-  const flatUpdates: any = {
-    verification_status: newStatus,
-    verified: isApproved,
-    verification_note: updates.verificationNote || null,
-    verified_at: updates.verifiedAt || new Date().toISOString(),
-    verified_by: updates.verifiedBy || 'admin',
-  };
-
   let hadSuccess = false;
 
-  // 1. Update 'businesses' table
-  try {
-    const { error: bErr } = await supabase
-      .from('businesses')
-      .update(flatUpdates)
-      .eq('id', id);
-    if (!bErr) hadSuccess = true;
-  } catch {}
-
-  // 2. Update 'rada_businesses' table
+  // 1. Update 'rada_businesses' table (NEVER pass top-level 'verified')
   try {
     const { data: row } = await supabase
       .from('rada_businesses')
@@ -389,16 +425,42 @@ export async function reviewBusiness(
       verified: isApproved,
     };
 
-    const { error: rErr } = await supabase
+    let { error: rErr } = await supabase
       .from('rada_businesses')
       .update({
         data: merged,
         verification_status: newStatus,
-        verified: isApproved,
       })
       .eq('id', id);
 
+    if (rErr && (rErr.message?.includes('schema cache') || rErr.message?.includes('column'))) {
+      const retry = await supabase
+        .from('rada_businesses')
+        .update({
+          data: merged,
+        })
+        .eq('id', id);
+      rErr = retry.error;
+    }
+
     if (!rErr) hadSuccess = true;
+  } catch (e) {
+    console.warn('reviewBusiness rada_businesses warning:', e);
+  }
+
+  // 2. Also update 'businesses' table if present
+  try {
+    const flatUpdates: any = {
+      verification_status: newStatus,
+      verification_note: updates.verificationNote || null,
+      verified_at: updates.verifiedAt || new Date().toISOString(),
+      verified_by: updates.verifiedBy || 'admin',
+    };
+    const { error: bErr } = await supabase
+      .from('businesses')
+      .update(flatUpdates)
+      .eq('id', id);
+    if (!bErr) hadSuccess = true;
   } catch {}
 
   return hadSuccess ? null : 'Could not update verification status in database.';
@@ -557,17 +619,43 @@ export async function upsertListing(
     }
   }
 
-  const { error } = await supabase.from('rada_listings').upsert(
-    {
-      kind,
-      id: String(item.id),
-      business_id: businessId ?? null,
-      owner_id: ownerId,
-      data: payload,
-      updated_at: new Date().toISOString(),
-    },
+  const safeOwnerId = isValidUuid(ownerId) ? ownerId : null;
+
+  const radaListingPayload: any = {
+    kind,
+    id: String(item.id),
+    business_id: businessId ?? null,
+    data: payload,
+    updated_at: new Date().toISOString(),
+  };
+  if (safeOwnerId) {
+    radaListingPayload.owner_id = safeOwnerId;
+  }
+
+  let { error } = await supabase.from('rada_listings').upsert(
+    radaListingPayload,
     { onConflict: 'kind,id' }
   );
+
+  // Fallback 1: In case the constraint is on 'id' instead of 'kind,id'
+  if (error && (error.message?.includes('ON CONFLICT') || error.message?.includes('constraint'))) {
+    const retry = await supabase.from('rada_listings').upsert(
+      radaListingPayload,
+      { onConflict: 'id' }
+    );
+    error = retry.error;
+  }
+
+  // Fallback 2: In case owner_id fails UUID validation in Postgres
+  if (error && error.message?.includes('uuid')) {
+    delete radaListingPayload.owner_id;
+    const retryNoOwner = await supabase.from('rada_listings').upsert(
+      radaListingPayload,
+      { onConflict: 'kind,id' }
+    );
+    error = retryNoOwner.error;
+  }
+
   return error ? error.message : null;
 }
 

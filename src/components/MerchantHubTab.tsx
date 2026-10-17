@@ -57,6 +57,8 @@ interface MerchantHubTabProps {
   businesses: BusinessAccount[];
   activeBusinessId: string;
   userId?: string;
+  isUserSignedIn?: boolean;
+  onOpenAuth?: () => void;
   onSelectBusiness: (bizId: string) => void;
   onCreateBusiness: (newBiz: BusinessAccount) => Promise<string | null> | string | null | void;
   onUpdateBusiness: (updatedBiz: BusinessAccount) => void;
@@ -83,6 +85,8 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   businesses,
   activeBusinessId,
   userId,
+  isUserSignedIn,
+  onOpenAuth,
   onSelectBusiness,
   onCreateBusiness,
   onUpdateBusiness,

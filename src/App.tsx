@@ -800,10 +800,12 @@ export default function App() {
         return [...remote, ...toMigrate, ...seeds];
       };
 
-      const mergedSpotsRaw = await mergeKind('spot', initialSpots, L.spots, remoteListings.spot);
+      const safeListings: cloud.CloudListings = remoteListings || { spot: [], event: [], thrift: [], offer: [] };
+
+      const mergedSpotsRaw = await mergeKind('spot', initialSpots, L.spots, safeListings.spot);
 
       // Ratings, review counts, reviews and review photos come from the reviews table
-      const remoteSpotIds = new Set(remoteListings.spot.map((x: any) => String(x.id)));
+      const remoteSpotIds = new Set(safeListings.spot.map((x: any) => String(x.id)));
       const mergedSpots = mergedSpotsRaw.map((sp: any) => {
         const seed = initialSpots.find(x => String(x.id) === String(sp.id));
         const base: any = remoteSpotIds.has(String(sp.id)) ? sp : (seed || sp);
@@ -831,10 +833,10 @@ export default function App() {
 
         return { ...base, reviews: allReviews, reviewCount, rating, images };
       });
-      const mergedEventsRaw = await mergeKind('event', initialEvents, L.events, remoteListings.event);
+      const mergedEventsRaw = await mergeKind('event', initialEvents, L.events, safeListings.event);
 
       // "I'm going" counts come from the rada_going table
-      const remoteEventIds = new Set(remoteListings.event.map((x: any) => String(x.id)));
+      const remoteEventIds = new Set(safeListings.event.map((x: any) => String(x.id)));
       const mergedEvents = remoteGoing
         ? mergedEventsRaw.map((ev: any) => {
             const seed = initialEvents.find(x => String(x.id) === String(ev.id));
@@ -843,8 +845,8 @@ export default function App() {
             return { ...base, goingCount: baseCount + (remoteGoing.counts[String(ev.id)] || 0) };
           })
         : mergedEventsRaw;
-      const mergedThrift = await mergeKind('thrift', initialThriftItems, L.thriftItems, remoteListings.thrift);
-      const mergedOffers = await mergeKind('offer', initialOffers, L.offers, remoteListings.offer);
+      const mergedThrift = await mergeKind('thrift', initialThriftItems, L.thriftItems, safeListings.thrift);
+      const mergedOffers = await mergeKind('offer', initialOffers, L.offers, safeListings.offer);
 
       // If the user changed something while we were syncing, don't overwrite it
       if (mutationRef.current !== startVersion || pendingRef.current > 0) return;
@@ -1011,7 +1013,11 @@ export default function App() {
       });
 
       if (isSupabaseConfigured) {
-        cloud.upsertListing('spot', newSpot, biz.id, effectiveOwner).catch(console.warn);
+        try {
+          await cloud.upsertListing('spot', newSpot, biz.id, effectiveOwner);
+        } catch (sErr) {
+          console.warn('Could not upsert initial spot for business:', sErr);
+        }
       }
     }
 
@@ -1766,6 +1772,7 @@ export default function App() {
 <AdminDashboard
   businesses={businesses}
   onClose={() => setIsAdminOpen(false)}
+  onRefresh={() => syncRef.current?.()}
   showToast={showToast}
   onUpdateBusiness={(businessId, updates) => {
     const business = businesses.find(b => b.id === businessId);
