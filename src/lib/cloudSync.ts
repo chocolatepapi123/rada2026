@@ -263,11 +263,22 @@ export async function insertBusiness(biz: BusinessAccount, ownerId: string): Pro
   let success = false;
 
   // 1. Primary: Upsert into 'rada_businesses'
-  // Note: 'rada_businesses' table does NOT have a 'verified' column (status is in verification_status and/or data JSONB).
+  // Note: 'rada_businesses' requires flat columns including 'name' (NOT NULL), plus verification_status, etc.
   try {
     const radaPayload: any = {
       id: validBizId,
+      name: biz.name || 'Unnamed Business',
+      category: biz.category || 'hospitality',
+      email: biz.email || '',
+      phone: biz.phone || '',
+      whatsapp: biz.whatsapp || '',
+      neighborhood: biz.neighborhood || '',
+      address: biz.address || '',
+      bio: biz.bio || '',
+      logo: biz.logo || '',
+      cover_image: biz.coverImage || '',
       verification_status: status,
+      verification_note: biz.verificationNote || null,
       data: businessDataPayload,
     };
     if (safeOwnerId) {
@@ -278,29 +289,21 @@ export async function insertBusiness(biz: BusinessAccount, ownerId: string): Pro
       .from('rada_businesses')
       .upsert(radaPayload, { onConflict: 'id' });
 
-    // Fallback A: If verification_status column does not exist in schema cache
-    if (radaErr && (radaErr.message?.includes('schema cache') || radaErr.message?.includes('column'))) {
-      const minimalRada: any = {
-        id: validBizId,
-        data: businessDataPayload,
-      };
-      if (safeOwnerId) minimalRada.owner_id = safeOwnerId;
-
+    // Fallback A: If 'data' column does not exist in schema cache
+    if (radaErr && (radaErr.message?.includes('column "data"') || radaErr.message?.includes('data'))) {
+      const { data: _drop, ...noDataPayload } = radaPayload;
       const retryResult = await supabase
         .from('rada_businesses')
-        .upsert(minimalRada, { onConflict: 'id' });
+        .upsert(noDataPayload, { onConflict: 'id' });
       radaErr = retryResult.error;
     }
 
     // Fallback B: If owner_id UUID type constraint errors
     if (radaErr && radaErr.message?.includes('uuid')) {
-      const noOwnerRada = {
-        id: validBizId,
-        data: businessDataPayload,
-      };
+      delete radaPayload.owner_id;
       const retryNoOwner = await supabase
         .from('rada_businesses')
-        .upsert(noOwnerRada, { onConflict: 'id' });
+        .upsert(radaPayload, { onConflict: 'id' });
       radaErr = retryNoOwner.error;
     }
 
@@ -320,8 +323,8 @@ export async function insertBusiness(biz: BusinessAccount, ownerId: string): Pro
   try {
     const flatPayload: any = {
       id: validBizId,
-      name: biz.name,
-      category: biz.category,
+      name: biz.name || 'Unnamed Business',
+      category: biz.category || 'hospitality',
       email: biz.email || '',
       phone: biz.phone || '',
       whatsapp: biz.whatsapp || '',
@@ -372,22 +375,34 @@ export async function updateBusiness(biz: BusinessAccount, uid: string): Promise
     verified: isApproved,
   };
 
+  const flatUpdates: any = {
+    name: biz.name,
+    category: biz.category,
+    email: biz.email || '',
+    phone: biz.phone || '',
+    whatsapp: biz.whatsapp || '',
+    neighborhood: biz.neighborhood || '',
+    address: biz.address || '',
+    bio: biz.bio || '',
+    logo: biz.logo || '',
+    cover_image: biz.coverImage || '',
+    verification_status: status,
+    verification_note: biz.verificationNote || null,
+    data: businessDataPayload,
+  };
+
   // 1. Update rada_businesses (NEVER pass 'verified' column!)
   try {
     let { error: rErr } = await supabase
       .from('rada_businesses')
-      .update({
-        data: businessDataPayload,
-        verification_status: status,
-      })
+      .update(flatUpdates)
       .eq('id', validBizId);
 
-    if (rErr && (rErr.message?.includes('schema cache') || rErr.message?.includes('column'))) {
+    if (rErr && (rErr.message?.includes('column "data"') || rErr.message?.includes('data'))) {
+      const { data: _drop, ...noData } = flatUpdates;
       await supabase
         .from('rada_businesses')
-        .update({
-          data: businessDataPayload,
-        })
+        .update(noData)
         .eq('id', validBizId);
     }
   } catch (e) {
@@ -396,21 +411,6 @@ export async function updateBusiness(biz: BusinessAccount, uid: string): Promise
 
   // 2. Also try businesses table
   try {
-    const flatUpdates: any = {
-      name: biz.name,
-      category: biz.category,
-      email: biz.email || '',
-      phone: biz.phone || '',
-      whatsapp: biz.whatsapp || '',
-      neighborhood: biz.neighborhood || '',
-      address: biz.address || '',
-      bio: biz.bio || '',
-      logo: biz.logo || '',
-      cover_image: biz.coverImage || '',
-      verification_status: status,
-      verification_note: biz.verificationNote || null,
-      data: businessDataPayload,
-    };
     await supabase
       .from('businesses')
       .update(flatUpdates)
@@ -451,6 +451,7 @@ export async function reviewBusiness(
       .update({
         data: merged,
         verification_status: newStatus,
+        verification_note: updates.verificationNote || null,
       })
       .eq('id', validId);
 
@@ -459,6 +460,7 @@ export async function reviewBusiness(
         .from('rada_businesses')
         .update({
           data: merged,
+          verification_status: newStatus,
         })
         .eq('id', validId);
       rErr = retry.error;
