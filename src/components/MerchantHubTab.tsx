@@ -53,6 +53,7 @@ import {
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { DynamicLocationSelector } from './DynamicLocationSelector.tsx';
 import { toValidUuid } from '../lib/cloudSync.ts';
+import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 
 interface MerchantHubTabProps {
   businesses: BusinessAccount[];
@@ -292,31 +293,38 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     reader.readAsDataURL(file);
   };
 
-  const handleSpotGalleryFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSpotGalleryFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    const readers = Array.from(files).map(file => {
-      return new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (typeof reader.result === 'string') {
-            resolve(reader.result);
-          }
-        };
-        reader.readAsDataURL(file);
-      });
-    });
 
-    Promise.all(readers).then(results => {
-      setSpotGalleryImgs(prev => [...prev, ...results]);
-      showToast(`Added ${results.length} photo(s) to gallery.`);
-    });
+    if (spotGalleryImgs.length >= 5) {
+      showToast('Maximum 5 gallery photos allowed.');
+      e.target.value = '';
+      return;
+    }
+
+    const dataUrls = await readFilesAsDataUrls(files);
+    const result = deduplicateAndLimitPhotos(spotGalleryImgs, dataUrls, 5);
+
+    if (result.duplicateCount > 0 && result.addedCount === 0) {
+      showToast('Duplicate photo(s) skipped — already in spot gallery.');
+    } else if (result.duplicateCount > 0 && result.addedCount > 0) {
+      showToast(`Added ${result.addedCount} photo(s). Skipped ${result.duplicateCount} duplicate(s).`);
+    } else if (result.exceededLimit) {
+      showToast('Maximum 5 gallery photos limit reached.');
+    } else if (result.addedCount > 0) {
+      showToast(`Added ${result.addedCount} photo(s) to spot gallery.`);
+    }
+
+    setSpotGalleryImgs(result.updatedList);
+    e.target.value = '';
   };
 
   const handleRemoveGalleryImage = (indexToRemove: number) => {
     setSpotGalleryImgs(prev => prev.filter((_, idx) => idx !== indexToRemove));
     showToast('Gallery image removed.');
   };
+
 
   const openCreateSpotModal = () => {
     setEditingSpotId(null);
@@ -548,31 +556,38 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     reader.readAsDataURL(file);
   };
 
-  const handleEventGalleryFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleEventGalleryFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    const readers = Array.from(files).map(file => {
-      return new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (typeof reader.result === 'string') {
-            resolve(reader.result);
-          }
-        };
-        reader.readAsDataURL(file);
-      });
-    });
 
-    Promise.all(readers).then(results => {
-      setEventGalleryImgs(prev => [...prev, ...results]);
-      showToast(`Added ${results.length} photo(s) to event gallery.`);
-    });
+    if (eventGalleryImgs.length >= 5) {
+      showToast('Maximum 5 event gallery photos allowed.');
+      e.target.value = '';
+      return;
+    }
+
+    const dataUrls = await readFilesAsDataUrls(files);
+    const result = deduplicateAndLimitPhotos(eventGalleryImgs, dataUrls, 5);
+
+    if (result.duplicateCount > 0 && result.addedCount === 0) {
+      showToast('Duplicate photo(s) skipped — already in event gallery.');
+    } else if (result.duplicateCount > 0 && result.addedCount > 0) {
+      showToast(`Added ${result.addedCount} photo(s). Skipped ${result.duplicateCount} duplicate(s).`);
+    } else if (result.exceededLimit) {
+      showToast('Maximum 5 event gallery photos limit reached.');
+    } else if (result.addedCount > 0) {
+      showToast(`Added ${result.addedCount} photo(s) to event gallery.`);
+    }
+
+    setEventGalleryImgs(result.updatedList);
+    e.target.value = '';
   };
 
   const handleRemoveEventGalleryImage = (indexToRemove: number) => {
     setEventGalleryImgs(prev => prev.filter((_, idx) => idx !== indexToRemove));
     showToast('Event gallery image removed.');
   };
+
 
   const openCreateEventModal = () => {
     setEditingEventId(null);
@@ -681,31 +696,38 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     reader.readAsDataURL(file);
   };
 
-  const handleThriftGalleryFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleThriftGalleryFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    const readers = Array.from(files).map(file => {
-      return new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (typeof reader.result === 'string') {
-            resolve(reader.result);
-          }
-        };
-        reader.readAsDataURL(file);
-      });
-    });
 
-    Promise.all(readers).then(results => {
-      setThriftGalleryImgs(prev => [...prev, ...results]);
-      showToast(`Added ${results.length} angle photo(s) to garment gallery.`);
-    });
+    if (thriftGalleryImgs.length >= 5) {
+      showToast('Maximum 5 garment photos allowed.');
+      e.target.value = '';
+      return;
+    }
+
+    const dataUrls = await readFilesAsDataUrls(files);
+    const result = deduplicateAndLimitPhotos(thriftGalleryImgs, dataUrls, 5);
+
+    if (result.duplicateCount > 0 && result.addedCount === 0) {
+      showToast('Duplicate photo(s) skipped — already in garment gallery.');
+    } else if (result.duplicateCount > 0 && result.addedCount > 0) {
+      showToast(`Added ${result.addedCount} photo(s). Skipped ${result.duplicateCount} duplicate(s).`);
+    } else if (result.exceededLimit) {
+      showToast('Maximum 5 garment photos limit reached.');
+    } else if (result.addedCount > 0) {
+      showToast(`Added ${result.addedCount} photo(s) to garment gallery.`);
+    }
+
+    setThriftGalleryImgs(result.updatedList);
+    e.target.value = '';
   };
 
   const handleRemoveThriftGalleryImage = (indexToRemove: number) => {
     setThriftGalleryImgs(prev => prev.filter((_, idx) => idx !== indexToRemove));
     showToast('Garment photo removed.');
   };
+
 
   const openCreateThriftModal = () => {
     setEditingThriftId(null);
@@ -2476,20 +2498,24 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                   <div className="flex items-center justify-between">
                     <div>
                       <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
-                        Gallery Photos ({spotGalleryImgs.length})
+                        Gallery Photos ({spotGalleryImgs.length}/5)
                       </label>
                       <p className="text-[11px] text-slate-400">
-                        Add interior shots, signature cocktails, seating, and patio views
+                        {spotGalleryImgs.length >= 5
+                          ? 'Maximum 5 photos reached (clean gallery limit)'
+                          : 'Add interior shots, signature cocktails, seating, and patio views (max 5)'}
                       </p>
                     </div>
 
-                    <label
-                      htmlFor="spot-gallery-file-input"
-                      className="px-3.5 py-1.5 bg-[#E0533C]/10 hover:bg-[#E0533C]/20 text-[#E0533C] rounded-xl text-xs font-extrabold cursor-pointer transition flex items-center gap-1.5 shrink-0"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Upload Photos</span>
-                    </label>
+                    {spotGalleryImgs.length < 5 && (
+                      <label
+                        htmlFor="spot-gallery-file-input"
+                        className="px-3.5 py-1.5 bg-[#E0533C]/10 hover:bg-[#E0533C]/20 text-[#E0533C] rounded-xl text-xs font-extrabold cursor-pointer transition flex items-center gap-1.5 shrink-0"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Upload Photos</span>
+                      </label>
+                    )}
                     <input
                       id="spot-gallery-file-input"
                       type="file"
@@ -2512,6 +2538,21 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                             alt={`Gallery photo ${idx + 1}`} 
                             className="w-full h-full object-cover group-hover:scale-105 transition duration-200" 
                           />
+
+                          {/* Quick 'X' photo removal button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveGalleryImage(idx);
+                            }}
+                            className="absolute top-2 right-2 w-6 h-6 bg-black/80 hover:bg-black text-white rounded-full flex items-center justify-center transition cursor-pointer z-10 shadow-md"
+                            title="Remove photo"
+                            aria-label={`Remove photo ${idx + 1}`}
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+
                           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center gap-2 p-2">
                             <button
                               type="button"
@@ -2540,26 +2581,28 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                         </div>
                       ))}
 
-                      {/* Add More Photos Tile */}
-                      <label
-                        htmlFor="spot-gallery-file-input-grid"
-                        className="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-1.5 p-3 aspect-square cursor-pointer transition text-center group"
-                      >
-                        <div className="w-9 h-9 rounded-xl bg-orange-50 dark:bg-orange-950/40 text-[#E0533C] flex items-center justify-center group-hover:scale-110 transition">
-                          <Plus className="w-5 h-5" />
-                        </div>
-                        <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-300">
-                          Add More
-                        </span>
-                        <input
-                          id="spot-gallery-file-input-grid"
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={handleSpotGalleryFileUpload}
-                          className="hidden"
-                        />
-                      </label>
+                      {/* Add More Photos Tile (only if < 5) */}
+                      {spotGalleryImgs.length < 5 && (
+                        <label
+                          htmlFor="spot-gallery-file-input-grid"
+                          className="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-1.5 p-3 aspect-square cursor-pointer transition text-center group"
+                        >
+                          <div className="w-9 h-9 rounded-xl bg-orange-50 dark:bg-orange-950/40 text-[#E0533C] flex items-center justify-center group-hover:scale-110 transition">
+                            <Plus className="w-5 h-5" />
+                          </div>
+                          <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-300">
+                            Add More
+                          </span>
+                          <input
+                            id="spot-gallery-file-input-grid"
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={handleSpotGalleryFileUpload}
+                            className="hidden"
+                          />
+                        </label>
+                      )}
                     </div>
                   ) : (
                     <label
@@ -2980,20 +3023,24 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                   <div className="flex items-center justify-between">
                     <div>
                       <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
-                        Event Atmosphere & Stage Gallery ({eventGalleryImgs.length})
+                        Event Atmosphere & Stage Gallery ({eventGalleryImgs.length}/5)
                       </label>
                       <p className="text-[11px] text-slate-400">
-                        Add stage production, DJ decks, past crowd vibes, or VIP deck photos
+                        {eventGalleryImgs.length >= 5
+                          ? 'Maximum 5 photos reached (clean gallery limit)'
+                          : 'Add stage production, DJ decks, past crowd vibes, or VIP deck photos (max 5)'}
                       </p>
                     </div>
 
-                    <label
-                      htmlFor="event-gallery-file-input"
-                      className="px-3.5 py-1.5 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 rounded-xl text-xs font-extrabold cursor-pointer transition flex items-center gap-1.5 shrink-0"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Upload Photos</span>
-                    </label>
+                    {eventGalleryImgs.length < 5 && (
+                      <label
+                        htmlFor="event-gallery-file-input"
+                        className="px-3.5 py-1.5 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 rounded-xl text-xs font-extrabold cursor-pointer transition flex items-center gap-1.5 shrink-0"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Upload Photos</span>
+                      </label>
+                    )}
                     <input
                       id="event-gallery-file-input"
                       type="file"
@@ -3016,6 +3063,21 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                             alt={`Event photo ${idx + 1}`} 
                             className="w-full h-full object-cover group-hover:scale-105 transition duration-200" 
                           />
+
+                          {/* Quick 'X' photo removal button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveEventGalleryImage(idx);
+                            }}
+                            className="absolute top-2 right-2 w-6 h-6 bg-black/80 hover:bg-black text-white rounded-full flex items-center justify-center transition cursor-pointer z-10 shadow-md"
+                            title="Remove photo"
+                            aria-label={`Remove event photo ${idx + 1}`}
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+
                           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center gap-2 p-2">
                             <button
                               type="button"
@@ -3044,26 +3106,28 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                         </div>
                       ))}
 
-                      {/* Add More Photos Tile */}
-                      <label
-                        htmlFor="event-gallery-file-input-grid"
-                        className="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-purple-600 bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-1.5 p-3 aspect-square cursor-pointer transition text-center group"
-                      >
-                        <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center group-hover:scale-110 transition">
-                          <Plus className="w-5 h-5" />
-                        </div>
-                        <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-300">
-                          Add More
-                        </span>
-                        <input
-                          id="event-gallery-file-input-grid"
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={handleEventGalleryFileUpload}
-                          className="hidden"
-                        />
-                      </label>
+                      {/* Add More Photos Tile (only if < 5) */}
+                      {eventGalleryImgs.length < 5 && (
+                        <label
+                          htmlFor="event-gallery-file-input-grid"
+                          className="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-purple-600 bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-1.5 p-3 aspect-square cursor-pointer transition text-center group"
+                        >
+                          <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center group-hover:scale-110 transition">
+                            <Plus className="w-5 h-5" />
+                          </div>
+                          <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-300">
+                            Add More
+                          </span>
+                          <input
+                            id="event-gallery-file-input-grid"
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={handleEventGalleryFileUpload}
+                            className="hidden"
+                          />
+                        </label>
+                      )}
                     </div>
                   ) : (
                     <label
@@ -3575,20 +3639,24 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                   <div className="flex items-center justify-between">
                     <div>
                       <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
-                        Multi-Angle Fit Gallery ({thriftGalleryImgs.length})
+                        Multi-Angle Fit Gallery ({thriftGalleryImgs.length}/5)
                       </label>
                       <p className="text-[11px] text-slate-400">
-                        Add back angle, tag/size label, fabric wash detail, and styled outfit shots
+                        {thriftGalleryImgs.length >= 5
+                          ? 'Maximum 5 photos reached (clean gallery limit)'
+                          : 'Add back angle, tag/size label, fabric wash detail, and styled outfit shots (max 5)'}
                       </p>
                     </div>
 
-                    <label
-                      htmlFor="thrift-gallery-file-input"
-                      className="px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 rounded-xl text-xs font-extrabold cursor-pointer transition flex items-center gap-1.5 shrink-0"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Upload Angles</span>
-                    </label>
+                    {thriftGalleryImgs.length < 5 && (
+                      <label
+                        htmlFor="thrift-gallery-file-input"
+                        className="px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 rounded-xl text-xs font-extrabold cursor-pointer transition flex items-center gap-1.5 shrink-0"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Upload Angles</span>
+                      </label>
+                    )}
                     <input
                       id="thrift-gallery-file-input"
                       type="file"
@@ -3611,6 +3679,21 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                             alt={`Fit angle ${idx + 1}`} 
                             className="w-full h-full object-cover group-hover:scale-105 transition duration-200" 
                           />
+
+                          {/* Quick 'X' photo removal button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveThriftGalleryImage(idx);
+                            }}
+                            className="absolute top-2 right-2 w-6 h-6 bg-black/80 hover:bg-black text-white rounded-full flex items-center justify-center transition cursor-pointer z-10 shadow-md"
+                            title="Remove photo"
+                            aria-label={`Remove garment photo ${idx + 1}`}
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+
                           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center gap-2 p-2">
                             <button
                               type="button"
@@ -3639,26 +3722,28 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                         </div>
                       ))}
 
-                      {/* Add More Photos Tile */}
-                      <label
-                        htmlFor="thrift-gallery-file-input-grid"
-                        className="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-600 bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-1.5 p-3 aspect-square cursor-pointer transition text-center group"
-                      >
-                        <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition">
-                          <Plus className="w-5 h-5" />
-                        </div>
-                        <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-300">
-                          Add More
-                        </span>
-                        <input
-                          id="thrift-gallery-file-input-grid"
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={handleThriftGalleryFileUpload}
-                          className="hidden"
-                        />
-                      </label>
+                      {/* Add More Photos Tile (only if < 5) */}
+                      {thriftGalleryImgs.length < 5 && (
+                        <label
+                          htmlFor="thrift-gallery-file-input-grid"
+                          className="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-600 bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-1.5 p-3 aspect-square cursor-pointer transition text-center group"
+                        >
+                          <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition">
+                            <Plus className="w-5 h-5" />
+                          </div>
+                          <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-300">
+                            Add More
+                          </span>
+                          <input
+                            id="thrift-gallery-file-input-grid"
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={handleThriftGalleryFileUpload}
+                            className="hidden"
+                          />
+                        </label>
+                      )}
                     </div>
                   ) : (
                     <label

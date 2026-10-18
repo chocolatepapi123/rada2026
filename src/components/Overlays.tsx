@@ -71,6 +71,7 @@ import {
   getCategoryBadgeStyle, 
   isDateToday 
 } from '../utils/calendarUtils.ts';
+import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 
 interface OverlaysProps {
   // Overlays state
@@ -387,24 +388,42 @@ export const Overlays: React.FC<OverlaysProps> = ({
   // Spot Active Photo Index
   const [activeSpotImgIndex, setActiveSpotImgIndex] = useState(0);
 
-  // Review Submission State (SPEC 1: regular users can only upload photos within reviews)
+  // Review Submission State with Deduplication Guard & 5-photo limit
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [newReviewRating, setNewReviewRating] = useState(5);
   const [newReviewText, setNewReviewText] = useState('');
-  const [newReviewImg, setNewReviewImg] = useState<string | null>(null);
+  const [reviewPhotos, setReviewPhotos] = useState<string[]>([]);
 
-  const handleReviewPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setNewReviewImg(event.target.result as string);
-          showToast('Photo attached to review!');
-        }
-      };
-      reader.readAsDataURL(file);
+  const handleReviewPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    if (reviewPhotos.length >= 5) {
+      showToast('Maximum 5 photos allowed per review.');
+      e.target.value = '';
+      return;
     }
+
+    const dataUrls = await readFilesAsDataUrls(files);
+    const result = deduplicateAndLimitPhotos(reviewPhotos, dataUrls, 5);
+
+    if (result.duplicateCount > 0 && result.addedCount === 0) {
+      showToast('Duplicate photo(s) skipped — already added.');
+    } else if (result.duplicateCount > 0 && result.addedCount > 0) {
+      showToast(`Added ${result.addedCount} photo(s). Skipped ${result.duplicateCount} duplicate(s).`);
+    } else if (result.exceededLimit) {
+      showToast('Maximum 5 photos limit reached.');
+    } else if (result.addedCount > 0) {
+      showToast(`Added ${result.addedCount} photo(s) to review.`);
+    }
+
+    setReviewPhotos(result.updatedList);
+    e.target.value = '';
+  };
+
+  const handleRemoveReviewPhoto = (indexToRemove: number) => {
+    setReviewPhotos(prev => prev.filter((_, idx) => idx !== indexToRemove));
+    showToast('Photo removed from review.');
   };
 
   const handleSubmitReview = (e: React.FormEvent) => {
@@ -423,15 +442,16 @@ export const Overlays: React.FC<OverlaysProps> = ({
       rating: newReviewRating,
       date: 'Just now',
       comment: newReviewText.trim(),
-      images: newReviewImg ? [newReviewImg] : undefined
+      images: reviewPhotos.length > 0 ? reviewPhotos : undefined
     };
 
     onPostReview(selectedSpot.id, review);
     setNewReviewText('');
-    setNewReviewImg(null);
+    setReviewPhotos([]);
     setShowReviewForm(false);
-    showToast('Review and photo published live on RADA!');
+    showToast('Review and photos published live on RADA!');
   };
+
 
   // Plan a date DateTime picker state
   const [chosenDate, setChosenDate] = useState('2026-10-25');
@@ -1030,37 +1050,70 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] resize-none"
                   />
 
-                  {/* Photo attachment for review */}
-                  <div className="space-y-1">
-                    <label className="font-bold text-[11px] text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                      <span>Attach Photo to Review</span>
-                      <span className="text-[10px] text-slate-400">Regular users upload photos here</span>
-                    </label>
-
-                    {newReviewImg ? (
-                      <div className="relative w-24 h-20 rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700">
-                        <img src={newReviewImg} alt="Review attachment" className="w-full h-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => setNewReviewImg(null)}
-                          className="absolute top-1 right-1 w-5 h-5 bg-black/75 text-white rounded-full flex items-center justify-center text-[10px]"
-                        >
-                          &times;
-                        </button>
-                      </div>
-                    ) : (
-                      <label className="cursor-pointer py-2 px-3 bg-white dark:bg-[#121113] border border-dashed border-slate-300 dark:border-slate-700 rounded-xl hover:border-[#E0533C] flex items-center justify-center gap-1.5 transition">
+                  {/* Photo attachment for review with 5-photo gallery & deduplication */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <label className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                         <ImageIcon className="w-3.5 h-3.5 text-[#E0533C]" />
-                        <span className="text-[11px] font-bold text-[#E0533C]">Upload Review Photo</span>
+                        <span>Photos ({reviewPhotos.length}/5)</span>
+                      </label>
+                      <span className="text-[10px] text-slate-400">
+                        {reviewPhotos.length >= 5 ? 'Limit reached (max 5)' : 'Max 5 photos • No duplicates'}
+                      </span>
+                    </div>
+
+                    {/* Thumbnail previews grid */}
+                    {reviewPhotos.length > 0 && (
+                      <div className="grid grid-cols-5 gap-2">
+                        {reviewPhotos.map((photoUrl, idx) => (
+                          <div
+                            key={idx}
+                            className="relative aspect-square rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700 group bg-slate-900 shadow-xs"
+                          >
+                            <img
+                              src={photoUrl}
+                              alt={`Review photo ${idx + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                            {/* Individual photo removal button */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveReviewPhoto(idx);
+                              }}
+                              className="absolute top-1 right-1 w-5 h-5 bg-black/80 hover:bg-black text-white rounded-full flex items-center justify-center text-xs transition cursor-pointer z-10 shadow-sm"
+                              title="Remove photo"
+                              aria-label={`Remove photo ${idx + 1}`}
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                            <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[8px] font-bold px-1 rounded">
+                              {idx + 1}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Upload button (only if < 5 photos) */}
+                    {reviewPhotos.length < 5 && (
+                      <label className="cursor-pointer py-2 px-3 bg-white dark:bg-[#121113] border border-dashed border-slate-300 dark:border-slate-700 rounded-xl hover:border-[#E0533C] flex items-center justify-center gap-1.5 transition">
+                        <Plus className="w-3.5 h-3.5 text-[#E0533C]" />
+                        <span className="text-[11px] font-bold text-[#E0533C]">
+                          {reviewPhotos.length === 0 ? 'Upload Review Photos (up to 5)' : '+ Add More Photos'}
+                        </span>
                         <input
                           type="file"
                           accept="image/*"
+                          multiple
                           className="hidden"
                           onChange={handleReviewPhotoUpload}
                         />
                       </label>
                     )}
                   </div>
+
 
                   <button
                     type="submit"

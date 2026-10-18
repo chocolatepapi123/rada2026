@@ -263,6 +263,7 @@ export interface ChatMessage {
     time: string;
     accepted?: boolean;
   };
+  photos?: string[];
 }
 
 export type ChatTheme = 'terracotta' | 'midnight' | 'emerald' | 'sunset' | 'cyberpunk';

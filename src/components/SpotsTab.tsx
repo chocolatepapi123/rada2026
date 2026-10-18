@@ -20,13 +20,16 @@ import {
   Sparkles,
   Palette,
   Gamepad2,
+  Camera,
+  Image as ImageIcon,
   X
 } from 'lucide-react';
 
-import { SpotItem, MenuItem, SavedItem } from '../types.ts';
+import { SpotItem, MenuItem, SavedItem, Review } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { supabase } from '../lib/supabase.ts';
 import { LocationCombobox } from './LocationCombobox.tsx';
+import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 
 interface SpotsTabProps {
   spots: SpotItem[];
@@ -36,8 +39,10 @@ interface SpotsTabProps {
   onViewLocation: (spot: SpotItem) => void;
   onOpenDedicatedViewAll: (title: string, category: string) => void;
   onOpenCreateSpot?: (initialTitle?: string) => void;
+  onPostReview?: (spotId: number, review: Review) => void;
   showToast?: (msg: string) => void;
 }
+
 
 export const SpotsTab: React.FC<SpotsTabProps> = ({
   spots,
@@ -47,6 +52,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   onViewLocation,
   onOpenDedicatedViewAll,
   onOpenCreateSpot,
+  onPostReview,
   showToast
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,8 +62,82 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   const [activeImageIndices, setActiveImageIndices] = useState<Record<number, number>>({});
   const [isListening, setIsListening] = useState(false);
 
+  // Quick Review Modal State with 5-photo limit & Deduplication Guard
+  const [reviewModalSpot, setReviewModalSpot] = useState<SpotItem | null>(null);
+  const [reviewRating, setReviewRating] = useState<number>(5);
+  const [reviewComment, setReviewComment] = useState<string>('');
+  const [reviewPhotos, setReviewPhotos] = useState<string[]>([]);
+
+  const handleReviewPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    if (reviewPhotos.length >= 5) {
+      showToast?.('Maximum 5 photos allowed per review.');
+      e.target.value = '';
+      return;
+    }
+
+    const dataUrls = await readFilesAsDataUrls(files);
+    const result = deduplicateAndLimitPhotos(reviewPhotos, dataUrls, 5);
+
+    if (result.duplicateCount > 0 && result.addedCount === 0) {
+      showToast?.('Duplicate photo(s) skipped — already added.');
+    } else if (result.duplicateCount > 0 && result.addedCount > 0) {
+      showToast?.(`Added ${result.addedCount} photo(s). Skipped ${result.duplicateCount} duplicate(s).`);
+    } else if (result.exceededLimit) {
+      showToast?.('Maximum 5 photos limit reached.');
+    } else if (result.addedCount > 0) {
+      showToast?.(`Added ${result.addedCount} photo(s) to review.`);
+    }
+
+    setReviewPhotos(result.updatedList);
+    e.target.value = '';
+  };
+
+  const handleRemoveReviewPhoto = (indexToRemove: number) => {
+    setReviewPhotos(prev => prev.filter((_, idx) => idx !== indexToRemove));
+    showToast?.('Photo removed from review.');
+  };
+
+  const handleSubmitReview = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reviewModalSpot) return;
+    if (!reviewComment.trim()) {
+      showToast?.('Please write a short review.');
+      return;
+    }
+
+    const newRev: Review = {
+      id: `rev-${Date.now()}`,
+      userName: 'Explorer',
+      userHandle: '@explorer',
+      userAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop',
+      rating: reviewRating,
+      date: 'Just now',
+      comment: reviewComment.trim(),
+      images: reviewPhotos.length > 0 ? reviewPhotos : undefined
+    };
+
+    if (onPostReview) {
+      onPostReview(reviewModalSpot.id, newRev);
+    }
+
+    const sid = String(reviewModalSpot.id);
+    setLiveReviews(prev => ({
+      ...prev,
+      [sid]: [newRev, ...(prev[sid] || [])]
+    }));
+
+    showToast?.('Review published live on RADA!');
+    setReviewModalSpot(null);
+    setReviewComment('');
+    setReviewPhotos([]);
+  };
+
   const [dbSpots, setDbSpots] = useState<any[]>([]);
   const [liveReviews, setLiveReviews] = useState<Record<string, any[]>>({});
+
 
   useEffect(() => {
     async function fetchLiveReviewsAndSpots() {
@@ -508,8 +588,8 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           </div>
         </div>
 
-        {/* Dual Actions: "View Location" & "Details & Reviews" */}
-        <div className="pt-3 mt-2 border-t border-slate-100 dark:border-slate-800/80 flex gap-2">
+        {/* Actions: "Map", "Review", & "Details" */}
+        <div className="pt-3 mt-2 border-t border-slate-100 dark:border-slate-800/80 flex gap-1.5">
           <button
             type="button"
             onClick={(e) => {
@@ -520,6 +600,19 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           >
             <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
             <span>Map</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setReviewModalSpot(spot);
+            }}
+            className="py-2 px-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 border border-slate-200 dark:border-slate-700"
+            title="Write a Review"
+          >
+            <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+            <span>Review</span>
           </button>
 
           <button
@@ -905,6 +998,179 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           </div>
         )}
       </div>
+
+      {/* Quick Review Modal with Deduplication Guard & 5-Photo Limit */}
+      {reviewModalSpot && (
+        <div 
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => {
+            setReviewModalSpot(null);
+            setReviewComment('');
+            setReviewPhotos([]);
+          }}
+        >
+          <div 
+            className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-[#E0533C]">
+                  Rate & Review
+                </span>
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-slate-100">
+                  {reviewModalSpot.title}
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {reviewModalSpot.neighborhood || 'Nairobi'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setReviewModalSpot(null);
+                  setReviewComment('');
+                  setReviewPhotos([]);
+                }}
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitReview} className="space-y-4">
+              {/* Star Rating */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Rating
+                </label>
+                <div className="flex items-center gap-1.5">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setReviewRating(star)}
+                      className="p-1 hover:scale-110 transition cursor-pointer"
+                    >
+                      <Star
+                        className={`w-6 h-6 ${
+                          star <= reviewRating
+                            ? 'text-amber-400 fill-amber-400'
+                            : 'text-slate-300 dark:text-slate-700'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                  <span className="text-xs font-bold text-slate-500 ml-2">
+                    {reviewRating} of 5 stars
+                  </span>
+                </div>
+              </div>
+
+              {/* Review Text */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Your Experience
+                </label>
+                <textarea
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="Share your thoughts on the ambiance, food, cocktails, and service..."
+                  rows={3}
+                  className="w-full p-3 bg-[#F8F8F6] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#E0533C] resize-none"
+                  required
+                />
+              </div>
+
+              {/* Photos Gallery with Deduplication Guard, 5-photo limit, & 'X' removal */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold">
+                  <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    <ImageIcon className="w-3.5 h-3.5 text-[#E0533C]" />
+                    <span>Photos ({reviewPhotos.length}/5)</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-semibold">
+                    {reviewPhotos.length >= 5 ? 'Max limit reached' : 'Up to 5 • Deduplicated'}
+                  </span>
+                </div>
+
+                {/* Thumbnail Previews */}
+                {reviewPhotos.length > 0 && (
+                  <div className="grid grid-cols-5 gap-2">
+                    {reviewPhotos.map((photoUrl, pIdx) => (
+                      <div
+                        key={pIdx}
+                        className="relative aspect-square rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700 bg-slate-900 shadow-xs group"
+                      >
+                        <img
+                          src={photoUrl}
+                          alt={`Review attachment ${pIdx + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveReviewPhoto(pIdx);
+                          }}
+                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center transition cursor-pointer z-10 shadow-sm"
+                          title="Remove photo"
+                          aria-label={`Remove photo ${pIdx + 1}`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                        <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[8px] font-bold px-1 rounded">
+                          {pIdx + 1}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Upload Trigger (Only if < 5 photos) */}
+                {reviewPhotos.length < 5 && (
+                  <label className="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] rounded-2xl p-3 flex items-center justify-center gap-2 cursor-pointer transition text-center bg-[#F8F8F6] dark:bg-[#121113] group">
+                    <Plus className="w-4 h-4 text-[#E0533C] group-hover:scale-110 transition" />
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      {reviewPhotos.length === 0 ? 'Select or Upload Photos' : 'Add More Photos'}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleReviewPhotoUpload}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReviewModalSpot(null);
+                    setReviewComment('');
+                    setReviewPhotos([]);
+                  }}
+                  className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold hover:bg-slate-200 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition shadow cursor-pointer"
+                >
+                  Publish Review
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </section>
   );
 };

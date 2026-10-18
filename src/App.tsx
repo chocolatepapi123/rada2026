@@ -1644,6 +1644,7 @@ export default function App() {
                   setViewAllCategory(cat);
                 }}
                 onOpenCreateSpot={() => requireAuth('add a spot or business', () => setIsBusinessHubOpen(true))}
+                onPostReview={handlePostReview}
                 showToast={showToast}
               />
             )}

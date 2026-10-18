@@ -179,3 +179,68 @@ export async function generateFallbackVideoBlobUrl(durationSeconds: number = 4):
     }
   });
 }
+
+/**
+ * Deduplication & Gallery limit helper for images (base64 data URLs or standard URLs)
+ */
+export interface PhotoDeduplicationResult {
+  updatedList: string[];
+  addedCount: number;
+  duplicateCount: number;
+  exceededLimit: boolean;
+}
+
+export function deduplicateAndLimitPhotos(
+  existingPhotos: string[],
+  incomingPhotos: string[],
+  maxLimit: number = 5
+): PhotoDeduplicationResult {
+  const existingSet = new Set(existingPhotos);
+  const uniqueIncoming: string[] = [];
+  let duplicateCount = 0;
+
+  for (const photo of incomingPhotos) {
+    if (!photo || !photo.trim()) continue;
+    const trimmed = photo.trim();
+    if (existingSet.has(trimmed) || uniqueIncoming.includes(trimmed)) {
+      duplicateCount++;
+    } else {
+      uniqueIncoming.push(trimmed);
+    }
+  }
+
+  const spaceRemaining = Math.max(0, maxLimit - existingPhotos.length);
+  const exceededLimit = uniqueIncoming.length > spaceRemaining;
+  const allowedToAdd = uniqueIncoming.slice(0, spaceRemaining);
+
+  return {
+    updatedList: [...existingPhotos, ...allowedToAdd],
+    addedCount: allowedToAdd.length,
+    duplicateCount,
+    exceededLimit
+  };
+}
+
+/**
+ * Reads FileList or File[] into base64 Data URLs
+ */
+export async function readFilesAsDataUrls(files: FileList | File[]): Promise<string[]> {
+  const fileArray = Array.from(files);
+  return Promise.all(
+    fileArray.map(file => {
+      return new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (typeof reader.result === 'string') {
+            resolve(reader.result);
+          } else {
+            resolve('');
+          }
+        };
+        reader.onerror = () => resolve('');
+        reader.readAsDataURL(file);
+      });
+    })
+  );
+}
+

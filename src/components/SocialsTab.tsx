@@ -25,13 +25,15 @@ import {
   Film,
   Camera,
   RotateCcw,
-  AlertCircle
+  AlertCircle,
+  Plus,
+  Image as ImageIcon
 } from 'lucide-react';
 import { DatingProfile, ChatConversation, ChatMessage, ChatTheme, UserProfile } from '../types.ts';
 import { EmojiPicker } from './EmojiPicker.tsx';
 import { AudioMessagePlayer } from './AudioMessagePlayer.tsx';
 import { VideoMessagePlayer } from './VideoMessagePlayer.tsx';
-import { generatePlayableWavDataUrl, generateFallbackVideoBlobUrl, formatMediaDuration } from '../utils/mediaUtils.ts';
+import { generatePlayableWavDataUrl, generateFallbackVideoBlobUrl, formatMediaDuration, deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 
 interface SocialsTabProps {
   discoveryProfiles: DatingProfile[];
@@ -86,6 +88,8 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   // File upload input refs
   const audioFileInputRef = useRef<HTMLInputElement | null>(null);
   const videoFileInputRef = useRef<HTMLInputElement | null>(null);
+  const photoFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [attachedPhotos, setAttachedPhotos] = useState<string[]>([]);
 
   // Pending and sent requests
   const [pendingRequests, setPendingRequests] = useState([
@@ -142,12 +146,45 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
     showToast(`Matched with ${req.name}! Chat unlocked.`);
   };
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    if (attachedPhotos.length >= 5) {
+      showToast('Maximum 5 photos allowed per message.');
+      e.target.value = '';
+      return;
+    }
+
+    const dataUrls = await readFilesAsDataUrls(files);
+    const result = deduplicateAndLimitPhotos(attachedPhotos, dataUrls, 5);
+
+    if (result.duplicateCount > 0 && result.addedCount === 0) {
+      showToast('Duplicate photo(s) skipped — already attached.');
+    } else if (result.duplicateCount > 0 && result.addedCount > 0) {
+      showToast(`Attached ${result.addedCount} photo(s). Skipped ${result.duplicateCount} duplicate(s).`);
+    } else if (result.exceededLimit) {
+      showToast('Maximum 5 photos limit reached.');
+    } else if (result.addedCount > 0) {
+      showToast(`Attached ${result.addedCount} photo(s).`);
+    }
+
+    setAttachedPhotos(result.updatedList);
+    e.target.value = '';
+  };
+
+  const handleRemoveAttachedPhoto = (indexToRemove: number) => {
+    setAttachedPhotos(prev => prev.filter((_, idx) => idx !== indexToRemove));
+    showToast('Attached photo removed.');
+  };
+
   const handleSendMessage = () => {
-    if (!chatInputText.trim() || !activeChat) return;
+    if ((!chatInputText.trim() && attachedPhotos.length === 0) || !activeChat) return;
     const newMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
       sender: 'me',
       text: chatInputText.trim(),
+      photos: attachedPhotos.length > 0 ? attachedPhotos : undefined,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       replyTo: replyingTo ? {
         id: replyingTo.id,
@@ -156,11 +193,15 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
       } : undefined
     };
     activeChat.messages.push(newMsg);
-    activeChat.lastMessage = newMsg.text;
+    activeChat.lastMessage = attachedPhotos.length > 0
+      ? `📷 ${attachedPhotos.length} photo${attachedPhotos.length > 1 ? 's' : ''}${chatInputText.trim() ? ': ' + chatInputText.trim() : ''}`
+      : newMsg.text;
     setChatInputText('');
+    setAttachedPhotos([]);
     setReplyingTo(null);
     setShowEmojiPicker(false);
   };
+
 
   const handleStartVoiceRecording = async () => {
     setIsRecordingAudio(true);
@@ -627,10 +668,20 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                         <p className="truncate opacity-75">{msg.replyTo.text}</p>
                       </div>
                     )}
-                    <p>{msg.text}</p>
+                    {msg.photos && msg.photos.length > 0 && (
+                      <div className={`grid gap-1.5 mb-1.5 ${msg.photos.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                        {msg.photos.map((photoUrl, pIdx) => (
+                          <div key={pIdx} className="rounded-xl overflow-hidden max-h-48 border border-black/10 dark:border-white/10 bg-black/10">
+                            <img src={photoUrl} alt={`Attachment ${pIdx + 1}`} className="w-full h-full object-cover" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {msg.text && <p>{msg.text}</p>}
                     <span className="text-[9px] opacity-70 block text-right mt-1">{msg.time}</span>
                   </div>
                 )}
+
 
                 {msg.sender === 'me' && (
                   <button
@@ -752,9 +803,83 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           </div>
         )}
 
+        {/* Social Attachment Previews with Thumbnail Previews, Deduplication Guard, and 'X' Removal */}
+        {attachedPhotos.length > 0 && (
+          <div className="max-w-lg mx-auto w-full px-3 py-2 bg-slate-100/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-800 backdrop-blur-md">
+            <div className="flex items-center justify-between pb-1.5 text-[10px] font-bold text-slate-500">
+              <span className="flex items-center gap-1">
+                <ImageIcon className="w-3 h-3 text-[#E0533C]" />
+                <span>Photos ({attachedPhotos.length}/5)</span>
+                {attachedPhotos.length >= 5 && (
+                  <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold">• Max limit reached</span>
+                )}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setAttachedPhotos([]);
+                  showToast('Cleared attached photos.');
+                }}
+                className="text-[10px] text-slate-400 hover:text-red-500 transition cursor-pointer"
+              >
+                Clear all
+              </button>
+            </div>
+            <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar py-0.5">
+              {attachedPhotos.map((photoUrl, pIdx) => (
+                <div
+                  key={pIdx}
+                  className="relative w-14 h-14 rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700 bg-slate-800 shrink-0 shadow-xs group"
+                >
+                  <img
+                    src={photoUrl}
+                    alt={`Attached preview ${pIdx + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                  {/* Clean individual photo removal button */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveAttachedPhoto(pIdx);
+                    }}
+                    className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center transition cursor-pointer shadow-xs z-10"
+                    title="Remove photo"
+                    aria-label={`Remove attached photo ${pIdx + 1}`}
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                  <span className="absolute bottom-0.5 left-1 bg-black/60 text-white text-[8px] font-bold px-1 rounded">
+                    {pIdx + 1}
+                  </span>
+                </div>
+              ))}
+              {attachedPhotos.length < 5 && (
+                <button
+                  type="button"
+                  onClick={() => photoFileInputRef.current?.click()}
+                  className="w-14 h-14 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] flex flex-col items-center justify-center text-slate-400 hover:text-[#E0533C] transition shrink-0 cursor-pointer"
+                  title="Add more photos"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="text-[9px] font-bold mt-0.5">Add</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Input Bar */}
         <div className="w-full overflow-hidden px-2 py-2 sm:px-3 sm:py-2.5 bg-white/95 dark:bg-[#121113]/95 border-t border-slate-200 dark:border-slate-800 max-w-lg mx-auto flex items-center gap-1.5 sm:gap-2">
           {/* Hidden File Inputs for real attachments */}
+          <input
+            type="file"
+            ref={photoFileInputRef}
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handlePhotoUpload}
+          />
           <input
             type="file"
             ref={videoFileInputRef}
@@ -779,7 +904,20 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             <Smile className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
-          {/* Attach Media button */}
+          {/* Attach Photos button */}
+          <button
+            type="button"
+            onClick={() => photoFileInputRef.current?.click()}
+            className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center flex-shrink-0 transition cursor-pointer ${
+              attachedPhotos.length > 0 ? 'text-[#E0533C]' : 'text-slate-500 hover:text-[#E0533C]'
+            }`}
+            title="Attach Photos (up to 5)"
+            aria-label="Attach Photos"
+          >
+            <Camera className="w-4 h-4" />
+          </button>
+
+          {/* Attach Video button */}
           <button
             type="button"
             onClick={() => videoFileInputRef.current?.click()}
@@ -789,6 +927,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           >
             <Paperclip className="w-4 h-4" />
           </button>
+
 
           <input
             type="text"
