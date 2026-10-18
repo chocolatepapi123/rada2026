@@ -40,7 +40,8 @@ import {
   Instagram,
   Heart,
   FileText,
-  Dumbbell
+  Dumbbell,
+  Gamepad2
 } from 'lucide-react';
 import { 
   BusinessAccount, 
@@ -61,9 +62,18 @@ import { DynamicLocationSelector } from './DynamicLocationSelector.tsx';
 import { toValidUuid } from '../lib/cloudSync.ts';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 
+export type PrimaryCategoryGroup = 
+  | 'food_drink' 
+  | 'nightlife' 
+  | 'outdoor_fitness' 
+  | 'gaming_entertainment' 
+  | 'creative_arts' 
+  | 'spa_wellness' 
+  | 'event_space';
+
 export interface PrimaryCategoryConfig {
   id: SpotCategory;
-  groupId: 'food_drink' | 'nightlife' | 'outdoor_fitness' | 'creative_arts' | 'spa_wellness' | 'event_space';
+  groupId: PrimaryCategoryGroup;
   label: string;
   badge: string;
   description: string;
@@ -94,10 +104,19 @@ export const PRIMARY_SPOT_CATEGORIES: PrimaryCategoryConfig[] = [
     id: 'outdoors',
     groupId: 'outdoor_fitness',
     label: 'Outdoor & Fitness',
-    badge: 'Sports & Adventure',
+    badge: 'Adventure & Parks',
     description: 'Hiking trails, sports arenas, climbing, gyms & action parks',
     icon: Compass,
     accentColor: 'border-emerald-500 bg-emerald-500/10 text-emerald-600'
+  },
+  {
+    id: 'tech_gaming',
+    groupId: 'gaming_entertainment',
+    label: 'Gaming & Entertainment',
+    badge: 'Arcades & Lounges',
+    description: 'Esports lounges, VR arenas, gaming setups & arcades',
+    icon: Gamepad2,
+    accentColor: 'border-indigo-500 bg-indigo-500/10 text-indigo-600'
   },
   {
     id: 'creative_leisure',
@@ -128,12 +147,51 @@ export const PRIMARY_SPOT_CATEGORIES: PrimaryCategoryConfig[] = [
   }
 ];
 
-export function getSpotCategoryGroup(cat: string): 'food_drink' | 'nightlife' | 'outdoor_fitness' | 'creative_arts' | 'spa_wellness' | 'event_space' | 'general' {
+export interface SubCategoryOption {
+  value: SpotCategory;
+  label: string;
+}
+
+export const SUBCATEGORIES_BY_GROUP: Record<PrimaryCategoryGroup, SubCategoryOption[]> = {
+  food_drink: [
+    { value: 'restaurants', label: 'Restaurant & Fine Dining' },
+    { value: 'cafes', label: 'Cafe & Specialty Coffee / Bakery' },
+    { value: 'date_spots', label: 'Cozy Date Spot & Bistro' },
+  ],
+  nightlife: [
+    { value: 'nightlife', label: 'Nightclub, Cocktail Bar & DJ Lounge' },
+  ],
+  outdoor_fitness: [
+    { value: 'outdoors', label: 'Outdoor Nature, Park & Adventure Trails' },
+    { value: 'outdoor_fitness', label: 'Fitness Center, Crossfit & Sports Gym' },
+    { value: 'action_sports', label: 'Action Sports & Go-Karting' },
+    { value: 'connect_with_nature', label: 'Nature Sanctuary & Eco Reserve' },
+  ],
+  gaming_entertainment: [
+    { value: 'tech_gaming', label: 'Gaming Lounge, Esports & VR Arcade' },
+    { value: 'social_activities', label: 'Arcades, Board Games & Billiards Lounge' },
+  ],
+  creative_arts: [
+    { value: 'creative_leisure', label: 'Paint & Sip, Pottery & Craft Studio' },
+    { value: 'creative_arts', label: 'Art Gallery, Cultural Hub & Workshop' },
+  ],
+  spa_wellness: [
+    { value: 'spa_wellness', label: 'Day Spa, Sauna & Massage Retreat' },
+  ],
+  event_space: [
+    { value: 'event_space', label: 'Banquet Hall & Event Grounds' },
+    { value: 'hotels', label: 'Hotel Conference & Event Venue' },
+    { value: 'vacation', label: 'Private Villa & Wedding Retreat' },
+  ],
+};
+
+export function getSpotCategoryGroup(cat: string): PrimaryCategoryGroup | 'general' {
   const c = (cat || '').toLowerCase();
   if (c === 'restaurants' || c === 'cafes' || c === 'date_spots') return 'food_drink';
   if (c === 'nightlife') return 'nightlife';
   if (c === 'outdoors' || c === 'outdoor_fitness' || c === 'action_sports' || c === 'connect_with_nature' || c === 'activities') return 'outdoor_fitness';
-  if (c === 'creative_arts' || c === 'creative_leisure' || c === 'social_activities' || c === 'tech_gaming') return 'creative_arts';
+  if (c === 'tech_gaming' || c === 'social_activities') return 'gaming_entertainment';
+  if (c === 'creative_arts' || c === 'creative_leisure') return 'creative_arts';
   if (c === 'spa_wellness') return 'spa_wellness';
   if (c === 'event_space' || c === 'hotels' || c === 'vacation') return 'event_space';
   return 'general';
@@ -428,6 +486,14 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   const [spotWebsite, setSpotWebsite] = useState('');
   const [spotInstagram, setSpotInstagram] = useState('');
 
+  // 5. Dynamic Category Management & Gaming / Activity Scheduling Setups
+  const [spotPrimaryGroup, setSpotPrimaryGroup] = useState<PrimaryCategoryGroup>('food_drink');
+  const [spotPricePerHour, setSpotPricePerHour] = useState('KES 500 / hr');
+  const [spotTimeSlots, setSpotTimeSlots] = useState('Hourly passes • Walk-in or reservation');
+  const [spotAvailableGames, setSpotAvailableGames] = useState('EA FC 25, Call of Duty, Tekken 8, Mortal Kombat 1, Gran Turismo 7, VR Beat Saber, Catan, Pool / Billiards');
+  const [spotGameConsoles, setSpotGameConsoles] = useState('PlayStation 5, Xbox Series X, High-End PC Rigs, Meta Quest 3 VR');
+  const [spotActivitySchedule, setSpotActivitySchedule] = useState('Daily sessions from 10:00 AM - 10:00 PM • Advance booking recommended on weekends');
+
   // Native file upload handlers for Spot Cover Image, Gallery and Menu Document
   const handleSpotCoverFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -490,6 +556,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   const openCreateSpotModal = () => {
     setEditingSpotId(null);
     setSpotTitle(currentBiz?.name || '');
+    setSpotPrimaryGroup('food_drink');
     setSpotCategory('restaurants');
     setSpotNeighborhood(currentBiz?.neighborhood || 'Westlands');
     setSpotAddress(currentBiz?.address || 'Westlands, Nairobi');
@@ -517,6 +584,11 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setSpotAmenitiesAV(['PA Sound System & Microphones', 'HD Projector & Giant Screen', 'High-Speed Dedicated Fiber WiFi', 'Automatic Backup Generator (No Blackouts)']);
     setCustomAmenityInput('');
     setSpotBookingPolicies('50% deposit required upon reservation. Outside catering permitted with corkage fee. Sound curfew at 11:00 PM for open-air zones.');
+    setSpotPricePerHour('KES 500 / hr');
+    setSpotTimeSlots('Hourly passes • Walk-in or reservation');
+    setSpotAvailableGames('EA FC 25, Call of Duty, Tekken 8, Mortal Kombat 1, Gran Turismo 7, VR Beat Saber, Catan, Pool / Billiards');
+    setSpotGameConsoles('PlayStation 5, Xbox Series X, High-End PC Rigs, Meta Quest 3 VR');
+    setSpotActivitySchedule('Daily sessions from 10:00 AM - 10:00 PM • Advance booking recommended on weekends');
     setSpotWebsite('');
     setSpotInstagram(currentBiz?.instagram || '@');
     setIsSpotFormOpen(true);
@@ -536,8 +608,10 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       return;
     }
 
+    const initialGroup = getSpotCategoryGroup(spot.category);
     setEditingSpotId(spot.id);
     setSpotTitle(spot.title);
+    setSpotPrimaryGroup(initialGroup === 'general' ? 'food_drink' : initialGroup);
     setSpotCategory(spot.category);
     setSpotNeighborhood(spot.neighborhood);
     setSpotAddress(spot.address);
@@ -569,6 +643,11 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setSpotAmenitiesAV(spot.amenitiesAV || []);
     setCustomAmenityInput('');
     setSpotBookingPolicies(spot.bookingPolicies || '');
+    setSpotPricePerHour(spot.pricePerHour || '');
+    setSpotTimeSlots(spot.timeSlots || spot.bookingSlots || '');
+    setSpotAvailableGames(Array.isArray(spot.availableGames) ? spot.availableGames.join(', ') : (spot.availableGames || ''));
+    setSpotGameConsoles(spot.gameConsoles || '');
+    setSpotActivitySchedule(spot.activitySchedule || spot.bookingPolicies || '');
     setSpotWebsite(spot.website || spot.socialLinks?.website || '');
     setSpotInstagram(spot.instagram || spot.socialLinks?.instagram || '');
     setIsSpotFormOpen(true);
@@ -652,6 +731,13 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       capacity: spotCapacity.trim(),
       amenitiesAV: spotAmenitiesAV,
       bookingPolicies: spotBookingPolicies.trim(),
+      // Gaming & Entertainment and Activity Scheduling
+      pricePerHour: spotPricePerHour.trim(),
+      timeSlots: spotTimeSlots.trim(),
+      bookingSlots: spotTimeSlots.trim(),
+      availableGames: spotAvailableGames.trim(),
+      gameConsoles: spotGameConsoles.trim(),
+      activitySchedule: spotActivitySchedule.trim(),
       website: spotWebsite.trim(),
       instagram: spotInstagram.trim(),
       socialLinks: {
@@ -666,6 +752,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     // Clear form fields
     setEditingSpotId(null);
     setSpotTitle('');
+    setSpotPrimaryGroup('food_drink');
     setSpotCategory('restaurants');
     setSpotNeighborhood('Westlands');
     setSpotAddress('');
@@ -688,6 +775,11 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setSpotCapacity('');
     setSpotAmenitiesAV([]);
     setSpotBookingPolicies('');
+    setSpotPricePerHour('');
+    setSpotTimeSlots('');
+    setSpotAvailableGames('');
+    setSpotGameConsoles('');
+    setSpotActivitySchedule('');
     setSpotWebsite('');
     setSpotInstagram('');
 
@@ -2523,15 +2615,21 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                     {PRIMARY_SPOT_CATEGORIES.map((catConfig) => {
                       const Icon = catConfig.icon;
-                      const isCurrentGroup = getSpotCategoryGroup(spotCategory) === catConfig.groupId;
+                      const isCurrentGroup = spotPrimaryGroup === catConfig.groupId;
                       return (
                         <button
                           key={catConfig.id}
                           type="button"
-                          onClick={() => setSpotCategory(catConfig.id)}
+                          onClick={() => {
+                            setSpotPrimaryGroup(catConfig.groupId);
+                            const options = SUBCATEGORIES_BY_GROUP[catConfig.groupId] || [];
+                            if (!options.some(opt => opt.value === spotCategory)) {
+                              setSpotCategory(catConfig.id);
+                            }
+                          }}
                           className={`p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between gap-3 cursor-pointer group relative ${
                             isCurrentGroup
                               ? 'border-[#E0533C] bg-orange-50/70 dark:bg-orange-950/40 text-slate-900 dark:text-slate-100 ring-2 ring-[#E0533C]/20 shadow-xs'
@@ -2563,43 +2661,24 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                     })}
                   </div>
 
-                  {/* Sub-Category Specific Selector */}
+                  {/* Sub-Category Specific Selector - Scoped dynamically to the selected primary category */}
                   <div className="pt-2">
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Sub-Category / Venue Type
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between">
+                      <span>Sub-Category / Venue Type *</span>
+                      <span className="text-[10px] text-[#E0533C] font-semibold">
+                        {(SUBCATEGORIES_BY_GROUP[spotPrimaryGroup] || []).length} types available
+                      </span>
                     </label>
                     <select
                       value={spotCategory}
                       onChange={(e) => setSpotCategory(e.target.value as SpotCategory)}
                       className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 font-semibold focus:outline-none focus:border-[#E0533C]"
                     >
-                      <optgroup label="Food & Drink / Restaurants">
-                        <option value="restaurants">Restaurant & Dining</option>
-                        <option value="cafes">Cafe & Specialty Coffee / Bakery</option>
-                        <option value="date_spots">Cozy Date Spot & Bistro</option>
-                      </optgroup>
-                      <optgroup label="Nightlife & Clubs">
-                        <option value="nightlife">Nightclub, Cocktail Bar & Lounge</option>
-                      </optgroup>
-                      <optgroup label="Outdoor & Fitness">
-                        <option value="outdoors">Outdoor Nature, Park & Trails</option>
-                        <option value="outdoor_fitness">Fitness Center & Sports Gym</option>
-                        <option value="action_sports">Action Sports, Karting & Gaming</option>
-                        <option value="connect_with_nature">Nature Sanctuary & Eco Reserve</option>
-                      </optgroup>
-                      <optgroup label="Creative & Arts">
-                        <option value="creative_leisure">Paint & Sip / Creative Studio</option>
-                        <option value="creative_arts">Art Gallery & Cultural Workshop</option>
-                        <option value="social_activities">Social Games & Creative Lounge</option>
-                      </optgroup>
-                      <optgroup label="Spa & Wellness">
-                        <option value="spa_wellness">Day Spa, Sauna & Massage Retreat</option>
-                      </optgroup>
-                      <optgroup label="Event Spaces & Venues">
-                        <option value="event_space">Banquet Hall & Event Grounds</option>
-                        <option value="hotels">Hotel Conference & Event Venue</option>
-                        <option value="vacation">Private Villa & Wedding Retreat</option>
-                      </optgroup>
+                      {(SUBCATEGORIES_BY_GROUP[spotPrimaryGroup] || []).map((sub) => (
+                        <option key={sub.value} value={sub.value}>
+                          {sub.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -2653,7 +2732,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
               {/* =========================================================================
                   DYNAMIC CONDITIONAL SECTION 1: FOOD & DRINK / RESTAURANTS / NIGHTLIFE
                   ========================================================================= */}
-              {(getSpotCategoryGroup(spotCategory) === 'food_drink' || getSpotCategoryGroup(spotCategory) === 'nightlife') && (
+              {(spotPrimaryGroup === 'food_drink' || spotPrimaryGroup === 'nightlife') && (
                 <div className="bg-white dark:bg-[#1C1A1E] border border-orange-200 dark:border-orange-900/40 rounded-3xl p-5 sm:p-6 shadow-xs space-y-6 animate-in fade-in duration-200">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                     <div className="flex items-center gap-2">
@@ -2665,86 +2744,17 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                           Food & Drink / Restaurant Details
                         </h3>
                         <p className="text-[11px] text-slate-400">
-                          Cuisine types, featured dishes/drinks & menu upload
+                          Digital menu builder, PDF/Image menu upload & signature highlights
                         </p>
                       </div>
                     </div>
                     <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/60 text-[#E0533C]">
-                      Food & Drink
+                      Food & Drink Active
                     </span>
                   </div>
 
-                  {/* 1. CUISINE TYPES */}
+                  {/* 1. FEATURED DISHES / SIGNATURE DRINKS */}
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
-                        Cuisine Types & Beverage Specializations ({spotCuisineTypes.length} selected)
-                      </label>
-                      <span className="text-[10px] text-slate-400">Select all that apply</span>
-                    </div>
-
-                    <div className="flex flex-wrap gap-1.5">
-                      {PRESET_CUISINES.map((cuisine) => {
-                        const isSelected = spotCuisineTypes.includes(cuisine);
-                        return (
-                          <button
-                            key={cuisine}
-                            type="button"
-                            onClick={() => {
-                              if (isSelected) {
-                                setSpotCuisineTypes(prev => prev.filter(c => c !== cuisine));
-                              } else {
-                                setSpotCuisineTypes(prev => [...prev, cuisine]);
-                              }
-                            }}
-                            className={`px-3 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
-                              isSelected
-                                ? 'bg-[#E0533C] text-white shadow-xs'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                            }`}
-                          >
-                            {isSelected && <Check className="w-3 h-3" />}
-                            <span>{cuisine}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Custom Cuisine Tag Input */}
-                    <div className="flex gap-2 pt-1">
-                      <input
-                        type="text"
-                        value={newCuisineInput}
-                        onChange={(e) => setNewCuisineInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            if (newCuisineInput.trim() && !spotCuisineTypes.includes(newCuisineInput.trim())) {
-                              setSpotCuisineTypes(prev => [...prev, newCuisineInput.trim()]);
-                              setNewCuisineInput('');
-                            }
-                          }
-                        }}
-                        placeholder="Add custom cuisine (e.g. Ethiopian, Vegan, Moroccan, Mexican)..."
-                        className="text-xs flex-1 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 focus:outline-none focus:border-[#E0533C]"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (newCuisineInput.trim() && !spotCuisineTypes.includes(newCuisineInput.trim())) {
-                            setSpotCuisineTypes(prev => [...prev, newCuisineInput.trim()]);
-                            setNewCuisineInput('');
-                          }
-                        }}
-                        className="px-3.5 py-2 bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-bold rounded-xl hover:opacity-90 transition"
-                      >
-                        Add Tag
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* 2. FEATURED DISHES / DRINKS */}
-                  <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                     <div className="flex items-center justify-between">
                       <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
                         Featured Dishes / Signature Drinks ({spotFeaturedDishes.length})
@@ -2996,7 +3006,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
               {/* =========================================================================
                   DYNAMIC CONDITIONAL SECTION 2: OUTDOOR / FITNESS / SPORTS
                   ========================================================================= */}
-              {getSpotCategoryGroup(spotCategory) === 'outdoor_fitness' && (
+              {spotPrimaryGroup === 'outdoor_fitness' && (
                 <div className="bg-white dark:bg-[#1C1A1E] border border-emerald-200 dark:border-emerald-900/40 rounded-3xl p-5 sm:p-6 shadow-xs space-y-5 animate-in fade-in duration-200">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                     <div className="flex items-center gap-2">
@@ -3008,7 +3018,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                           Outdoor & Fitness Specifications
                         </h3>
                         <p className="text-[11px] text-slate-400">
-                          Equipment needed/provided, skill level & what to bring
+                          Equipment needed/to bring, skill level & activity scheduling
                         </p>
                       </div>
                     </div>
@@ -3057,7 +3067,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
 
                     <div>
                       <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
-                        Equipment Needed / Rentals
+                        Equipment Needed / To Bring & Rentals
                       </label>
                       <textarea
                         rows={3}
@@ -3137,13 +3147,139 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                       </button>
                     </div>
                   </div>
+
+                  {/* 4. ACTIVITY SCHEDULING & BOOKING DETAILS */}
+                  <div className="space-y-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <div>
+                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                        Activity Scheduling & Time Slots
+                      </label>
+                      <input
+                        type="text"
+                        value={spotActivitySchedule}
+                        onChange={(e) => setSpotActivitySchedule(e.target.value)}
+                        placeholder="e.g. Morning trek: 7:30 AM • Afternoon climb: 3:30 PM • 2-hour guided sessions"
+                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none focus:border-emerald-500 font-semibold mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                        Activity Booking & Reservation Requirements
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={spotBookingPolicies}
+                        onChange={(e) => setSpotBookingPolicies(e.target.value)}
+                        placeholder="e.g. 24-hour advance booking required. Minimum 2 participants for guided tour. Free rescheduling on rain."
+                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none focus:border-emerald-500 mt-1"
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 
               {/* =========================================================================
-                  DYNAMIC CONDITIONAL SECTION 3: EVENT SPACES / VENUES
+                  DYNAMIC CONDITIONAL SECTION 3: GAMING & ENTERTAINMENT
                   ========================================================================= */}
-              {getSpotCategoryGroup(spotCategory) === 'event_space' && (
+              {spotPrimaryGroup === 'gaming_entertainment' && (
+                <div className="bg-white dark:bg-[#1C1A1E] border border-indigo-200 dark:border-indigo-900/40 rounded-3xl p-5 sm:p-6 shadow-xs space-y-5 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
+                        <Gamepad2 className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
+                          Gaming & Entertainment Specifications
+                        </h3>
+                        <p className="text-[11px] text-slate-400">
+                          Price per hour, available games, console setups & tournament formats
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
+                      Gaming Active
+                    </span>
+                  </div>
+
+                  {/* 1. PRICING & TIME SLOTS */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
+                        Price Per Hour / Time Slot *
+                      </label>
+                      <input
+                        type="text"
+                        value={spotPricePerHour}
+                        onChange={(e) => setSpotPricePerHour(e.target.value)}
+                        placeholder="e.g. KES 500 / hr or KES 1,200 for 2-hour VR pass"
+                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none focus:border-indigo-500 font-semibold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
+                        Time Slot & Booking Format
+                      </label>
+                      <input
+                        type="text"
+                        value={spotTimeSlots}
+                        onChange={(e) => setSpotTimeSlots(e.target.value)}
+                        placeholder="e.g. 60-min standard slots • Walk-in or reservation"
+                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none focus:border-indigo-500 font-semibold"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 2. AVAILABLE GAMES & CONSOLES */}
+                  <div className="space-y-4 pt-1">
+                    <div>
+                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
+                        Available Games, Titles & Experiences
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={spotAvailableGames}
+                        onChange={(e) => setSpotAvailableGames(e.target.value)}
+                        placeholder="e.g. EA FC 25, Call of Duty, Tekken 8, Mortal Kombat 1, Gran Turismo 7, VR Beat Saber, Catan, Pool / Billiards..."
+                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
+                        Available Consoles, Rigs & Setups
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={spotGameConsoles}
+                        onChange={(e) => setSpotGameConsoles(e.target.value)}
+                        placeholder="e.g. PlayStation 5, Xbox Series X, High-End RTX 4080 Gaming PCs, Meta Quest 3 VR, Logitech Racing Cockpits..."
+                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
+                        Tournament Sessions & Booking Rules
+                      </label>
+                      <input
+                        type="text"
+                        value={spotActivitySchedule}
+                        onChange={(e) => setSpotActivitySchedule(e.target.value)}
+                        placeholder="e.g. Daily sessions 10:00 AM - Midnight • Friday Night FIFA Tournament at 7 PM"
+                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* =========================================================================
+                  DYNAMIC CONDITIONAL SECTION 4: EVENT SPACES / VENUES
+                  ========================================================================= */}
+              {spotPrimaryGroup === 'event_space' && (
                 <div className="bg-white dark:bg-[#1C1A1E] border border-amber-200 dark:border-amber-900/40 rounded-3xl p-5 sm:p-6 shadow-xs space-y-5 animate-in fade-in duration-200">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                     <div className="flex items-center gap-2">
@@ -3264,9 +3400,9 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
               )}
 
               {/* =========================================================================
-                  DYNAMIC CONDITIONAL SECTION 4: CREATIVE & ARTS
+                  DYNAMIC CONDITIONAL SECTION 5: CREATIVE & ARTS
                   ========================================================================= */}
-              {getSpotCategoryGroup(spotCategory) === 'creative_arts' && (
+              {spotPrimaryGroup === 'creative_arts' && (
                 <div className="bg-white dark:bg-[#1C1A1E] border border-pink-200 dark:border-pink-900/40 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4 animate-in fade-in duration-200">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                     <div className="flex items-center gap-2">
@@ -3318,9 +3454,9 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
               )}
 
               {/* =========================================================================
-                  DYNAMIC CONDITIONAL SECTION 5: SPA & WELLNESS
+                  DYNAMIC CONDITIONAL SECTION 6: SPA & WELLNESS
                   ========================================================================= */}
-              {getSpotCategoryGroup(spotCategory) === 'spa_wellness' && (
+              {spotPrimaryGroup === 'spa_wellness' && (
                 <div className="bg-white dark:bg-[#1C1A1E] border border-teal-200 dark:border-teal-900/40 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4 animate-in fade-in duration-200">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                     <div className="flex items-center gap-2">
@@ -3723,23 +3859,6 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                 </button>
               </div>
 
-              {/* Submit Buttons */}
-              <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
-                <button 
-                  type="button"
-                  onClick={() => setIsSpotFormOpen(false)}
-                  className="w-full sm:w-auto px-6 py-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-extrabold text-xs sm:text-sm rounded-2xl transition cursor-pointer text-center order-2 sm:order-1"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit"
-                  className="w-full flex-1 bg-[#E0533C] hover:bg-[#c9432d] text-white font-black text-sm py-4 rounded-2xl shadow-xl shadow-orange-500/20 active:scale-[0.99] transition cursor-pointer flex items-center justify-center gap-2 order-1 sm:order-2"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>{editingSpotId ? 'Save & Update Spot Listing' : 'Publish Spot to RADA'}</span>
-                </button>
-              </div>
 
             </form>
           </div>

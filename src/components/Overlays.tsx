@@ -52,7 +52,8 @@ import {
   Globe,
   Instagram,
   Phone,
-  Building2
+  Building2,
+  Gamepad2
 } from 'lucide-react';
 import { 
   SpotItem, 
@@ -1159,8 +1160,46 @@ export const Overlays: React.FC<OverlaysProps> = ({
               </div>
             )}
 
+            {/* Gaming & Entertainment Specifications */}
+            {(selectedSpot.pricePerHour || selectedSpot.availableGames || selectedSpot.gameConsoles || selectedSpot.timeSlots) && (
+              <div className="p-4 bg-indigo-50/70 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-900/40 rounded-2xl space-y-3 text-xs">
+                <div className="flex items-center justify-between border-b border-indigo-100 dark:border-indigo-900/40 pb-2">
+                  <span className="font-black text-xs text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5 uppercase tracking-wider">
+                    <Gamepad2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                    <span>Gaming Rates & Setups</span>
+                  </span>
+                  {selectedSpot.pricePerHour && (
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-200 dark:bg-indigo-900/60 text-indigo-900 dark:text-indigo-200">
+                      {selectedSpot.pricePerHour}
+                    </span>
+                  )}
+                </div>
 
-            {/* COMMUNITY REVIEWS & POST A REVIEW (SPEC 1: Regular users upload photos only inside reviews) */}
+                {selectedSpot.timeSlots && (
+                  <div className="space-y-0.5">
+                    <strong className="text-[11px] text-indigo-900 dark:text-indigo-200 block">Session & Time Slots:</strong>
+                    <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{selectedSpot.timeSlots}</p>
+                  </div>
+                )}
+
+                {selectedSpot.availableGames && (
+                  <div className="space-y-0.5">
+                    <strong className="text-[11px] text-indigo-900 dark:text-indigo-200 block">Available Games & Titles:</strong>
+                    <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                      {Array.isArray(selectedSpot.availableGames) ? selectedSpot.availableGames.join(', ') : selectedSpot.availableGames}
+                    </p>
+                  </div>
+                )}
+
+                {selectedSpot.gameConsoles && (
+                  <div className="space-y-0.5">
+                    <strong className="text-[11px] text-indigo-900 dark:text-indigo-200 block">Consoles, Rigs & Gear:</strong>
+                    <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{selectedSpot.gameConsoles}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
               <div className="flex items-center justify-between">
                 <div>

@@ -156,6 +156,12 @@ export interface SpotItem {
   difficulty?: 'Easy' | 'Moderate' | 'Challenging' | 'Expert' | string;
   distanceDuration?: string;
   meetingPoint?: string;
+  // 5. Gaming / Entertainment & Activity Scheduling
+  pricePerHour?: string;
+  timeSlots?: string;
+  availableGames?: string[] | string;
+  gameConsoles?: string;
+  activitySchedule?: string;
 }
 
 export interface Artist {
