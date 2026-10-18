@@ -118,6 +118,7 @@ export interface SpotItem {
   menuItems?: MenuItem[];
   specialOffers?: SpecialOffer[];
   businessId?: string;
+  merchantId?: string;
   isUserUploaded?: boolean;
   phone?: string;
   openingHours?: string;

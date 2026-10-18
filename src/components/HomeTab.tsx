@@ -36,6 +36,13 @@ import {
 import { EventItem, CinemaMovie, StatusPost, UserProfile, BusinessOffer, OfferCategory, SpotItem, SavedItem } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { EmojiPicker } from './EmojiPicker.tsx';
+import { 
+  doesEventMatchDay, 
+  getCleanDateHeader, 
+  getEventPriceDisplay, 
+  getCategoryBadgeStyle, 
+  isDateToday 
+} from '../utils/calendarUtils.ts';
 
 interface HomeTabProps {
   events: EventItem[];
@@ -88,6 +95,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   const [isEventFilterModalOpen, setIsEventFilterModalOpen] = useState(false);
   const [selectedEventPriceTier, setSelectedEventPriceTier] = useState('all');
   const [selectedEventDateRange, setSelectedEventDateRange] = useState('all');
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState<number | null>(null);
   const [showStatusEmojiPicker, setShowStatusEmojiPicker] = useState(false);
 
   // Offers state
@@ -355,7 +363,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       matchesDate = e.date.toLowerCase().includes('sat') || e.date.toLowerCase().includes('sun') || e.date.toLowerCase().includes('weekend') || e.date.toLowerCase().includes('17 oct') || e.date.toLowerCase().includes('18 oct');
     }
 
-    if (!matchesVibe || !matchesGenre || !matchesPrice || !matchesDate) return false;
+    // Calendar specific day filtering
+    let matchesCalendarDay = true;
+    if (selectedCalendarDay !== null) {
+      const isToday = isDateToday(2026, 9, selectedCalendarDay);
+      matchesCalendarDay = doesEventMatchDay(e.date, 2026, 9, selectedCalendarDay, isToday);
+    }
+
+    if (!matchesVibe || !matchesGenre || !matchesPrice || !matchesDate || !matchesCalendarDay) return false;
 
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
@@ -905,20 +920,69 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         </div>
       )}
 
-      {/* Featured Trending Events Section */}
-      {(selectedVibe === 'all' || selectedVibe === 'concerts' || selectedVibe === 'nightlife' || selectedVibe === 'art') && filteredEvents.length > 0 && (
+      {/* Featured Trending Events Section with Dynamic Calendar Day Filter */}
+      {(selectedVibe === 'all' || selectedVibe === 'concerts' || selectedVibe === 'nightlife' || selectedVibe === 'art') && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-[#E0533C]"></span>
-              <span>Featured Trending Events</span>
+              <span>
+                {selectedCalendarDay !== null 
+                  ? getCleanDateHeader(2026, 9, selectedCalendarDay, isDateToday(2026, 9, selectedCalendarDay))
+                  : 'Featured Trending Events'}
+              </span>
             </h2>
-            <button
-              onClick={() => onOpenDedicatedViewAll('Featured Trending Events', 'events')}
-              className="text-[11px] font-bold text-[#E0533C] hover:underline"
-            >
-              View All ({filteredEvents.length})
-            </button>
+            <div className="flex items-center gap-2">
+              {selectedCalendarDay !== null && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedCalendarDay(null)}
+                  className="text-[11px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                >
+                  Show All Dates
+                </button>
+              )}
+              <button
+                onClick={() => onOpenDedicatedViewAll('Featured Trending Events', 'events')}
+                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+              >
+                View All ({events.length})
+              </button>
+            </div>
+          </div>
+
+          {/* Calendar Day Filter Pills */}
+          <div className="flex gap-1.5 overflow-x-auto hide-scrollbar pb-1 text-xs">
+            {[
+              { id: null, label: 'All Dates' },
+              { id: 14, label: 'Today (Oct 14)' },
+              { id: 17, label: 'Sat, Oct 17' },
+              { id: 18, label: 'Sun, Oct 18' },
+              { id: 23, label: 'Fri, Oct 23' },
+              { id: 24, label: 'Sat, Oct 24' },
+              { id: 25, label: 'Sun, Oct 25' },
+              { id: 30, label: 'Fri, Oct 30' },
+              { id: 31, label: 'Sat, Oct 31' },
+              { id: 7, label: 'Sat, Nov 7' }
+            ].map((d, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => {
+                  setSelectedCalendarDay(d.id);
+                  if (d.id !== null) {
+                    setSelectedEventDateRange('all');
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-full font-bold shrink-0 transition text-xs cursor-pointer ${
+                  selectedCalendarDay === d.id
+                    ? 'bg-[#E0533C] text-white shadow-xs'
+                    : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                }`}
+              >
+                {d.label}
+              </button>
+            ))}
           </div>
 
           {/* Active Filter Indicators if any */}
@@ -946,6 +1010,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   setSelectedGenre('all');
                   setSelectedEventPriceTier('all');
                   setSelectedEventDateRange('all');
+                  setSelectedCalendarDay(null);
                 }}
                 className="text-[10px] text-red-500 font-bold hover:underline cursor-pointer ml-1"
               >
@@ -954,85 +1019,119 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             </div>
           )}
 
-          <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-            {filteredEvents.map((evt) => {
-              const isToday = evt.date.toLowerCase().includes('today') || evt.date.toLowerCase().includes('14 oct');
-              return (
-              <div
-                key={evt.id}
-                onClick={() => onOpenEventDetails(evt)}
-                className="event-card flex flex-col justify-between w-64 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm cursor-pointer hover:border-[#E0533C] transition group"
-              >
-                <div>
-                  <div
-                    className="h-44 bg-slate-200 dark:bg-slate-800 rounded-2xl mb-2.5 bg-cover bg-center relative overflow-hidden"
-                    style={{ backgroundImage: `url('${evt.img}')` }}
-                  >
-                    <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 flex-wrap max-w-[80%]">
-                      <span className="bg-black/60 backdrop-blur-md text-white text-[9px] font-black px-2.5 py-1 rounded-md">
-                        {evt.date.split(',')[0]}
-                      </span>
-                      {isToday && (
-                        <span className="bg-emerald-600/90 backdrop-blur-md text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs">
-                          <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
-                          <span>Happening Today</span>
-                        </span>
-                      )}
-                    </div>
-                    <div className="absolute top-2.5 right-2.5 flex items-center gap-1 z-10">
-                      {evt.genre && (
-                        <span className="bg-[#E0533C] text-white text-[9px] font-black px-2.5 py-1 rounded-md shadow-xs">
-                          {evt.genre}
-                        </span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onToggleSave?.(evt, 'event');
-                        }}
-                        className={`w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer backdrop-blur-md shadow-xs ${
-                          isSaved(evt.id, 'event')
-                            ? 'bg-[#E0533C] text-white'
-                            : 'bg-black/60 text-white hover:bg-black/80'
-                        }`}
-                        title={isSaved(evt.id, 'event') ? 'Remove bookmark' : 'Bookmark this event'}
-                      >
-                        <Bookmark className={`w-3.5 h-3.5 ${isSaved(evt.id, 'event') ? 'fill-white' : ''}`} />
-                      </button>
-                    </div>
-                  </div>
-                  <h3 className="font-extrabold text-sm line-clamp-1 text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition">
-                    {evt.title}
-                  </h3>
-                  <p className="text-[11px] font-semibold text-[#E0533C] mt-0.5 flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    <span>{evt.date}</span>
-                  </p>
-                  <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
-                    <MapPin className="w-3 h-3" />
-                    <span className="truncate">{evt.location}</span>
-                  </p>
-                </div>
+          {filteredEvents.length > 0 ? (
+            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+              {filteredEvents.map((evt) => {
+                const isToday = evt.date.toLowerCase().includes('today') || evt.date.toLowerCase().includes('14 oct');
+                const priceDisplay = getEventPriceDisplay(evt.tiers);
+                const badgeStyle = getCategoryBadgeStyle(evt.category, evt.genre);
 
-                <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800">
-                  <span className="text-[10px] font-bold text-slate-500">
-                    {evt.goingCount} going
-                  </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onOpenEventDetails(evt);
-                    }}
-                    className="px-3 py-1.5 bg-[#E0533C] text-white rounded-xl text-xs font-bold shadow-xs hover:bg-orange-700 transition"
-                  >
-                    Get Tickets
-                  </button>
+                return (
+                <div
+                  key={evt.id}
+                  onClick={() => onOpenEventDetails(evt)}
+                  className="event-card flex flex-col justify-between w-64 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm cursor-pointer hover:border-[#E0533C] transition group"
+                >
+                  <div>
+                    <div
+                      className="h-44 bg-slate-200 dark:bg-slate-800 rounded-2xl mb-2.5 bg-cover bg-center relative overflow-hidden"
+                      style={{ backgroundImage: `url('${evt.img}')` }}
+                    >
+                      <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 flex-wrap max-w-[80%]">
+                        <span className="bg-black/60 backdrop-blur-md text-white text-[9px] font-black px-2.5 py-1 rounded-md">
+                          {evt.date.split(',')[0]}
+                        </span>
+                        {isToday && (
+                          <span className="bg-emerald-600/90 backdrop-blur-md text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs">
+                            <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
+                            <span>Happening Today</span>
+                          </span>
+                        )}
+                      </div>
+                      <div className="absolute top-2.5 right-2.5 flex items-center gap-1 z-10">
+                        <span className={`text-[9px] font-black px-2.5 py-1 rounded-md shadow-xs backdrop-blur-md ${badgeStyle.bg} ${badgeStyle.text}`}>
+                          {evt.genre || evt.category}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleSave?.(evt, 'event');
+                          }}
+                          className={`w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer backdrop-blur-md shadow-xs ${
+                            isSaved(evt.id, 'event')
+                              ? 'bg-[#E0533C] text-white'
+                              : 'bg-black/60 text-white hover:bg-black/80'
+                          }`}
+                          title={isSaved(evt.id, 'event') ? 'Remove bookmark' : 'Bookmark this event'}
+                        >
+                          <Bookmark className={`w-3.5 h-3.5 ${isSaved(evt.id, 'event') ? 'fill-white' : ''}`} />
+                        </button>
+                      </div>
+
+                      {/* Ticket price badge on thumbnail */}
+                      <div className="absolute bottom-2 left-2">
+                        <span className="bg-black/75 backdrop-blur-md text-emerald-400 text-[10px] font-extrabold px-2.5 py-0.5 rounded-md border border-white/10">
+                          {priceDisplay}
+                        </span>
+                      </div>
+                    </div>
+
+                    <h3 className="font-extrabold text-sm line-clamp-1 text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition">
+                      {evt.title}
+                    </h3>
+                    <p className="text-[11px] font-semibold text-[#E0533C] mt-0.5 flex items-center gap-1">
+                      <Clock className="w-3 h-3 shrink-0" />
+                      <span>{evt.date} • {evt.time || 'Evening'}</span>
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
+                      <MapPin className="w-3 h-3 shrink-0" />
+                      <span className="truncate">{evt.location}</span>
+                    </p>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800">
+                    <span className="text-[10px] font-bold text-slate-500">
+                      {evt.goingCount} going
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenEventDetails(evt);
+                      }}
+                      className="px-3 py-1.5 bg-[#E0533C] text-white rounded-xl text-xs font-bold shadow-xs hover:bg-orange-700 transition"
+                    >
+                      Get Tickets
+                    </button>
+                  </div>
                 </div>
+              );
+            })}
+            </div>
+          ) : (
+            /* Sleek Empty State Card for Day View */
+            <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-dashed border-slate-300 dark:border-slate-800 rounded-3xl p-6 text-center space-y-3 shadow-2xs">
+              <div className="w-10 h-10 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] mx-auto flex items-center justify-center">
+                <Calendar className="w-5 h-5" />
               </div>
-            );
-          })}
-          </div>
+              <div className="space-y-1">
+                <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">
+                  No events scheduled for this day
+                </h4>
+                <p className="text-[11px] text-slate-500 max-w-xs mx-auto leading-relaxed">
+                  Check back soon or explore trending events!
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedCalendarDay(null)}
+                className="px-4 py-2 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <Flame className="w-3.5 h-3.5" />
+                <span>Explore Trending Events</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
 

@@ -474,6 +474,7 @@ export async function fetchListings(): Promise<CloudListings | null> {
           phone: row.phone || '',
           openingHours: row.opening_hours || row.openingHours || '',
           businessId: row.business_id || row.businessId,
+          merchantId: row.merchant_id || row.merchantId || row.owner_id || row.ownerId,
           isUserUploaded: row.is_user_uploaded ?? row.isUserUploaded ?? false,
           menuItems: row.menu_items || row.menuItems || [],
           reviews: row.reviews || [],
@@ -498,7 +499,10 @@ export async function fetchListings(): Promise<CloudListings | null> {
             const sid = String(row.id);
             if (!seenSpotIds.has(sid)) {
               seenSpotIds.add(sid);
-              out.spot.push(row.data);
+              out.spot.push({
+                ...row.data,
+                merchantId: row.data?.merchantId || row.owner_id || row.data?.ownerId,
+              });
             }
           } else {
             (out as any)[row.kind].push(row.data);
@@ -511,6 +515,19 @@ export async function fetchListings(): Promise<CloudListings | null> {
   }
 
   return out;
+}
+
+export function canEditSpot(
+  spot: any,
+  userId?: string | null,
+  merchantBizIds: string[] = []
+): boolean {
+  if (!userId) return false;
+  if (spot.merchantId && spot.merchantId === userId) return true;
+  if (spot.ownerId && spot.ownerId === userId) return true;
+  if (spot.businessId && merchantBizIds.includes(spot.businessId)) return true;
+  if (spot.isUserUploaded && !spot.businessId) return true;
+  return false;
 }
 
 export async function fetchSpots(): Promise<any[] | null> {
@@ -590,16 +607,79 @@ export async function upsertListing(
     return `photo upload failed: ${errMsg(e)}`;
   }
 
-  // rada_listings columns (confirmed from Supabase):
-  //   id uuid NOT NULL, kind text NOT NULL, owner_id uuid NOT NULL, title text NOT NULL,
-  //   business_id uuid, description, area, city, country, price numeric, status, data jsonb,
-  //   created_at, updated_at.
   const bizRef = businessId ?? item.businessId ?? null;
+  const safeBizUuid = isValidUuid(bizRef) ? bizRef : null;
+  const safeOwnerUuid = isValidUuid(ownerId) ? ownerId : null;
+
+  payload = {
+    ...payload,
+    merchantId: ownerId,
+    businessId: bizRef,
+  };
+
+  // 1. Explicitly persist to 'spots' table with merchant_id when saving a spot
+  if (kind === 'spot') {
+    try {
+      const spotRow: any = {
+        title: String(payload.title || item.title || 'Untitled Spot').slice(0, 300),
+        category: payload.category || item.category || 'restaurants',
+        neighborhood: payload.neighborhood || item.neighborhood || 'Nairobi',
+        address: payload.address || item.address || '',
+        exact_location_tag: payload.exactLocationTag || item.exactLocationTag || payload.address || '',
+        landmark: payload.landmark || item.landmark || '',
+        lat: payload.lat ?? item.lat ?? -1.2675,
+        lng: payload.lng ?? item.lng ?? 36.8115,
+        price: payload.price || item.price || 'KES $$',
+        img: payload.img || (payload.images && payload.images[0]) || '',
+        images: Array.isArray(payload.images) && payload.images.length > 0 ? payload.images : (payload.img ? [payload.img] : []),
+        description: payload.description || item.description || '',
+        phone: payload.phone || item.phone || '',
+        opening_hours: payload.openingHours || item.openingHours || '',
+        business_id: safeBizUuid,
+        merchant_id: safeOwnerUuid,
+        is_user_uploaded: payload.isUserUploaded ?? item.isUserUploaded ?? false,
+        menu_items: payload.menuItems || item.menuItems || [],
+        updated_at: new Date().toISOString(),
+      };
+
+      if (typeof item.id === 'number') {
+        spotRow.id = item.id;
+      }
+
+      let { error: spotErr } = await supabase.from('spots').upsert(spotRow, { onConflict: 'id' });
+      if (spotErr) {
+        console.warn('spots table upsert warning:', spotErr.message);
+        if (spotErr.message?.includes('column') || spotErr.message?.includes('schema cache')) {
+          const minimalRow: any = {
+            title: spotRow.title,
+            category: spotRow.category,
+            neighborhood: spotRow.neighborhood,
+            address: spotRow.address,
+            price: spotRow.price,
+            img: spotRow.img,
+            images: spotRow.images,
+            description: spotRow.description,
+            phone: spotRow.phone,
+            opening_hours: spotRow.opening_hours,
+            business_id: spotRow.business_id,
+            merchant_id: spotRow.merchant_id,
+            updated_at: spotRow.updated_at
+          };
+          if (spotRow.id) minimalRow.id = spotRow.id;
+          await supabase.from('spots').upsert(minimalRow, { onConflict: 'id' });
+        }
+      }
+    } catch (sErr) {
+      console.warn('spots table upsert exception:', sErr);
+    }
+  }
+
+  // 2. Also persist to rada_listings table
   const row: any = {
     id: listingUuid(kind, item.id),
     kind,
     owner_id: ownerId,
-    business_id: isValidUuid(bizRef) ? bizRef : null, // seed ids like 'biz-1' are not UUIDs
+    business_id: safeBizUuid,
     title: String(item.title || item.name || item.businessName || 'Untitled').slice(0, 300),
     description: item.description ? String(item.description) : null,
     area: item.neighborhood || item.location || item.storeLocation || null,
@@ -609,7 +689,6 @@ export async function upsertListing(
 
   let { error } = await supabase.from('rada_listings').upsert(row, { onConflict: 'id' });
 
-  // In case the unique constraint is on (kind, id) instead of id
   if (error && (error.message?.includes('ON CONFLICT') || error.message?.includes('constraint'))) {
     const retry = await supabase.from('rada_listings').upsert(row, { onConflict: 'kind,id' });
     error = retry.error;
@@ -621,6 +700,15 @@ export async function upsertListing(
 
 export async function deleteListing(kind: ListingKind, id: string | number): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
+  if (kind === 'spot') {
+    try {
+      if (typeof id === 'number') {
+        await supabase.from('spots').delete().eq('id', id);
+      }
+    } catch (e) {
+      console.warn('delete from spots table error:', e);
+    }
+  }
   const { error } = await supabase
     .from('rada_listings')
     .delete()

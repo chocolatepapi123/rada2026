@@ -121,7 +121,31 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     }
 
     fetchLiveReviewsAndSpots();
-  }, []);
+
+    // Supabase Realtime listener for immediate updates across devices/sessions without full reload
+    let channel: any = null;
+    try {
+      if (supabase && typeof supabase.channel === 'function') {
+        channel = supabase
+          .channel('spots-feed-realtime')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'spots' }, () => {
+            fetchLiveReviewsAndSpots();
+          })
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'rada_listings' }, () => {
+            fetchLiveReviewsAndSpots();
+          })
+          .subscribe();
+      }
+    } catch (e) {
+      console.warn('Realtime subscription error:', e);
+    }
+
+    return () => {
+      if (channel && typeof channel.unsubscribe === 'function') {
+        channel.unsubscribe();
+      }
+    };
+  }, [spots]);
 
   const handlePrevImage = (e: React.MouseEvent, spotId: number, maxImages: number) => {
     e.stopPropagation();

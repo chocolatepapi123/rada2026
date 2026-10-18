@@ -339,6 +339,19 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   };
 
   const openEditSpotModal = (spot: SpotItem) => {
+    // Verify only the spot owner or verified merchant can edit spot details
+    const isOwner = 
+      (effectiveUserId && spot.merchantId === effectiveUserId) ||
+      (userId && spot.merchantId === userId) ||
+      (currentBiz?.ownerId && spot.merchantId === currentBiz.ownerId) ||
+      (currentBiz?.id && spot.businessId === currentBiz.id) ||
+      ownedBusinesses.some(b => b.id === spot.businessId || b.ownerId === effectiveUserId || b.ownerId === userId);
+
+    if (!isOwner) {
+      showToast('Permission denied: Only the spot owner or verified merchant can edit this spot.');
+      return;
+    }
+
     setEditingSpotId(spot.id);
     setSpotTitle(spot.title);
     setSpotCategory(spot.category);
@@ -358,33 +371,67 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
 
   const handleSaveSpot = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Required Field Validations (Spot Name, Category, Location, Description)
     if (!spotTitle.trim()) {
-      showToast('Please enter a spot title.');
+      showToast('Please enter the Spot Name.');
       return;
+    }
+    if (!spotCategory) {
+      showToast('Please select a Spot Category.');
+      return;
+    }
+    const loc = (spotNeighborhood || spotAddress || '').trim();
+    if (!loc) {
+      showToast('Please specify a Location (Neighborhood or Address).');
+      return;
+    }
+    if (!spotDescription.trim()) {
+      showToast('Please provide a brief Description for the spot.');
+      return;
+    }
+
+    // Permission Verification: only owner or verified merchant can edit
+    if (editingSpotId) {
+      const existingSpot = spots.find(s => s.id === editingSpotId);
+      const isOwner = 
+        !existingSpot ||
+        (effectiveUserId && existingSpot.merchantId === effectiveUserId) ||
+        (userId && existingSpot.merchantId === userId) ||
+        (currentBiz?.ownerId && existingSpot.merchantId === currentBiz.ownerId) ||
+        (currentBiz?.id && existingSpot.businessId === currentBiz.id) ||
+        ownedBusinesses.some(b => b.id === existingSpot.businessId || b.ownerId === effectiveUserId || b.ownerId === userId);
+
+      if (!isOwner) {
+        showToast('Permission denied: Only the spot owner or verified merchant can edit this spot.');
+        return;
+      }
     }
 
     const targetId = editingSpotId || Date.now();
     const existing = spots.find(s => s.id === targetId);
+    const effectiveMerchantId = userId || effectiveUserId || currentBiz.ownerId;
 
     const savedSpot: SpotItem = {
       id: targetId,
       title: spotTitle.trim(),
       category: spotCategory,
-      neighborhood: spotNeighborhood,
-      address: spotAddress || `${spotNeighborhood}, Nairobi`,
-      exactLocationTag: spotExactLocationTag || `${spotNeighborhood}, Nairobi`,
+      neighborhood: spotNeighborhood || 'Westlands',
+      address: spotAddress || `${spotNeighborhood || 'Westlands'}, Nairobi`,
+      exactLocationTag: spotExactLocationTag || `${spotNeighborhood || 'Westlands'}, Nairobi`,
       landmark: spotLandmark || 'Central Stage',
       lat: existing?.lat || -1.2675,
       lng: existing?.lng || 36.8115,
-      rating: existing?.rating || '4.8',
-      reviewCount: existing?.reviewCount || 12,
+      rating: existing?.rating || 'New',
+      reviewCount: existing?.reviewCount || 0,
       price: spotPrice || 'KES $$',
-      img: spotCoverImg,
-      images: spotGalleryImgs.length > 0 ? spotGalleryImgs : [spotCoverImg],
-      description: spotDescription || 'Verified spot on RADA.',
-      phone: spotPhone,
-      openingHours: spotOpeningHours,
+      img: spotCoverImg || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
+      images: spotGalleryImgs.length > 0 ? spotGalleryImgs : [spotCoverImg || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop'],
+      description: spotDescription.trim(),
+      phone: spotPhone.trim(),
+      openingHours: spotOpeningHours.trim(),
       businessId: currentBiz.id,
+      merchantId: effectiveMerchantId,
       isUserUploaded: false,
       menuItems: spotMenuItems,
       reviews: existing?.reviews || []
@@ -392,7 +439,24 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
 
     onAddOrUpdateSpot(savedSpot);
     setIsSpotFormOpen(false);
-    showToast(editingSpotId ? `Updated "${savedSpot.title}" details.` : `Spot "${savedSpot.title}" published live!`);
+
+    // Clear form fields
+    setEditingSpotId(null);
+    setSpotTitle('');
+    setSpotCategory('restaurants');
+    setSpotNeighborhood('Westlands');
+    setSpotAddress('');
+    setSpotExactLocationTag('');
+    setSpotLandmark('');
+    setSpotPrice('KES $$');
+    setSpotPhone('+254 ');
+    setSpotOpeningHours('11:00 AM - 11:00 PM');
+    setSpotDescription('');
+    setSpotCoverImg('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop');
+    setSpotGalleryImgs([]);
+    setSpotMenuItems([]);
+
+    showToast(editingSpotId ? `Spot "${savedSpot.title}" details updated successfully.` : `Spot "${savedSpot.title}" published live to RADA!`);
   };
 
   // Add menu item in spot form
@@ -431,8 +495,13 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     );
   });
 
-  // Spots owned by current business
-  const myClaimedSpots = spots.filter(s => s.businessId === currentBiz?.id);
+  // Spots owned by current business or merchant
+  const myClaimedSpots = spots.filter(s => 
+    (currentBiz?.id && s.businessId === currentBiz.id) ||
+    (effectiveUserId && s.merchantId === effectiveUserId) ||
+    (userId && s.merchantId === userId) ||
+    (currentBiz?.ownerId && s.merchantId === currentBiz.ownerId)
+  );
 
   // ----------------------------------------------------
   // EVENT ORGANIZER WORKFLOW STATE (Full-Screen + Multi-Image + Dynamic Locations)

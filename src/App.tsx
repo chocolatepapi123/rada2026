@@ -1089,6 +1089,7 @@ export default function App() {
         phone: biz.phone || '',
         openingHours: '10:00 AM - 11:00 PM',
         businessId: finalBizId,
+        merchantId: effectiveOwner,
         isUserUploaded: false,
         reviews: []
       };
@@ -1183,15 +1184,42 @@ export default function App() {
   const handleAddOrUpdateSpot = (spot: SpotItem) => {
     requireAuth('add a spot or business', () => {
       const ownerId = session?.user?.id || currentUserId;
-      if (ownerId) cloudWrite(() => cloud.upsertListing('spot', spot, spot.businessId, ownerId));
+      if (!ownerId) {
+        showToast('Please sign in to manage spots.');
+        return;
+      }
+
+      // Check ownership if editing an existing spot
+      const existing = spots.find(s => s.id === spot.id);
+      if (existing && existing.merchantId && existing.merchantId !== ownerId) {
+        const userBizIds = businesses.filter(b => b.ownerId === ownerId).map(b => b.id);
+        if (!existing.businessId || !userBizIds.includes(existing.businessId)) {
+          showToast('Permission denied: Only the spot owner or verified merchant can edit this spot.');
+          return;
+        }
+      }
+
+      const spotWithMerchant: SpotItem = {
+        ...spot,
+        merchantId: spot.merchantId || ownerId,
+        businessId: spot.businessId || activeBusinessId || undefined
+      };
+
       setSpots(prev => {
-        const idx = prev.findIndex(s => s.id === spot.id || s.title.toLowerCase() === spot.title.toLowerCase());
+        const idx = prev.findIndex(s => s.id === spotWithMerchant.id || s.title.toLowerCase() === spotWithMerchant.title.toLowerCase());
         if (idx >= 0) {
           const updated = [...prev];
-          updated[idx] = spot;
+          updated[idx] = spotWithMerchant;
           return updated;
         }
-        return [spot, ...prev];
+        return [spotWithMerchant, ...prev];
+      });
+
+      cloudWrite(async () => {
+        const res = await cloud.upsertListing('spot', spotWithMerchant, spotWithMerchant.businessId, ownerId);
+        // Trigger live refresh across the application feeds
+        syncRef.current?.();
+        return res;
       });
     });
   };
@@ -1685,6 +1713,12 @@ export default function App() {
             {activeTab === 'vault' && (
               <VaultTab
                 tickets={tickets}
+                events={events}
+                onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
+                onExploreTrendingEvents={() => {
+                  setActiveTab('home');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
                 onShowQrCode={(title) => setQrPassTitle(title)}
                 showToast={showToast}
               />
