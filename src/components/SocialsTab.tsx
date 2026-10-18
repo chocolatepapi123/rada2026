@@ -753,7 +753,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
         )}
 
         {/* Input Bar */}
-        <div className="p-3 bg-white/95 dark:bg-[#121113]/95 border-t border-slate-200 dark:border-slate-800 max-w-lg mx-auto w-full flex items-center gap-1.5">
+        <div className="w-full overflow-hidden px-2 py-2 sm:px-3 sm:py-2.5 bg-white/95 dark:bg-[#121113]/95 border-t border-slate-200 dark:border-slate-800 max-w-lg mx-auto flex items-center gap-1.5 sm:gap-2">
           {/* Hidden File Inputs for real attachments */}
           <input
             type="file"
@@ -772,18 +772,18 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
 
           <button
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className="text-slate-500 hover:text-[#E0533C] p-2 shrink-0 transition cursor-pointer"
+            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-slate-500 hover:text-[#E0533C] flex-shrink-0 transition cursor-pointer"
             title="Emoji Panel"
             aria-label="Emoji Panel"
           >
-            <Smile className="w-5 h-5" />
+            <Smile className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
           {/* Attach Media button */}
           <button
             type="button"
             onClick={() => videoFileInputRef.current?.click()}
-            className="text-slate-500 hover:text-[#E0533C] p-2 shrink-0 transition cursor-pointer"
+            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-slate-500 hover:text-[#E0533C] flex-shrink-0 transition cursor-pointer"
             title="Attach Video from Device"
             aria-label="Attach Video"
           >
@@ -796,7 +796,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             onChange={(e) => setChatInputText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
             placeholder="Type a message..."
-            className="flex-1 p-3 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl text-xs focus:outline-none text-slate-900 dark:text-slate-100"
+            className="flex-1 min-w-0 px-3 py-2 sm:py-2.5 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl sm:rounded-2xl text-xs focus:outline-none focus:ring-1 focus:ring-[#E0533C] text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
           />
 
           {/* Circular Video Note Button */}
@@ -808,7 +808,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             }}
             title={isRecordingVideo ? 'Send Circular Video Note' : 'Record Circular Video Note'}
             aria-label="Record Circular Video Note"
-            className={`w-10 h-10 rounded-2xl flex items-center justify-center transition shrink-0 cursor-pointer ${
+            className={`w-9 h-9 rounded-xl sm:rounded-2xl flex items-center justify-center transition flex-shrink-0 cursor-pointer ${
               isRecordingVideo
                 ? 'bg-purple-600 text-white animate-pulse'
                 : 'bg-[#F1F1EE] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 hover:bg-[#E0533C] hover:text-white'
@@ -826,7 +826,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             }}
             title={isRecordingAudio ? 'Send Voice Note' : 'Record Voice Note'}
             aria-label="Record Voice Note"
-            className={`w-10 h-10 rounded-2xl flex items-center justify-center transition shrink-0 cursor-pointer ${
+            className={`w-9 h-9 rounded-xl sm:rounded-2xl flex items-center justify-center transition flex-shrink-0 cursor-pointer ${
               isRecordingAudio
                 ? 'bg-red-600 text-white animate-pulse'
                 : 'bg-[#F1F1EE] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 hover:bg-[#E0533C] hover:text-white'
@@ -839,7 +839,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           <button
             type="button"
             onClick={handleSendMessage}
-            className="w-10 h-10 rounded-2xl bg-[#E0533C] text-white flex items-center justify-center shadow-md hover:bg-orange-700 transition shrink-0 cursor-pointer"
+            className="w-9 h-9 rounded-xl sm:rounded-2xl bg-[#E0533C] text-white flex items-center justify-center shadow-md hover:bg-orange-700 transition flex-shrink-0 cursor-pointer"
             title="Send Message"
             aria-label="Send Message"
           >
