@@ -74,11 +74,13 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-[#121113]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-xs transition-colors duration-200">
-      <div className="max-w-lg mx-auto w-full px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2.5 min-w-0">
+      <div className="max-w-lg mx-auto w-full px-3.5 sm:px-4 py-2.5 sm:py-3 flex flex-wrap sm:flex-nowrap items-center justify-between gap-x-2 gap-y-2">
+        {/* Left Side: Brand Logo & Truncated Location Pill */}
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 shrink">
           <button 
+            type="button"
             onClick={() => onSwitchTab('home')} 
-            className="flex items-center gap-1.5 cursor-pointer hover:opacity-90 transition focus:outline-none shrink-0"
+            className="flex items-center gap-1.5 cursor-pointer hover:opacity-90 active:scale-95 transition-all focus:outline-none shrink-0"
             title="RADA Home"
           >
             <div className="w-7 h-7 rounded-lg bg-[#E0533C] text-white flex items-center justify-center shadow-xs shrink-0">
@@ -88,56 +90,59 @@ export const Header: React.FC<HeaderProps> = ({
                 <circle cx="50" cy="48" r="17" strokeWidth="8" />
               </svg>
             </div>
-            <span className="text-2xl font-black tracking-tighter text-[#E0533C]">
+            <span className="text-xl sm:text-2xl font-black tracking-tighter text-[#E0533C] shrink-0">
               RADA
             </span>
           </button>
 
-          {/* Dynamic Detected Current Location (Clean badge without green glowing ping) */}
+          {/* Dynamic Detected Current Location (Gracefully shrinks and truncates without collision) */}
           <div 
-            className="text-xs bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 font-semibold px-2.5 py-1 rounded-full flex items-center gap-1.5 border border-slate-200 dark:border-slate-800 select-none max-w-[190px] cursor-default shadow-2xs"
+            className="min-w-0 shrink text-xs bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 font-semibold px-2 sm:px-2.5 py-1 rounded-full flex items-center gap-1 sm:gap-1.5 border border-slate-200 dark:border-slate-800 select-none max-w-[105px] xs:max-w-[140px] sm:max-w-[180px] cursor-default shadow-2xs overflow-hidden"
             title={`Location: ${currentLocation}`}
           >
             <MapPin className="w-3.5 h-3.5 shrink-0 text-[#E05328]" />
-            <span className="truncate text-[11px] font-bold">{currentLocation}</span>
+            <span className="truncate text-[10px] sm:text-[11px] font-bold min-w-0">{currentLocation}</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
-          {/* Guest Mode: Prominent Sign In / Log In Button */}
+        {/* Right Side: Sign In Button (Guest Mode) + Wagwan AI + 3-Dot Overflow Menu */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto">
+          {/* Guest Mode: Prominent Sign In Button with anti-collision flex-shrink and no-wrap */}
           {isGuestMode && onOpenAuth && (
             <button
               type="button"
               onClick={onOpenAuth}
-              className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-[#E0533C] hover:opacity-95 active:scale-95 text-white font-black text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+              className="shrink-0 px-2.5 sm:px-3 py-1.5 bg-gradient-to-r from-amber-500 to-[#E0533C] hover:opacity-95 active:scale-95 text-white font-bold sm:font-black text-xs rounded-xl shadow-xs transition-all flex items-center gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-[#E0533C]/40"
               title="Sign In or Create Account"
             >
-              <UserCheck className="w-3.5 h-3.5" />
-              <span>Sign In</span>
+              <UserCheck className="w-3.5 h-3.5 shrink-0" />
+              <span className="shrink-0 whitespace-nowrap">Sign In</span>
             </button>
           )}
 
           {/* Wagwan AI Quick Recommender */}
           <button
+            type="button"
             onClick={onOpenWagwanAI}
             title="Wagwan AI Hangout Recommender"
-            className="w-9 h-9 rounded-full bg-gradient-to-r from-[#E0533C] to-[#E9C46A] text-white flex items-center justify-center text-sm shadow-md hover:scale-105 active:scale-95 transition"
+            className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-full bg-gradient-to-r from-[#E0533C] to-[#E9C46A] text-white flex items-center justify-center text-xs sm:text-sm shadow-md hover:scale-105 active:scale-95 transition-transform focus:outline-none"
           >
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
 
           {/* 3-Dot Overflow Menu */}
-          <div className="relative" ref={menuRef}>
+          <div className="relative shrink-0" ref={menuRef}>
             <button
+              type="button"
               onClick={() => setMenuOpen(!menuOpen)}
-              className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 transition text-slate-700 dark:text-slate-200 focus:outline-none"
+              className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 flex items-center justify-center rounded-full bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-slate-700 dark:text-slate-200 focus:outline-none"
               aria-label="More options"
             >
-              <MoreVertical className="w-5 h-5" />
+              <MoreVertical className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
             {menuOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-2rem)] bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
                 {/* PRIMARY PROMINENT OPTION: Business & Merchant Hub */}
                 <button
                   onClick={() => handleMenuClick('businessHub')}
