@@ -24,6 +24,8 @@ interface HeaderProps {
   businessName?: string;
   isDarkMode: boolean;
   onToggleTheme: () => void;
+  isGuestMode?: boolean;
+  onOpenAuth?: () => void;
 
   onOpenAdmin?: () => void;
   userRole?: 'user' | 'merchant' | 'admin';
@@ -43,6 +45,8 @@ export const Header: React.FC<HeaderProps> = ({
   businessName,
   isDarkMode,
   onToggleTheme,
+  isGuestMode,
+  onOpenAuth,
   onOpenAdmin,
   userRole,
   onLogout,
@@ -100,6 +104,19 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
+          {/* Guest Mode: Prominent Sign In / Log In Button */}
+          {isGuestMode && onOpenAuth && (
+            <button
+              type="button"
+              onClick={onOpenAuth}
+              className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-[#E0533C] hover:opacity-95 active:scale-95 text-white font-black text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+              title="Sign In or Create Account"
+            >
+              <UserCheck className="w-3.5 h-3.5" />
+              <span>Sign In</span>
+            </button>
+          )}
+
           {/* Wagwan AI Quick Recommender */}
           <button
             onClick={onOpenWagwanAI}
@@ -238,17 +255,30 @@ export const Header: React.FC<HeaderProps> = ({
                     <span>Admin Dashboard</span>
                   </button>
                 )}
-                {onLogout && (
+                {isGuestMode && onOpenAuth ? (
                   <button
                     onClick={() => {
                       setMenuOpen(false);
-                      onLogout();
+                      onOpenAuth();
                     }}
-                    className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-3 text-red-600 dark:text-red-400 border-t border-slate-100 dark:border-slate-800/80 transition"
+                    className="w-full text-left px-4 py-2.5 text-xs font-bold hover:bg-amber-50 dark:hover:bg-amber-950/30 flex items-center gap-3 text-amber-600 dark:text-amber-400 border-t border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
                   >
-                    <span className="text-base">↪</span>
-                    <span>Log Out</span>
+                    <UserCheck className="w-4 h-4 text-amber-500" />
+                    <span>Log In / Sign Up</span>
                   </button>
+                ) : (
+                  onLogout && (
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onLogout();
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-3 text-red-600 dark:text-red-400 border-t border-slate-100 dark:border-slate-800/80 transition"
+                    >
+                      <span className="text-base">↪</span>
+                      <span>Log Out</span>
+                    </button>
+                  )
                 )}
               </div>
             )}

@@ -59,6 +59,16 @@ import {
 } from './types.ts';
 
 
+const GUEST_PROFILE: UserProfile = {
+  name: 'Guest Explorer',
+  handle: '@guest',
+  avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop',
+  bio: 'Exploring Nairobi moves on RADA. Log in or create an account to customize your profile & connect with spots!',
+  loc: 'Westlands, Nairobi',
+  relationshipStatus: 'single',
+  vibes: ['Nightlife', 'Cocktails', 'Amapiano', 'Art', 'Thrifting']
+};
+
 const DEFAULT_PROFILE: UserProfile = {
   name: 'Wayne Waweru',
   handle: '@lowk3yFX',
@@ -183,6 +193,8 @@ export default function App() {
     setIsGuestMode(false);
     setAuthModalMessage('');
     setIsAuthModalOpen(true);
+    setCurrentUserProfile(GUEST_PROFILE);
+    localStorage.removeItem('rada_current_user');
   };
 
   const requireAuth = (actionName: string, actionCallback: () => void) => {
@@ -409,10 +421,9 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
-  // Current logged in user profile with Single / Not Single status
+  // Current logged in user profile with Single / Not Single status (clean Guest profile by default)
   const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile>(() => {
-    const saved = localStorage.getItem('rada_current_user');
-    return saved ? JSON.parse(saved) : DEFAULT_PROFILE;
+    return GUEST_PROFILE;
   });
 
   // Profile View Modal state (to view anyone's profile and bio)
@@ -562,8 +573,10 @@ export default function App() {
   }, [goingEventIds]);
 
   useEffect(() => {
-    localStorage.setItem('rada_current_user', JSON.stringify(currentUserProfile));
-  }, [currentUserProfile]);
+    if (session?.user?.id && !isGuestMode) {
+      localStorage.setItem('rada_current_user', JSON.stringify(currentUserProfile));
+    }
+  }, [currentUserProfile, session, isGuestMode]);
 
   useEffect(() => {
     localStorage.setItem('rada_offers', JSON.stringify(offers));
@@ -741,9 +754,9 @@ export default function App() {
   const currentUserId: string = session?.user?.id || localUserId;
 
   // Active business reference for the logged-in merchant (strictly owned only)
-  const userOwnedBusinesses = businesses.filter(
-    b => Boolean(b.ownerId) && (b.ownerId === currentUserId || b.ownerId === session?.user?.id)
-  );
+  const userOwnedBusinesses = (session?.user?.id && !isGuestMode)
+    ? businesses.filter(b => Boolean(b.ownerId) && b.ownerId === session.user.id)
+    : [];
   const currentBusiness = userOwnedBusinesses.find(b => b.id === activeBusinessId) || userOwnedBusinesses[0] || null;
   const latestRef = useRef<any>(null);
   latestRef.current = { businesses, spots, events, thriftItems, offers };
@@ -937,7 +950,11 @@ export default function App() {
     const uid: string | undefined = session?.user?.id;
     setUserDataReady(false);
     userDataUidRef.current = null;
-    if (!uid) return;
+    if (!uid) {
+      setCurrentUserProfile(GUEST_PROFILE);
+      setTickets([]);
+      return;
+    }
     let cancelled = false;
 
     // A different account signed in on this phone: clear the previous person's personal data
@@ -947,16 +964,36 @@ export default function App() {
       setEmergencyContacts(initialContacts);
       setConversations(initialConversations);
       setGoingEventIds([]);
-      setCurrentUserProfile(DEFAULT_PROFILE);
+      setCurrentUserProfile(GUEST_PROFILE);
     }
     localStorage.setItem('rada_last_uid', uid);
 
     (async () => {
       const remote = await cloud.fetchUserData(uid);
-      if (cancelled || !remote) return; // offline or table missing: stay local
-      if (remote.tickets) setTickets(remote.tickets);
-      if (remote.contacts) setEmergencyContacts(remote.contacts);
-      if (remote.profile) setCurrentUserProfile(remote.profile);
+      if (cancelled) return;
+      if (remote) {
+        if (remote.tickets) setTickets(remote.tickets);
+        if (remote.contacts) setEmergencyContacts(remote.contacts);
+        if (remote.profile) {
+          setCurrentUserProfile(remote.profile);
+        } else {
+          const name = session?.user?.user_metadata?.full_name || session?.user?.email?.split('@')[0] || 'RADA Member';
+          const handle = `@${session?.user?.email?.split('@')[0] || 'member'}`;
+          setCurrentUserProfile({
+            ...DEFAULT_PROFILE,
+            name,
+            handle
+          });
+        }
+      } else {
+        const name = session?.user?.user_metadata?.full_name || session?.user?.email?.split('@')[0] || 'RADA Member';
+        const handle = `@${session?.user?.email?.split('@')[0] || 'member'}`;
+        setCurrentUserProfile({
+          ...DEFAULT_PROFILE,
+          name,
+          handle
+        });
+      }
       userDataUidRef.current = uid;
       setUserDataReady(true);
     })().catch(e => console.warn('User data load failed:', e));
@@ -966,7 +1003,7 @@ export default function App() {
 
   useEffect(() => {
     const uid: string | undefined = session?.user?.id;
-    if (!uid || !userDataReady || userDataUidRef.current !== uid) return;
+    if (!uid || isGuestMode || !userDataReady || userDataUidRef.current !== uid) return;
 
     const timer = setTimeout(async () => {
       const res = await cloud.saveUserData(uid, {
@@ -1523,6 +1560,11 @@ export default function App() {
             businessName={currentBusiness?.name}
             isDarkMode={isDarkMode}
             onToggleTheme={handleToggleTheme}
+            isGuestMode={isGuestMode || !session}
+            onOpenAuth={() => {
+              setAuthModalMessage('');
+              setIsAuthModalOpen(true);
+            }}
             onOpenAdmin={() => setIsAdminOpen(true)}
             userRole={userRole}
             onLogout={handleSignOut}
