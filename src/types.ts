@@ -86,7 +86,11 @@ export type SpotCategory =
   | 'connect_with_nature'
   | 'creative_leisure'
   | 'tech_gaming'
-  | 'action_sports';
+  | 'action_sports'
+  | 'outdoor_fitness'
+  | 'creative_arts'
+  | 'spa_wellness'
+  | 'event_space';
 
 export interface ActivityItem {
   id: string;
@@ -122,10 +126,29 @@ export interface SpotItem {
   isUserUploaded?: boolean;
   phone?: string;
   openingHours?: string;
+  // Dynamic Category-Specific Metadata
+  // 1. Food & Drink / Restaurants / Lounges
+  cuisineTypes?: string[];
+  featuredDishes?: string[];
+  menuUploadUrl?: string;
+  // 2. Outdoor / Fitness / Sports
+  equipmentNeeded?: string;
+  equipmentProvided?: string;
+  skillLevel?: 'All Levels' | 'Beginner' | 'Intermediate' | 'Advanced' | string;
+  whatToBring?: string;
+  // 3. Event Spaces / Venues
+  capacity?: string | number;
+  amenitiesAV?: string[];
+  bookingPolicies?: string;
+  // 4. Social Links & Web
+  website?: string;
+  instagram?: string;
+  socialLinks?: {
+    website?: string;
+    instagram?: string;
+  };
   // Tailored activity fields for non-food categories
   activityType?: string;
-  equipmentProvided?: string;
-  whatToBring?: string;
   bookingSlots?: string;
   groupSizeMin?: number | string;
   groupSizeMax?: number | string;

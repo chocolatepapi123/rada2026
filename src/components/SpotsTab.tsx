@@ -22,6 +22,7 @@ import {
   Gamepad2,
   Camera,
   Image as ImageIcon,
+  Building2,
   X
 } from 'lucide-react';
 
@@ -423,6 +424,12 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
       (s.exactLocationTag && s.exactLocationTag.toLowerCase().includes(q)) ||
       (s.landmark && s.landmark.toLowerCase().includes(q)) ||
       (s.description && s.description.toLowerCase().includes(q)) ||
+      (s.cuisineTypes && s.cuisineTypes.some((c: string) => c.toLowerCase().includes(q))) ||
+      (s.featuredDishes && s.featuredDishes.some((d: string) => d.toLowerCase().includes(q))) ||
+      (s.equipmentProvided && s.equipmentProvided.toLowerCase().includes(q)) ||
+      (s.equipmentNeeded && s.equipmentNeeded.toLowerCase().includes(q)) ||
+      (s.whatToBring && (Array.isArray(s.whatToBring) ? s.whatToBring.some((w: string) => w.toLowerCase().includes(q)) : s.whatToBring.toLowerCase().includes(q))) ||
+      (s.amenitiesAV && s.amenitiesAV.some((a: string) => a.toLowerCase().includes(q))) ||
       (s.menuItems && s.menuItems.some((m: MenuItem) => m.name.toLowerCase().includes(q) || m.description.toLowerCase().includes(q)));
 
     if (fullTextMatch) return true;
@@ -437,6 +444,11 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         (s.exactLocationTag && s.exactLocationTag.toLowerCase().includes(word)) ||
         (s.landmark && s.landmark.toLowerCase().includes(word)) ||
         (s.description && s.description.toLowerCase().includes(word)) ||
+        (s.cuisineTypes && s.cuisineTypes.some((c: string) => c.toLowerCase().includes(word))) ||
+        (s.featuredDishes && s.featuredDishes.some((d: string) => d.toLowerCase().includes(word))) ||
+        (s.equipmentProvided && s.equipmentProvided.toLowerCase().includes(word)) ||
+        (s.equipmentNeeded && s.equipmentNeeded.toLowerCase().includes(word)) ||
+        (s.amenitiesAV && s.amenitiesAV.some((a: string) => a.toLowerCase().includes(word))) ||
         (s.menuItems && s.menuItems.some((m: MenuItem) => m.name.toLowerCase().includes(word) || m.description.toLowerCase().includes(word)))
       );
     });
@@ -685,12 +697,15 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
           {[
             { id: 'all', label: 'All Categories', icon: Compass },
-            { id: 'restaurants', label: 'Restaurants', icon: UtensilsCrossed },
+            { id: 'restaurants', label: 'Restaurants & Dining', icon: UtensilsCrossed },
+            { id: 'nightlife', label: 'Nightlife & Clubs', icon: Music },
+            { id: 'outdoors', label: 'Outdoor & Fitness', icon: Compass },
+            { id: 'event_space', label: 'Event Spaces & Venues', icon: Building2 },
+            { id: 'spa_wellness', label: 'Spa & Wellness', icon: Heart },
             { id: 'connect_with_nature', label: 'Connect with Nature', icon: Trees },
             { id: 'creative_leisure', label: 'Creative & Leisure', icon: Palette },
             { id: 'tech_gaming', label: 'Tech & Gaming', icon: Gamepad2 },
             { id: 'action_sports', label: 'Action & Sports', icon: Sparkles },
-            { id: 'nightlife', label: 'Nightlife', icon: Music },
             { id: 'cafes', label: 'Cafes', icon: Coffee },
             { id: 'date_spots', label: 'Date Spots', icon: Heart },
             { id: 'hotels', label: 'Hotels', icon: Hotel },

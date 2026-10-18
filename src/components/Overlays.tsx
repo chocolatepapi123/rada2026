@@ -48,7 +48,11 @@ import {
   Bookmark,
   KeyRound,
   Trees,
-  Plus
+  Plus,
+  Globe,
+  Instagram,
+  Phone,
+  Building2
 } from 'lucide-react';
 import { 
   SpotItem, 
@@ -820,6 +824,109 @@ export const Overlays: React.FC<OverlaysProps> = ({
               </button>
             </div>
 
+            {/* Direct Contact & Social Links Bar */}
+            {(selectedSpot.phone || selectedSpot.website || selectedSpot.instagram || selectedSpot.socialLinks?.website || selectedSpot.socialLinks?.instagram) && (
+              <div className="p-3 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">Contact & Links</span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {selectedSpot.phone && (
+                    <a
+                      href={`tel:${selectedSpot.phone}`}
+                      className="px-2.5 py-1 rounded-xl bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-800 dark:text-slate-200 hover:text-[#E0533C] flex items-center gap-1.5 transition"
+                    >
+                      <Phone className="w-3 h-3 text-[#E0533C]" />
+                      <span>{selectedSpot.phone}</span>
+                    </a>
+                  )}
+                  {(selectedSpot.website || selectedSpot.socialLinks?.website) && (
+                    <a
+                      href={selectedSpot.website || selectedSpot.socialLinks?.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-1 rounded-xl bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-800 dark:text-slate-200 hover:text-[#E0533C] flex items-center gap-1.5 transition"
+                    >
+                      <Globe className="w-3 h-3 text-blue-500" />
+                      <span>Website</span>
+                    </a>
+                  )}
+                  {(selectedSpot.instagram || selectedSpot.socialLinks?.instagram) && (
+                    <a
+                      href={`https://instagram.com/${(selectedSpot.instagram || selectedSpot.socialLinks?.instagram || '').replace('@', '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-1 rounded-xl bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-800 dark:text-slate-200 hover:text-pink-600 flex items-center gap-1.5 transition"
+                    >
+                      <Instagram className="w-3 h-3 text-pink-500" />
+                      <span>{selectedSpot.instagram || selectedSpot.socialLinks?.instagram}</span>
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Food & Drink / Cuisine Types */}
+            {selectedSpot.cuisineTypes && selectedSpot.cuisineTypes.length > 0 && (
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Cuisine & Flavors</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedSpot.cuisineTypes.map((c, i) => (
+                    <span key={i} className="px-2.5 py-1 rounded-full bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] text-[11px] font-bold">
+                      {c}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Featured Dishes / Signature Drinks */}
+            {selectedSpot.featuredDishes && selectedSpot.featuredDishes.length > 0 && (
+              <div className="p-3 bg-orange-50/70 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/40 rounded-2xl space-y-2">
+                <span className="font-black text-xs text-[#E0533C] flex items-center gap-1.5 uppercase tracking-wider">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Featured Dishes & Signature Drinks</span>
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedSpot.featuredDishes.map((dish, idx) => (
+                    <span key={idx} className="px-2.5 py-1 rounded-xl bg-white dark:bg-[#121113] border border-orange-200 dark:border-orange-900/50 text-xs font-semibold text-slate-800 dark:text-slate-200 shadow-xs">
+                      ✨ {dish}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Official Uploaded Menu Document / PDF / Flyer */}
+            {(selectedSpot.menuUploadUrl || (selectedSpot.menuImages && selectedSpot.menuImages.length > 0)) && (
+              <div className="p-3 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-xs font-bold block truncate text-slate-900 dark:text-slate-100">
+                      Spot Menu Document
+                    </span>
+                    <span className="text-[10px] text-slate-400 block truncate">
+                      Official printed menu / beverage brochure
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const url = selectedSpot.menuUploadUrl || (selectedSpot.menuImages && selectedSpot.menuImages[0]);
+                    if (url) {
+                      window.open(url, '_blank');
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-[#E0533C] hover:bg-[#c9432d] text-white text-xs font-bold rounded-xl shrink-0 transition flex items-center gap-1 cursor-pointer"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>View Menu</span>
+                </button>
+              </div>
+            )}
+
             {/* Special Offers Section if present */}
             {selectedSpot.specialOffers && selectedSpot.specialOffers.length > 0 && (
               <div className="p-3 bg-red-50/70 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-2xl space-y-2">
@@ -922,15 +1029,79 @@ export const Overlays: React.FC<OverlaysProps> = ({
               </div>
             )}
 
-            {/* Equipment / What to bring */}
-            {(selectedSpot.equipmentProvided || selectedSpot.whatToBring) && (
-              <div className="p-3 bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 rounded-2xl space-y-1">
-                <span className="font-black text-xs text-amber-800 dark:text-amber-300 flex items-center gap-1.5 uppercase tracking-wider">
-                  <span>🎒 Equipment & What to Bring</span>
-                </span>
-                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
-                  {selectedSpot.whatToBring || selectedSpot.equipmentProvided}
-                </p>
+            {/* Outdoor / Fitness / Sports Details */}
+            {(selectedSpot.equipmentProvided || selectedSpot.equipmentNeeded || selectedSpot.whatToBring || selectedSpot.skillLevel) && (
+              <div className="p-4 bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 rounded-2xl space-y-3 text-xs">
+                <div className="flex items-center justify-between border-b border-emerald-100 dark:border-emerald-900/40 pb-2">
+                  <span className="font-black text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5 uppercase tracking-wider">
+                    <Compass className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Outdoor & Fitness Details</span>
+                  </span>
+                  {selectedSpot.skillLevel && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-200 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200">
+                      {selectedSpot.skillLevel}
+                    </span>
+                  )}
+                </div>
+
+                {selectedSpot.equipmentProvided && (
+                  <div className="space-y-0.5">
+                    <strong className="text-[11px] text-emerald-900 dark:text-emerald-200 block">Equipment Provided:</strong>
+                    <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{selectedSpot.equipmentProvided}</p>
+                  </div>
+                )}
+
+                {selectedSpot.equipmentNeeded && (
+                  <div className="space-y-0.5">
+                    <strong className="text-[11px] text-emerald-900 dark:text-emerald-200 block">Equipment Needed / Rentals:</strong>
+                    <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{selectedSpot.equipmentNeeded}</p>
+                  </div>
+                )}
+
+                {selectedSpot.whatToBring && (
+                  <div className="space-y-0.5">
+                    <strong className="text-[11px] text-emerald-900 dark:text-emerald-200 block">What to Bring:</strong>
+                    <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{selectedSpot.whatToBring}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Event Spaces & Venues Specifications */}
+            {(selectedSpot.capacity || (selectedSpot.amenitiesAV && selectedSpot.amenitiesAV.length > 0) || selectedSpot.bookingPolicies) && (
+              <div className="p-4 bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 rounded-2xl space-y-3 text-xs">
+                <div className="flex items-center justify-between border-b border-amber-100 dark:border-amber-900/40 pb-2">
+                  <span className="font-black text-xs text-amber-800 dark:text-amber-300 flex items-center gap-1.5 uppercase tracking-wider">
+                    <Building2 className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Venue Specifications & Event Space</span>
+                  </span>
+                  {selectedSpot.capacity && (
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200">
+                      Capacity: {selectedSpot.capacity}
+                    </span>
+                  )}
+                </div>
+
+                {selectedSpot.amenitiesAV && selectedSpot.amenitiesAV.length > 0 && (
+                  <div className="space-y-1.5">
+                    <strong className="text-[11px] text-amber-900 dark:text-amber-200 block">Included Amenities & AV Equipment:</strong>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedSpot.amenitiesAV.map((amenity, i) => (
+                        <span key={i} className="px-2.5 py-1 rounded-xl bg-white dark:bg-[#121113] border border-amber-200 dark:border-amber-900/50 text-[11px] font-semibold text-slate-800 dark:text-slate-200 shadow-xs flex items-center gap-1">
+                          <Check className="w-3 h-3 text-amber-600" />
+                          <span>{amenity}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {selectedSpot.bookingPolicies && (
+                  <div className="space-y-0.5">
+                    <strong className="text-[11px] text-amber-900 dark:text-amber-200 block">Booking, Curfew & Cancellation Policies:</strong>
+                    <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{selectedSpot.bookingPolicies}</p>
+                  </div>
+                )}
               </div>
             )}
 

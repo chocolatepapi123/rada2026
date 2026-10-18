@@ -453,31 +453,51 @@ export async function fetchListings(): Promise<CloudListings | null> {
       for (const row of spotRows) {
         const sid = String(row.id);
         seenSpotIds.add(sid);
+        const d = row.data && typeof row.data === 'object' ? row.data : {};
         out.spot.push({
           id: row.id,
-          title: row.title || 'Untitled Spot',
-          category: row.category || 'restaurants',
-          neighborhood: row.neighborhood || 'Nairobi',
-          address: row.address || '',
-          exactLocationTag: row.exact_location_tag || row.exactLocationTag || row.address || '',
-          landmark: row.landmark || row.neighborhood || '',
-          lat: row.lat ?? -1.2675,
-          lng: row.lng ?? 36.8115,
-          price: row.price || 'KES $$',
-          rating: row.rating && Number(row.rating) > 0 ? Number(row.rating).toFixed(1) : 'New',
-          reviewCount: Number(row.review_count || row.reviewCount || 0),
-          img: row.img || (row.images && row.images[0]) || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
+          title: row.title || d.title || 'Untitled Spot',
+          category: row.category || d.category || 'restaurants',
+          neighborhood: row.neighborhood || d.neighborhood || 'Nairobi',
+          address: row.address || d.address || '',
+          exactLocationTag: row.exact_location_tag || row.exactLocationTag || d.exactLocationTag || row.address || '',
+          landmark: row.landmark || d.landmark || row.neighborhood || '',
+          lat: row.lat ?? d.lat ?? -1.2675,
+          lng: row.lng ?? d.lng ?? 36.8115,
+          price: row.price || d.price || 'KES $$',
+          rating: row.rating && Number(row.rating) > 0 ? Number(row.rating).toFixed(1) : (d.rating || 'New'),
+          reviewCount: Number(row.review_count || row.reviewCount || d.reviewCount || 0),
+          img: row.img || (row.images && row.images[0]) || d.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
           images: Array.isArray(row.images) && row.images.length > 0
             ? row.images
-            : [row.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop'],
-          description: row.description || '',
-          phone: row.phone || '',
-          openingHours: row.opening_hours || row.openingHours || '',
-          businessId: row.business_id || row.businessId,
-          merchantId: row.merchant_id || row.merchantId || row.owner_id || row.ownerId,
-          isUserUploaded: row.is_user_uploaded ?? row.isUserUploaded ?? false,
-          menuItems: row.menu_items || row.menuItems || [],
-          reviews: row.reviews || [],
+            : (d.images || [row.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop']),
+          description: row.description || d.description || '',
+          phone: row.phone || d.phone || '',
+          openingHours: row.opening_hours || row.openingHours || d.openingHours || '',
+          businessId: row.business_id || row.businessId || d.businessId,
+          merchantId: row.merchant_id || row.merchantId || row.owner_id || row.ownerId || d.merchantId,
+          isUserUploaded: row.is_user_uploaded ?? row.isUserUploaded ?? d.isUserUploaded ?? false,
+          menuItems: row.menu_items || row.menuItems || d.menuItems || [],
+          reviews: row.reviews || d.reviews || [],
+          // Category-specific metadata
+          cuisineTypes: row.cuisine_types || d.cuisineTypes || [],
+          featuredDishes: row.featured_dishes || d.featuredDishes || [],
+          menuImages: row.menu_images || d.menuImages || [],
+          menuUploadUrl: row.menu_upload_url || d.menuUploadUrl,
+          equipmentNeeded: row.equipment_needed || d.equipmentNeeded,
+          equipmentProvided: row.equipment_provided || d.equipmentProvided,
+          skillLevel: row.skill_level || d.skillLevel,
+          whatToBring: row.what_to_bring || d.whatToBring,
+          capacity: row.capacity || d.capacity,
+          amenitiesAV: row.amenities_av || row.amenitiesAV || d.amenitiesAV || [],
+          bookingPolicies: row.booking_policies || d.bookingPolicies,
+          website: row.website || d.website || d.socialLinks?.website,
+          instagram: row.instagram || d.instagram || d.socialLinks?.instagram,
+          socialLinks: d.socialLinks || {
+            website: row.website || d.website,
+            instagram: row.instagram || d.instagram
+          },
+          ...d
         });
       }
     }
@@ -497,8 +517,16 @@ export async function fetchListings(): Promise<CloudListings | null> {
         if (row.kind in out && row.data) {
           if (row.kind === 'spot') {
             const sid = String(row.id);
-            if (!seenSpotIds.has(sid)) {
+            const appSpotId = String(row.data?.id || '');
+            const existing = out.spot.find(s => String(s.id) === sid || (appSpotId && String(s.id) === appSpotId));
+            if (existing) {
+              Object.assign(existing, row.data, {
+                id: existing.id,
+                merchantId: row.data?.merchantId || existing.merchantId || row.owner_id
+              });
+            } else if (!seenSpotIds.has(sid) && (!appSpotId || !seenSpotIds.has(appSpotId))) {
               seenSpotIds.add(sid);
+              if (appSpotId) seenSpotIds.add(appSpotId);
               out.spot.push({
                 ...row.data,
                 merchantId: row.data?.merchantId || row.owner_id || row.data?.ownerId,

@@ -34,7 +34,13 @@ import {
   X,
   ArrowLeft,
   Upload,
-  Camera
+  Camera,
+  Compass,
+  Globe,
+  Instagram,
+  Heart,
+  FileText,
+  Dumbbell
 } from 'lucide-react';
 import { 
   BusinessAccount, 
@@ -54,6 +60,125 @@ import { BusinessBadge } from './BusinessBadge.tsx';
 import { DynamicLocationSelector } from './DynamicLocationSelector.tsx';
 import { toValidUuid } from '../lib/cloudSync.ts';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
+
+export interface PrimaryCategoryConfig {
+  id: SpotCategory;
+  groupId: 'food_drink' | 'nightlife' | 'outdoor_fitness' | 'creative_arts' | 'spa_wellness' | 'event_space';
+  label: string;
+  badge: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  accentColor: string;
+}
+
+export const PRIMARY_SPOT_CATEGORIES: PrimaryCategoryConfig[] = [
+  {
+    id: 'restaurants',
+    groupId: 'food_drink',
+    label: 'Food & Drink / Restaurant',
+    badge: 'Dining & Cafes',
+    description: 'Fine dining, cafes, bistros, bakeries & culinary spots',
+    icon: UtensilsCrossed,
+    accentColor: 'border-orange-500 bg-orange-500/10 text-[#E0533C]'
+  },
+  {
+    id: 'nightlife',
+    groupId: 'nightlife',
+    label: 'Nightlife & Clubs',
+    badge: 'Lounges & Bars',
+    description: 'Cocktail bars, dance clubs, DJ lounges & nightlife',
+    icon: Flame,
+    accentColor: 'border-purple-500 bg-purple-500/10 text-purple-600'
+  },
+  {
+    id: 'outdoors',
+    groupId: 'outdoor_fitness',
+    label: 'Outdoor & Fitness',
+    badge: 'Sports & Adventure',
+    description: 'Hiking trails, sports arenas, climbing, gyms & action parks',
+    icon: Compass,
+    accentColor: 'border-emerald-500 bg-emerald-500/10 text-emerald-600'
+  },
+  {
+    id: 'creative_leisure',
+    groupId: 'creative_arts',
+    label: 'Creative & Arts',
+    badge: 'Art & Studios',
+    description: 'Paint & sip, art studios, pottery, photo spaces & workshops',
+    icon: Sparkles,
+    accentColor: 'border-pink-500 bg-pink-500/10 text-pink-600'
+  },
+  {
+    id: 'spa_wellness',
+    groupId: 'spa_wellness',
+    label: 'Spa & Wellness',
+    badge: 'Relaxation & Health',
+    description: 'Day spas, saunas, massage, yoga & wellness retreats',
+    icon: Heart,
+    accentColor: 'border-teal-500 bg-teal-500/10 text-teal-600'
+  },
+  {
+    id: 'event_space',
+    groupId: 'event_space',
+    label: 'Event Space & Venues',
+    badge: 'Private Venues',
+    description: 'Banquet halls, wedding grounds, conference rooms & stages',
+    icon: Building2,
+    accentColor: 'border-amber-500 bg-amber-500/10 text-amber-600'
+  }
+];
+
+export function getSpotCategoryGroup(cat: string): 'food_drink' | 'nightlife' | 'outdoor_fitness' | 'creative_arts' | 'spa_wellness' | 'event_space' | 'general' {
+  const c = (cat || '').toLowerCase();
+  if (c === 'restaurants' || c === 'cafes' || c === 'date_spots') return 'food_drink';
+  if (c === 'nightlife') return 'nightlife';
+  if (c === 'outdoors' || c === 'outdoor_fitness' || c === 'action_sports' || c === 'connect_with_nature' || c === 'activities') return 'outdoor_fitness';
+  if (c === 'creative_arts' || c === 'creative_leisure' || c === 'social_activities' || c === 'tech_gaming') return 'creative_arts';
+  if (c === 'spa_wellness') return 'spa_wellness';
+  if (c === 'event_space' || c === 'hotels' || c === 'vacation') return 'event_space';
+  return 'general';
+}
+
+export const PRESET_CUISINES = [
+  'Kenyan / Nyama Choma',
+  'Swahili Coastal',
+  'Italian & Woodfired Pizza',
+  'Asian Fusion & Sushi',
+  'Burgers & Smokehouse',
+  'Artisanal Coffee & Bakery',
+  'Craft Cocktails & Tapas',
+  'Indian & Tandoori',
+  'Fine Dining',
+  'Breakfast & Brunch',
+  'Seafood & Grill',
+  'Late-Night Bites'
+];
+
+export const PRESET_WHAT_TO_BRING = [
+  'Comfortable Activewear',
+  'Reusable Water Bottle',
+  'Hiking / Trail Shoes',
+  'Sunscreen & Sunglasses',
+  'Personal Towel',
+  'Change of Clothes',
+  'Rain Poncho / Jacket',
+  'Energy Snacks'
+];
+
+export const PRESET_VENUE_AMENITIES = [
+  'PA Sound System & Microphones',
+  'HD Projector & Giant Screen',
+  'Performance Stage & Trussing',
+  'High-Speed Dedicated Fiber WiFi',
+  'Automatic Backup Generator (No Blackouts)',
+  'VIP Green Room / Bridal Suite',
+  'Dedicated On-site Parking (100+ cars)',
+  'Central Air Conditioning / Climate Control',
+  'Lush Outdoor Lawn / Garden Area',
+  'Commercial Catering Kitchen',
+  'Wheelchair & Disability Accessible',
+  'Professional Stage Lighting Rig'
+];
 
 interface MerchantHubTabProps {
   businesses: BusinessAccount[];
@@ -273,13 +398,37 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   const [spotCoverImg, setSpotCoverImg] = useState('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop');
   const [spotGalleryImgs, setSpotGalleryImgs] = useState<string[]>([]);
   const [newGalleryInput, setNewGalleryInput] = useState('');
+
+  // 1. Food & Drink / Restaurants / Lounges & Nightlife
+  const [spotCuisineTypes, setSpotCuisineTypes] = useState<string[]>([]);
+  const [newCuisineInput, setNewCuisineInput] = useState('');
+  const [spotFeaturedDishes, setSpotFeaturedDishes] = useState<string[]>([]);
+  const [newFeaturedDishInput, setNewFeaturedDishInput] = useState('');
+  const [spotMenuUploadUrl, setSpotMenuUploadUrl] = useState('');
   const [spotMenuItems, setSpotMenuItems] = useState<MenuItem[]>([]);
   const [newMenuName, setNewMenuName] = useState('');
   const [newMenuPrice, setNewMenuPrice] = useState('KES ');
   const [newMenuCategory, setNewMenuCategory] = useState('Mains');
   const [newMenuDesc, setNewMenuDesc] = useState('');
 
-  // Native file upload handlers for Spot Cover Image and Gallery
+  // 2. Outdoor / Fitness / Sports
+  const [spotEquipmentProvided, setSpotEquipmentProvided] = useState('');
+  const [spotEquipmentNeeded, setSpotEquipmentNeeded] = useState('');
+  const [spotSkillLevel, setSpotSkillLevel] = useState('All Levels Welcome');
+  const [spotWhatToBring, setSpotWhatToBring] = useState<string[]>([]);
+  const [customWhatToBringInput, setCustomWhatToBringInput] = useState('');
+
+  // 3. Event Spaces / Venues
+  const [spotCapacity, setSpotCapacity] = useState('');
+  const [spotAmenitiesAV, setSpotAmenitiesAV] = useState<string[]>([]);
+  const [customAmenityInput, setCustomAmenityInput] = useState('');
+  const [spotBookingPolicies, setSpotBookingPolicies] = useState('');
+
+  // 4. General Social Links
+  const [spotWebsite, setSpotWebsite] = useState('');
+  const [spotInstagram, setSpotInstagram] = useState('');
+
+  // Native file upload handlers for Spot Cover Image, Gallery and Menu Document
   const handleSpotCoverFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -325,6 +474,18 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     showToast('Gallery image removed.');
   };
 
+  const handleSpotMenuDocUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        setSpotMenuUploadUrl(reader.result);
+        showToast('Menu document / image uploaded successfully!');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const openCreateSpotModal = () => {
     setEditingSpotId(null);
@@ -340,9 +501,24 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setSpotDescription(currentBiz?.bio || '');
     setSpotCoverImg('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop');
     setSpotGalleryImgs(['https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop']);
+    // Reset dynamic category-specific fields with sensible defaults
+    setSpotCuisineTypes(['Kenyan / Nyama Choma', 'Craft Cocktails & Tapas']);
+    setSpotFeaturedDishes(['Signature House Platter', 'Craft Passion Dawa']);
+    setSpotMenuUploadUrl('');
     setSpotMenuItems([
       { id: 'm-init-1', name: 'Signature House Dish', category: 'Mains', price: 'KES 1,200', description: 'Fresh local ingredients crafted by our head chef' }
     ]);
+    setSpotEquipmentProvided('All standard safety gear, harnesses, and basic equipment provided on-site.');
+    setSpotEquipmentNeeded('Please wear comfortable sports footwear; bring personal water bottle.');
+    setSpotSkillLevel('All Levels Welcome');
+    setSpotWhatToBring(['Comfortable Activewear', 'Reusable Water Bottle']);
+    setCustomWhatToBringInput('');
+    setSpotCapacity('Standing: 350 • Seated: 200');
+    setSpotAmenitiesAV(['PA Sound System & Microphones', 'HD Projector & Giant Screen', 'High-Speed Dedicated Fiber WiFi', 'Automatic Backup Generator (No Blackouts)']);
+    setCustomAmenityInput('');
+    setSpotBookingPolicies('50% deposit required upon reservation. Outside catering permitted with corkage fee. Sound curfew at 11:00 PM for open-air zones.');
+    setSpotWebsite('');
+    setSpotInstagram(currentBiz?.instagram || '@');
     setIsSpotFormOpen(true);
   };
 
@@ -374,6 +550,27 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setSpotCoverImg(spot.img);
     setSpotGalleryImgs(spot.images && spot.images.length > 0 ? spot.images : [spot.img]);
     setSpotMenuItems(spot.menuItems || []);
+    // Populate dynamic category-specific fields
+    setSpotCuisineTypes(spot.cuisineTypes || []);
+    setSpotFeaturedDishes(spot.featuredDishes || []);
+    setSpotMenuUploadUrl(spot.menuUploadUrl || (spot.menuImages && spot.menuImages[0]) || '');
+    setSpotEquipmentProvided(spot.equipmentProvided || '');
+    setSpotEquipmentNeeded(spot.equipmentNeeded || '');
+    setSpotSkillLevel(spot.skillLevel || 'All Levels Welcome');
+    setSpotWhatToBring(
+      Array.isArray(spot.whatToBring) 
+        ? spot.whatToBring 
+        : typeof spot.whatToBring === 'string' && spot.whatToBring.trim() 
+        ? spot.whatToBring.split(',').map(s => s.trim()).filter(Boolean) 
+        : []
+    );
+    setCustomWhatToBringInput('');
+    setSpotCapacity(typeof spot.capacity === 'number' ? String(spot.capacity) : (spot.capacity || ''));
+    setSpotAmenitiesAV(spot.amenitiesAV || []);
+    setCustomAmenityInput('');
+    setSpotBookingPolicies(spot.bookingPolicies || '');
+    setSpotWebsite(spot.website || spot.socialLinks?.website || '');
+    setSpotInstagram(spot.instagram || spot.socialLinks?.instagram || '');
     setIsSpotFormOpen(true);
   };
 
@@ -442,7 +639,25 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       merchantId: effectiveMerchantId,
       isUserUploaded: false,
       menuItems: spotMenuItems,
-      reviews: existing?.reviews || []
+      reviews: existing?.reviews || [],
+      // Dynamic category metadata safely bundled
+      cuisineTypes: spotCuisineTypes,
+      featuredDishes: spotFeaturedDishes,
+      menuUploadUrl: spotMenuUploadUrl,
+      menuImages: spotMenuUploadUrl ? [spotMenuUploadUrl] : (existing?.menuImages || []),
+      equipmentProvided: spotEquipmentProvided.trim(),
+      equipmentNeeded: spotEquipmentNeeded.trim(),
+      skillLevel: spotSkillLevel,
+      whatToBring: spotWhatToBring.join(', '),
+      capacity: spotCapacity.trim(),
+      amenitiesAV: spotAmenitiesAV,
+      bookingPolicies: spotBookingPolicies.trim(),
+      website: spotWebsite.trim(),
+      instagram: spotInstagram.trim(),
+      socialLinks: {
+        website: spotWebsite.trim(),
+        instagram: spotInstagram.trim()
+      }
     };
 
     onAddOrUpdateSpot(savedSpot);
@@ -463,6 +678,18 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setSpotCoverImg('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop');
     setSpotGalleryImgs([]);
     setSpotMenuItems([]);
+    setSpotCuisineTypes([]);
+    setSpotFeaturedDishes([]);
+    setSpotMenuUploadUrl('');
+    setSpotEquipmentProvided('');
+    setSpotEquipmentNeeded('');
+    setSpotSkillLevel('All Levels Welcome');
+    setSpotWhatToBring([]);
+    setSpotCapacity('');
+    setSpotAmenitiesAV([]);
+    setSpotBookingPolicies('');
+    setSpotWebsite('');
+    setSpotInstagram('');
 
     showToast(editingSpotId ? `Spot "${savedSpot.title}" details updated successfully.` : `Spot "${savedSpot.title}" published live to RADA!`);
   };
@@ -2257,75 +2484,902 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
           <div className="max-w-3xl mx-auto w-full px-4 py-6 flex-1 pb-32">
             <form onSubmit={handleSaveSpot} className="space-y-6">
               
-              {/* Basic Details Card */}
-              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
-                  Basic Spot Info
-                </h3>
+              {/* 1. Basic Spot Identity & Primary Category Selection */}
+              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-5">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                    Basic Spot Info & Category
+                  </h3>
+                  <span className="text-[10px] text-[#E0533C] font-bold">Step 1 • Classification</span>
+                </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Spot Title *</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Spot Name / Venue Title *
+                  </label>
                   <input 
                     type="text" 
                     value={spotTitle} 
                     onChange={(e) => setSpotTitle(e.target.value)} 
-                    placeholder="e.g. Ink & Drink Lounge"
+                    placeholder="e.g. Ink & Drink Lounge, Karura Forest Foresters, The Foundry"
                     className="w-full text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C] font-semibold"
                     required 
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Category</label>
-                    <select 
-                      value={spotCategory} 
+                {/* DYNAMIC PRIMARY CATEGORY SELECTION */}
+                <div className="space-y-3 pt-1">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                        Primary Category *
+                      </label>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Choose your spot's primary nature to display category-specific fields below
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">
+                      Current: {spotCategory}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {PRIMARY_SPOT_CATEGORIES.map((catConfig) => {
+                      const Icon = catConfig.icon;
+                      const isCurrentGroup = getSpotCategoryGroup(spotCategory) === catConfig.groupId;
+                      return (
+                        <button
+                          key={catConfig.id}
+                          type="button"
+                          onClick={() => setSpotCategory(catConfig.id)}
+                          className={`p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between gap-3 cursor-pointer group relative ${
+                            isCurrentGroup
+                              ? 'border-[#E0533C] bg-orange-50/70 dark:bg-orange-950/40 text-slate-900 dark:text-slate-100 ring-2 ring-[#E0533C]/20 shadow-xs'
+                              : 'border-slate-200 dark:border-slate-800 bg-[#FBFBF9] dark:bg-[#121113] hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition ${
+                              isCurrentGroup 
+                                ? 'bg-[#E0533C] text-white shadow-xs' 
+                                : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:scale-105'
+                            }`}>
+                              <Icon className="w-4 h-4" />
+                            </div>
+                            {isCurrentGroup && (
+                              <span className="w-2.5 h-2.5 rounded-full bg-[#E0533C]" />
+                            )}
+                          </div>
+                          <div>
+                            <span className="text-xs font-black block leading-tight text-slate-900 dark:text-slate-100">
+                              {catConfig.label}
+                            </span>
+                            <span className="text-[10px] text-slate-400 block mt-1 line-clamp-1">
+                              {catConfig.badge}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Sub-Category Specific Selector */}
+                  <div className="pt-2">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Sub-Category / Venue Type
+                    </label>
+                    <select
+                      value={spotCategory}
                       onChange={(e) => setSpotCategory(e.target.value as SpotCategory)}
                       className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 font-semibold focus:outline-none focus:border-[#E0533C]"
                     >
-                      <option value="restaurants">Restaurants</option>
-                      <option value="nightlife">Nightlife & Clubs</option>
-                      <option value="cafes">Cafes</option>
-                      <option value="date_spots">Date Spots</option>
-                      <option value="hotels">Hotels</option>
-                      <option value="vacation">Vacation Lodges</option>
+                      <optgroup label="Food & Drink / Restaurants">
+                        <option value="restaurants">Restaurant & Dining</option>
+                        <option value="cafes">Cafe & Specialty Coffee / Bakery</option>
+                        <option value="date_spots">Cozy Date Spot & Bistro</option>
+                      </optgroup>
+                      <optgroup label="Nightlife & Clubs">
+                        <option value="nightlife">Nightclub, Cocktail Bar & Lounge</option>
+                      </optgroup>
+                      <optgroup label="Outdoor & Fitness">
+                        <option value="outdoors">Outdoor Nature, Park & Trails</option>
+                        <option value="outdoor_fitness">Fitness Center & Sports Gym</option>
+                        <option value="action_sports">Action Sports, Karting & Gaming</option>
+                        <option value="connect_with_nature">Nature Sanctuary & Eco Reserve</option>
+                      </optgroup>
+                      <optgroup label="Creative & Arts">
+                        <option value="creative_leisure">Paint & Sip / Creative Studio</option>
+                        <option value="creative_arts">Art Gallery & Cultural Workshop</option>
+                        <option value="social_activities">Social Games & Creative Lounge</option>
+                      </optgroup>
+                      <optgroup label="Spa & Wellness">
+                        <option value="spa_wellness">Day Spa, Sauna & Massage Retreat</option>
+                      </optgroup>
+                      <optgroup label="Event Spaces & Venues">
+                        <option value="event_space">Banquet Hall & Event Grounds</option>
+                        <option value="hotels">Hotel Conference & Event Venue</option>
+                        <option value="vacation">Private Villa & Wedding Retreat</option>
+                      </optgroup>
                     </select>
                   </div>
+                </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Price Tier</label>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Price Tier
+                    </label>
                     <select 
                       value={spotPrice} 
                       onChange={(e) => setSpotPrice(e.target.value)}
                       className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 font-semibold focus:outline-none focus:border-[#E0533C]"
                     >
-                      <option value="KES $">KES $ (Budget Friendly)</option>
-                      <option value="KES $$">KES $$ (Moderate)</option>
-                      <option value="KES $$$">KES $$$ (Premium)</option>
-                      <option value="KES $$$$">KES $$$$ (Fine Dining / Luxury)</option>
+                      <option value="KES $">KES $ (Budget Friendly &bull; Under 1K)</option>
+                      <option value="KES $$">KES $$ (Moderate &bull; 1K - 2.5K)</option>
+                      <option value="KES $$$">KES $$$ (Premium &bull; 2.5K - 5K)</option>
+                      <option value="KES $$$$">KES $$$$ (Luxury &bull; 5K+)</option>
                     </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Operating Hours
+                    </label>
+                    <input 
+                      type="text" 
+                      value={spotOpeningHours} 
+                      onChange={(e) => setSpotOpeningHours(e.target.value)} 
+                      placeholder="e.g. 11:00 AM - Midnight"
+                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C]"
+                    />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Description / About</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Description / About This Spot *
+                  </label>
                   <textarea 
                     rows={3}
                     value={spotDescription} 
                     onChange={(e) => setSpotDescription(e.target.value)} 
-                    placeholder="Tell guests what makes your hangout, cocktails, views, or food unique..."
+                    placeholder="Tell Nairobi explorers what makes your hangout, cocktails, ambiance, scenic views, or activities unique..."
                     className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C]"
+                    required
                   />
                 </div>
               </div>
 
-              {/* Location & Directions Card with Dynamic Auto-search */}
+              {/* =========================================================================
+                  DYNAMIC CONDITIONAL SECTION 1: FOOD & DRINK / RESTAURANTS / NIGHTLIFE
+                  ========================================================================= */}
+              {(getSpotCategoryGroup(spotCategory) === 'food_drink' || getSpotCategoryGroup(spotCategory) === 'nightlife') && (
+                <div className="bg-white dark:bg-[#1C1A1E] border border-orange-200 dark:border-orange-900/40 rounded-3xl p-5 sm:p-6 shadow-xs space-y-6 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-orange-500/10 text-[#E0533C] flex items-center justify-center">
+                        <UtensilsCrossed className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
+                          Food & Drink / Restaurant Details
+                        </h3>
+                        <p className="text-[11px] text-slate-400">
+                          Cuisine types, featured dishes/drinks & menu upload
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/60 text-[#E0533C]">
+                      Food & Drink
+                    </span>
+                  </div>
+
+                  {/* 1. CUISINE TYPES */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                        Cuisine Types & Beverage Specializations ({spotCuisineTypes.length} selected)
+                      </label>
+                      <span className="text-[10px] text-slate-400">Select all that apply</span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5">
+                      {PRESET_CUISINES.map((cuisine) => {
+                        const isSelected = spotCuisineTypes.includes(cuisine);
+                        return (
+                          <button
+                            key={cuisine}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setSpotCuisineTypes(prev => prev.filter(c => c !== cuisine));
+                              } else {
+                                setSpotCuisineTypes(prev => [...prev, cuisine]);
+                              }
+                            }}
+                            className={`px-3 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                              isSelected
+                                ? 'bg-[#E0533C] text-white shadow-xs'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                            }`}
+                          >
+                            {isSelected && <Check className="w-3 h-3" />}
+                            <span>{cuisine}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Custom Cuisine Tag Input */}
+                    <div className="flex gap-2 pt-1">
+                      <input
+                        type="text"
+                        value={newCuisineInput}
+                        onChange={(e) => setNewCuisineInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (newCuisineInput.trim() && !spotCuisineTypes.includes(newCuisineInput.trim())) {
+                              setSpotCuisineTypes(prev => [...prev, newCuisineInput.trim()]);
+                              setNewCuisineInput('');
+                            }
+                          }
+                        }}
+                        placeholder="Add custom cuisine (e.g. Ethiopian, Vegan, Moroccan, Mexican)..."
+                        className="text-xs flex-1 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 focus:outline-none focus:border-[#E0533C]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (newCuisineInput.trim() && !spotCuisineTypes.includes(newCuisineInput.trim())) {
+                            setSpotCuisineTypes(prev => [...prev, newCuisineInput.trim()]);
+                            setNewCuisineInput('');
+                          }
+                        }}
+                        className="px-3.5 py-2 bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-bold rounded-xl hover:opacity-90 transition"
+                      >
+                        Add Tag
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 2. FEATURED DISHES / DRINKS */}
+                  <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                        Featured Dishes / Signature Drinks ({spotFeaturedDishes.length})
+                      </label>
+                      <span className="text-[10px] text-slate-400">Signature highlights shown on spot profile</span>
+                    </div>
+
+                    {spotFeaturedDishes.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {spotFeaturedDishes.map((dish, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/50 text-xs font-bold text-orange-900 dark:text-orange-200"
+                          >
+                            <Sparkles className="w-3 h-3 text-[#E0533C]" />
+                            <span>{dish}</span>
+                            <button
+                              type="button"
+                              onClick={() => setSpotFeaturedDishes(prev => prev.filter((_, i) => i !== idx))}
+                              className="text-orange-400 hover:text-red-500 ml-1 p-0.5 cursor-pointer"
+                              title="Remove item"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newFeaturedDishInput}
+                        onChange={(e) => setNewFeaturedDishInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (newFeaturedDishInput.trim() && !spotFeaturedDishes.includes(newFeaturedDishInput.trim())) {
+                              setSpotFeaturedDishes(prev => [...prev, newFeaturedDishInput.trim()]);
+                              setNewFeaturedDishInput('');
+                            }
+                          }
+                        }}
+                        placeholder="e.g. Signature Dawa Honey Spritz, Smoked Mbuzi Ribs, Truffle Parmesan Fries..."
+                        className="text-xs flex-1 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 focus:outline-none focus:border-[#E0533C]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (newFeaturedDishInput.trim() && !spotFeaturedDishes.includes(newFeaturedDishInput.trim())) {
+                            setSpotFeaturedDishes(prev => [...prev, newFeaturedDishInput.trim()]);
+                            setNewFeaturedDishInput('');
+                          }
+                        }}
+                        className="px-3.5 py-2 bg-[#E0533C] hover:bg-[#c9432d] text-white text-xs font-bold rounded-xl flex items-center gap-1"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Dish</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 3. MENU UPLOAD */}
+                  <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                          Menu Upload (PDF or Image)
+                        </label>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Upload your printed menu document or food brochure from device
+                        </p>
+                      </div>
+                      {spotMenuUploadUrl && (
+                        <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Menu Uploaded</span>
+                        </span>
+                      )}
+                    </div>
+
+                    {spotMenuUploadUrl ? (
+                      <div className="p-3.5 rounded-2xl bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <img 
+                            src={spotMenuUploadUrl} 
+                            alt="Uploaded Menu Preview" 
+                            className="w-14 h-14 rounded-xl object-cover shrink-0 border border-slate-200 dark:border-slate-700" 
+                          />
+                          <div className="min-w-0">
+                            <span className="text-xs font-bold block truncate text-slate-900 dark:text-slate-100">
+                              Uploaded Spot Menu Document
+                            </span>
+                            <span className="text-[10px] text-emerald-600 font-semibold block">
+                              Active and available on your spot profile
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <label
+                            htmlFor="spot-menu-doc-change"
+                            className="px-3 py-1.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-bold cursor-pointer transition"
+                          >
+                            <span>Change</span>
+                          </label>
+                          <input
+                            id="spot-menu-doc-change"
+                            type="file"
+                            accept="image/*,application/pdf"
+                            onChange={handleSpotMenuDocUpload}
+                            className="hidden"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSpotMenuUploadUrl('');
+                              showToast('Menu document removed.');
+                            }}
+                            className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition cursor-pointer"
+                            title="Remove menu document"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <label
+                        htmlFor="spot-menu-doc-input"
+                        className="w-full py-5 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-2 cursor-pointer transition text-center group"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] flex items-center justify-center group-hover:scale-105 transition">
+                          <Upload className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                            Upload Spot Menu File
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">
+                            Click to select an image or PDF from your device
+                          </p>
+                        </div>
+                        <input
+                          id="spot-menu-doc-input"
+                          type="file"
+                          accept="image/*,application/pdf"
+                          onChange={handleSpotMenuDocUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  {/* 4. DIGITAL MENU BUILDER */}
+                  <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                          Digital Menu Items ({spotMenuItems.length})
+                        </label>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Itemized menu for instant guest browsing and prices
+                        </p>
+                      </div>
+                    </div>
+
+                    {spotMenuItems.length > 0 && (
+                      <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                        {spotMenuItems.map((item, idx) => (
+                          <div key={item.id || idx} className="p-3 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between text-xs">
+                            <div className="min-w-0 flex-1 pr-3">
+                              <div className="flex items-center gap-2">
+                                <span className="font-extrabold text-slate-900 dark:text-slate-100 truncate">{item.name}</span>
+                                {item.category && (
+                                  <span className="text-[9px] bg-slate-200 dark:bg-slate-800 px-1.5 py-0.2 rounded font-semibold text-slate-600 dark:text-slate-400">
+                                    {item.category}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[11px] text-[#E0533C] font-black">{item.price}</span>
+                              {item.description && <span className="text-[10px] text-slate-400 block truncate">{item.description}</span>}
+                            </div>
+                            <button 
+                              type="button"
+                              onClick={() => setSpotMenuItems(prev => prev.filter((_, i) => i !== idx))}
+                              className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-950/60 text-red-500 hover:text-red-700 flex items-center justify-center shrink-0 cursor-pointer transition"
+                              title="Delete menu item"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add menu item mini-form */}
+                    <div className="bg-[#FBFBF9] dark:bg-[#121113] p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
+                      <h4 className="text-xs font-black text-slate-800 dark:text-slate-200">
+                        Add New Dish or Beverage to Menu
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <input 
+                          type="text"
+                          placeholder="Item Name (e.g. Swahili Biryani)"
+                          value={newMenuName}
+                          onChange={(e) => setNewMenuName(e.target.value)}
+                          className="text-xs bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
+                        />
+                        <input 
+                          type="text"
+                          placeholder="Price (e.g. KES 1,200)"
+                          value={newMenuPrice}
+                          onChange={(e) => setNewMenuPrice(e.target.value)}
+                          className="text-xs bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
+                        />
+                        <select
+                          value={newMenuCategory}
+                          onChange={(e) => setNewMenuCategory(e.target.value)}
+                          className="text-xs bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
+                        >
+                          <option value="Mains">Mains</option>
+                          <option value="Starters">Starters & Tapas</option>
+                          <option value="Cocktails">Cocktails & Drinks</option>
+                          <option value="Desserts">Desserts</option>
+                          <option value="Brunch">Brunch & Coffee</option>
+                          <option value="Bottles">Bottle Service</option>
+                        </select>
+                      </div>
+                      <input 
+                        type="text"
+                        placeholder="Short Description (e.g. Slow-cooked spiced rice with tender goat & kachumbari)"
+                        value={newMenuDesc}
+                        onChange={(e) => setNewMenuDesc(e.target.value)}
+                        className="w-full text-xs bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
+                      />
+                      <button 
+                        type="button"
+                        onClick={handleAddMenuItem}
+                        className="w-full text-xs font-extrabold bg-[#E0533C]/10 text-[#E0533C] hover:bg-[#E0533C]/20 py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Item to Digital Menu</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* =========================================================================
+                  DYNAMIC CONDITIONAL SECTION 2: OUTDOOR / FITNESS / SPORTS
+                  ========================================================================= */}
+              {getSpotCategoryGroup(spotCategory) === 'outdoor_fitness' && (
+                <div className="bg-white dark:bg-[#1C1A1E] border border-emerald-200 dark:border-emerald-900/40 rounded-3xl p-5 sm:p-6 shadow-xs space-y-5 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                        <Compass className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
+                          Outdoor & Fitness Specifications
+                        </h3>
+                        <p className="text-[11px] text-slate-400">
+                          Equipment needed/provided, skill level & what to bring
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
+                      Outdoor Active
+                    </span>
+                  </div>
+
+                  {/* 1. SKILL LEVEL */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                      Skill Level Required
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {['All Levels Welcome', 'Beginner Friendly', 'Intermediate', 'Challenging / Advanced'].map((lvl) => (
+                        <button
+                          key={lvl}
+                          type="button"
+                          onClick={() => setSpotSkillLevel(lvl)}
+                          className={`px-3 py-2.5 rounded-xl text-xs font-extrabold transition cursor-pointer text-center ${
+                            spotSkillLevel === lvl
+                              ? 'bg-emerald-600 text-white shadow-xs'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                          }`}
+                        >
+                          {lvl}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 2. EQUIPMENT NEEDED / PROVIDED */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                    <div>
+                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
+                        Equipment Provided by Venue
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={spotEquipmentProvided}
+                        onChange={(e) => setSpotEquipmentProvided(e.target.value)}
+                        placeholder="e.g. Safety helmets, climbing harnesses, tennis rackets, and life jackets provided on-site at no extra fee..."
+                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
+                        Equipment Needed / Rentals
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={spotEquipmentNeeded}
+                        onChange={(e) => setSpotEquipmentNeeded(e.target.value)}
+                        placeholder="e.g. Bring own trainers or trail running shoes; grip socks required (available for hire at KES 250)..."
+                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 3. WHAT TO BRING */}
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                        What to Bring (Guest Checklist)
+                      </label>
+                      <span className="text-[10px] text-slate-400">Click to toggle recommendations</span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5">
+                      {PRESET_WHAT_TO_BRING.map((item) => {
+                        const isSelected = spotWhatToBring.includes(item);
+                        return (
+                          <button
+                            key={item}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setSpotWhatToBring(prev => prev.filter(x => x !== item));
+                              } else {
+                                setSpotWhatToBring(prev => [...prev, item]);
+                              }
+                            }}
+                            className={`px-3 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                              isSelected
+                                ? 'bg-emerald-600 text-white shadow-xs'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                            }`}
+                          >
+                            {isSelected && <Check className="w-3 h-3" />}
+                            <span>{item}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Custom What to Bring input */}
+                    <div className="flex gap-2 pt-1">
+                      <input
+                        type="text"
+                        value={customWhatToBringInput}
+                        onChange={(e) => setCustomWhatToBringInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (customWhatToBringInput.trim() && !spotWhatToBring.includes(customWhatToBringInput.trim())) {
+                              setSpotWhatToBring(prev => [...prev, customWhatToBringInput.trim()]);
+                              setCustomWhatToBringInput('');
+                            }
+                          }
+                        }}
+                        placeholder="Add custom item (e.g. Swimming cap, Bug spray, Headlamp)..."
+                        className="text-xs flex-1 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 focus:outline-none focus:border-emerald-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (customWhatToBringInput.trim() && !spotWhatToBring.includes(customWhatToBringInput.trim())) {
+                            setSpotWhatToBring(prev => [...prev, customWhatToBringInput.trim()]);
+                            setCustomWhatToBringInput('');
+                          }
+                        }}
+                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* =========================================================================
+                  DYNAMIC CONDITIONAL SECTION 3: EVENT SPACES / VENUES
+                  ========================================================================= */}
+              {getSpotCategoryGroup(spotCategory) === 'event_space' && (
+                <div className="bg-white dark:bg-[#1C1A1E] border border-amber-200 dark:border-amber-900/40 rounded-3xl p-5 sm:p-6 shadow-xs space-y-5 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+                        <Building2 className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
+                          Venue Capacity & Event Space Specifications
+                        </h3>
+                        <p className="text-[11px] text-slate-400">
+                          Capacity, AV equipment/amenities & booking policies
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">
+                      Venue Active
+                    </span>
+                  </div>
+
+                  {/* 1. CAPACITY */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                      Venue Guest Capacity *
+                    </label>
+                    <input
+                      type="text"
+                      value={spotCapacity}
+                      onChange={(e) => setSpotCapacity(e.target.value)}
+                      placeholder="e.g. Standing: 500 guests &bull; Seated Banquet: 300 guests &bull; Theatre: 450 guests"
+                      className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none focus:border-amber-500 font-semibold"
+                    />
+                  </div>
+
+                  {/* 2. AMENITIES / AV EQUIPMENT */}
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                        Venue Amenities & AV Equipment ({spotAmenitiesAV.length} selected)
+                      </label>
+                      <span className="text-[10px] text-slate-400">Click to toggle included features</span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5">
+                      {PRESET_VENUE_AMENITIES.map((amenity) => {
+                        const isSelected = spotAmenitiesAV.includes(amenity);
+                        return (
+                          <button
+                            key={amenity}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setSpotAmenitiesAV(prev => prev.filter(a => a !== amenity));
+                              } else {
+                                setSpotAmenitiesAV(prev => [...prev, amenity]);
+                              }
+                            }}
+                            className={`px-3 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                              isSelected
+                                ? 'bg-amber-500 text-white shadow-xs'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                            }`}
+                          >
+                            {isSelected && <Check className="w-3 h-3" />}
+                            <span>{amenity}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Custom Amenity Input */}
+                    <div className="flex gap-2 pt-1">
+                      <input
+                        type="text"
+                        value={customAmenityInput}
+                        onChange={(e) => setCustomAmenityInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (customAmenityInput.trim() && !spotAmenitiesAV.includes(customAmenityInput.trim())) {
+                              setSpotAmenitiesAV(prev => [...prev, customAmenityInput.trim()]);
+                              setCustomAmenityInput('');
+                            }
+                          }
+                        }}
+                        placeholder="Add custom amenity (e.g. Drone landing pad, Podcasting suite, Valet parking)..."
+                        className="text-xs flex-1 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 focus:outline-none focus:border-amber-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (customAmenityInput.trim() && !spotAmenitiesAV.includes(customAmenityInput.trim())) {
+                            setSpotAmenitiesAV(prev => [...prev, customAmenityInput.trim()]);
+                            setCustomAmenityInput('');
+                          }
+                        }}
+                        className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 3. BOOKING POLICIES */}
+                  <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                      Booking, Cancellation & Curfew Policies
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={spotBookingPolicies}
+                      onChange={(e) => setSpotBookingPolicies(e.target.value)}
+                      placeholder="e.g. 50% non-refundable deposit to secure reservation date. Outside catering allowed with corkage fee. Amplified music sound curfew strictly 11:00 PM for open-air zones."
+                      className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* =========================================================================
+                  DYNAMIC CONDITIONAL SECTION 4: CREATIVE & ARTS
+                  ========================================================================= */}
+              {getSpotCategoryGroup(spotCategory) === 'creative_arts' && (
+                <div className="bg-white dark:bg-[#1C1A1E] border border-pink-200 dark:border-pink-900/40 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-pink-500/10 text-pink-600 flex items-center justify-center">
+                        <Sparkles className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
+                          Creative Studio & Workshop Specifics
+                        </h3>
+                        <p className="text-[11px] text-slate-400">
+                          Supplies provided, session formats & materials
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-pink-100 dark:bg-pink-950/60 text-pink-700 dark:text-pink-300">
+                      Creative Active
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
+                        Art Supplies & Equipment Provided
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={spotEquipmentProvided}
+                        onChange={(e) => setSpotEquipmentProvided(e.target.value)}
+                        placeholder="e.g. Canvases, acrylic paints, pottery wheels, sculpting clay, and aprons provided..."
+                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none focus:border-pink-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
+                        Guest What to Bring & Wear
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={spotEquipmentNeeded}
+                        onChange={(e) => setSpotEquipmentNeeded(e.target.value)}
+                        placeholder="e.g. Casual clothes you don't mind getting paint or clay on; bring personal flash drive for digital art..."
+                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none focus:border-pink-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* =========================================================================
+                  DYNAMIC CONDITIONAL SECTION 5: SPA & WELLNESS
+                  ========================================================================= */}
+              {getSpotCategoryGroup(spotCategory) === 'spa_wellness' && (
+                <div className="bg-white dark:bg-[#1C1A1E] border border-teal-200 dark:border-teal-900/40 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-teal-500/10 text-teal-600 flex items-center justify-center">
+                        <Heart className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
+                          Spa, Sauna & Wellness Treatments
+                        </h3>
+                        <p className="text-[11px] text-slate-400">
+                          Treatments offered, facilities & appointments
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-teal-100 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300">
+                      Wellness Active
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
+                        Treatments & Facilities Provided
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={spotEquipmentProvided}
+                        onChange={(e) => setSpotEquipmentProvided(e.target.value)}
+                        placeholder="e.g. Deep tissue massage, aromatherapy, wood-fired cedar sauna, steam room, plush bathrobes..."
+                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none focus:border-teal-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
+                        Booking & Walk-in Policies
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={spotBookingPolicies}
+                        onChange={(e) => setSpotBookingPolicies(e.target.value)}
+                        placeholder="e.g. 24h advance reservation recommended. Walk-ins accepted subject to therapist availability..."
+                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none focus:border-teal-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* =========================================================================
+                  GENERAL / DEFAULT SECTION: LOCATION, TRANSIT & SOCIAL LINKS
+                  ========================================================================= */}
               <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
-                    Location & Transit Directions
+                    Location, Transit Directions & Social Links
                   </h3>
-                  <span className="text-[10px] text-[#E0533C] font-bold">Nairobi • Kiambu • Mombasa Rd</span>
+                  <span className="text-[10px] text-[#E0533C] font-bold">Standard Details</span>
                 </div>
 
                 {/* Dynamic Auto-Search Location Selector */}
@@ -2369,30 +3423,47 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Social Links & Contact */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Opening Hours
-                    </label>
-                    <input 
-                      type="text" 
-                      value={spotOpeningHours} 
-                      onChange={(e) => setSpotOpeningHours(e.target.value)} 
-                      placeholder="e.g. 11:00 AM - Midnight"
-                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Reservation Phone / WhatsApp
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 text-[#E0533C]" />
+                      <span>Reservation Phone / WhatsApp</span>
                     </label>
                     <input 
                       type="text" 
                       value={spotPhone} 
                       onChange={(e) => setSpotPhone(e.target.value)} 
                       placeholder="e.g. +254 722 123 456"
-                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none"
+                      className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+                      <Globe className="w-3.5 h-3.5 text-[#E0533C]" />
+                      <span>Official Website</span>
+                    </label>
+                    <input 
+                      type="url" 
+                      value={spotWebsite} 
+                      onChange={(e) => setSpotWebsite(e.target.value)} 
+                      placeholder="e.g. https://yourspot.co.ke"
+                      className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+                      <Instagram className="w-3.5 h-3.5 text-pink-500" />
+                      <span>Instagram Handle</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      value={spotInstagram} 
+                      onChange={(e) => setSpotInstagram(e.target.value)} 
+                      placeholder="e.g. @yourspotnairobi"
+                      className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -2634,66 +3705,22 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                 </div>
               </div>
 
-              {/* Digital Menu Builder Card */}
-              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                    <UtensilsCrossed className="w-3.5 h-3.5 text-[#E0533C]" />
-                    <span>Digital Menu Items ({spotMenuItems.length})</span>
-                  </span>
-                </div>
-
-                {/* Existing menu items */}
-                {spotMenuItems.length > 0 && (
-                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                    {spotMenuItems.map((item, idx) => (
-                      <div key={item.id || idx} className="p-3 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between text-xs">
-                        <div className="min-w-0 flex-1 pr-3">
-                          <span className="font-extrabold text-slate-900 dark:text-slate-100 block truncate">{item.name}</span>
-                          <span className="text-[11px] text-[#E0533C] font-black">{item.price}</span>
-                          {item.description && <span className="text-[10px] text-slate-400 block truncate">{item.description}</span>}
-                        </div>
-                        <button 
-                          type="button"
-                          onClick={() => setSpotMenuItems(prev => prev.filter((_, i) => i !== idx))}
-                          className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-950/60 text-red-500 hover:text-red-700 flex items-center justify-center shrink-0 cursor-pointer transition"
-                          title="Delete menu item"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Add menu item mini-form */}
-                <div className="bg-[#FBFBF9] dark:bg-[#121113] p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
-                  <h4 className="text-xs font-black text-slate-800 dark:text-slate-200">Add New Dish or Cocktail</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <input 
-                      type="text"
-                      placeholder="Dish or Cocktail Name"
-                      value={newMenuName}
-                      onChange={(e) => setNewMenuName(e.target.value)}
-                      className="text-xs bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
-                    />
-                    <input 
-                      type="text"
-                      placeholder="Price (e.g. KES 1,200)"
-                      value={newMenuPrice}
-                      onChange={(e) => setNewMenuPrice(e.target.value)}
-                      className="text-xs bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
-                    />
-                  </div>
-                  <button 
-                    type="button"
-                    onClick={handleAddMenuItem}
-                    className="w-full text-xs font-extrabold bg-[#E0533C]/10 text-[#E0533C] hover:bg-[#E0533C]/20 py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Item to Menu</span>
-                  </button>
-                </div>
+              {/* Submit Buttons */}
+              <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+                <button 
+                  type="button"
+                  onClick={() => setIsSpotFormOpen(false)}
+                  className="w-full sm:w-auto px-6 py-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-extrabold text-xs sm:text-sm rounded-2xl transition cursor-pointer text-center order-2 sm:order-1"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="w-full flex-1 bg-[#E0533C] hover:bg-[#c9432d] text-white font-black text-sm py-4 rounded-2xl shadow-xl shadow-orange-500/20 active:scale-[0.99] transition cursor-pointer flex items-center justify-center gap-2 order-1 sm:order-2"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{editingSpotId ? 'Save & Update Spot Listing' : 'Publish Spot to RADA'}</span>
+                </button>
               </div>
 
               {/* Submit Buttons */}
