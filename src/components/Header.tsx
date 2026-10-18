@@ -10,7 +10,8 @@ import {
   IdCard,
   Sun,
   Moon,
-  Bookmark
+  Bookmark,
+  LogIn
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -74,9 +75,9 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-[#121113]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-xs transition-colors duration-200">
-      <div className="max-w-lg mx-auto w-full px-3.5 sm:px-4 py-2.5 sm:py-3 flex flex-wrap sm:flex-nowrap items-center justify-between gap-x-2 gap-y-2">
+      <div className="max-w-lg mx-auto w-full px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-2 flex-nowrap">
         {/* Left Side: Brand Logo & Truncated Location Pill */}
-        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 shrink">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 shrink">
           <button 
             type="button"
             onClick={() => onSwitchTab('home')} 
@@ -97,7 +98,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Dynamic Detected Current Location (Gracefully shrinks and truncates without collision) */}
           <div 
-            className="min-w-0 shrink text-xs bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 font-semibold px-2 sm:px-2.5 py-1 rounded-full flex items-center gap-1 sm:gap-1.5 border border-slate-200 dark:border-slate-800 select-none max-w-[105px] xs:max-w-[140px] sm:max-w-[180px] cursor-default shadow-2xs overflow-hidden"
+            className="min-w-0 shrink text-xs bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 font-semibold px-2 sm:px-2.5 py-1 rounded-full flex items-center gap-1 sm:gap-1.5 border border-slate-200 dark:border-slate-800 select-none max-w-[100px] xs:max-w-[130px] sm:max-w-[180px] cursor-default shadow-2xs overflow-hidden"
             title={`Location: ${currentLocation}`}
           >
             <MapPin className="w-3.5 h-3.5 shrink-0 text-[#E05328]" />
@@ -107,17 +108,25 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Side: Sign In Button (Guest Mode) + Wagwan AI + 3-Dot Overflow Menu */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto">
-          {/* Guest Mode: Prominent Sign In Button with anti-collision flex-shrink and no-wrap */}
+          {/* Guest Mode: Compact circular icon button matching size & style of other header icons with hover tooltip */}
           {isGuestMode && onOpenAuth && (
-            <button
-              type="button"
-              onClick={onOpenAuth}
-              className="shrink-0 px-2.5 sm:px-3 py-1.5 bg-gradient-to-r from-amber-500 to-[#E0533C] hover:opacity-95 active:scale-95 text-white font-bold sm:font-black text-xs rounded-xl shadow-xs transition-all flex items-center gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-[#E0533C]/40"
-              title="Sign In or Create Account"
-            >
-              <UserCheck className="w-3.5 h-3.5 shrink-0" />
-              <span className="shrink-0 whitespace-nowrap">Sign In</span>
-            </button>
+            <div className="relative group shrink-0">
+              <button
+                type="button"
+                onClick={onOpenAuth}
+                className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 flex items-center justify-center rounded-full bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-amber-500/40 dark:border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-white dark:hover:bg-amber-500 dark:hover:text-white active:scale-95 transition-all shadow-xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                aria-label="Sign In"
+                title="Sign In"
+              >
+                <LogIn className="w-4 h-4 sm:w-4.5 sm:h-4.5 shrink-0" />
+              </button>
+              {/* Tooltip on hover/active */}
+              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 z-50">
+                <div className="bg-slate-900/95 dark:bg-slate-100/95 text-white dark:text-slate-900 text-[10px] font-bold px-2 py-0.5 rounded-md shadow-md whitespace-nowrap">
+                  Sign In
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Wagwan AI Quick Recommender */}
