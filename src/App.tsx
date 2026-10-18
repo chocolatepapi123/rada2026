@@ -185,6 +185,15 @@ export default function App() {
     setIsAuthModalOpen(true);
   };
 
+  const requireAuth = (actionName: string, actionCallback: () => void) => {
+    if (!session || isGuestMode) {
+      setAuthModalMessage(`Please log in or create an account to ${actionName}.`);
+      setIsAuthModalOpen(true);
+      return;
+    }
+    actionCallback();
+  };
+
   const handleDeleteAccount = async () => {
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.rpc('delete_user_account');
@@ -485,15 +494,17 @@ export default function App() {
   };
 
   const handleToggleSave = (item: any, kind: 'spot' | 'event' | 'thrift' | 'offer') => {
-    setSavedItems(prev => {
-      const exists = prev.some(s => String(s.id) === String(item.id) && s.kind === kind);
-      if (exists) {
-        showToast('Removed from saved collection.');
-        return prev.filter(s => !(String(s.id) === String(item.id) && s.kind === kind));
-      } else {
-        showToast(`Saved "${item.title || item.name}" to your collection!`);
-        return [{ id: item.id, kind, savedAt: new Date().toISOString() }, ...prev];
-      }
+    requireAuth('save items', () => {
+      setSavedItems(prev => {
+        const exists = prev.some(s => String(s.id) === String(item.id) && s.kind === kind);
+        if (exists) {
+          showToast('Removed from saved collection.');
+          return prev.filter(s => !(String(s.id) === String(item.id) && s.kind === kind));
+        } else {
+          showToast(`Saved "${item.title || item.name}" to your collection!`);
+          return [{ id: item.id, kind, savedAt: new Date().toISOString() }, ...prev];
+        }
+      });
     });
   };
 
@@ -980,10 +991,11 @@ export default function App() {
   // Handlers for Business Hub
   // Returns an error message (string) on failure, or null on success.
   const handleCreateBusiness = async (newBiz: BusinessAccount): Promise<string | null> => {
-    // If Supabase is configured, require user to be authenticated so it can be saved online with a valid UUID
-    if (isSupabaseConfigured && !session?.user?.id) {
+    // If user is guest or unauthenticated, require authentication
+    if (!session || isGuestMode) {
+      setAuthModalMessage('Please log in or create an account to add a spot or business.');
       setIsAuthModalOpen(true);
-      return 'Please sign in or create an account to register your business and sync with Supabase.';
+      return 'Please sign in or create an account to register your business.';
     }
 
     const effectiveOwner = session?.user?.id || currentUserId || newBiz.ownerId || localUserId;
@@ -1129,98 +1141,110 @@ export default function App() {
   };
 
   const handleAddOrUpdateSpot = (spot: SpotItem) => {
-    const ownerId = session?.user?.id || currentUserId;
-    if (ownerId) cloudWrite(() => cloud.upsertListing('spot', spot, spot.businessId, ownerId));
-    setSpots(prev => {
-      const idx = prev.findIndex(s => s.id === spot.id || s.title.toLowerCase() === spot.title.toLowerCase());
-      if (idx >= 0) {
-        const updated = [...prev];
-        updated[idx] = spot;
-        return updated;
-      }
-      return [spot, ...prev];
+    requireAuth('add a spot or business', () => {
+      const ownerId = session?.user?.id || currentUserId;
+      if (ownerId) cloudWrite(() => cloud.upsertListing('spot', spot, spot.businessId, ownerId));
+      setSpots(prev => {
+        const idx = prev.findIndex(s => s.id === spot.id || s.title.toLowerCase() === spot.title.toLowerCase());
+        if (idx >= 0) {
+          const updated = [...prev];
+          updated[idx] = spot;
+          return updated;
+        }
+        return [spot, ...prev];
+      });
     });
   };
 
   const handleAddEvent = (event: EventItem) => {
-    // add new, or replace if this event already exists (editing)
-    setEvents(prev => prev.some(e => e.id === event.id)
-      ? prev.map(e => e.id === event.id ? event : e)
-      : [event, ...prev]);
-    const ownerId = session?.user?.id || currentUserId;
-    if (ownerId) cloudWrite(() => cloud.upsertListing('event', event, event.businessId, ownerId));
+    requireAuth('add an event', () => {
+      // add new, or replace if this event already exists (editing)
+      setEvents(prev => prev.some(e => e.id === event.id)
+        ? prev.map(e => e.id === event.id ? event : e)
+        : [event, ...prev]);
+      const ownerId = session?.user?.id || currentUserId;
+      if (ownerId) cloudWrite(() => cloud.upsertListing('event', event, event.businessId, ownerId));
+    });
   };
 
   const handleAddThriftItem = (item: ThriftItem) => {
-    setThriftItems(prev => prev.some(t => t.id === item.id)
-      ? prev.map(t => t.id === item.id ? item : t)
-      : [item, ...prev]);
-    const ownerId = session?.user?.id || currentUserId;
-    if (ownerId) cloudWrite(() => cloud.upsertListing('thrift', item, item.businessId, ownerId));
+    requireAuth('add a thrift listing', () => {
+      setThriftItems(prev => prev.some(t => t.id === item.id)
+        ? prev.map(t => t.id === item.id ? item : t)
+        : [item, ...prev]);
+      const ownerId = session?.user?.id || currentUserId;
+      if (ownerId) cloudWrite(() => cloud.upsertListing('thrift', item, item.businessId, ownerId));
+    });
   };
 
   const handleDeleteListing = (type: 'spot' | 'event' | 'thrift', id: number) => {
-    const ownerId = session?.user?.id || currentUserId;
-    if (ownerId) cloudWrite(() => cloud.deleteListing(type, id));
-    if (type === 'spot') {
-      setSpots(prev => prev.filter(s => s.id !== id));
-      showToast('Spot listing removed.');
-    } else if (type === 'event') {
-      setEvents(prev => prev.filter(e => e.id !== id));
-      showToast('Event listing removed.');
-    } else {
-      setThriftItems(prev => prev.filter(t => t.id !== id));
-      showToast('Thrift item removed.');
-    }
+    requireAuth('delete a listing', () => {
+      const ownerId = session?.user?.id || currentUserId;
+      if (ownerId) cloudWrite(() => cloud.deleteListing(type, id));
+      if (type === 'spot') {
+        setSpots(prev => prev.filter(s => s.id !== id));
+        showToast('Spot listing removed.');
+      } else if (type === 'event') {
+        setEvents(prev => prev.filter(e => e.id !== id));
+        showToast('Event listing removed.');
+      } else {
+        setThriftItems(prev => prev.filter(t => t.id !== id));
+        showToast('Thrift item removed.');
+      }
+    });
   };
 
   // Post Review with Images Handler
   const handlePostReview = (spotId: number, review: Review) => {
-    if (currentUserId) cloudWrite(() => cloud.insertReview(spotId, review, currentUserId));
-    setSpots(prev => prev.map(s => {
-      if (s.id === spotId) {
-        const existingReviews = s.reviews || [];
-        const updatedReviews = [review, ...existingReviews];
-        const sumRatings = updatedReviews.reduce((sum, r) => sum + r.rating, 0);
-        const avgRating = (sumRatings / updatedReviews.length).toFixed(1);
+    requireAuth('leave a review', () => {
+      if (currentUserId) cloudWrite(() => cloud.insertReview(spotId, review, currentUserId));
+      setSpots(prev => prev.map(s => {
+        if (s.id === spotId) {
+          const existingReviews = s.reviews || [];
+          const updatedReviews = [review, ...existingReviews];
+          const sumRatings = updatedReviews.reduce((sum, r) => sum + r.rating, 0);
+          const avgRating = (sumRatings / updatedReviews.length).toFixed(1);
 
-        // Append review images into spot images gallery
-        const existingImages = (s.images && s.images.length > 0) ? s.images : [s.img];
-        const newImages = review.images ? [...existingImages, ...review.images] : existingImages;
+          // Append review images into spot images gallery
+          const existingImages = (s.images && s.images.length > 0) ? s.images : [s.img];
+          const newImages = review.images ? [...existingImages, ...review.images] : existingImages;
 
-        const updatedSpot = {
-          ...s,
-          rating: avgRating,
-          reviewCount: (s.reviewCount || 0) + 1,
-          reviews: updatedReviews,
-          images: newImages
-        };
+          const updatedSpot = {
+            ...s,
+            rating: avgRating,
+            reviewCount: (s.reviewCount || 0) + 1,
+            reviews: updatedReviews,
+            images: newImages
+          };
 
-        if (selectedSpotModal?.id === spotId) {
-          setSelectedSpotModal(updatedSpot);
+          if (selectedSpotModal?.id === spotId) {
+            setSelectedSpotModal(updatedSpot);
+          }
+
+          return updatedSpot;
         }
+        return s;
+      }));
 
-        return updatedSpot;
-      }
-      return s;
-    }));
-
-    showToast(`Review posted for ★ ${review.rating} rating!`);
+      showToast(`Review posted for ★ ${review.rating} rating!`);
+    });
   };
 
   // Add Spot Image Handler
   const handleAddSpotImage = (spotId: number, imgUrl: string) => {
-    setSpots(prev => prev.map(s => {
-      if (s.id === spotId) {
-        const currentImages = s.images || [s.img];
-        const updatedSpot = { ...s, images: [...currentImages, imgUrl] };
-        if (selectedSpotModal?.id === spotId) {
-          setSelectedSpotModal(updatedSpot);
+    requireAuth('leave a review', () => {
+      setSpots(prev => prev.map(s => {
+        if (s.id === spotId) {
+          const currentImages = s.images || [s.img];
+          const updatedSpot = { ...s, images: [...currentImages, imgUrl] };
+          if (selectedSpotModal?.id === spotId) {
+            setSelectedSpotModal(updatedSpot);
+          }
+          return updatedSpot;
         }
-        return updatedSpot;
-      }
-      return s;
-    }));
+        return s;
+      }));
+    });
   };
 
   // Cinema Booking & Vault Sync
@@ -1241,44 +1265,48 @@ export default function App() {
 
   // Status Posting with clean location (e.g. Westlands, Nairobi - no GPS coordinates)
   const handlePostStatus = (text: string, mediaUrl?: string, locationName?: string) => {
-    const newPost: StatusPost = {
-      id: `s-${Date.now()}`,
-      author: currentUserProfile.name,
-      handle: currentUserProfile.handle,
-      avatar: currentUserProfile.avatar,
-      timeAgo: 'Just now',
-      text,
-      mediaUrl,
-      mediaType: 'image',
-      locationName: locationName || 'Westlands, Nairobi',
-      replies: []
-    };
-    setStatuses(prev => [newPost, ...prev]);
-    if (currentUserId) cloudWrite(() => cloud.insertStatus(newPost, currentUserId));
-    showToast('Status posted live!');
+    requireAuth('send messages', () => {
+      const newPost: StatusPost = {
+        id: `s-${Date.now()}`,
+        author: currentUserProfile.name,
+        handle: currentUserProfile.handle,
+        avatar: currentUserProfile.avatar,
+        timeAgo: 'Just now',
+        text,
+        mediaUrl,
+        mediaType: 'image',
+        locationName: locationName || 'Westlands, Nairobi',
+        replies: []
+      };
+      setStatuses(prev => [newPost, ...prev]);
+      if (currentUserId) cloudWrite(() => cloud.insertStatus(newPost, currentUserId));
+      showToast('Status posted live!');
+    });
   };
 
   // Reply to someone's status
   const handleReplyStatus = (statusId: string, text: string) => {
-    const newReply: StatusReply = {
-      id: `rep-${Date.now()}`,
-      author: currentUserProfile.name,
-      handle: currentUserProfile.handle,
-      avatar: currentUserProfile.avatar,
-      timeAgo: 'Just now',
-      text
-    };
-    if (currentUserId) cloudWrite(() => cloud.insertStatusReply(statusId, newReply, currentUserId));
-    setStatuses(prev => prev.map(s => {
-      if (s.id === statusId) {
-        return {
-          ...s,
-          replies: [...(s.replies || []), newReply]
-        };
-      }
-      return s;
-    }));
-    showToast('Reply posted to status!');
+    requireAuth('send messages', () => {
+      const newReply: StatusReply = {
+        id: `rep-${Date.now()}`,
+        author: currentUserProfile.name,
+        handle: currentUserProfile.handle,
+        avatar: currentUserProfile.avatar,
+        timeAgo: 'Just now',
+        text
+      };
+      if (currentUserId) cloudWrite(() => cloud.insertStatusReply(statusId, newReply, currentUserId));
+      setStatuses(prev => prev.map(s => {
+        if (s.id === statusId) {
+          return {
+            ...s,
+            replies: [...(s.replies || []), newReply]
+          };
+        }
+        return s;
+      }));
+      showToast('Reply posted to status!');
+    });
   };
 
   // Event "I'm Going" Toggle: clickable once to go; if clicked again, remove count
@@ -1422,9 +1450,13 @@ export default function App() {
 
   const handleOpenOverlay = (overlayId: string) => {
     if (overlayId === 'businessHub') {
-      setIsBusinessHubOpen(true);
+      requireAuth('access the Merchant Hub', () => {
+        setIsBusinessHubOpen(true);
+      });
     } else if (overlayId === 'savedOverlay') {
-      setIsSavedModalOpen(true);
+      requireAuth('view saved collections', () => {
+        setIsSavedModalOpen(true);
+      });
     } else if (overlayId === 'youOverlay' || overlayId === 'accountSettings') {
       setIsAccountSettingsOpen(true);
     } else {
@@ -1493,10 +1525,8 @@ export default function App() {
             onToggleTheme={handleToggleTheme}
             onOpenAdmin={() => setIsAdminOpen(true)}
             userRole={userRole}
-            onLogout={async () => {
-              await supabase.auth.signOut();
-            }}
-            onOpenSaved={() => setIsSavedModalOpen(true)}
+            onLogout={handleSignOut}
+            onOpenSaved={() => requireAuth('view saved collections', () => setIsSavedModalOpen(true))}
             savedCount={savedItems.length}
             onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
           />
@@ -1523,7 +1553,7 @@ export default function App() {
                   setViewAllTitle(title);
                   setViewAllCategory(cat);
                 }}
-                onOpenCreateEvent={() => setIsBusinessHubOpen(true)}
+                onOpenCreateEvent={() => requireAuth('add a spot or business', () => setIsBusinessHubOpen(true))}
                 onOpenBusinessProfile={handleOpenBusinessProfile}
                 showToast={showToast}
               />
@@ -1540,7 +1570,7 @@ export default function App() {
                   setViewAllTitle(title);
                   setViewAllCategory(cat);
                 }}
-                onOpenCreateSpot={() => setIsBusinessHubOpen(true)}
+                onOpenCreateSpot={() => requireAuth('add a spot or business', () => setIsBusinessHubOpen(true))}
                 showToast={showToast}
               />
             )}
@@ -1556,7 +1586,7 @@ export default function App() {
                   if (biz) setSelectedPublicBusiness(biz);
                   else showToast(`Browsing ${storeName} official catalog!`);
                 }}
-                onOpenCreateFit={() => setIsBusinessHubOpen(true)}
+                onOpenCreateFit={() => requireAuth('add a spot or business', () => setIsBusinessHubOpen(true))}
                 showToast={showToast}
               />
             )}
@@ -1599,9 +1629,9 @@ export default function App() {
               <SocialsTab
                 discoveryProfiles={discoveryProfiles}
                 conversations={conversations}
-                onOpenPlanDateModal={() => setIsPlanDateModalOpen(true)}
-                onOpenCreateGroupModal={() => setIsCreateGroupOpen(true)}
-                onAcceptRequest={handleAcceptRequest}
+                onOpenPlanDateModal={() => requireAuth('send messages', () => setIsPlanDateModalOpen(true))}
+                onOpenCreateGroupModal={() => requireAuth('send messages', () => setIsCreateGroupOpen(true))}
+                onAcceptRequest={(name, avatar) => requireAuth('send messages', () => handleAcceptRequest(name, avatar))}
                 onViewUserProfile={(profile) => setViewingProfile(profile)}
                 showToast={showToast}
               />
@@ -1620,6 +1650,16 @@ export default function App() {
           <Navigation
             activeTab={activeTab}
             onTabChange={(tab) => {
+              if (tab === 'merchant') {
+                requireAuth('access the Merchant Hub', () => {
+                  if (tab !== activeTab) {
+                    window.history.pushState({ radaApp: true, tab }, '');
+                    setActiveTab(tab);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }
+                });
+                return;
+              }
               if (tab !== activeTab) {
                 if (tab !== 'home') {
                   window.history.pushState({ radaApp: true, tab }, '');
@@ -1684,7 +1724,7 @@ export default function App() {
             onBookCinema={handleBookCinema}
             selectedSpot={selectedSpotModal}
             onCloseSpotModal={() => setSelectedSpotModal(null)}
-            onPlanDateFromSpot={handlePlanDateFromSpot}
+            onPlanDateFromSpot={(spot) => requireAuth('send messages', () => handlePlanDateFromSpot(spot))}
             onPostReview={handlePostReview}
             onAddSpotImage={handleAddSpotImage}
             selectedEvent={selectedEventModal}
@@ -1718,13 +1758,15 @@ export default function App() {
             onToggleGps={() => setIsGpsBroadcasting(!isGpsBroadcasting)}
             emergencyContacts={emergencyContacts}
             onAddEmergencyContact={(name, phone) => {
-              setEmergencyContacts(prev => [...prev, { id: `ec-${Date.now()}`, name, phone }]);
-              showToast(`Emergency contact "${name}" saved!`);
+              requireAuth('add emergency contacts', () => {
+                setEmergencyContacts(prev => [...prev, { id: `ec-${Date.now()}`, name, phone }]);
+                showToast(`Emergency contact "${name}" saved!`);
+              });
             }}
             isDarkMode={isDarkMode}
             onToggleTheme={handleToggleTheme}
             showToast={showToast}
-            onOpenSaved={() => setIsSavedModalOpen(true)}
+            onOpenSaved={() => requireAuth('view saved collections', () => setIsSavedModalOpen(true))}
             onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
             savedCount={savedItems.length}
             savedItems={savedItems}
@@ -1736,16 +1778,20 @@ export default function App() {
             isMutualMatch={conversations.some(c => viewingProfile && c.name.toLowerCase().includes(viewingProfile.name.split(',')[0].toLowerCase()))}
             onClose={() => setViewingProfile(null)}
             onSendMatchRequest={(u) => {
-              showToast(`Hangout & Match request sent to ${u.name}!`);
-              setViewingProfile(null);
+              requireAuth('send messages', () => {
+                showToast(`Hangout & Match request sent to ${u.name}!`);
+                setViewingProfile(null);
+              });
             }}
             onSendMessage={(u) => {
-              showToast(`Direct message opened with ${u.name}!`);
-              setActiveTab('socials');
-              setViewingProfile(null);
+              requireAuth('send messages', () => {
+                showToast(`Direct message opened with ${u.name}!`);
+                setActiveTab('socials');
+                setViewingProfile(null);
+              });
             }}
             showToast={showToast}
-            onOpenSavedItems={() => setIsSavedModalOpen(true)}
+            onOpenSavedItems={() => requireAuth('view saved collections', () => setIsSavedModalOpen(true))}
             onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
           />
 
