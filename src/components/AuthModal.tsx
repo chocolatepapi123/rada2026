@@ -4,21 +4,13 @@ import { Lock, Mail, User, Phone, ArrowRight, ShieldCheck, X, Loader2 } from 'lu
 
 interface AuthModalProps {
   isOpen: boolean;
-  onClose: () => void;
-  onSuccess?: () => void;
+  onSuccess: () => void;
+  onClose?: () => void;
   onContinueAsGuest?: () => void;
   customMessage?: string;
 }
 
-
-export function AuthModal({
-  isOpen,
-  onSuccess,
-  onClose,
-  onContinueAsGuest,
-  customMessage,
-}: AuthModalProps) {
-
+export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, customMessage }: AuthModalProps) {
   const [isSignUp, setIsSignUp] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -126,7 +118,7 @@ export function AuthModal({
           </div>
           <h2 className="text-2xl font-black tracking-tight">Welcome to RADA</h2>
           <p className="text-stone-400 text-xs mt-1 font-medium">
-            {isSignUp ? 'Create your account to discover & manage Nairobi moves' : 'Log in to continue to your RADA account'}
+            {customMessage || (isSignUp ? 'Create your account to discover & manage Nairobi moves' : 'Log in to continue to your RADA account')}
           </p>
         </div>
 
@@ -268,26 +260,6 @@ export function AuthModal({
             )}
           </button>
         </form>
-        {/* Custom Message Banner if triggered from a protected action */}
-        {customMessage && (
-          <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 text-xs text-center font-medium">
-            {customMessage}
-          </div>
-        )}
-
-        {/* Continue as Guest Button */}
-        {onContinueAsGuest && (
-          <button
-            type="button"
-            onClick={() => {
-              onContinueAsGuest();
-              if (onClose) onClose();
-            }}
-            className="w-full mt-3 py-3 px-4 bg-stone-800 hover:bg-stone-700 text-stone-300 font-bold text-sm rounded-xl transition border border-stone-700/50 cursor-pointer"
-          >
-            Continue as Guest
-          </button>
-        )}
 
         {/* Mode Switcher */}
         <div className="mt-5 text-center text-xs text-stone-400">
@@ -303,6 +275,19 @@ export function AuthModal({
             {isSignUp ? 'Log In' : 'Sign Up'}
           </button>
         </div>
+
+        {/* Guest Mode Option */}
+        {onContinueAsGuest && (
+          <div className="mt-4 pt-3 border-t border-stone-800 text-center">
+            <button
+              type="button"
+              onClick={onContinueAsGuest}
+              className="text-stone-400 hover:text-white text-xs font-semibold hover:underline transition cursor-pointer"
+            >
+              Continue as Guest
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

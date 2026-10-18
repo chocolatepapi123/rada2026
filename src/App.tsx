@@ -72,28 +72,45 @@ const DEFAULT_PROFILE: UserProfile = {
 export default function App() {
   const [session, setSession] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [isGuestMode, setIsGuestMode] = useState<boolean>(false);
+  const [authModalMessage, setAuthModalMessage] = useState<string>('');
   const [showSplash, setShowSplash] = useState<boolean>(true);
   const [userRole, setUserRole] = useState<'user' | 'merchant' | 'admin'>('user');
   const [isAdminOpen, setIsAdminOpen] = useState(false);
-  // Safe Supabase Session Listener
+  const syncRef = useRef<(() => void) | null>(null);
+
+  // Safe Supabase Session Listener & Onboarding Gate
   useEffect(() => {
     let mounted = true;
     const timeout = setTimeout(() => {
       if (mounted) setAuthLoading(false);
     }, 600);
 
-    if (supabase && supabase.auth) {
+    if (isSupabaseConfigured && supabase && supabase.auth) {
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (mounted) {
           setSession(session);
           setAuthLoading(false);
+          if (!session) {
+            setIsAuthModalOpen(true);
+          }
         }
       }).catch(() => {
-        if (mounted) setAuthLoading(false);
+        if (mounted) {
+          setAuthLoading(false);
+          setIsAuthModalOpen(true);
+        }
       });
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (mounted) setSession(session);
+        if (mounted) {
+          setSession(session);
+          if (session) {
+            setIsGuestMode(false);
+            setIsAuthModalOpen(false);
+          }
+        }
       });
 
       return () => {
@@ -103,31 +120,41 @@ export default function App() {
       };
     } else {
       setAuthLoading(false);
+      setIsAuthModalOpen(true);
     }
   }, []);
   // Load logged-in user's role
-    useEffect(() => {
-    if (!session?.user?.id) {
+  useEffect(() => {
+    if (!session?.user?.id || !isSupabaseConfigured) {
       setUserRole('user');
       return;
     }
 
     const loadUserRole = async () => {
+      const userMetaRole = session.user.user_metadata?.role;
+      const isAdminEmail = session.user.email?.toLowerCase().includes('admin');
+
       const { data, error } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', session.user.id)
         .single();
 
-      if (error || !data) {
-        setUserRole('user');
+      if (error) {
+        setUserRole(
+          userMetaRole === 'admin' || isAdminEmail
+            ? 'admin'
+            : userMetaRole === 'merchant'
+              ? 'merchant'
+              : 'user'
+        );
         return;
       }
 
       setUserRole(
-        data.role === 'admin'
+        data?.role === 'admin' || userMetaRole === 'admin' || isAdminEmail
           ? 'admin'
-          : data.role === 'merchant'
+          : data?.role === 'merchant' || userMetaRole === 'merchant'
             ? 'merchant'
             : 'user'
       );
@@ -136,25 +163,41 @@ export default function App() {
     loadUserRole();
   }, [session]);
 
-
   // When Admin Dashboard is opened, trigger fresh sync from Supabase immediately
   useEffect(() => {
     if (isAdminOpen) {
       syncRef.current?.();
     }
   }, [isAdminOpen]);
+
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      if (isSupabaseConfigured && supabase?.auth) {
+        await supabase.auth.signOut();
+      }
+    } catch (err) {
+      console.warn('Sign out error:', err);
+    }
+    setSession(null);
+    setUserRole('user');
+    setIsGuestMode(false);
+    setAuthModalMessage('');
+    setIsAuthModalOpen(true);
   };
 
   const handleDeleteAccount = async () => {
-    if (window.confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
+    if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.rpc('delete_user_account');
       if (error) {
-        alert("Error deleting account: " + error.message);
+        showToast("Error deleting account: " + error.message);
       } else {
         await supabase.auth.signOut();
+        setSession(null);
+        showToast("Account deleted successfully.");
       }
+    } else {
+      setSession(null);
+      showToast("Signed out.");
     }
   };
 
@@ -474,10 +517,9 @@ export default function App() {
     }
   };
 
-  // Modals state for Account Settings, Saved Items, and Auth
+  // Modals state for Account Settings and Saved Items
   const [isSavedModalOpen, setIsSavedModalOpen] = useState(false);
   const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // Sync state to localStorage
   useEffect(() => {
@@ -698,8 +740,6 @@ export default function App() {
   const pendingRef = useRef(0);    // cloud writes still in flight
 
   // Run a cloud write in the background. fn returns an error message or null.
-  const syncRef = useRef<(() => void) | null>(null);
-
   const cloudWrite = (fn: () => Promise<string | null>) => {
     mutationRef.current += 1;
     pendingRef.current += 1;
@@ -1728,10 +1768,7 @@ export default function App() {
             currentUserProfile={currentUserProfile}
             showToast={showToast}
             onOpenAuth={() => setIsAuthModalOpen(true)}
-            onSignOut={async () => {
-              await supabase.auth.signOut();
-              setSession(null);
-            }}
+            onSignOut={handleSignOut}
           />
 
           <SavedPlacesModal
@@ -1755,11 +1792,10 @@ export default function App() {
           {isAuthModalOpen && (
             <AuthModal
               isOpen={isAuthModalOpen}
-              onSuccess={() => {
-                setIsAuthModalOpen(false);
-                showToast('Authenticated successfully!');
-              }}
-              onClose={() => setIsAuthModalOpen(false)}
+              onClose={() => { if (session || isGuestMode) setIsAuthModalOpen(false); }}
+              onSuccess={() => { setIsAuthModalOpen(false); setIsGuestMode(false); setAuthModalMessage(''); }}
+              onContinueAsGuest={() => { setIsGuestMode(true); setIsAuthModalOpen(false); setAuthModalMessage(''); }}
+              customMessage={authModalMessage}
             />
           )}
           {isAdminOpen && userRole === 'admin' && (
