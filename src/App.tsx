@@ -106,37 +106,28 @@ export default function App() {
     }
   }, []);
   // Load logged-in user's role
-  useEffect(() => {
+    useEffect(() => {
     if (!session?.user?.id) {
       setUserRole('user');
       return;
     }
 
     const loadUserRole = async () => {
-      const userMetaRole = session.user.user_metadata?.role;
-      const isAdminEmail = session.user.email?.toLowerCase().includes('admin');
-
       const { data, error } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', session.user.id)
         .single();
 
-      if (error) {
-        setUserRole(
-          userMetaRole === 'admin' || isAdminEmail
-            ? 'admin'
-            : userMetaRole === 'merchant'
-              ? 'merchant'
-              : 'user'
-        );
+      if (error || !data) {
+        setUserRole('user');
         return;
       }
 
       setUserRole(
-        data?.role === 'admin' || userMetaRole === 'admin' || isAdminEmail
+        data.role === 'admin'
           ? 'admin'
-          : data?.role === 'merchant' || userMetaRole === 'merchant'
+          : data.role === 'merchant'
             ? 'merchant'
             : 'user'
       );
@@ -144,6 +135,7 @@ export default function App() {
 
     loadUserRole();
   }, [session]);
+
 
   // When Admin Dashboard is opened, trigger fresh sync from Supabase immediately
   useEffect(() => {
