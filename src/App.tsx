@@ -280,7 +280,20 @@ export default function App() {
         if (Array.isArray(parsed) && parsed.length >= 10) {
           const existingIds = new Set(parsed.map((p: any) => String(p.id)));
           const missing = initialSpots.filter(init => !existingIds.has(String(init.id)));
-          return [...parsed, ...missing];
+          // Clean legacy mock reviews / fake counts
+          return [...parsed, ...missing].map((sp: any) => {
+            const cleanReviews = (sp.reviews || []).filter((r: any) => r.id !== 'rev-1');
+            const count = cleanReviews.length;
+            const rating = count > 0
+              ? (cleanReviews.reduce((sum: number, r: any) => sum + Number(r.rating || 0), 0) / count).toFixed(1)
+              : 'New';
+            return {
+              ...sp,
+              reviews: cleanReviews,
+              reviewCount: count,
+              rating
+            };
+          });
         }
       } catch (e) {}
     }
@@ -860,32 +873,22 @@ export default function App() {
 
       const mergedSpotsRaw = await mergeKind('spot', initialSpots, L.spots, safeListings.spot);
 
-      // Ratings, review counts, reviews and review photos come from the reviews table
+      // Ratings, review counts, reviews and review photos come dynamically from real Supabase reviews
       const remoteSpotIds = new Set(safeListings.spot.map((x: any) => String(x.id)));
       const mergedSpots = mergedSpotsRaw.map((sp: any) => {
         const seed = initialSpots.find(x => String(x.id) === String(sp.id));
         const base: any = remoteSpotIds.has(String(sp.id)) ? sp : (seed || sp);
-        const mine: any[] = remoteReviews[String(sp.id)] || [];
-        const seedReviews: any[] = seed?.reviews || [];
-        const allReviews = [...mine, ...seedReviews];
+        const mine: any[] = (remoteReviews[String(sp.id)] || []).filter((r: any) => r.id !== 'rev-1');
+        const allReviews = mine;
 
         const baseImages: string[] = base.images && base.images.length > 0 ? base.images : [base.img];
         const reviewImages: string[] = mine.flatMap((r: any) => r.images || []);
         const images = Array.from(new Set([...baseImages, ...reviewImages]));
 
-        let rating: string;
-        let reviewCount: number;
-        if (seed) {
-          reviewCount = (seed.reviewCount ?? seedReviews.length) + mine.length;
-          rating = mine.length > 0
-            ? (allReviews.reduce((sum: number, r: any) => sum + r.rating, 0) / allReviews.length).toFixed(1)
-            : seed.rating;
-        } else {
-          reviewCount = mine.length;
-          rating = mine.length > 0
-            ? (mine.reduce((sum: number, r: any) => sum + r.rating, 0) / mine.length).toFixed(1)
-            : 'New';
-        }
+        const reviewCount = mine.length;
+        const rating = reviewCount > 0
+          ? (mine.reduce((sum: number, r: any) => sum + Number(r.rating || 0), 0) / reviewCount).toFixed(1)
+          : 'New';
 
         return { ...base, reviews: allReviews, reviewCount, rating, images };
       });
@@ -1237,9 +1240,9 @@ export default function App() {
       if (currentUserId) cloudWrite(() => cloud.insertReview(spotId, review, currentUserId));
       setSpots(prev => prev.map(s => {
         if (s.id === spotId) {
-          const existingReviews = s.reviews || [];
+          const existingReviews = (s.reviews || []).filter((r: any) => r.id !== 'rev-1');
           const updatedReviews = [review, ...existingReviews];
-          const sumRatings = updatedReviews.reduce((sum, r) => sum + r.rating, 0);
+          const sumRatings = updatedReviews.reduce((sum, r) => sum + Number(r.rating || 0), 0);
           const avgRating = (sumRatings / updatedReviews.length).toFixed(1);
 
           // Append review images into spot images gallery
@@ -1249,7 +1252,7 @@ export default function App() {
           const updatedSpot = {
             ...s,
             rating: avgRating,
-            reviewCount: (s.reviewCount || 0) + 1,
+            reviewCount: updatedReviews.length,
             reviews: updatedReviews,
             images: newImages
           };

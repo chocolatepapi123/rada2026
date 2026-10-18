@@ -57,30 +57,72 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   const [isListening, setIsListening] = useState(false);
 
   const [dbSpots, setDbSpots] = useState<any[]>([]);
+  const [liveReviews, setLiveReviews] = useState<Record<string, any[]>>({});
 
   useEffect(() => {
-    async function fetchLiveSpots() {
+    async function fetchLiveReviewsAndSpots() {
       try {
         if (!supabase) return;
-        const { data, error } = await supabase
-          .from('spots')
-          .select('*')
-          .order('created_at', { ascending: false });
+        const [spotsRes, reviewsRes, radaReviewsRes] = await Promise.all([
+          supabase.from('spots').select('*').order('created_at', { ascending: false }),
+          supabase.from('reviews').select('*').order('created_at', { ascending: false }),
+          supabase.from('rada_reviews').select('*').order('created_at', { ascending: false }),
+        ]);
 
-        if (error) {
-          console.error('Error fetching spots:', error);
-        } else if (data && data.length > 0) {
-          setDbSpots(data);
+        if (spotsRes.data && spotsRes.data.length > 0) {
+          setDbSpots(spotsRes.data);
         }
+
+        const revMap: Record<string, any[]> = {};
+        const seenRevIds = new Set<string>();
+
+        if (reviewsRes.data) {
+          for (const row of reviewsRes.data) {
+            const sid = String(row.spot_id ?? row.spotId ?? '');
+            if (sid) {
+              const rid = String(row.id);
+              seenRevIds.add(rid);
+              (revMap[sid] = revMap[sid] || []).push({
+                id: rid,
+                spotId: sid,
+                rating: Number(row.rating || 5),
+                comment: row.comment || row.content || '',
+                userName: row.user_name || row.userName || 'Anonymous',
+                userAvatar: row.user_avatar || row.userAvatar,
+                userHandle: row.user_handle || row.userHandle || '@explorer',
+                images: row.images || [],
+                createdAt: row.created_at,
+                ...(row.data || {})
+              });
+            }
+          }
+        }
+
+        if (radaReviewsRes.data) {
+          for (const row of radaReviewsRes.data) {
+            const sid = String(row.spot_id);
+            const rid = String(row.id);
+            if (sid && !seenRevIds.has(rid)) {
+              seenRevIds.add(rid);
+              (revMap[sid] = revMap[sid] || []).push({
+                ...row.data,
+                id: rid,
+                spotId: sid,
+                rating: Number(row.data?.rating || row.rating || 5)
+              });
+            }
+          }
+        }
+
+        setLiveReviews(revMap);
       } catch (err) {
-        console.warn('Error connecting to Supabase spots table:', err);
+        console.warn('Error connecting to Supabase spots/reviews:', err);
       }
     }
 
-    fetchLiveSpots();
+    fetchLiveReviewsAndSpots();
   }, []);
 
-  
   const handlePrevImage = (e: React.MouseEvent, spotId: number, maxImages: number) => {
     e.stopPropagation();
     setActiveImageIndices(prev => {
@@ -142,8 +184,8 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     }
   };
 
-// Show BOTH local spots (merchant-published, stored in app state) and Supabase spots.
-  // Previously, if Supabase had any rows, local spots were hidden entirely.
+  // Show BOTH local spots (merchant-published, stored in app state) and Supabase spots.
+  // Dynamically compute review count and average rating from real database rows.
   const displaySpots = useMemo(() => {
     const localIds = new Set(spots.map(s => String(s.id)));
     const localTitles = new Set(spots.map(s => (s.title || '').trim().toLowerCase()));
@@ -160,14 +202,41 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         neighborhood: d.neighborhood || 'Nairobi',
         address: d.address || '',
         price: d.price || 'KES $$',
-        rating: d.rating || '0.0',
         lat: d.lat ?? -1.2921,
         lng: d.lng ?? 36.8219,
         img: d.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
       }));
 
-    return [...spots, ...extraDbSpots];
-  }, [spots, dbSpots]);
+    const allCombined = [...spots, ...extraDbSpots];
+
+    // Compute live review counts and ratings from actual reviews only (no mock reviews or fake 4.8)
+    return allCombined.map(sp => {
+      const sid = String(sp.id);
+      const dbRevs = liveReviews[sid] || [];
+      const propRevs = (sp.reviews || []).filter((r: any) => r.id !== 'rev-1');
+      const seenRids = new Set<string>();
+      const combinedRevs: any[] = [];
+      for (const r of [...propRevs, ...dbRevs]) {
+        const rid = String(r.id);
+        if (!seenRids.has(rid)) {
+          seenRids.add(rid);
+          combinedRevs.push(r);
+        }
+      }
+
+      const totalReviews = combinedRevs.length;
+      const calculatedRating = totalReviews > 0
+        ? (combinedRevs.reduce((sum, r) => sum + Number(r.rating || 0), 0) / totalReviews).toFixed(1)
+        : 'New';
+
+      return {
+        ...sp,
+        reviews: combinedRevs,
+        reviewCount: totalReviews,
+        rating: calculatedRating
+      };
+    });
+  }, [spots, dbSpots, liveReviews]);
 
   const isNatureSpot = (s: SpotItem) =>
     s.category === 'connect_with_nature' ||
@@ -292,7 +361,8 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     const imagesList = (spot.images && spot.images.length > 0) ? spot.images : [spot.img];
     const currentIndex = activeImageIndices[spot.id] || 0;
     const currentImg = imagesList[currentIndex] || spot.img;
-    const reviewCount = spot.reviews?.length || spot.reviewCount || 45;
+    const reviewCount = spot.reviews?.length ?? (spot.reviewCount || 0);
+    const hasReviews = reviewCount > 0;
     const saved = isSaved(spot.id);
 
     return (
@@ -386,15 +456,15 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                 />
               </div>
               <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[11px] shrink-0">
-                <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
-                <span>{spot.rating}</span>
+                <Star className={`w-3 h-3 ${hasReviews ? 'fill-amber-500 text-amber-500' : 'text-slate-400'}`} />
+                <span>{hasReviews ? spot.rating : 'New'}</span>
               </div>
             </div>
 
             <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between">
               <span className="truncate">{spot.neighborhood} • {spot.address.split(',')[0]}</span>
               <span className="text-[10px] text-slate-400 font-bold shrink-0">
-                {reviewCount} reviews
+                {hasReviews ? `${reviewCount} ${reviewCount === 1 ? 'review' : 'reviews'}` : 'No reviews yet'}
               </span>
             </p>
 

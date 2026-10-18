@@ -253,6 +253,8 @@ export interface ChatMessage {
   audioUrl?: string;
   audioDuration?: number;
   videoNoteUrl?: string;
+  videoUrl?: string;
+  videoDuration?: number;
   dateInvite?: {
     spotTitle: string;
     address: string;

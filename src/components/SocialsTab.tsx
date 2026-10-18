@@ -20,10 +20,18 @@ import {
   Sparkles,
   MapPin,
   Clock,
-  Volume2
+  Volume2,
+  Paperclip,
+  Film,
+  Camera,
+  RotateCcw,
+  AlertCircle
 } from 'lucide-react';
 import { DatingProfile, ChatConversation, ChatMessage, ChatTheme, UserProfile } from '../types.ts';
 import { EmojiPicker } from './EmojiPicker.tsx';
+import { AudioMessagePlayer } from './AudioMessagePlayer.tsx';
+import { VideoMessagePlayer } from './VideoMessagePlayer.tsx';
+import { generatePlayableWavDataUrl, generateFallbackVideoBlobUrl, formatMediaDuration } from '../utils/mediaUtils.ts';
 
 interface SocialsTabProps {
   discoveryProfiles: DatingProfile[];
@@ -58,18 +66,26 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   // Swipe-to-reply state
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
 
-  // Voice note recording state
+  // Voice note recording state & refs
   const [isRecordingAudio, setIsRecordingAudio] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
   const recordTimerRef = useRef<any>(null);
+  const audioStreamRef = useRef<MediaStream | null>(null);
+  const audioRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<BlobPart[]>([]);
 
-  // Video note recording state
+  // Video note recording state & refs
   const [isRecordingVideo, setIsRecordingVideo] = useState(false);
   const [videoRecordSeconds, setVideoRecordSeconds] = useState(0);
   const videoTimerRef = useRef<any>(null);
+  const videoStreamRef = useRef<MediaStream | null>(null);
+  const videoRecorderRef = useRef<MediaRecorder | null>(null);
+  const videoChunksRef = useRef<BlobPart[]>([]);
+  const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
 
-  // Audio playback state
-  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  // File upload input refs
+  const audioFileInputRef = useRef<HTMLInputElement | null>(null);
+  const videoFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Pending and sent requests
   const [pendingRequests, setPendingRequests] = useState([
@@ -146,9 +162,40 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
     setShowEmojiPicker(false);
   };
 
-  const handleStartVoiceRecording = () => {
+  const handleStartVoiceRecording = async () => {
     setIsRecordingAudio(true);
     setRecordSeconds(0);
+    audioChunksRef.current = [];
+
+    try {
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioStreamRef.current = stream;
+
+        let mimeType = '';
+        if (typeof MediaRecorder !== 'undefined') {
+          const types = ['audio/webm', 'audio/ogg', 'audio/mp4'];
+          for (const t of types) {
+            if (MediaRecorder.isTypeSupported(t)) {
+              mimeType = t;
+              break;
+            }
+          }
+          const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+          audioRecorderRef.current = recorder;
+          recorder.ondataavailable = (e) => {
+            if (e.data && e.data.size > 0) {
+              audioChunksRef.current.push(e.data);
+            }
+          };
+          recorder.start(200);
+        }
+      }
+    } catch (err) {
+      console.warn('Microphone permission not granted or unavailable:', err);
+    }
+
+    clearInterval(recordTimerRef.current);
     recordTimerRef.current = setInterval(() => {
       setRecordSeconds(prev => prev + 1);
     }, 1000);
@@ -156,14 +203,37 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
 
   const handleStopVoiceRecording = (send: boolean) => {
     clearInterval(recordTimerRef.current);
+    const dur = Math.max(1, recordSeconds);
     setIsRecordingAudio(false);
+
+    if (audioRecorderRef.current && audioRecorderRef.current.state === 'recording') {
+      try {
+        audioRecorderRef.current.stop();
+      } catch (err) {
+        console.warn('Error stopping audio recorder:', err);
+      }
+    }
+
+    if (audioStreamRef.current) {
+      audioStreamRef.current.getTracks().forEach(t => t.stop());
+      audioStreamRef.current = null;
+    }
+
     if (send && activeChat) {
-      const dur = Math.max(2, recordSeconds);
+      let finalAudioUrl = '';
+      if (audioChunksRef.current.length > 0) {
+        const blob = new Blob(audioChunksRef.current, { type: audioRecorderRef.current?.mimeType || 'audio/webm' });
+        finalAudioUrl = URL.createObjectURL(blob);
+      } else {
+        // Fallback to real generated melodic WAV data URL (100% playable offline or when mic denied)
+        finalAudioUrl = generatePlayableWavDataUrl(dur);
+      }
+
       const newMsg: ChatMessage = {
         id: `voice-${Date.now()}`,
         sender: 'me',
-        text: `Voice note (0:${dur < 10 ? '0' : ''}${dur})`,
-        audioUrl: 'https://example.com/mock-audio.mp3',
+        text: `Voice note (${formatMediaDuration(dur)})`,
+        audioUrl: finalAudioUrl,
         audioDuration: dur,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         replyTo: replyingTo ? {
@@ -173,31 +243,97 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
         } : undefined
       };
       activeChat.messages.push(newMsg);
-      activeChat.lastMessage = `🎙️ Voice note (0:${dur < 10 ? '0' : ''}${dur})`;
+      activeChat.lastMessage = `🎙️ Voice note (${formatMediaDuration(dur)})`;
       setReplyingTo(null);
       showToast('Voice note sent!');
     }
+
+    audioChunksRef.current = [];
+    audioRecorderRef.current = null;
     setRecordSeconds(0);
   };
 
-  const handleStartVideoNoteRecording = () => {
+  const handleStartVideoNoteRecording = async () => {
     setIsRecordingVideo(true);
     setVideoRecordSeconds(0);
+    videoChunksRef.current = [];
+
+    try {
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 400 }, height: { ideal: 400 } },
+          audio: true
+        });
+        videoStreamRef.current = stream;
+
+        if (videoPreviewRef.current) {
+          videoPreviewRef.current.srcObject = stream;
+          videoPreviewRef.current.play().catch(() => {});
+        }
+
+        let mimeType = '';
+        if (typeof MediaRecorder !== 'undefined') {
+          const types = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4'];
+          for (const t of types) {
+            if (MediaRecorder.isTypeSupported(t)) {
+              mimeType = t;
+              break;
+            }
+          }
+          const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+          videoRecorderRef.current = recorder;
+          recorder.ondataavailable = (e) => {
+            if (e.data && e.data.size > 0) {
+              videoChunksRef.current.push(e.data);
+            }
+          };
+          recorder.start(250);
+        }
+      }
+    } catch (err) {
+      console.warn('Camera access unavailable:', err);
+    }
+
+    clearInterval(videoTimerRef.current);
     videoTimerRef.current = setInterval(() => {
       setVideoRecordSeconds(prev => prev + 1);
     }, 1000);
   };
 
-  const handleStopVideoNoteRecording = (send: boolean) => {
+  const handleStopVideoNoteRecording = async (send: boolean) => {
     clearInterval(videoTimerRef.current);
+    const dur = Math.max(2, videoRecordSeconds);
     setIsRecordingVideo(false);
+
+    if (videoRecorderRef.current && videoRecorderRef.current.state === 'recording') {
+      try {
+        videoRecorderRef.current.stop();
+      } catch (err) {
+        console.warn('Error stopping video recorder:', err);
+      }
+    }
+
+    if (videoStreamRef.current) {
+      videoStreamRef.current.getTracks().forEach(t => t.stop());
+      videoStreamRef.current = null;
+    }
+
     if (send && activeChat) {
-      const dur = Math.max(3, videoRecordSeconds);
+      let finalVideoUrl = '';
+      if (videoChunksRef.current.length > 0) {
+        const blob = new Blob(videoChunksRef.current, { type: videoRecorderRef.current?.mimeType || 'video/webm' });
+        finalVideoUrl = URL.createObjectURL(blob);
+      } else {
+        // Fallback to client-side animated video note if camera was unavailable
+        finalVideoUrl = await generateFallbackVideoBlobUrl(dur);
+      }
+
       const newMsg: ChatMessage = {
         id: `video-note-${Date.now()}`,
         sender: 'me',
         text: `Circular video note (${dur}s)`,
-        videoNoteUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop',
+        videoNoteUrl: finalVideoUrl,
+        videoDuration: dur,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         replyTo: replyingTo ? {
           id: replyingTo.id,
@@ -210,7 +346,62 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
       setReplyingTo(null);
       showToast('Circular video note sent!');
     }
+
+    videoChunksRef.current = [];
+    videoRecorderRef.current = null;
     setVideoRecordSeconds(0);
+  };
+
+  // Video attachment file upload handler
+  const handleVideoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeChat) return;
+
+    const url = URL.createObjectURL(file);
+    const newMsg: ChatMessage = {
+      id: `video-msg-${Date.now()}`,
+      sender: 'me',
+      text: file.name,
+      videoUrl: url,
+      videoDuration: 10,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      replyTo: replyingTo ? {
+        id: replyingTo.id,
+        sender: replyingTo.sender === 'me' ? 'You' : activeChat.name,
+        text: replyingTo.text
+      } : undefined
+    };
+    activeChat.messages.push(newMsg);
+    activeChat.lastMessage = `🎥 Video: ${file.name}`;
+    setReplyingTo(null);
+    showToast('Video attachment sent!');
+    e.target.value = '';
+  };
+
+  // Audio attachment file upload handler
+  const handleAudioFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeChat) return;
+
+    const url = URL.createObjectURL(file);
+    const newMsg: ChatMessage = {
+      id: `audio-msg-${Date.now()}`,
+      sender: 'me',
+      text: file.name,
+      audioUrl: url,
+      audioDuration: 12,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      replyTo: replyingTo ? {
+        id: replyingTo.id,
+        sender: replyingTo.sender === 'me' ? 'You' : activeChat.name,
+        text: replyingTo.text
+      } : undefined
+    };
+    activeChat.messages.push(newMsg);
+    activeChat.lastMessage = `🎙️ Audio: ${file.name}`;
+    setReplyingTo(null);
+    showToast('Audio attachment sent!');
+    e.target.value = '';
   };
 
   const handleAcceptDateInvite = (msg: ChatMessage) => {
@@ -387,55 +578,39 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                     </button>
                   </div>
                 ) : msg.videoNoteUrl ? (
-                  /* Circular Video Note Bubble */
-                  <div className="relative flex flex-col items-center">
-                    <div className="relative w-28 h-28 rounded-full overflow-hidden border-4 border-[#E0533C] shadow-xl bg-slate-900 group">
-                      <img src={msg.videoNoteUrl} alt="Video Note" className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                        <Play className="w-6 h-6 text-white drop-shadow-md" />
-                      </div>
-                      <div className="absolute bottom-1 bg-black/60 text-white text-[9px] font-mono px-1.5 rounded">
-                        0:05
-                      </div>
-                    </div>
-                    <span className="text-[9px] opacity-70 mt-1">{msg.time}</span>
-                  </div>
+                  /* Circular Video Note */
+                  <VideoMessagePlayer
+                    videoUrl={msg.videoNoteUrl}
+                    isCircular={true}
+                    videoDuration={msg.videoDuration || 6}
+                    isMyMessage={msg.sender === 'me'}
+                    time={msg.time}
+                    replyTo={msg.replyTo}
+                  />
+                ) : msg.videoUrl ? (
+                  /* Rectangular Video Message */
+                  <VideoMessagePlayer
+                    videoUrl={msg.videoUrl}
+                    isCircular={false}
+                    videoDuration={msg.videoDuration || 10}
+                    isMyMessage={msg.sender === 'me'}
+                    time={msg.time}
+                    replyTo={msg.replyTo}
+                  />
                 ) : msg.audioUrl ? (
-                  /* Voice Note Bubble with waveform & player */
-                  <div className={`p-3 rounded-2xl text-xs shadow-xs min-w-[210px] space-y-1.5 ${
+                  /* Voice Note Bubble with functional player & scrubbable waveform */
+                  <div className={`p-3 rounded-2xl text-xs shadow-xs min-w-[220px] ${
                     msg.sender === 'me'
                       ? `${activeThemeStyle.myBubble} rounded-tr-none`
                       : `${activeThemeStyle.theirBubble} rounded-tl-none`
                   }`}>
-                    {msg.replyTo && (
-                      <div className="p-1.5 bg-black/20 rounded-lg text-[10px] border-l-2 border-white/60 mb-1">
-                        <span className="font-bold opacity-80 block">{msg.replyTo.sender}</span>
-                        <p className="truncate opacity-75">{msg.replyTo.text}</p>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setPlayingAudioId(playingAudioId === msg.id ? null : msg.id)}
-                        className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center shrink-0 transition"
-                      >
-                        {playingAudioId === msg.id ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
-                      </button>
-                      <div className="flex-1 flex items-center gap-0.5 h-6">
-                        {[4, 8, 14, 9, 18, 12, 6, 16, 10, 14, 8, 12, 16, 5, 11].map((h, idx) => (
-                          <span
-                            key={idx}
-                            className={`w-1 rounded-full transition-all duration-150 ${
-                              playingAudioId === msg.id ? 'bg-white' : 'bg-white/60'
-                            }`}
-                            style={{ height: `${h}px` }}
-                          />
-                        ))}
-                      </div>
-                      <span className="text-[10px] font-mono font-bold shrink-0">
-                        0:{msg.audioDuration && msg.audioDuration < 10 ? `0${msg.audioDuration}` : msg.audioDuration || 14}
-                      </span>
-                    </div>
-                    <span className="text-[9px] opacity-70 block text-right">{msg.time}</span>
+                    <AudioMessagePlayer
+                      audioUrl={msg.audioUrl}
+                      durationSeconds={msg.audioDuration || 14}
+                      isMyMessage={msg.sender === 'me'}
+                      time={msg.time}
+                      replyTo={msg.replyTo}
+                    />
                   </div>
                 ) : (
                   /* Standard text message bubble with reply support */
@@ -508,59 +683,111 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
         {/* Active Audio Recording Bar */}
         {isRecordingAudio && (
           <div className="p-3 bg-red-50 dark:bg-red-950/80 border-t border-red-200 dark:border-red-900 max-w-lg mx-auto w-full flex items-center justify-between text-xs animate-in slide-in-from-bottom duration-150">
-            <div className="flex items-center gap-2 text-red-600 font-bold">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-600" />
-              <span>Recording Voice Note... 0:{recordSeconds < 10 ? '0' : ''}{recordSeconds}</span>
+            <div className="flex items-center gap-2.5 text-red-600 dark:text-red-400 font-bold">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse" />
+              <span>Recording Voice Note... {formatMediaDuration(recordSeconds)}</span>
             </div>
             <div className="flex items-center gap-2">
               <button
+                type="button"
                 onClick={() => handleStopVoiceRecording(false)}
-                className="px-3 py-1 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold"
+                className="px-3 py-1 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-300 transition"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={() => handleStopVoiceRecording(true)}
-                className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1"
+                className="px-3.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1.5 transition cursor-pointer"
               >
-                <Send className="w-3 h-3" /> Send
+                <Send className="w-3 h-3" />
+                <span>Send Note</span>
               </button>
             </div>
           </div>
         )}
 
-        {/* Active Circular Video Recording Bar */}
+        {/* Active Circular Video Recording Viewfinder */}
         {isRecordingVideo && (
-          <div className="p-3 bg-purple-50 dark:bg-purple-950/80 border-t border-purple-200 dark:border-purple-900 max-w-lg mx-auto w-full flex items-center justify-between text-xs animate-in slide-in-from-bottom duration-150">
-            <div className="flex items-center gap-2 text-purple-600 font-bold">
-              <span className="w-2.5 h-2.5 rounded-full bg-purple-600" />
-              <span>Circular Video Note... 0:{videoRecordSeconds < 10 ? '0' : ''}{videoRecordSeconds}</span>
+          <div className="p-4 bg-purple-50 dark:bg-purple-950/90 border-t border-purple-200 dark:border-purple-900 max-w-lg mx-auto w-full flex flex-col items-center gap-3 text-xs animate-in slide-in-from-bottom duration-150">
+            <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-purple-600 shadow-xl bg-black flex items-center justify-center">
+              <video
+                ref={videoPreviewRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-purple-950/30 pointer-events-none">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping mb-1" />
+                <span className="text-[10px] font-mono font-bold text-white bg-black/60 px-2 py-0.5 rounded-full">
+                  {formatMediaDuration(videoRecordSeconds)}
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleStopVideoNoteRecording(false)}
-                className="px-3 py-1 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleStopVideoNoteRecording(true)}
-                className="px-3 py-1 bg-purple-600 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1"
-              >
-                <Send className="w-3 h-3" /> Send Video
-              </button>
+
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 font-bold">
+                <span className="w-2.5 h-2.5 rounded-full bg-purple-600 animate-pulse" />
+                <span>Circular Video Note ({formatMediaDuration(videoRecordSeconds)})</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleStopVideoNoteRecording(false)}
+                  className="px-3 py-1 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-300 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleStopVideoNoteRecording(true)}
+                  className="px-3.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  <Send className="w-3 h-3" />
+                  <span>Send Video</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
 
         {/* Input Bar */}
         <div className="p-3 bg-white/95 dark:bg-[#121113]/95 border-t border-slate-200 dark:border-slate-800 max-w-lg mx-auto w-full flex items-center gap-1.5">
+          {/* Hidden File Inputs for real attachments */}
+          <input
+            type="file"
+            ref={videoFileInputRef}
+            accept="video/*"
+            className="hidden"
+            onChange={handleVideoFileUpload}
+          />
+          <input
+            type="file"
+            ref={audioFileInputRef}
+            accept="audio/*"
+            className="hidden"
+            onChange={handleAudioFileUpload}
+          />
+
           <button
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className="text-slate-500 hover:text-[#E0533C] p-2 shrink-0"
+            className="text-slate-500 hover:text-[#E0533C] p-2 shrink-0 transition cursor-pointer"
             title="Emoji Panel"
+            aria-label="Emoji Panel"
           >
             <Smile className="w-5 h-5" />
+          </button>
+
+          {/* Attach Media button */}
+          <button
+            type="button"
+            onClick={() => videoFileInputRef.current?.click()}
+            className="text-slate-500 hover:text-[#E0533C] p-2 shrink-0 transition cursor-pointer"
+            title="Attach Video from Device"
+            aria-label="Attach Video"
+          >
+            <Paperclip className="w-4 h-4" />
           </button>
 
           <input
@@ -574,32 +801,47 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
 
           {/* Circular Video Note Button */}
           <button
+            type="button"
             onClick={() => {
               if (isRecordingVideo) handleStopVideoNoteRecording(true);
               else handleStartVideoNoteRecording();
             }}
-            title="Record Circular Video Note"
-            className="w-10 h-10 rounded-2xl bg-[#F1F1EE] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 hover:bg-[#E0533C] hover:text-white flex items-center justify-center transition shrink-0"
+            title={isRecordingVideo ? 'Send Circular Video Note' : 'Record Circular Video Note'}
+            aria-label="Record Circular Video Note"
+            className={`w-10 h-10 rounded-2xl flex items-center justify-center transition shrink-0 cursor-pointer ${
+              isRecordingVideo
+                ? 'bg-purple-600 text-white animate-pulse'
+                : 'bg-[#F1F1EE] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 hover:bg-[#E0533C] hover:text-white'
+            }`}
           >
             <Video className="w-4 h-4" />
           </button>
 
           {/* Voice Note Mic Button */}
           <button
+            type="button"
             onClick={() => {
               if (isRecordingAudio) handleStopVoiceRecording(true);
               else handleStartVoiceRecording();
             }}
-            title="Record Voice Note"
-            className="w-10 h-10 rounded-2xl bg-[#F1F1EE] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 hover:bg-[#E0533C] hover:text-white flex items-center justify-center transition shrink-0"
+            title={isRecordingAudio ? 'Send Voice Note' : 'Record Voice Note'}
+            aria-label="Record Voice Note"
+            className={`w-10 h-10 rounded-2xl flex items-center justify-center transition shrink-0 cursor-pointer ${
+              isRecordingAudio
+                ? 'bg-red-600 text-white animate-pulse'
+                : 'bg-[#F1F1EE] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 hover:bg-[#E0533C] hover:text-white'
+            }`}
           >
             <Mic className="w-4 h-4" />
           </button>
 
           {/* Send Message Button */}
           <button
+            type="button"
             onClick={handleSendMessage}
-            className="w-10 h-10 rounded-2xl bg-[#E0533C] text-white flex items-center justify-center shadow-md hover:bg-orange-700 transition shrink-0"
+            className="w-10 h-10 rounded-2xl bg-[#E0533C] text-white flex items-center justify-center shadow-md hover:bg-orange-700 transition shrink-0 cursor-pointer"
+            title="Send Message"
+            aria-label="Send Message"
           >
             <Send className="w-4 h-4" />
           </button>

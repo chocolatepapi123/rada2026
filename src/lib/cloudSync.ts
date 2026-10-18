@@ -464,8 +464,8 @@ export async function fetchListings(): Promise<CloudListings | null> {
           lat: row.lat ?? -1.2675,
           lng: row.lng ?? 36.8115,
           price: row.price || 'KES $$',
-          rating: String(row.rating || '4.8'),
-          reviewCount: row.review_count || row.reviewCount || 0,
+          rating: row.rating && Number(row.rating) > 0 ? Number(row.rating).toFixed(1) : 'New',
+          reviewCount: Number(row.review_count || row.reviewCount || 0),
           img: row.img || (row.images && row.images[0]) || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
           images: Array.isArray(row.images) && row.images.length > 0
             ? row.images
@@ -634,20 +634,64 @@ export async function deleteListing(kind: ListingKind, id: string | number): Pro
 // =====================================================================
 export async function fetchReviews(): Promise<Record<string, any[]> | null> {
   if (!isSupabaseConfigured) return null;
-  const { data, error } = await supabase
-    .from('rada_reviews')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.warn('fetchReviews failed:', error.message);
-    return null;
-  }
-
   const out: Record<string, any[]> = {};
-  for (const row of data || []) {
-    (out[row.spot_id] = out[row.spot_id] || []).push({ ...row.data, id: row.id });
+  const seenIds = new Set<string>();
+
+  // 1. Fetch from 'reviews' table (standard Supabase table)
+  try {
+    const { data: revData, error: revError } = await supabase
+      .from('reviews')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!revError && revData) {
+      for (const row of revData) {
+        const spotId = String(row.spot_id ?? row.spotId ?? '');
+        if (spotId) {
+          const revId = String(row.id);
+          seenIds.add(revId);
+          const revObj = {
+            id: revId,
+            spotId,
+            userId: row.user_id || row.userId || '',
+            userName: row.user_name || row.userName || row.data?.userName || 'Anonymous Explorer',
+            userHandle: row.user_handle || row.userHandle || row.data?.userHandle || '@explorer',
+            userAvatar: row.user_avatar || row.userAvatar || row.data?.userAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop',
+            rating: Number(row.rating ?? row.data?.rating ?? 5),
+            comment: row.comment || row.content || row.data?.comment || '',
+            images: Array.isArray(row.images) ? row.images : (row.data?.images || []),
+            date: row.created_at ? new Date(row.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : (row.date || 'Recent'),
+            ...(row.data || {})
+          };
+          (out[spotId] = out[spotId] || []).push(revObj);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('fetchReviews from reviews table failed:', err);
   }
+
+  // 2. Fetch from 'rada_reviews' table
+  try {
+    const { data, error } = await supabase
+      .from('rada_reviews')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      for (const row of data) {
+        const spotId = String(row.spot_id);
+        const revId = String(row.id);
+        if (spotId && !seenIds.has(revId)) {
+          seenIds.add(revId);
+          (out[spotId] = out[spotId] || []).push({ ...row.data, id: revId, spotId });
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('fetchReviews from rada_reviews failed:', err);
+  }
+
   return out;
 }
 
@@ -659,13 +703,70 @@ export async function insertReview(spotId: number | string, review: any, userId:
   } catch (e) {
     return `photo upload failed: ${errMsg(e)}`;
   }
-  const { error } = await supabase.from('rada_reviews').insert({
-    id: String(review.id),
-    spot_id: String(spotId),
-    user_id: userId,
-    data: clean,
-  });
-  return error ? error.message : null;
+
+  const sId = String(spotId);
+  const ratingNum = Number(clean.rating || 5);
+  let hasSuccess = false;
+
+  // 1. Insert into 'reviews' table
+  try {
+    const reviewRow: any = {
+      spot_id: isValidUuid(sId) ? sId : null,
+      user_id: isValidUuid(userId) ? userId : null,
+      rating: ratingNum,
+      comment: clean.comment || '',
+      user_name: clean.userName || 'Anonymous',
+      user_handle: clean.userHandle || '@explorer',
+      user_avatar: clean.userAvatar || '',
+      images: clean.images || [],
+    };
+    if (isValidUuid(clean.id)) {
+      reviewRow.id = clean.id;
+    }
+
+    const { error: revErr } = await supabase.from('reviews').insert(reviewRow);
+    if (!revErr) {
+      hasSuccess = true;
+    }
+  } catch (err) {
+    console.warn('insert into reviews table failed:', err);
+  }
+
+  // 2. Upsert into 'rada_reviews' table (guarantees persistence across any ID type)
+  try {
+    const radaRow = {
+      id: String(clean.id),
+      spot_id: sId,
+      user_id: userId,
+      data: clean,
+    };
+    const { error: radaErr } = await supabase.from('rada_reviews').upsert(radaRow, { onConflict: 'id' });
+    if (!radaErr) {
+      hasSuccess = true;
+    }
+  } catch (err) {
+    console.warn('insert into rada_reviews failed:', err);
+  }
+
+  // 3. Live update the spot row in 'spots' table with dynamic count & average rating
+  try {
+    const allReviews = await fetchReviews();
+    const spotRevs = (allReviews && allReviews[sId]) || [clean];
+    const totalCount = spotRevs.length;
+    const avgRating = (spotRevs.reduce((acc, r) => acc + Number(r.rating || 0), 0) / totalCount).toFixed(1);
+
+    await supabase
+      .from('spots')
+      .update({
+        rating: avgRating,
+        review_count: totalCount,
+      })
+      .eq('id', sId);
+  } catch (err) {
+    // optional update
+  }
+
+  return hasSuccess ? null : 'Could not save review to database';
 }
 
 // =====================================================================

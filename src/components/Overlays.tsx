@@ -47,7 +47,8 @@ import {
   Check,
   Bookmark,
   KeyRound,
-  Trees
+  Trees,
+  Plus
 } from 'lucide-react';
 import { 
   SpotItem, 
@@ -683,10 +684,18 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     <span className="absolute top-3 right-3 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
                       {selectedSpot.price}
                     </span>
-                    <span className="absolute bottom-3 left-3 bg-white/90 dark:bg-black/90 backdrop-blur-md text-slate-900 dark:text-white text-[10px] font-black px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-xs">
-                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                      <span>{selectedSpot.rating} ({selectedSpot.reviewCount ?? selectedSpot.reviews?.length ?? 0} reviews)</span>
-                    </span>
+                    {(() => {
+                      const revCount = (selectedSpot.reviews && selectedSpot.reviews.length > 0)
+                        ? selectedSpot.reviews.length
+                        : (selectedSpot.reviewCount || 0);
+                      const hasReviews = revCount > 0;
+                      return (
+                        <span className="absolute bottom-3 left-3 bg-white/90 dark:bg-black/90 backdrop-blur-md text-slate-900 dark:text-white text-[10px] font-black px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-xs">
+                          <Star className={`w-3.5 h-3.5 ${hasReviews ? 'fill-amber-400 text-amber-400' : 'text-slate-400'}`} />
+                          <span>{hasReviews ? `${selectedSpot.rating} (${revCount} ${revCount === 1 ? 'review' : 'reviews'})` : 'New (No reviews yet)'}</span>
+                        </span>
+                      );
+                    })()}
                     {allImages.length > 1 && (
                       <span className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-md">
                         {safeIndex + 1} / {allImages.length} photos
@@ -960,13 +969,17 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     <MessageSquare className="w-3.5 h-3.5 text-[#E0533C]" />
                     <span>Customer Reviews ({selectedSpot.reviews?.length || 0})</span>
                   </h4>
-                  <p className="text-[10px] text-slate-400">Verified community ratings with photo upload</p>
+                  <p className="text-[10px] text-slate-400">
+                    {(selectedSpot.reviews && selectedSpot.reviews.length > 0)
+                      ? 'Verified community ratings with photo upload'
+                      : 'No ratings yet — be the first to share your experience'}
+                  </p>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => setShowReviewForm(!showReviewForm)}
-                  className="px-3 py-1.5 bg-[#E0533C] text-white font-bold rounded-xl text-xs hover:bg-orange-700 transition"
+                  className="px-3 py-1.5 bg-[#E0533C] text-white font-bold rounded-xl text-xs hover:bg-orange-700 transition cursor-pointer"
                 >
                   {showReviewForm ? 'Cancel Review' : '+ Write Review'}
                 </button>
@@ -1078,7 +1091,27 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     </div>
                   ))
                 ) : (
-                  <p className="text-slate-400 py-3 text-center">No reviews yet. Be the first to share your experience!</p>
+                  <div className="py-8 px-4 text-center rounded-3xl bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-dashed border-slate-300 dark:border-slate-800 space-y-2.5">
+                    <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-950/60 text-[#E0533C] flex items-center justify-center mx-auto shadow-2xs">
+                      <Star className="w-6 h-6 fill-amber-400 text-amber-500" />
+                    </div>
+                    <div className="space-y-1">
+                      <h5 className="font-black text-sm text-slate-900 dark:text-slate-100">
+                        No reviews yet
+                      </h5>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
+                        Be the first to review this spot! Share your experience, rating, and photos with the RADA community.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowReviewForm(true)}
+                      className="mt-1 px-4 py-2 bg-[#E0533C] text-white font-bold rounded-xl text-xs hover:bg-orange-700 transition inline-flex items-center gap-1.5 shadow-xs cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Be the first to review this spot!</span>
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -1731,7 +1764,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       <Eye className="w-4 h-4 text-blue-500" />
                       <div>
                         <h4 className="font-bold">Discoverable in Socials</h4>
-                        <p className="text-[10px] text-slate-400">Show card to Nairobi community</p>
+                        <p className="text-[10px] text-slate-400">Show card to RADA community</p>
                       </div>
                     </div>
                     <button

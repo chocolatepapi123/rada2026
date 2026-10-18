@@ -12,6 +12,7 @@ import {
   EmergencyContact,
   CollectionFolder
 } from '../types.ts';
+import { generatePlayableWavDataUrl } from '../utils/mediaUtils.ts';
 
 // 10 Detailed Realistic Running Offers & Promotions spanning Tickets, Food, Drinks, and Apparel
 export const initialOffers: BusinessOffer[] = [
@@ -275,8 +276,8 @@ export const initialSpots: SpotItem[] = [
     landmark: 'Opposite Bandari Plaza, Mpaka Rd',
     lat: -1.2635,
     lng: 36.8028,
-    rating: '4.9',
-    reviewCount: 94,
+    rating: 'New',
+    reviewCount: 0,
     price: '$$',
     address: 'Mpaka Road, Westlands, Nairobi',
     img: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
@@ -294,17 +295,7 @@ export const initialSpots: SpotItem[] = [
       { id: 'm2', name: 'Slow-Smoked Brisket Sliders', category: 'Mains', price: 'KES 1,450', description: 'Trio of tender smoked beef brisket sliders with chimichurri aioli' },
       { id: 'm3', name: 'Truffle Parmesan Hand-Cut Fries', category: 'Sides', price: 'KES 650', description: 'Fresh local potatoes tossed in white truffle oil and Grana Padano' }
     ],
-    reviews: [
-      {
-        id: 'rev-1',
-        userName: 'Wanjiku K.',
-        userHandle: '@wanjiku_ke',
-        userAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop',
-        rating: 5,
-        date: '10 Oct 2026',
-        comment: 'Best Dawa cocktail in Westlands hands down! The music selection never misses.'
-      }
-    ]
+    reviews: []
   },
   {
     id: 2,
@@ -315,8 +306,8 @@ export const initialSpots: SpotItem[] = [
     landmark: 'Adlife Plaza Rooftop Garden',
     lat: -1.2915,
     lng: 36.7874,
-    rating: '4.8',
-    reviewCount: 112,
+    rating: 'New',
+    reviewCount: 0,
     price: '$$',
     address: 'Ring Road Kilimani, Nairobi',
     img: 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=800&auto=format&fit=crop',
@@ -331,7 +322,8 @@ export const initialSpots: SpotItem[] = [
     menuItems: [
       { id: 'm4', name: 'Nairobi Classic Beast Burger', category: 'Burgers', price: 'KES 1,200', description: 'Double beef patty, aged cheddar, caramelised onions & homemade relish' },
       { id: 'm5', name: 'Spicy Peri-Peri Wings (8pcs)', category: 'Wings', price: 'KES 950', description: 'Crisp fried wings tossed in flame-roasted peri-peri glaze' }
-    ]
+    ],
+    reviews: []
   },
   {
     id: 3,
@@ -342,8 +334,8 @@ export const initialSpots: SpotItem[] = [
     landmark: 'Near Karen Country Club',
     lat: -1.3342,
     lng: 36.7118,
-    rating: '4.9',
-    reviewCount: 230,
+    rating: 'New',
+    reviewCount: 0,
     price: '$$$',
     address: '320 Ngong Road, Karen, Nairobi',
     img: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
@@ -358,7 +350,8 @@ export const initialSpots: SpotItem[] = [
     menuItems: [
       { id: 'm6', name: 'Feta & Coriander Samosas', category: 'Starters', price: 'KES 900', description: 'World-famous Talisman crispy samosas with homemade sweet chilli dip' },
       { id: 'm7', name: 'Zanzibar King Prawn Curry', category: 'Mains', price: 'KES 2,600', description: 'Succulent king prawns simmered in coconut lime Swahili gravy' }
-    ]
+    ],
+    reviews: []
   },
   {
     id: 4,
@@ -369,8 +362,8 @@ export const initialSpots: SpotItem[] = [
     landmark: 'Adjacent to Standard Chartered Building',
     lat: -1.2841,
     lng: 36.8198,
-    rating: '4.7',
-    reviewCount: 310,
+    rating: 'New',
+    reviewCount: 0,
     price: '$$',
     address: 'Koinange Street, Nairobi CBD',
     img: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800&auto=format&fit=crop',
@@ -380,7 +373,8 @@ export const initialSpots: SpotItem[] = [
     menuItems: [
       { id: 'm8', name: 'Loaded CJ\'s Big Breakfast', category: 'Breakfast', price: 'KES 1,250', description: 'Eggs your way, beef sausages, baked beans, sauteed potatoes and toast' },
       { id: 'm9', name: 'Double Caramel Macchiato', category: 'Coffee', price: 'KES 450', description: 'Steamed milk stained with espresso and buttery caramel drizzle' }
-    ]
+    ],
+    reviews: []
   },
   {
     id: 5,
@@ -391,8 +385,8 @@ export const initialSpots: SpotItem[] = [
     landmark: 'Next to Lavington Mall',
     lat: -1.2825,
     lng: 36.7681,
-    rating: '4.9',
-    reviewCount: 88,
+    rating: 'New',
+    reviewCount: 0,
     price: '$$',
     address: 'James Gichuru Rd, Lavington, Nairobi',
     img: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&auto=format&fit=crop',
@@ -402,7 +396,8 @@ export const initialSpots: SpotItem[] = [
     menuItems: [
       { id: 'm10', name: 'Avocado Tartine with Poached Eggs', category: 'Brunch', price: 'KES 850', description: 'Toasted sourdough with crushed hass avocado and organic farm eggs' },
       { id: 'm11', name: 'Matcha Honey Latte', category: 'Beverages', price: 'KES 500', description: 'Japanese ceremonial grade matcha blended with Kenyan wild honey' }
-    ]
+    ],
+    reviews: []
   },
   {
     id: 6,
@@ -413,8 +408,8 @@ export const initialSpots: SpotItem[] = [
     landmark: 'Diamond Plaza Highrise Building',
     lat: -1.2612,
     lng: 36.8205,
-    rating: '4.8',
-    reviewCount: 420,
+    rating: 'New',
+    reviewCount: 0,
     price: '$',
     address: '4th Parklands Avenue, Parklands, Nairobi',
     img: 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=800&auto=format&fit=crop',
@@ -424,7 +419,8 @@ export const initialSpots: SpotItem[] = [
     menuItems: [
       { id: 'm12', name: 'Chooza Chicken Tikka with Naan', category: 'Barbecue', price: 'KES 850', description: 'Charcoal-grilled spicy tender boneless chicken served with garlic butter naan' },
       { id: 'm13', name: 'Parklands Masala Chips', category: 'Sides', price: 'KES 350', description: 'Double-fried potato chips smothered in rich tangy chili-tomato gravy' }
-    ]
+    ],
+    reviews: []
   },
   {
     id: 7,
@@ -435,8 +431,8 @@ export const initialSpots: SpotItem[] = [
     landmark: 'Directly Opposite Nairobi National Park',
     lat: -1.3288,
     lng: 36.8532,
-    rating: '4.8',
-    reviewCount: 165,
+    rating: 'New',
+    reviewCount: 0,
     price: '$$$',
     address: 'Mombasa Road, Nairobi',
     img: 'https://images.unsplash.com/photo-1574096079513-d8259312b785?w=800&auto=format&fit=crop',
@@ -446,7 +442,8 @@ export const initialSpots: SpotItem[] = [
     menuItems: [
       { id: 'm14', name: 'Safari Sunburst Spritz', category: 'Cocktails', price: 'KES 1,100', description: 'Passion fruit puree, Aperol, prosecco and botanical gin' },
       { id: 'm15', name: 'Prime Aged Ribeye Steak (300g)', category: 'Steaks', price: 'KES 2,900', description: 'Grass-fed Kenyan beef served with peppercorn sauce and grilled asparagus' }
-    ]
+    ],
+    reviews: []
   },
   {
     id: 8,
@@ -457,8 +454,8 @@ export const initialSpots: SpotItem[] = [
     landmark: 'Next to Spur Mall Interchange',
     lat: -1.1462,
     lng: 36.9602,
-    rating: '4.6',
-    reviewCount: 140,
+    rating: 'New',
+    reviewCount: 0,
     price: '$$',
     address: 'Thika Superhighway, Ruiru, Kiambu',
     img: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=800&auto=format&fit=crop',
@@ -468,7 +465,8 @@ export const initialSpots: SpotItem[] = [
     menuItems: [
       { id: 'm16', name: 'Prime Mbuzi Choma (1kg)', category: 'Choma', price: 'KES 1,800', description: 'Traditional wood-fired goat roast served with ugali and hot kachumbari' },
       { id: 'm17', name: 'Ice Cold Tusker Malt Bucket', category: 'Drinks', price: 'KES 1,750', description: 'Bucket of 5 chilled premium Kenyan malt lagers' }
-    ]
+    ],
+    reviews: []
   },
   {
     id: 9,
@@ -479,8 +477,8 @@ export const initialSpots: SpotItem[] = [
     landmark: 'Kirigiti Interchange, Kiambu',
     lat: -1.1714,
     lng: 36.8322,
-    rating: '4.9',
-    reviewCount: 95,
+    rating: 'New',
+    reviewCount: 0,
     price: '$$$',
     address: 'Kiambu Road, Kiambu Town',
     img: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&auto=format&fit=crop',
@@ -490,7 +488,8 @@ export const initialSpots: SpotItem[] = [
     menuItems: [
       { id: 'm18', name: 'Kiambu Estate Coffee Press', category: 'Beverages', price: 'KES 400', description: 'Freshly harvested SL28 single origin coffee from surrounding highlands' },
       { id: 'm19', name: 'Wood-Fired Quattro Formaggi Pizza', category: 'Pizzas', price: 'KES 1,500', description: 'Gorgonzola, mozzarella, parmesan, and creamy ricotta on sourdough crust' }
-    ]
+    ],
+    reviews: []
   },
   {
     id: 10,
@@ -501,8 +500,8 @@ export const initialSpots: SpotItem[] = [
     landmark: 'Behind Ananas Mall, Thika',
     lat: -1.0333,
     lng: 37.0693,
-    rating: '4.7',
-    reviewCount: 180,
+    rating: 'New',
+    reviewCount: 0,
     price: '$$',
     address: 'Garissa Road, Thika Town, Kiambu',
     img: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=800&auto=format&fit=crop',
@@ -512,7 +511,8 @@ export const initialSpots: SpotItem[] = [
     menuItems: [
       { id: 'm20', name: 'Cravers Flame Pork Ribs (1kg)', category: 'Mains', price: 'KES 1,900', description: 'Slow-charred succulent pork ribs glazed in spicy honey mustard sauce' },
       { id: 'm21', name: 'Smirnoff Ice Black Bucket', category: 'Drinks', price: 'KES 1,800', description: 'Bucket of 5 chilled guarana infused beverages' }
-    ]
+    ],
+    reviews: []
   },
   {
     id: 11,
@@ -523,8 +523,8 @@ export const initialSpots: SpotItem[] = [
     landmark: 'Directly Opposite Belgian Embassy & UNEP',
     lat: -1.2422,
     lng: 36.8256,
-    rating: '4.9',
-    reviewCount: 540,
+    rating: 'New',
+    reviewCount: 0,
     price: '$',
     address: 'Limuru Road, Karura Forest Gate A, Nairobi',
     img: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&auto=format&fit=crop',
@@ -537,7 +537,8 @@ export const initialSpots: SpotItem[] = [
     activitiesList: [
       { id: 'act-1', name: 'Karura Trail Entry & Mau Mau Caves Hike', price: 'KES 100', duration: 'Full Day', description: 'Scenic trail access to indigenous forest, waterfall & Mau Mau historic caves.' },
       { id: 'act-2', name: 'Forest Mountain Bike Rental', price: 'KES 500', duration: '2 Hours', description: 'Front-suspension mountain bike with helmet for forest dirt circuits.' }
-    ]
+    ],
+    reviews: []
   },
   {
     id: 12,
@@ -548,8 +549,8 @@ export const initialSpots: SpotItem[] = [
     landmark: '500m from State House Girls High School',
     lat: -1.2774,
     lng: 36.8078,
-    rating: '4.7',
-    reviewCount: 310,
+    rating: 'New',
+    reviewCount: 0,
     price: '$',
     address: 'State House Road, Kilimani, Nairobi',
     img: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop',
@@ -561,7 +562,8 @@ export const initialSpots: SpotItem[] = [
     bookingSlots: 'Daily 6:00 AM - 6:30 PM',
     activitiesList: [
       { id: 'act-3', name: 'Botanical Trail Day Pass', price: 'KES 65', duration: 'Full Day', description: 'Access to shaded canopy forest trails and photography groves.' }
-    ]
+    ],
+    reviews: []
   },
   {
     id: 13,
@@ -572,8 +574,8 @@ export const initialSpots: SpotItem[] = [
     landmark: 'Near Mpaka Road Roundabout',
     lat: -1.2645,
     lng: 36.8062,
-    rating: '4.9',
-    reviewCount: 195,
+    rating: 'New',
+    reviewCount: 0,
     price: '$$',
     address: 'Muthithi Road, Westlands, Nairobi',
     img: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=800&auto=format&fit=crop',
@@ -586,7 +588,8 @@ export const initialSpots: SpotItem[] = [
     activitiesList: [
       { id: 'act-5', name: 'Canvas & Wine Sip Package', price: 'KES 2,500', duration: '3 Hours', description: 'Instructor-led session with canvas, paints, brushes, easel, and 2 complimentary wine glasses.' },
       { id: 'act-5b', name: 'Hand-Built Pottery & Clay Sculpting', price: 'KES 2,800', duration: '2.5 Hours', description: 'Ceramic clay block, sculpting tools, firing and color glazing.' }
-    ]
+    ],
+    reviews: []
   },
   {
     id: 14,
@@ -597,8 +600,8 @@ export const initialSpots: SpotItem[] = [
     landmark: 'Adjacent to Under The Sea & Food Court',
     lat: -1.2295,
     lng: 36.8043,
-    rating: '4.8',
-    reviewCount: 220,
+    rating: 'New',
+    reviewCount: 0,
     price: '$$',
     address: 'Limuru Road, Village Market, Nairobi',
     img: 'https://images.unsplash.com/photo-1593508512255-86ab42a8e620?w=800&auto=format&fit=crop',
@@ -611,7 +614,8 @@ export const initialSpots: SpotItem[] = [
     activitiesList: [
       { id: 'act-7', name: 'VR Escape Mission (Co-op 4 Players)', price: 'KES 1,800/pp', duration: '45 Mins', description: 'Immersive wireless team survival or puzzle mission with haptic feedback.' },
       { id: 'act-8', name: 'F1 Motion Sim Racing Rig Session', price: 'KES 1,200', duration: '20 Mins', description: 'Direct-drive force-feedback steering wheel with VR headset and telemetry pedals.' }
-    ]
+    ],
+    reviews: []
   },
   {
     id: 15,
@@ -622,8 +626,8 @@ export const initialSpots: SpotItem[] = [
     landmark: 'Opposite Karen Blixen Coffee Garden',
     lat: -1.3571,
     lng: 36.7118,
-    rating: '4.8',
-    reviewCount: 280,
+    rating: 'New',
+    reviewCount: 0,
     price: '$',
     address: 'Oloolua Ridge, Karen, Nairobi',
     img: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop',
@@ -635,7 +639,8 @@ export const initialSpots: SpotItem[] = [
     bookingSlots: 'Daily 9:00 AM - 6:00 PM',
     activitiesList: [
       { id: 'act-9', name: 'Oloolua Trail Day Ticket', price: 'KES 200', duration: 'Full Day', description: 'Full access to bamboo forest, waterfall, cave trails, and papyrus swamp.' }
-    ]
+    ],
+    reviews: []
   },
   {
     id: 16,
@@ -646,8 +651,8 @@ export const initialSpots: SpotItem[] = [
     landmark: 'Behind Waterfront Karen Shopping Center',
     lat: -1.3282,
     lng: 36.7214,
-    rating: '4.7',
-    reviewCount: 165,
+    rating: 'New',
+    reviewCount: 0,
     price: '$$',
     address: 'Langata South Road, Karen, Nairobi',
     img: 'https://images.unsplash.com/photo-1511882150382-421056c89033?w=800&auto=format&fit=crop',
@@ -660,7 +665,8 @@ export const initialSpots: SpotItem[] = [
     activitiesList: [
       { id: 'act-10', name: 'Tactical Paintball Battle (100 Balls + Full Gear)', price: 'KES 1,500', duration: '1 Hour', description: 'Semi-auto marker, protective mask, body armor, gas refills & squad referee.' },
       { id: 'act-11', name: 'Combat Archery Tag Tournament', price: 'KES 1,200', duration: '45 Mins', description: 'Recurve bows and foam-tipped safe arrows for team deathmatch battles.' }
-    ]
+    ],
+    reviews: []
   },
   {
     id: 17,
@@ -671,8 +677,8 @@ export const initialSpots: SpotItem[] = [
     landmark: 'Behind Two Rivers Theme Park',
     lat: -1.2132,
     lng: 36.7981,
-    rating: '4.9',
-    reviewCount: 310,
+    rating: 'New',
+    reviewCount: 0,
     price: '$$',
     address: 'Limuru Road, Two Rivers Mall, Nairobi',
     img: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800&auto=format&fit=crop',
@@ -685,7 +691,8 @@ export const initialSpots: SpotItem[] = [
     activitiesList: [
       { id: 'act-12', name: 'Sprint Heat (10 Laps with Live Telemetry)', price: 'KES 1,600', duration: '15 Mins', description: '200cc Honda-powered racing kart with live scoreboard timing.' },
       { id: 'act-13', name: 'Grand Prix Squad Battle (25 Laps)', price: 'KES 3,200/pp', duration: '35 Mins', description: 'Qualifying heat, grid start, final race and top-3 podium ceremony.' }
-    ]
+    ],
+    reviews: []
   },
   {
     id: 18,
@@ -696,8 +703,8 @@ export const initialSpots: SpotItem[] = [
     landmark: 'The Oval Westlands',
     lat: -1.2618,
     lng: 36.8045,
-    rating: '4.8',
-    reviewCount: 240,
+    rating: 'New',
+    reviewCount: 0,
     price: '$$',
     address: 'Ring Road Parklands, Westlands, Nairobi',
     img: 'https://images.unsplash.com/photo-1538388177566-72d3663b85d4?w=800&auto=format&fit=crop',
@@ -710,7 +717,8 @@ export const initialSpots: SpotItem[] = [
     activitiesList: [
       { id: 'act-14', name: '10-Pin Bowling Game (Per Person)', price: 'KES 800', duration: '1 Game', description: 'Full 10-frame game with complimentary shoe rental and digital scoring.' },
       { id: 'act-15', name: 'VIP Lane Rental (1 Hour, Up to 6 Players)', price: 'KES 4,500', duration: '1 Hour', description: 'Private lane reservation with unlimited games for the hour.' }
-    ]
+    ],
+    reviews: []
   },
   {
     id: 19,
@@ -721,8 +729,8 @@ export const initialSpots: SpotItem[] = [
     landmark: 'Marula Studios Courtyard',
     lat: -1.3211,
     lng: 36.7089,
-    rating: '4.9',
-    reviewCount: 145,
+    rating: 'New',
+    reviewCount: 0,
     price: '$$',
     address: 'Marula Lane, Karen, Nairobi',
     img: 'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=800&auto=format&fit=crop',
@@ -735,7 +743,8 @@ export const initialSpots: SpotItem[] = [
     activitiesList: [
       { id: 'act-16', name: 'Intro to Wheel Throwing Workshop', price: 'KES 3,000', duration: '2 Hours', description: 'Guided wheel session where you throw 2 ceramic pieces to be fired and glazed.' },
       { id: 'act-17', name: 'Ceramic Painting & Glazing Pass', price: 'KES 1,800', duration: '1.5 Hours', description: 'Select a pre-bisqued mug or plate to paint with specialty glazes.' }
-    ]
+    ],
+    reviews: []
   },
   {
     id: 20,
@@ -746,8 +755,8 @@ export const initialSpots: SpotItem[] = [
     landmark: 'Ngong Police Station / KFS Barrier',
     lat: -1.3985,
     lng: 36.6432,
-    rating: '4.9',
-    reviewCount: 480,
+    rating: 'New',
+    reviewCount: 0,
     price: '$',
     address: 'KFS Gate, Ngong Hills, Kajiado / Karen Border',
     img: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&auto=format&fit=crop',
@@ -760,7 +769,8 @@ export const initialSpots: SpotItem[] = [
     activitiesList: [
       { id: 'act-18', name: '7-Hills Traverse Hiking Pass', price: 'KES 200', duration: '4-5 Hours', description: 'Traverse across the 7 rolling green knuckles from Ngong to Corner Baridi.' },
       { id: 'act-19', name: 'KFS Ranger Escort (Group of 1-10)', price: 'KES 1,500', duration: 'Half Day', description: 'Dedicated armed ranger escort for group security across the entire ridge.' }
-    ]
+    ],
+    reviews: []
   }
 ];
 
@@ -1294,9 +1304,17 @@ export const initialConversations: ChatConversation[] = [
         id: 'm-voice', 
         sender: 'them', 
         text: 'Voice note (0:14)', 
-        audioUrl: 'mock-audio',
+        audioUrl: generatePlayableWavDataUrl(14),
         audioDuration: 14,
         time: '18:24' 
+      },
+      {
+        id: 'm-video-note',
+        sender: 'them',
+        text: 'Circular video note (6s)',
+        videoNoteUrl: 'https://assets.mixkit.co/videos/preview/mixkit-friends-walking-together-in-the-city-40742-large.mp4',
+        videoDuration: 6,
+        time: '18:24'
       },
       { 
         id: 'm-3', 
