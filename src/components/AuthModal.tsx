@@ -4,11 +4,21 @@ import { Lock, Mail, User, Phone, ArrowRight, ShieldCheck, X, Loader2 } from 'lu
 
 interface AuthModalProps {
   isOpen: boolean;
-  onSuccess: () => void;
-  onClose?: () => void;
+  onClose: () => void;
+  onSuccess?: () => void;
+  onContinueAsGuest?: () => void;
+  customMessage?: string;
 }
 
-export function AuthModal({ isOpen, onSuccess, onClose }: AuthModalProps) {
+
+export function AuthModal({
+  isOpen,
+  onSuccess,
+  onClose,
+  onContinueAsGuest,
+  customMessage,
+}: AuthModalProps) {
+
   const [isSignUp, setIsSignUp] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -258,6 +268,26 @@ export function AuthModal({ isOpen, onSuccess, onClose }: AuthModalProps) {
             )}
           </button>
         </form>
+        {/* Custom Message Banner if triggered from a protected action */}
+        {customMessage && (
+          <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 text-xs text-center font-medium">
+            {customMessage}
+          </div>
+        )}
+
+        {/* Continue as Guest Button */}
+        {onContinueAsGuest && (
+          <button
+            type="button"
+            onClick={() => {
+              onContinueAsGuest();
+              if (onClose) onClose();
+            }}
+            className="w-full mt-3 py-3 px-4 bg-stone-800 hover:bg-stone-700 text-stone-300 font-bold text-sm rounded-xl transition border border-stone-700/50 cursor-pointer"
+          >
+            Continue as Guest
+          </button>
+        )}
 
         {/* Mode Switcher */}
         <div className="mt-5 text-center text-xs text-stone-400">
