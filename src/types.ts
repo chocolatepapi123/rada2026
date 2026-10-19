@@ -295,6 +295,31 @@ export interface UserProfile {
   isLivenessVerified?: boolean;
   is_liveness_verified?: boolean;
   relationship_status?: string;
+  /**
+   * Professional (creator/host) account. Switching is instant and self-serve: there is no
+   * review or approval step. Mirrors profiles.is_creator in Supabase.
+   */
+  is_creator?: boolean;
+  /** Mirrors profiles.account_type. */
+  account_type?: AccountType;
+  /** ISO time the account was switched to professional. */
+  professional_since?: string;
+}
+
+export type AccountType = 'personal' | 'professional';
+
+/** Outing analytics for professional accounts. null = no data available yet (shown as an empty state, never mock data). */
+export interface HostAnalytics {
+  impressions: number | null;
+  eventSaves: number | null;
+  profileViews: number | null;
+  rsvps: number | null;
+}
+
+/** Advanced host controls, stored per user. */
+export interface HostControls {
+  featuredSpots: boolean;
+  priorityListing: boolean;
 }
 
 export interface ChatMessage {
