@@ -59,7 +59,7 @@ async function startServer() {
 
       // If Gemini client is active, execute dynamic model inference with comprehensive context
       if (ai) {
-        const spotsContext = (spots || []).slice(0, 35).map((s: any) => ({
+        const spotsContext = (spots || []).map((s: any) => ({
           id: s.id,
           title: s.title,
           category: s.category,
@@ -75,19 +75,20 @@ async function startServer() {
           featuredDishes: s.featuredDishes,
         }));
 
-        const eventsContext = (events || []).slice(0, 20).map((e: any) => ({
+        const eventsContext = (events || []).map((e: any) => ({
           id: e.id,
           title: e.title,
           category: e.category,
           location: e.location,
           date: e.date,
-          price: e.price,
+          time: e.time,
+          price: e.price || e.tiers?.[0]?.price || 'KES 1,000',
           genre: e.genre,
           description: e.description,
           goingCount: e.goingCount,
         }));
 
-        const thriftContext = (thriftItems || []).slice(0, 20).map((t: any) => ({
+        const thriftContext = (thriftItems || []).map((t: any) => ({
           id: t.id,
           name: t.name,
           category: t.category,
@@ -105,13 +106,14 @@ Current User Context:
 - Available Categories: ${Array.isArray(activeCategories) && activeCategories.length > 0 ? activeCategories.join(', ') : 'Restaurants & Dining, Cafés & Bakeries, Clubs & Lounges, Date Spots, Connect with Nature, Creative Leisure, Tech & Gaming, Action & Sports, Hotels & Luxury, Vacation Escapes'}
 
 Guidelines for Recommendations:
-1. Always analyze the user's specific requirements, vibe, and location.
+1. Always analyze the user's specific requirements, vibe, and location against the provided database listings.
 2. For open-ended queries like:
-   - "Find me a quiet café with good Wi-Fi": accurately recommend spots categorized as cafés with quiet workspaces and specialty coffee (e.g. Pallet Cafe Lavington, CJ's Koinange Street).
-   - "Where can we do indoor sports?": recommend indoor physical/social activities like 10-pin bowling (Pins & Strikes Luxury Bowling Alley), motion VR gaming (Nairobi VR Arena), or indoor/tactical sport arenas.
-   - "Romantic date night": recommend intimate candlelit garden dining or cocktail terraces (e.g. The Talisman, Ink & Drink).
-   - "Nature trails & hikes": recommend Karura Forest, Oloolua Nature Trail, or Nairobi Arboretum.
-   - "Amapiano rave / party": recommend events or nightlife spots like Amapiano & Chill, The Alchemist, or Cravers Grill.
+   - "Find me a quiet café with good Wi-Fi": recommend spots categorized as cafés with quiet workspaces and specialty coffee (e.g. Pallet Cafe Lavington, CJ's Koinange Street).
+   - "Where can we do indoor sports?": recommend indoor physical/social activities like 10-pin bowling (Pins & Strikes Luxury Bowling Alley), motion VR gaming (Nairobi VR & Simulator Gaming Arena), or indoor/tactical sport arenas.
+   - "Romantic date night": recommend intimate candlelit garden dining or cocktail terraces (e.g. The Talisman Restaurant & Gardens, Ink & Drink Bar & Lounge).
+   - "Nature trails & hikes": recommend Karura Forest Canopy & Biking Trails, Oloolua Nature Trail & Waterfall Caves, or Ngong Hills Ridge Hike.
+   - "Amapiano rave / party": recommend events or nightlife spots like Amapiano & Chill All-White Rave, The Alchemist Weekend Block Party, or Cravers Grill.
+   - "Vintage denim / streetwear / thrift": recommend thrift items or vintage stalls like Gikomba Stall 4B Vintage.
 3. If the user is in or specifies a location like "${selectedLocation || 'Westlands'}", prioritize matching spots in that neighborhood first if suitable.
 4. Output structured JSON:
    - "message": A warm, witty, localized concierge recommendation directly answering the query with insider tips.
@@ -275,7 +277,7 @@ Respond as Wagwan AI in JSON format.`;
       }
 
       if (ai) {
-        const spotsContext = (spots || []).slice(0, 30).map((s: any) => ({
+        const spotsContext = (spots || []).map((s: any) => ({
           id: s.id,
           title: s.title,
           category: s.category,
@@ -284,45 +286,120 @@ Respond as Wagwan AI in JSON format.`;
           price: s.price,
           description: s.description,
           activityType: s.activityType,
+          equipmentProvided: s.equipmentProvided,
+          address: s.address,
+        }));
+
+        const eventsContext = (events || []).map((e: any) => ({
+          id: e.id,
+          title: e.title,
+          category: e.category,
+          genre: e.genre,
+          location: e.location,
+          date: e.date,
+          goingCount: e.goingCount,
+        }));
+
+        const thriftContext = (thriftItems || []).map((t: any) => ({
+          id: t.id,
+          name: t.name,
+          category: t.category,
+          price: t.price,
+          seller: t.seller,
+          storeLocation: t.storeLocation,
         }));
 
         const systemInstruction = `You are Wagwan AI, Nairobi's premier hangouts & nightlife concierge on RADA.
-Tone: Warm, witty, urban Nairobi persona with natural local Sheng ('Wagwan!', 'rada safi', 'vibes', 'turn up').
+Tone: Warm, witty, urban Nairobi persona with natural local Sheng ('Wagwan!', 'rada safi', 'vibes', 'turn up', 'shikisha').
 User Selected Location: "${selectedLocation || 'Nairobi'}"
-Active Category: "${activeCategory || 'All'}"
-Give a concise, insightful recommendation answering the user prompt. Mention the exact spot or event names from the database.`;
+Active Category: "${activeCategory || 'All Hangout Categories'}"
+Available Categories: ${Array.isArray(activeCategories) && activeCategories.length > 0 ? activeCategories.join(', ') : 'Restaurants & Dining, Cafés & Bakeries, Clubs & Lounges, Date Spots, Connect with Nature, Creative Leisure, Tech & Gaming, Action & Sports, Hotels & Luxury, Vacation Escapes'}
+
+Guidelines for Recommendations:
+1. Recommend real spots, events, or thrift items from the provided database that match the user's inquiry, vibe, and location.
+2. For open-ended queries:
+   - "Find me a quiet café with good Wi-Fi": recommend spots like Pallet Cafe Lavington or CJ's Koinange Street.
+   - "Where can we do indoor sports?": recommend indoor physical/social activities like 10-pin bowling (Pins & Strikes Luxury Bowling Alley) or motion VR (Nairobi VR & Simulator Gaming Arena).
+   - "Romantic date night": recommend intimate candlelit garden dining or cocktail terraces (The Talisman, Ink & Drink).
+   - "Nature trails & hikes": recommend Karura Forest Canopy & Biking Trails, Oloolua Nature Trail, or Ngong Hills.
+   - "Amapiano rave / party": recommend Amapiano & Chill or The Alchemist.
+3. Explicitly mention the exact spot or event title in your text so it displays recommendation cards.
+4. At the very end of your response on a new line, add a tag for card matching:
+[RECOMMENDATIONS: spots=id1,id2; events=id3; thrift=id4] (use 0 if none).`;
+
+        const recentHistory = (conversationHistory || [])
+          .slice(-6)
+          .map((h: any) => `${h.sender === 'user' ? 'User' : 'Wagwan AI'}: ${h.text}`)
+          .join('\n');
 
         const stream = await ai.models.generateContentStream({
           model: 'gemini-3.8-flash',
-          contents: `User in ${selectedLocation || 'Nairobi'}: "${message}". Database Spots: ${JSON.stringify(spotsContext)}`,
+          contents: `User in ${selectedLocation || 'Nairobi'}: "${message}".
+Context History:
+${recentHistory}
+Spots Database: ${JSON.stringify(spotsContext)}
+Events Database: ${JSON.stringify(eventsContext)}
+Thrift Database: ${JSON.stringify(thriftContext)}`,
           config: {
             systemInstruction,
           },
         });
 
-        let fullText = '';
+        let fullRawText = '';
         for await (const chunk of stream) {
           const chunkText = chunk.text || '';
           if (chunkText) {
-            fullText += chunkText;
-            sendSSE('chunk', { chunk: chunkText, text: fullText });
+            fullRawText += chunkText;
+            // Filter out the [RECOMMENDATIONS: tag from the user-visible stream
+            const cleanStreamText = fullRawText.replace(/\[RECOMMENDATIONS:[^\]]*\]?/gi, '').trimEnd();
+            sendSSE('chunk', { chunk: chunkText, text: cleanStreamText });
           }
         }
 
-        // Match recommended spots from accumulated text
-        const textLower = fullText.toLowerCase();
-        const matchedSpots = spots.filter((s: any) => textLower.includes(s.title?.toLowerCase() || ''));
-        const matchedEvents = events.filter((e: any) => textLower.includes(e.title?.toLowerCase() || ''));
-        const matchedThrift = thriftItems.filter((t: any) => textLower.includes(t.name?.toLowerCase() || ''));
+        // Parse recommendation tag from fullRawText
+        let parsedSpotIds: number[] = [];
+        let parsedEventIds: number[] = [];
+        let parsedThriftIds: number[] = [];
+
+        const tagMatch = fullRawText.match(/\[RECOMMENDATIONS:\s*spots=([\d,\s]*);\s*events=([\d,\s]*);\s*thrift=([\d,\s]*)\]/i);
+        if (tagMatch) {
+          parsedSpotIds = tagMatch[1].split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n) && n > 0);
+          parsedEventIds = tagMatch[2].split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n) && n > 0);
+          parsedThriftIds = tagMatch[3].split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n) && n > 0);
+        }
+
+        const cleanFinalText = fullRawText.replace(/\[RECOMMENDATIONS:[^\]]*\]/gi, '').trim();
+
+        // Also do name/token-level matching across database listings as a resilient safeguard
+        const textLower = cleanFinalText.toLowerCase();
+        const matchedSpotsFromText = spots.filter((s: any) => {
+          const title = (s.title || '').toLowerCase();
+          const firstWords = title.split(/\s+/).slice(0, 2).join(' ');
+          return textLower.includes(title) || (firstWords.length > 5 && textLower.includes(firstWords));
+        });
+
+        const matchedEventsFromText = events.filter((e: any) => {
+          const title = (e.title || '').toLowerCase();
+          const firstWords = title.split(/\s+/).slice(0, 2).join(' ');
+          return textLower.includes(title) || (firstWords.length > 5 && textLower.includes(firstWords));
+        });
+
+        const matchedThriftFromText = thriftItems.filter((t: any) => {
+          return textLower.includes((t.name || '').toLowerCase());
+        });
+
+        const allSpotIds = Array.from(new Set([...parsedSpotIds, ...matchedSpotsFromText.map((s: any) => s.id)]));
+        const allEventIds = Array.from(new Set([...parsedEventIds, ...matchedEventsFromText.map((e: any) => e.id)]));
+        const allThriftIds = Array.from(new Set([...parsedThriftIds, ...matchedThriftFromText.map((t: any) => t.id)]));
 
         sendSSE('complete', {
-          reply: fullText,
-          matchedSpotId: matchedSpots[0]?.id || 0,
-          matchedEventId: matchedEvents[0]?.id || 0,
-          matchedThriftId: matchedThrift[0]?.id || 0,
-          matchedSpotIds: matchedSpots.map((s: any) => s.id),
-          matchedEventIds: matchedEvents.map((e: any) => e.id),
-          matchedThriftIds: matchedThrift.map((t: any) => t.id),
+          reply: cleanFinalText,
+          matchedSpotId: allSpotIds[0] || 0,
+          matchedEventId: allEventIds[0] || 0,
+          matchedThriftId: allThriftIds[0] || 0,
+          matchedSpotIds: allSpotIds,
+          matchedEventIds: allEventIds,
+          matchedThriftIds: allThriftIds,
           source: 'gemini-stream',
         });
         return res.end();
@@ -344,7 +421,7 @@ Give a concise, insightful recommendation answering the user prompt. Mention the
         const piece = (i === 0 ? '' : ' ') + words[i];
         currentText += piece;
         sendSSE('chunk', { chunk: piece, text: currentText });
-        await new Promise(r => setTimeout(r, 20));
+        await new Promise(r => setTimeout(r, 18));
       }
 
       sendSSE('complete', fallbackResult);

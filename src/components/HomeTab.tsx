@@ -62,6 +62,7 @@ interface HomeTabProps {
   onOpenDedicatedViewAll: (title: string, category: string) => void;
   onOpenCreateEvent?: (initialTitle?: string) => void;
   onOpenBusinessProfile?: (businessId: string) => void;
+  onOpenWagwanAI?: () => void;
   showToast: (msg: string) => void;
 }
 
@@ -83,6 +84,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   onOpenDedicatedViewAll,
   onOpenCreateEvent,
   onOpenBusinessProfile,
+  onOpenWagwanAI,
   showToast
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -527,6 +529,36 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-[#E0533C]' : ''}`} />
           </button>
         </div>
+
+        {/* Wagwan AI Lifestyle Concierge Banner */}
+        {onOpenWagwanAI && (
+          <div 
+            onClick={onOpenWagwanAI}
+            className="p-3 sm:p-3.5 bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-transparent dark:from-orange-950/35 dark:via-amber-950/25 dark:to-transparent border border-orange-200/90 dark:border-orange-900/60 rounded-3xl flex items-center justify-between gap-3 cursor-pointer hover:border-[#E0533C] transition group shadow-2xs"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] text-white flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div className="min-w-0 space-y-0.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <h4 className="font-black text-xs text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition">
+                    Wagwan AI Concierge
+                  </h4>
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-[#E0533C] text-white shadow-xs">
+                    Ask Anything
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                  Quiet cafés with Wi-Fi, indoor sports & bowling, hidden date night spots...
+                </p>
+              </div>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-[#E0533C] text-white flex items-center justify-center shrink-0 shadow-xs group-hover:translate-x-0.5 transition-transform">
+              <ArrowRight className="w-4 h-4" />
+            </div>
+          </div>
+        )}
 
         {/* Active Filter Indicators */}
         {(selectedGenre !== 'all' || selectedEventDateRange !== 'all' || selectedEventPriceTier !== 'all') && (

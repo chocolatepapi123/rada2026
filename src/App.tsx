@@ -1706,6 +1706,7 @@ export default function App() {
                 }}
                 onOpenCreateEvent={() => requireAuth('add a spot or business', () => setIsBusinessHubOpen(true))}
                 onOpenBusinessProfile={handleOpenBusinessProfile}
+                onOpenWagwanAI={() => setIsWagwanOpen(true)}
                 showToast={showToast}
               />
             )}

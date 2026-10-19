@@ -127,8 +127,9 @@ export async function sendWagwanChatMessage(params: SendWagwanChatParams): Promi
             try {
               const parsedData = JSON.parse(dataMatch[1]);
               if (eventType === 'chunk') {
-                accumulatedText = parsedData.text || (accumulatedText + (parsedData.chunk || ''));
-                onStreamChunk(parsedData.chunk || '', accumulatedText);
+                const chunkPiece = (parsedData.chunk || '').replace(/\[RECOMMENDATIONS:[^\]]*\]?/gi, '');
+                accumulatedText = (parsedData.text || (accumulatedText + chunkPiece)).replace(/\[RECOMMENDATIONS:[^\]]*\]?/gi, '');
+                onStreamChunk(chunkPiece, accumulatedText);
               } else if (eventType === 'complete') {
                 finalPayload = parsedData;
               }
@@ -139,7 +140,8 @@ export async function sendWagwanChatMessage(params: SendWagwanChatParams): Promi
         }
 
         if (finalPayload || accumulatedText) {
-          const replyText = finalPayload?.reply || accumulatedText;
+          const rawReply = finalPayload?.reply || accumulatedText;
+          const replyText = rawReply.replace(/\[RECOMMENDATIONS:[^\]]*\]/gi, '').trim();
           const { matchedSpots, matchedEvents, matchedThrift } = resolveMatches({
             replyText,
             spots,
@@ -182,7 +184,8 @@ export async function sendWagwanChatMessage(params: SendWagwanChatParams): Promi
 
     if (res.ok) {
       const data = await res.json();
-      const replyText = data.reply || data.text || '';
+      const rawReply = data.reply || data.text || '';
+      const replyText = rawReply.replace(/\[RECOMMENDATIONS:[^\]]*\]/gi, '').trim();
 
       // If onStreamChunk provided, simulate smooth fast streaming
       if (typeof onStreamChunk === 'function' && replyText) {
@@ -304,17 +307,27 @@ function resolveMatches(params: {
   if (matchedSpots.length === 0 && matchedEvents.length === 0 && matchedThrift.length === 0) {
     const textLower = replyText.toLowerCase();
     for (const s of spots) {
-      if (textLower.includes(s.title.toLowerCase()) && !matchedSpots.some(item => item.id === s.id)) {
+      const titleLower = (s.title || '').toLowerCase();
+      const firstTwoWords = titleLower.split(/\s+/).slice(0, 2).join(' ');
+      if (
+        (textLower.includes(titleLower) || (firstTwoWords.length > 5 && textLower.includes(firstTwoWords))) &&
+        !matchedSpots.some(item => item.id === s.id)
+      ) {
         matchedSpots.push(s);
       }
     }
     for (const e of events) {
-      if (textLower.includes(e.title.toLowerCase()) && !matchedEvents.some(item => item.id === e.id)) {
+      const titleLower = (e.title || '').toLowerCase();
+      const firstTwoWords = titleLower.split(/\s+/).slice(0, 2).join(' ');
+      if (
+        (textLower.includes(titleLower) || (firstTwoWords.length > 5 && textLower.includes(firstTwoWords))) &&
+        !matchedEvents.some(item => item.id === e.id)
+      ) {
         matchedEvents.push(e);
       }
     }
     for (const t of thriftItems) {
-      if (textLower.includes(t.name.toLowerCase()) && !matchedThrift.some(item => item.id === t.id)) {
+      if (textLower.includes((t.name || '').toLowerCase()) && !matchedThrift.some(item => item.id === t.id)) {
         matchedThrift.push(t);
       }
     }
