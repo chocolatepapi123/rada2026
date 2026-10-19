@@ -216,12 +216,12 @@ export const WagwanAI: React.FC<WagwanAIProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-2.5 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 bg-[#FAFAFC] dark:bg-[#0A0C10] flex flex-col p-2.5 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
       <div className="max-w-xl mx-auto w-full flex-1 flex flex-col">
-        {/* Top Header */}
-        <div className="flex items-center justify-between pb-2.5 border-b border-slate-200 dark:border-slate-800">
+        {/* Top Header styled in Violet-to-Coral Gradient */}
+        <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/80 dark:border-[#222735]">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-2xl bg-gradient-to-r from-[#E0533C] to-[#E9C46A] text-white flex items-center justify-center font-bold text-xs shadow-md shrink-0">
+            <div className="w-9 h-9 rounded-2xl bg-gradient-to-r from-purple-600 to-orange-500 text-white flex items-center justify-center font-bold text-xs shadow-md shrink-0">
               <Sparkles className="w-4 h-4" />
             </div>
             <div className="min-w-0">
@@ -229,7 +229,7 @@ export const WagwanAI: React.FC<WagwanAIProps> = ({
                 <h3 className="font-black text-sm uppercase tracking-wider text-slate-900 dark:text-slate-100">
                   Wagwan AI
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] dark:text-orange-400">
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-gradient-to-r from-purple-600/15 to-orange-500/15 text-[#8B5CF6] dark:text-purple-300 border border-purple-500/30">
                   Nairobi Concierge
                 </span>
               </div>
@@ -240,7 +240,7 @@ export const WagwanAI: React.FC<WagwanAIProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowLocationPicker(!showLocationPicker)}
-                    className="flex items-center gap-1 font-bold text-[#E0533C] hover:underline cursor-pointer bg-orange-50 dark:bg-orange-950/40 px-2 py-0.5 rounded-md"
+                    className="flex items-center gap-1 font-bold text-[#FF5733] hover:underline cursor-pointer bg-orange-50 dark:bg-orange-950/40 px-2 py-0.5 rounded-md"
                     title="Change location context"
                   >
                     <MapPin className="w-2.5 h-2.5" />
@@ -250,7 +250,7 @@ export const WagwanAI: React.FC<WagwanAIProps> = ({
 
                   {/* Location Switcher Dropdown */}
                   {showLocationPicker && (
-                    <div className="absolute top-full left-0 mt-1.5 z-30 w-48 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 max-h-56 overflow-y-auto">
+                    <div className="absolute top-full left-0 mt-1.5 z-30 w-48 bg-white dark:bg-[#14171F] border border-slate-200 dark:border-[#222735] rounded-2xl shadow-xl p-1.5 max-h-56 overflow-y-auto">
                       <div className="text-[9px] font-black uppercase tracking-wider text-slate-400 px-2 py-1">
                         Select Location Context
                       </div>
@@ -264,7 +264,7 @@ export const WagwanAI: React.FC<WagwanAIProps> = ({
                           }}
                           className={`w-full text-left px-2 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between transition cursor-pointer ${
                             currentSelectedLocation === loc
-                              ? 'bg-[#E0533C] text-white'
+                              ? 'bg-[#FF5733] text-white'
                               : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
                           }`}
                         >
@@ -313,7 +313,7 @@ export const WagwanAI: React.FC<WagwanAIProps> = ({
               className={`px-2.5 py-1 rounded-full font-bold transition shrink-0 cursor-pointer ${
                 currentActiveCategory === cat || (cat === 'All Categories' && currentActiveCategory === 'All Hangout Categories')
                   ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-2xs'
-                  : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-slate-400'
+                  : 'bg-white dark:bg-[#14171F] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-[#222735] hover:border-slate-400'
               }`}
             >
               {cat}
@@ -323,20 +323,20 @@ export const WagwanAI: React.FC<WagwanAIProps> = ({
 
         {/* Chat Feed */}
         <div className="py-2 space-y-4 flex-1 text-xs flex flex-col min-h-0">
-          <div className="flex-1 space-y-3.5 overflow-y-auto min-h-[300px] p-3 sm:p-4 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-inner">
+          <div className="flex-1 space-y-3.5 overflow-y-auto min-h-[300px] p-3 sm:p-4 bg-white dark:bg-[#0E1117] border border-slate-200/90 dark:border-[#222735] rounded-3xl shadow-inner">
             {messages.map((msg, idx) => (
               <div key={msg.id || idx} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div
                   className={`max-w-[94%] sm:max-w-[90%] p-3.5 sm:p-4 rounded-3xl text-xs space-y-2.5 shadow-sm transition-all ${
                     msg.sender === 'user'
-                      ? 'bg-[#E0533C] text-white rounded-tr-none'
-                      : 'bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none'
+                      ? 'bg-gradient-to-r from-[#FF5733] to-[#FF6B4A] text-white rounded-tr-none shadow-sm'
+                      : 'bg-white dark:bg-[#14171F] border border-purple-200/70 dark:border-purple-900/40 text-slate-800 dark:text-slate-200 rounded-tl-none shadow-xs'
                   }`}
                 >
                   {msg.sender === 'ai' && (
-                    <div className="flex items-center justify-between gap-2 pb-1 border-b border-slate-100 dark:border-slate-800/60">
-                      <span className="font-black text-[#E0533C] flex items-center gap-1.5 text-[11px]">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    <div className="flex items-center justify-between gap-2 pb-1 border-b border-purple-100 dark:border-purple-900/30">
+                      <span className="font-black text-[#8B5CF6] dark:text-purple-400 flex items-center gap-1.5 text-[11px]">
+                        <Sparkles className="w-3.5 h-3.5 text-purple-500" />
                         <span>Wagwan AI Concierge</span>
                       </span>
                       {msg.source && (
@@ -352,12 +352,12 @@ export const WagwanAI: React.FC<WagwanAIProps> = ({
                     <p className="leading-relaxed whitespace-pre-wrap text-xs font-normal">
                       {msg.text}
                       {msg.isStreaming && (
-                        <span className="inline-block w-1.5 h-3.5 ml-1 bg-[#E0533C] animate-pulse align-middle" />
+                        <span className="inline-block w-1.5 h-3.5 ml-1 bg-[#8B5CF6] animate-pulse align-middle" />
                       )}
                     </p>
                   ) : msg.isStreaming ? (
                     <div className="flex items-center gap-2 py-1.5 text-slate-500">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#E0533C]" />
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#8B5CF6]" />
                       <span className="text-[11px] font-medium">Wagwan AI is scouting Nairobi database...</span>
                     </div>
                   ) : null}
@@ -435,7 +435,7 @@ export const WagwanAI: React.FC<WagwanAIProps> = ({
                                       onClose();
                                       onOpenSpotDetails(spot);
                                     }}
-                                    className="px-3.5 py-1.5 bg-[#E0533C] hover:bg-orange-700 active:scale-95 text-white font-black rounded-xl text-[11px] shadow-sm transition flex items-center gap-1.5 cursor-pointer shrink-0"
+                                    className="px-3.5 py-1.5 bg-[#FF5733] hover:bg-[#FF6B4A] active:scale-95 text-white font-black rounded-xl text-[11px] shadow-sm transition flex items-center gap-1.5 cursor-pointer shrink-0"
                                   >
                                     <span>View Details</span>
                                     <ArrowRight className="w-3 h-3" />
@@ -507,7 +507,7 @@ export const WagwanAI: React.FC<WagwanAIProps> = ({
                                     onClose();
                                     if (onOpenEventDetails) onOpenEventDetails(evt);
                                   }}
-                                  className="px-3.5 py-1.5 bg-[#2D6A4F] hover:bg-emerald-800 active:scale-95 text-white font-black rounded-xl text-[11px] shadow-sm transition flex items-center gap-1.5 cursor-pointer shrink-0"
+                                  className="px-3.5 py-1.5 bg-[#FF5733] hover:bg-[#FF6B4A] active:scale-95 text-white font-black rounded-xl text-[11px] shadow-sm transition flex items-center gap-1.5 cursor-pointer shrink-0"
                                 >
                                   <span>View Details</span>
                                   <ArrowRight className="w-3 h-3" />

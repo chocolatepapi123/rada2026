@@ -3,25 +3,41 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-brandTerracotta: #E0533C;
-  --color-brandSage: #2D6A4F;
-  --color-brandAmber: #E9C46A;
-  --color-darkBg: #121113;
-  --color-darkSurface: #1C1A1E;
-  --color-lightBg: #FFFFFF;
-  --color-lightSurface: #F7F7F5;
+  --color-brandCoral: #FF5733;
+  --color-brandCoralHover: #FF6B4A;
+  --color-brandViolet: #8B5CF6;
+  --color-brandVioletHover: #7C3AED;
+  
+  /* Theme tokens: Light default (#FAFAFC / #FFFFFF) & Dark (#0A0C10 / #14171F) */
+  --color-lightBg: #FAFAFC;
+  --color-lightSurface: #FFFFFF;
+  --color-lightText: #0F172A;
+  --color-lightMuted: #64748B;
+  --color-lightBorder: #E2E8F0;
+
+  --color-darkBg: #0A0C10;
+  --color-darkSurface: #14171F;
+  --color-darkText: #F8FAFC;
+  --color-darkMuted: #94A3B8;
+  --color-darkBorder: #222735;
+
+  /* Legacy aliases mapped to new brand palette */
+  --color-brandTerracotta: #FF5733;
+  --color-brandSage: #10B981;
+  --color-brandAmber: #F59E0B;
+
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 html {
-  background-color: #FFFFFF;
-  color: #0f172a;
+  background-color: #FAFAFC;
+  color: #0F172A;
   overscroll-behavior-y: none;
 }
 
 html.dark {
-  background-color: #121113;
-  color: #f8fafc;
+  background-color: #0A0C10;
+  color: #F8FAFC;
 }
 
 body {
@@ -32,7 +48,7 @@ body {
 }
 
 .spot-title {
-  color: #E0533C !important;
+  color: #FF5733 !important;
 }
 
 .hide-scrollbar::-webkit-scrollbar {

@@ -1110,63 +1110,61 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                 swipeAnimation === 'like' ? 'translate-x-28 rotate-12 opacity-0' : swipeAnimation === 'pass' ? '-translate-x-28 -rotate-12 opacity-0' : ''
               }`}
             >
-              {/* Photo Area: Clean and unobstructed so bios do not overlay/cover photo */}
-              <div
-                className="h-96 rounded-2xl bg-cover bg-center relative mb-4 shadow-sm cursor-pointer group"
-                style={{ backgroundImage: `url('${currentProfile.img}')` }}
-                onClick={() => onViewUserProfile({
-                  name: currentProfile.name,
-                  handle: currentProfile.handle,
-                  avatar: currentProfile.img,
-                  bio: currentProfile.bio || 'Exploring Nairobi hangouts, food, and culture.',
-                  loc: currentProfile.loc,
-                  relationshipStatus: currentProfile.relationshipStatus,
-                  vibes: currentProfile.vibes
-                })}
-              >
-                {/* Status Badge: Single or Not single */}
-                <div className="absolute top-3 left-3">
-                  <span className={`backdrop-blur-md text-white text-[11px] font-black px-3 py-1 rounded-full shadow-sm ${
-                    currentProfile.relationshipStatus === 'single'
-                      ? 'bg-emerald-600/90'
-                      : 'bg-slate-800/90'
-                  }`}>
-                    {currentProfile.relationshipStatus === 'single' ? 'Single' : 'Not single'}
-                  </span>
-                </div>
-
-                {/* View Bio Button */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onViewUserProfile({
-                      name: currentProfile.name,
-                      handle: currentProfile.handle,
-                      avatar: currentProfile.img,
-                      bio: currentProfile.bio || 'Exploring Nairobi hangouts, food, and culture.',
-                      loc: cleanLocation(currentProfile.loc),
-                      relationshipStatus: currentProfile.relationshipStatus,
-                      vibes: currentProfile.vibes
-                    });
-                  }}
-                  className="absolute top-3 right-3 bg-black/60 hover:bg-black/85 backdrop-blur-md text-white text-[10px] font-extrabold px-3 py-1 rounded-full transition"
+              {/* Photo Area with Rose to Sunset Coral Ring for verified single profile */}
+              <div className="p-[3px] bg-gradient-to-tr from-[#F43F5E] to-[#FF5733] rounded-[22px] mb-4 shadow-md">
+                <div
+                  className="h-96 rounded-[19px] bg-cover bg-center relative cursor-pointer group overflow-hidden"
+                  style={{ backgroundImage: `url('${currentProfile.img}')` }}
+                  onClick={() => onViewUserProfile({
+                    name: currentProfile.name,
+                    handle: currentProfile.handle,
+                    avatar: currentProfile.img,
+                    bio: currentProfile.bio || 'Exploring Nairobi hangouts, food, and culture.',
+                    loc: cleanLocation(currentProfile.loc),
+                    relationshipStatus: currentProfile.relationshipStatus,
+                    vibes: currentProfile.vibes
+                  })}
                 >
-                  View Profile
-                </button>
+                  {/* Status Badge: Single with Rose to Coral gradient */}
+                  <div className="absolute top-3 left-3">
+                    <span className="backdrop-blur-md text-white text-[11px] font-black px-3 py-1 rounded-full shadow-sm bg-gradient-to-r from-[#F43F5E] to-[#FF5733]">
+                      Verified Single
+                    </span>
+                  </div>
+
+                  {/* View Bio Button */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onViewUserProfile({
+                        name: currentProfile.name,
+                        handle: currentProfile.handle,
+                        avatar: currentProfile.img,
+                        bio: currentProfile.bio || 'Exploring Nairobi hangouts, food, and culture.',
+                        loc: cleanLocation(currentProfile.loc),
+                        relationshipStatus: currentProfile.relationshipStatus,
+                        vibes: currentProfile.vibes
+                      });
+                    }}
+                    className="absolute top-3 right-3 bg-black/60 hover:bg-black/85 backdrop-blur-md text-white text-[10px] font-extrabold px-3 py-1 rounded-full transition cursor-pointer"
+                  >
+                    View Profile
+                  </button>
+                </div>
               </div>
 
-              {/* Bio & Details Area: Cleanly placed BELOW the photo so the photo is 100% visible */}
-              <div className="bg-white dark:bg-[#121113] p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2 mb-4">
+              {/* Bio & Details Area */}
+              <div className="bg-slate-50 dark:bg-[#0A0C10] p-4 rounded-2xl border border-slate-200 dark:border-[#222735] space-y-2 mb-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-black text-lg text-slate-900 dark:text-slate-100">
                     {currentProfile.name}
                   </h3>
-                  <span className="text-xs text-[#E0533C] font-bold">{currentProfile.handle}</span>
+                  <span className="text-xs text-[#FF5733] font-bold">{currentProfile.handle}</span>
                 </div>
 
                 <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 font-semibold">
-                  <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
+                  <MapPin className="w-3.5 h-3.5 text-[#FF5733]" />
                   <span>{cleanLocation(currentProfile.loc)}</span>
                 </p>
 
@@ -1179,7 +1177,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                 {currentProfile.vibes && currentProfile.vibes.length > 0 && (
                   <div className="flex gap-1.5 flex-wrap pt-2">
                     {currentProfile.vibes.map((v, i) => (
-                      <span key={i} className="text-[10px] bg-[#F1F1EE] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-lg font-bold border border-slate-200 dark:border-slate-800">
+                      <span key={i} className="text-[10px] bg-white dark:bg-[#14171F] text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-lg font-bold border border-slate-200 dark:border-[#222735]">
                         #{v}
                       </span>
                     ))}
@@ -1191,7 +1189,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
               <div className="flex gap-6 justify-center py-1">
                 <button
                   onClick={() => handleSwipe('pass')}
-                  className="w-14 h-14 rounded-full bg-white dark:bg-[#121113] border-2 border-red-500 text-red-500 flex items-center justify-center text-xl shadow-lg hover:scale-105 active:scale-95 transition"
+                  className="w-14 h-14 rounded-full bg-white dark:bg-[#14171F] border-2 border-slate-300 dark:border-slate-700 text-slate-500 hover:text-red-500 hover:border-red-500 flex items-center justify-center text-xl shadow-lg hover:scale-105 active:scale-95 transition cursor-pointer"
                   title="Pass"
                 >
                   <X className="w-7 h-7" />
@@ -1199,7 +1197,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
 
                 <button
                   onClick={() => handleSwipe('like')}
-                  className="w-14 h-14 rounded-full bg-[#E0533C] text-white flex items-center justify-center text-xl shadow-lg hover:scale-105 active:scale-95 transition"
+                  className="w-14 h-14 rounded-full bg-gradient-to-r from-[#F43F5E] to-[#FF5733] text-white flex items-center justify-center text-xl shadow-lg hover:scale-105 active:scale-95 transition cursor-pointer"
                   title="Send Match Request"
                 >
                   <Heart className="w-7 h-7 fill-white" />
@@ -1376,20 +1374,33 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                     relationshipStatus: p.relationshipStatus,
                     vibes: p.vibes
                   })}
-                  className="p-3 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between cursor-pointer hover:border-[#E0533C] transition"
+                <div
+                  key={p.id}
+                  onClick={() => onViewUserProfile({
+                    name: p.name,
+                    handle: p.handle,
+                    avatar: p.img,
+                    bio: p.bio || 'Exploring Nairobi hangouts, good music and vibes.',
+                    loc: cleanLocation(p.loc),
+                    relationshipStatus: p.relationshipStatus,
+                    vibes: p.vibes
+                  })}
+                  className="p-3 bg-white dark:bg-[#14171F] border border-slate-200/90 dark:border-[#222735] rounded-2xl flex items-center justify-between cursor-pointer hover:border-[#FF5733] transition"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className="w-10 h-10 rounded-full bg-cover bg-center shrink-0"
-                      style={{ backgroundImage: `url('${p.img}')` }}
-                    />
+                    <div className="p-[2px] bg-gradient-to-tr from-[#F43F5E] to-[#FF5733] rounded-full shrink-0 shadow-xs">
+                      <div
+                        className="w-10 h-10 rounded-full bg-cover bg-center border border-white dark:border-[#14171F]"
+                        style={{ backgroundImage: `url('${p.img}')` }}
+                      />
+                    </div>
                     <div className="min-w-0">
-                      <h4 className="font-bold text-xs truncate">{p.name}</h4>
+                      <h4 className="font-bold text-xs truncate text-slate-900 dark:text-slate-100">{p.name}</h4>
                       <p className="text-[10px] text-slate-400 truncate">{cleanLocation(p.loc)}</p>
                     </div>
                   </div>
                   {/* Verified Single Badge */}
-                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 flex items-center gap-1">
+                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-gradient-to-r from-[#F43F5E]/15 to-[#FF5733]/15 text-[#FF5733] border border-[#FF5733]/30 flex items-center gap-1">
                     <UserCheck className="w-3 h-3" />
                     <span>Single</span>
                   </span>

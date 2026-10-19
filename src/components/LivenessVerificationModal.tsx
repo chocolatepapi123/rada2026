@@ -255,19 +255,19 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
       <div 
-        className="bg-white dark:bg-[#1C1A1E] text-slate-900 dark:text-slate-100 rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[92vh]"
+        className="bg-white dark:bg-[#14171F] text-[#0F172A] dark:text-[#F8FAFC] rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200/90 dark:border-[#222735] flex flex-col max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-[#222735] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#E0533C]/10 text-[#E0533C] flex items-center justify-center shadow-xs">
+            <div className="w-9 h-9 rounded-xl bg-[#FF5733]/10 text-[#FF5733] flex items-center justify-center shadow-xs">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
                 <h3 className="text-sm font-black tracking-tight">Single Verification Gate</h3>
-                <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#10B981]/15 text-[#10B981]">
                   Required
                 </span>
               </div>
@@ -281,7 +281,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
               stopCamera();
               onClose();
             }}
-            className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 flex items-center justify-center transition cursor-pointer"
+            className="w-8 h-8 rounded-full bg-slate-100 dark:bg-[#0A0C10] hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center transition cursor-pointer"
             title="Close"
           >
             <X className="w-4 h-4" />
@@ -289,10 +289,10 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
         </div>
 
         {/* Step Progress Pills */}
-        <div className="px-5 pt-3 flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800/60 pb-3 text-[10px] font-bold">
-          <div className={`flex items-center gap-1.5 ${step === 'photo' ? 'text-[#E0533C]' : 'text-emerald-600'}`}>
+        <div className="px-5 pt-3 flex items-center justify-between gap-2 border-b border-slate-100 dark:border-[#222735] pb-3 text-[10px] font-bold">
+          <div className={`flex items-center gap-1.5 ${step === 'photo' ? 'text-[#FF5733]' : 'text-[#10B981]'}`}>
             <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] ${
-              step === 'photo' ? 'bg-[#E0533C] text-white' : 'bg-emerald-600 text-white'
+              step === 'photo' ? 'bg-[#FF5733] text-white' : 'bg-[#10B981] text-white'
             }`}>
               1
             </span>
@@ -302,13 +302,13 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
           <span className="text-slate-300 dark:text-slate-700">───</span>
 
           <div className={`flex items-center gap-1.5 ${
-            step === 'camera' || step === 'verifying' ? 'text-[#E0533C]' : step === 'success' ? 'text-emerald-600' : 'text-slate-400'
+            step === 'camera' || step === 'verifying' ? 'text-[#FF5733]' : step === 'success' ? 'text-[#10B981]' : 'text-slate-400'
           }`}>
             <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] ${
               step === 'camera' || step === 'verifying'
-                ? 'bg-[#E0533C] text-white'
+                ? 'bg-[#FF5733] text-white'
                 : step === 'success'
-                  ? 'bg-emerald-600 text-white'
+                  ? 'bg-[#10B981] text-white'
                   : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
             }`}>
               2
@@ -318,9 +318,9 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
 
           <span className="text-slate-300 dark:text-slate-700">───</span>
 
-          <div className={`flex items-center gap-1.5 ${step === 'success' ? 'text-emerald-600 font-black' : 'text-slate-400'}`}>
+          <div className={`flex items-center gap-1.5 ${step === 'success' ? 'text-[#10B981] font-black' : 'text-slate-400'}`}>
             <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] ${
-              step === 'success' ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+              step === 'success' ? 'bg-[#10B981] text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
             }`}>
               3
             </span>
@@ -334,7 +334,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
           {step === 'photo' && (
             <div className="space-y-4 text-center">
               <div className="p-3 bg-orange-500/10 border border-orange-500/20 rounded-2xl text-left flex items-start gap-2.5">
-                <AlertCircle className="w-4 h-4 text-[#E0533C] shrink-0 mt-0.5" />
+                <AlertCircle className="w-4 h-4 text-[#FF5733] shrink-0 mt-0.5" />
                 <div className="text-[11px] text-slate-700 dark:text-slate-300 leading-relaxed">
                   <strong className="text-slate-900 dark:text-slate-100">Step 1 of 2: Profile Photo</strong>
                   <p className="mt-0.5">
@@ -346,13 +346,13 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
               {/* Avatar Preview */}
               <div className="relative w-32 h-32 mx-auto">
                 <div
-                  className="w-32 h-32 rounded-3xl bg-cover bg-center border-4 border-[#E0533C] shadow-lg overflow-hidden bg-slate-900"
+                  className="w-32 h-32 rounded-3xl bg-cover bg-center border-4 border-[#FF5733] shadow-lg overflow-hidden bg-slate-900"
                   style={{ backgroundImage: `url('${selectedAvatar}')` }}
                 />
                 <button
                   type="button"
                   onClick={() => photoInputRef.current?.click()}
-                  className="absolute -bottom-2 -right-2 p-2 bg-[#E0533C] hover:bg-orange-700 text-white rounded-2xl shadow-lg transition cursor-pointer"
+                  className="absolute -bottom-2 -right-2 p-2 bg-[#FF5733] hover:bg-[#FF6B4A] text-white rounded-2xl shadow-lg transition cursor-pointer"
                   title="Upload New Photo"
                 >
                   <Upload className="w-4 h-4" />
@@ -378,16 +378,16 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
                 <button
                   type="button"
                   onClick={() => photoInputRef.current?.click()}
-                  className="w-full py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-2.5 px-4 bg-slate-100 dark:bg-[#0A0C10] hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <Upload className="w-3.5 h-3.5 text-[#E0533C]" />
+                  <Upload className="w-3.5 h-3.5 text-[#FF5733]" />
                   <span>Choose / Change Profile Photo</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleProceedToCamera}
-                  className="w-full py-3 px-4 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-3 px-4 bg-[#FF5733] hover:bg-[#FF6B4A] text-white font-black rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span>Continue to Camera Liveness Check</span>
                   <ArrowRight className="w-4 h-4" />
@@ -401,7 +401,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
             <div className="space-y-4 text-center">
               <div className="space-y-1">
                 <h4 className="font-black text-sm flex items-center justify-center gap-1.5">
-                  <Camera className="w-4 h-4 text-[#E0533C]" />
+                  <Camera className="w-4 h-4 text-[#FF5733]" />
                   <span>Step 2 of 2: Facial Liveness Verification</span>
                 </h4>
                 <p className="text-[11px] text-slate-500">
@@ -409,8 +409,8 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
                 </p>
               </div>
 
-              {/* Viewfinder Frame */}
-              <div className="relative w-64 h-64 mx-auto rounded-full overflow-hidden bg-black border-4 border-[#E0533C] shadow-2xl flex items-center justify-center group">
+              {/* Viewfinder Frame with Clean Camera Overlay (#FF5733 scanning orange) */}
+              <div className="relative w-64 h-64 mx-auto rounded-full overflow-hidden bg-black border-4 border-[#FF5733] shadow-2xl flex items-center justify-center group ring-4 ring-[#FF5733]/20">
                 <video
                   ref={videoRef}
                   autoPlay
@@ -419,10 +419,13 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
                   className="w-full h-full object-cover scale-x-[-1]"
                 />
 
-                {/* Facial alignment guidelines */}
-                <div className="absolute inset-0 pointer-events-none border-2 border-dashed border-white/50 rounded-full m-4 animate-pulse flex items-center justify-center">
-                  <div className="w-2 h-2 rounded-full bg-red-500/80" />
+                {/* Facial alignment guidelines in scanning orange */}
+                <div className="absolute inset-0 pointer-events-none border-2 border-dashed border-[#FF5733]/80 rounded-full m-4 animate-pulse flex items-center justify-center">
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#FF5733]" />
                 </div>
+
+                {/* Scanning sweep indicator */}
+                <div className="absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#FF5733] to-transparent animate-bounce opacity-80" />
 
                 {/* Countdown Overlay */}
                 {countdown !== null && (
@@ -435,7 +438,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
 
                 {!isCameraActive && !cameraError && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-white bg-slate-900/90 space-y-2">
-                    <RefreshCw className="w-6 h-6 animate-spin text-[#E0533C]" />
+                    <RefreshCw className="w-6 h-6 animate-spin text-[#FF5733]" />
                     <p className="text-[11px] font-bold">Starting camera stream...</p>
                   </div>
                 )}
@@ -468,7 +471,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
                     type="button"
                     onClick={handleCaptureLivePhoto}
                     disabled={countdown !== null}
-                    className="w-full py-3 px-4 bg-[#E0533C] hover:bg-orange-700 disabled:opacity-50 text-white font-black rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full py-3 px-4 bg-[#FF5733] hover:bg-[#FF6B4A] disabled:opacity-50 text-white font-black rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Scan className="w-4 h-4" />
                     <span>{countdown !== null ? `Capturing in ${countdown}...` : 'Capture & Verify Face'}</span>
@@ -477,7 +480,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
                   <button
                     type="button"
                     onClick={() => startCamera()}
-                    className="w-full py-2.5 px-4 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full py-2.5 px-4 bg-[#FF5733] hover:bg-[#FF6B4A] text-white font-black rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
                     <span>Retry Camera Stream</span>
@@ -488,7 +491,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
                 <button
                   type="button"
                   onClick={() => selfieFallbackInputRef.current?.click()}
-                  className="w-full py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-2.5 px-4 bg-slate-100 dark:bg-[#0A0C10] hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Camera className="w-3.5 h-3.5 text-slate-400" />
                   <span>Snap Live Photo with Device Camera</span>
@@ -500,7 +503,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
                     stopCamera();
                     setStep('photo');
                   }}
-                  className="text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-semibold transition py-1"
+                  className="text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-semibold transition py-1 cursor-pointer"
                 >
                   ← Back to Profile Picture
                 </button>
@@ -512,8 +515,8 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
           {step === 'verifying' && (
             <div className="py-6 space-y-5 text-center">
               <div className="relative w-28 h-28 mx-auto flex items-center justify-center">
-                <div className="absolute inset-0 rounded-full border-4 border-[#E0533C]/20 border-t-[#E0533C] animate-spin" />
-                <Scan className="w-10 h-10 text-[#E0533C] animate-pulse" />
+                <div className="absolute inset-0 rounded-full border-4 border-[#FF5733]/20 border-t-[#FF5733] animate-spin" />
+                <Scan className="w-10 h-10 text-[#FF5733] animate-pulse" />
               </div>
 
               <div className="space-y-2">
@@ -526,7 +529,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
               {/* Progress bar */}
               <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
                 <div
-                  className="bg-[#E0533C] h-2.5 rounded-full transition-all duration-300"
+                  className="bg-gradient-to-r from-[#FF5733] to-[#10B981] h-2.5 rounded-full transition-all duration-300"
                   style={{ width: `${verificationProgress}%` }}
                 />
               </div>
@@ -541,14 +544,14 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
                   <span className="text-[10px] font-bold text-slate-400 mt-1 block">Profile Photo</span>
                 </div>
 
-                <div className="text-[#E0533C] font-black text-xs">⟷</div>
+                <div className="text-[#FF5733] font-black text-xs">⟷</div>
 
                 <div className="text-center">
                   <div
-                    className="w-16 h-16 rounded-2xl bg-cover bg-center border-2 border-emerald-500 mx-auto"
+                    className="w-16 h-16 rounded-2xl bg-cover bg-center border-2 border-[#10B981] mx-auto shadow-sm"
                     style={{ backgroundImage: `url('${capturedLivePhoto}')` }}
                   />
-                  <span className="text-[10px] font-bold text-emerald-500 mt-1 block">Live Capture</span>
+                  <span className="text-[10px] font-bold text-[#10B981] mt-1 block">Live Capture</span>
                 </div>
               </div>
             </div>

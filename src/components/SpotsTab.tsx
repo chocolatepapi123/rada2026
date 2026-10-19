@@ -32,6 +32,7 @@ import { BusinessBadge } from './BusinessBadge.tsx';
 import { supabase } from '../lib/supabase.ts';
 import { LocationCombobox } from './LocationCombobox.tsx';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
+import { getCategoryAccent, CATEGORY_ACCENTS } from '../utils/categoryAccents.ts';
 
 interface SpotsTabProps {
   spots: SpotItem[];
@@ -500,16 +501,17 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     const reviewCount = spot.reviews?.length ?? (spot.reviewCount || 0);
     const hasReviews = reviewCount > 0;
     const saved = isSaved(spot.id);
+    const accent = getCategoryAccent(spot.category, spot.title, spot.description);
 
     return (
       <div
         key={spot.id}
         onClick={() => onOpenSpotFullView(spot)}
-        className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-[#E0533C] transition group"
+        className="w-72 bg-white dark:bg-[#14171F] border border-slate-200/90 dark:border-[#222735] rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-[#FF5733] transition group"
       >
         <div>
           {/* Multiple Image Carousel Area */}
-          <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
+          <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-[#0A0C10]">
             <div
               className="w-full h-full bg-cover bg-center transition-all duration-300"
               style={{ backgroundImage: `url('${currentImg}')` }}
@@ -523,7 +525,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                 onToggleSave?.(spot, 'spot');
               }}
               className={`absolute top-2.5 left-2.5 z-10 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer backdrop-blur-md shadow-xs ${
-                saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/85'
+                saved ? 'bg-[#FF5733] text-white' : 'bg-black/60 text-white hover:bg-black/85'
               }`}
               title={saved ? 'Remove bookmark' : 'Bookmark this spot'}
             >
@@ -578,10 +580,18 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           </div>
 
           {/* Spot Header Info */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between">
+          <div className="space-y-1.5">
+            {/* Category badge */}
+            <div className="flex items-center gap-1.5">
+              <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${accent.pillClass} inline-flex items-center gap-1`}>
+                <accent.icon className="w-3 h-3" />
+                <span>{accent.badge}</span>
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-1.5">
               <div className="flex items-center gap-1.5 min-w-0">
-                <h4 className="font-black text-sm text-[#E0533C] truncate group-hover:opacity-90 transition">
+                <h4 className="font-black text-sm text-[#FF5733] truncate group-hover:opacity-90 transition">
                   {spot.title}
                 </h4>
                 <BusinessBadge
@@ -605,7 +615,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
             </p>
 
             {spot.exactLocationTag && (
-              <p className="text-[10px] text-[#2D6A4F] font-semibold flex items-center gap-1 truncate">
+              <p className="text-[10px] text-[#10B981] font-semibold flex items-center gap-1 truncate">
                 <Compass className="w-3 h-3 shrink-0" />
                 <span className="truncate">{spot.exactLocationTag}</span>
               </p>
@@ -613,7 +623,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
 
             {/* Special offer preview badge */}
             {spot.specialOffers && spot.specialOffers.length > 0 && (
-              <div className="mt-1 inline-flex items-center gap-1 text-[10px] font-black bg-red-50 dark:bg-red-950/40 text-[#E0533C] border border-red-200 dark:border-red-900 px-2 py-0.5 rounded-md">
+              <div className="mt-1 inline-flex items-center gap-1 text-[10px] font-black bg-orange-50 dark:bg-orange-950/40 text-[#FF5733] border border-orange-200 dark:border-orange-900 px-2 py-0.5 rounded-md">
                 🔥 {spot.specialOffers[0].title} ({spot.specialOffers[0].discount})
               </div>
             )}
@@ -621,16 +631,16 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         </div>
 
         {/* Actions: "Map", "Review", & "Details" */}
-        <div className="pt-3 mt-2 border-t border-slate-100 dark:border-slate-800/80 flex gap-1.5">
+        <div className="pt-3 mt-2 border-t border-slate-100 dark:border-[#222735] flex gap-1.5">
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               onViewLocation(spot);
             }}
-            className="flex-1 py-2 bg-[#F8F8F6] dark:bg-[#121113] hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 border border-slate-200 dark:border-slate-800"
+            className="flex-1 py-2 bg-slate-100/80 dark:bg-[#0A0C10] hover:bg-slate-200 dark:hover:bg-[#1C202B] text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 border border-slate-200 dark:border-[#222735]"
           >
-            <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
+            <MapPin className="w-3.5 h-3.5 text-[#FF5733]" />
             <span>Map</span>
           </button>
 
@@ -640,7 +650,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               e.stopPropagation();
               setReviewModalSpot(spot);
             }}
-            className="py-2 px-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 border border-slate-200 dark:border-slate-700"
+            className="py-2 px-2.5 bg-slate-100/80 dark:bg-[#0A0C10] hover:bg-slate-200 dark:hover:bg-[#1C202B] text-slate-800 dark:text-slate-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 border border-slate-200 dark:border-[#222735]"
             title="Write a Review"
           >
             <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
@@ -653,7 +663,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               e.stopPropagation();
               onOpenSpotFullView(spot);
             }}
-            className="flex-1 py-2 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 shadow-xs"
+            className="flex-1 py-2 bg-[#FF5733] hover:bg-[#FF6B4A] text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 shadow-xs cursor-pointer"
           >
             <span>Details</span>
           </button>
@@ -716,17 +726,13 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         {/* Category Filter Pills: Strictly 10 Overhauled Categories */}
         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
           {[
-            { id: 'all', label: 'All Categories', icon: Compass },
-            { id: 'restaurants_dining', label: 'Restaurants and dining', icon: UtensilsCrossed },
-            { id: 'nature', label: 'Nature', icon: Trees },
-            { id: 'creative_leisure', label: 'Creative and leisure', icon: Palette },
-            { id: 'tech_gaming', label: 'Tech and Gaming', icon: Gamepad2 },
-            { id: 'action_sports', label: 'Action and sports', icon: Dumbbell },
-            { id: 'date_spots', label: 'Date spots', icon: Heart },
-            { id: 'clubs_lounges', label: 'Clubs and lounges', icon: Music },
-            { id: 'cafes_bakeries', label: 'Cafes and Bakeries', icon: Coffee },
-            { id: 'hotels_luxury', label: 'Hotels and luxury stays', icon: Hotel },
-            { id: 'vacation_escapes', label: 'Vacation spots and escapes', icon: Palmtree }
+            { id: 'all', label: 'All Categories', icon: Compass, pillClass: 'bg-white text-slate-800 border border-slate-200 dark:bg-[#14171F] dark:text-slate-200 dark:border-[#222735]' },
+            ...Object.values(CATEGORY_ACCENTS).map(c => ({
+              id: c.id,
+              label: c.label,
+              icon: c.icon,
+              pillClass: c.pillClass
+            }))
           ].map((cat) => {
             const Icon = cat.icon;
             const isSelected = selectedCategory === cat.id;
@@ -734,10 +740,10 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`px-3 py-1.5 rounded-full text-xs shrink-0 transition-all flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-full text-xs shrink-0 transition-all flex items-center gap-1.5 cursor-pointer ${
                   isSelected
-                    ? 'bg-[#E0533C] text-white font-black shadow-xs'
-                    : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-800'
+                    ? 'bg-[#FF5733] text-white font-black shadow-xs ring-1 ring-[#FF5733]'
+                    : `${cat.pillClass} font-semibold hover:opacity-90`
                 }`}
               >
                 <Icon className="w-3 h-3" />
@@ -761,8 +767,8 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               onClick={() => setSelectedPriceTier(tier.id)}
               className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 transition-all ${
                 selectedPriceTier === tier.id
-                  ? 'bg-[#2D6A4F] text-white shadow-xs'
-                  : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800'
+                  ? 'bg-[#10B981] text-white shadow-xs'
+                  : 'bg-white dark:bg-[#14171F] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-[#222735]'
               }`}
             >
               {tier.label}
@@ -785,8 +791,8 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
 
       {/* Empty Search Result State with "Create" button */}
       {filteredSpots.length === 0 && (
-        <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-dashed border-slate-300 dark:border-slate-800 rounded-3xl p-6 text-center space-y-3 shadow-xs">
-          <div className="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] mx-auto flex items-center justify-center font-black">
+        <div className="bg-white dark:bg-[#14171F] border border-dashed border-slate-300 dark:border-[#222735] rounded-3xl p-6 text-center space-y-3 shadow-xs">
+          <div className="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-950/60 text-[#FF5733] mx-auto flex items-center justify-center font-black">
             <Compass className="w-6 h-6" />
           </div>
           <div className="space-y-1">
@@ -799,7 +805,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           </div>
           <button
             onClick={() => onOpenCreateSpot ? onOpenCreateSpot(searchQuery) : showToast?.('Open Business Hub from menu to add a spot')}
-            className="px-5 py-2.5 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5"
+            className="px-5 py-2.5 bg-[#FF5733] hover:bg-[#FF6B4A] text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Create Spot "{searchQuery || 'New Venue'}"</span>
@@ -813,13 +819,13 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         {(selectedCategory === 'all' || selectedCategory === 'restaurants_dining') && restaurants.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <UtensilsCrossed className="w-3.5 h-3.5 text-[#E0533C]" />
+              <h3 className="text-xs font-black tracking-wider uppercase text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <UtensilsCrossed className="w-3.5 h-3.5 text-[#F59E0B]" />
                 <span>Restaurants and dining</span>
               </h3>
               <button
                 onClick={() => onOpenDedicatedViewAll('Restaurants and dining', 'restaurants_dining')}
-                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+                className="text-[11px] font-bold text-[#FF5733] hover:underline cursor-pointer"
               >
                 View All ({restaurants.length})
               </button>
@@ -835,13 +841,13 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         {(selectedCategory === 'all' || selectedCategory === 'nature') && natureSpots.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <Trees className="w-3.5 h-3.5 text-emerald-600" />
+              <h3 className="text-xs font-black tracking-wider uppercase text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Trees className="w-3.5 h-3.5 text-[#10B981]" />
                 <span>Nature</span>
               </h3>
               <button
                 onClick={() => onOpenDedicatedViewAll('Nature', 'nature')}
-                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+                className="text-[11px] font-bold text-[#FF5733] hover:underline cursor-pointer"
               >
                 View All ({natureSpots.length})
               </button>
@@ -857,13 +863,13 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         {(selectedCategory === 'all' || selectedCategory === 'creative_leisure') && creativeSpots.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <Palette className="w-3.5 h-3.5 text-[#2D6A4F]" />
+              <h3 className="text-xs font-black tracking-wider uppercase text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Palette className="w-3.5 h-3.5 text-[#D946EF]" />
                 <span>Creative and leisure</span>
               </h3>
               <button
                 onClick={() => onOpenDedicatedViewAll('Creative and leisure', 'creative_leisure')}
-                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+                className="text-[11px] font-bold text-[#FF5733] hover:underline cursor-pointer"
               >
                 View All ({creativeSpots.length})
               </button>
@@ -879,13 +885,13 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         {(selectedCategory === 'all' || selectedCategory === 'tech_gaming') && techGamingSpots.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <Gamepad2 className="w-3.5 h-3.5 text-blue-500" />
+              <h3 className="text-xs font-black tracking-wider uppercase text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Gamepad2 className="w-3.5 h-3.5 text-[#06B6D4]" />
                 <span>Tech and Gaming</span>
               </h3>
               <button
                 onClick={() => onOpenDedicatedViewAll('Tech and Gaming', 'tech_gaming')}
-                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+                className="text-[11px] font-bold text-[#FF5733] hover:underline cursor-pointer"
               >
                 View All ({techGamingSpots.length})
               </button>
@@ -901,13 +907,13 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         {(selectedCategory === 'all' || selectedCategory === 'action_sports') && actionSportsSpots.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <Dumbbell className="w-3.5 h-3.5 text-blue-600" />
+              <h3 className="text-xs font-black tracking-wider uppercase text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Dumbbell className="w-3.5 h-3.5 text-[#EF4444]" />
                 <span>Action and sports</span>
               </h3>
               <button
                 onClick={() => onOpenDedicatedViewAll('Action and sports', 'action_sports')}
-                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+                className="text-[11px] font-bold text-[#FF5733] hover:underline cursor-pointer"
               >
                 View All ({actionSportsSpots.length})
               </button>
@@ -923,13 +929,13 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         {(selectedCategory === 'all' || selectedCategory === 'date_spots') && dateSpots.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <Heart className="w-3.5 h-3.5 text-[#E0533C]" />
+              <h3 className="text-xs font-black tracking-wider uppercase text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Heart className="w-3.5 h-3.5 text-[#F43F5E]" />
                 <span>Date spots</span>
               </h3>
               <button
                 onClick={() => onOpenDedicatedViewAll('Date spots', 'date_spots')}
-                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+                className="text-[11px] font-bold text-[#FF5733] hover:underline cursor-pointer"
               >
                 View All ({dateSpots.length})
               </button>
@@ -945,13 +951,13 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         {(selectedCategory === 'all' || selectedCategory === 'clubs_lounges') && clubsLounges.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <Music className="w-3.5 h-3.5 text-purple-600" />
+              <h3 className="text-xs font-black tracking-wider uppercase text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Music className="w-3.5 h-3.5 text-[#A855F7]" />
                 <span>Clubs and lounges</span>
               </h3>
               <button
                 onClick={() => onOpenDedicatedViewAll('Clubs and lounges', 'clubs_lounges')}
-                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+                className="text-[11px] font-bold text-[#FF5733] hover:underline cursor-pointer"
               >
                 View All ({clubsLounges.length})
               </button>
@@ -967,13 +973,13 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         {(selectedCategory === 'all' || selectedCategory === 'cafes_bakeries') && cafesBakeries.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <Coffee className="w-3.5 h-3.5 text-[#E9C46A]" />
+              <h3 className="text-xs font-black tracking-wider uppercase text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Coffee className="w-3.5 h-3.5 text-[#D97706]" />
                 <span>Cafes and Bakeries</span>
               </h3>
               <button
                 onClick={() => onOpenDedicatedViewAll('Cafes and Bakeries', 'cafes_bakeries')}
-                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+                className="text-[11px] font-bold text-[#FF5733] hover:underline cursor-pointer"
               >
                 View All ({cafesBakeries.length})
               </button>
@@ -989,13 +995,13 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         {(selectedCategory === 'all' || selectedCategory === 'hotels_luxury') && hotelsLuxury.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <Hotel className="w-3.5 h-3.5 text-[#2D6A4F]" />
+              <h3 className="text-xs font-black tracking-wider uppercase text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Hotel className="w-3.5 h-3.5 text-[#EAB308]" />
                 <span>Hotels and luxury stays</span>
               </h3>
               <button
                 onClick={() => onOpenDedicatedViewAll('Hotels and luxury stays', 'hotels_luxury')}
-                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+                className="text-[11px] font-bold text-[#FF5733] hover:underline cursor-pointer"
               >
                 View All ({hotelsLuxury.length})
               </button>
@@ -1011,13 +1017,13 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         {(selectedCategory === 'all' || selectedCategory === 'vacation_escapes') && vacationEscapes.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <Palmtree className="w-3.5 h-3.5 text-[#E9C46A]" />
+              <h3 className="text-xs font-black tracking-wider uppercase text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Palmtree className="w-3.5 h-3.5 text-[#3B82F6]" />
                 <span>Vacation spots and escapes</span>
               </h3>
               <button
                 onClick={() => onOpenDedicatedViewAll('Vacation spots and escapes', 'vacation_escapes')}
-                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+                className="text-[11px] font-bold text-[#FF5733] hover:underline cursor-pointer"
               >
                 View All ({vacationEscapes.length})
               </button>

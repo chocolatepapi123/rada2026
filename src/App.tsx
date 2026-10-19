@@ -245,27 +245,56 @@ export default function App() {
 
   
 
-  // Theme State: Default to pure white / light mode
+  // Theme State: Default to Crisp Warm White (#FAFAFC) with System Auto-Detect
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('rada_theme');
-    return saved === 'dark';
+    if (saved) {
+      return saved === 'dark';
+    }
+    // Auto-detect phone / system dark mode preference
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false; // Crisp Warm White Light Mode default
   });
 
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
       document.documentElement.classList.remove('light');
-      localStorage.setItem('rada_theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
       document.documentElement.classList.add('light');
-      localStorage.setItem('rada_theme', 'light');
     }
   }, [isDarkMode]);
 
+  // Dynamically listen to system theme changes if no manual override
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleSystemThemeChange = (e: MediaQueryListEvent) => {
+      const manual = localStorage.getItem('rada_theme_manual');
+      if (!manual) {
+        setIsDarkMode(e.matches);
+      }
+    };
+    try {
+      mediaQuery.addEventListener('change', handleSystemThemeChange);
+      return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
+    } catch {
+      mediaQuery.addListener(handleSystemThemeChange);
+      return () => mediaQuery.removeListener(handleSystemThemeChange);
+    }
+  }, []);
+
   const handleToggleTheme = () => {
-    setIsDarkMode(prev => !prev);
-    showToast(!isDarkMode ? 'Dark theme enabled.' : 'Switched to Light theme (Default White).');
+    setIsDarkMode(prev => {
+      const next = !prev;
+      localStorage.setItem('rada_theme_manual', 'true');
+      localStorage.setItem('rada_theme', next ? 'dark' : 'light');
+      showToast(next ? 'Dark theme enabled (Slate Black).' : 'Switched to Light theme (Warm White).');
+      return next;
+    });
   };
 
   // Navigation
@@ -1611,7 +1640,7 @@ export default function App() {
   };
   return (
     <BusinessesProvider businesses={businesses}>
-    <div className="min-h-screen bg-white text-slate-900 dark:bg-[#121113] dark:text-slate-100 flex flex-col transition-colors duration-200 antialiased overflow-x-hidden">
+    <div className="min-h-screen bg-[#FAFAFC] text-[#0F172A] dark:bg-[#0A0C10] dark:text-[#F8FAFC] flex flex-col transition-colors duration-200 antialiased overflow-x-hidden">
       {/* Primary Application Splash Screen */}
       {showSplash && <SplashScreen durationMs={2000} onDismiss={() => setShowSplash(false)} />}
 
