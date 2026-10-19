@@ -21,7 +21,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
         const Icon = tab.icon;
         const isActive = activeTab === tab.id || 
           (tab.id === 'vault' && activeTab === 'calendar') ||
-          (tab.id === 'outings' && (activeTab === 'plans' || activeTab === 'luku'));
+          (tab.id === 'outings' && activeTab === 'plans');
         return (
           <button
             key={tab.id}
