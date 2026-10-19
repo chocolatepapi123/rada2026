@@ -281,7 +281,11 @@ export interface DatingProfile {
 
 export interface UserProfile {
   id?: string;
+  /** Private. Only ever shown to the account owner (e.g. Account Settings), never on public surfaces. */
   name: string;
+  /** Unique lowercase username without the "@" (3-20 chars: a-z, 0-9, _ or -). */
+  username?: string;
+  /** Public identity, always "@" + username. This is the ONLY name shown to other people. */
   handle: string;
   avatar: string;
   bio: string;
