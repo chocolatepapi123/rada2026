@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { 
   Store, 
   Ticket, 
-  Shirt, 
   Plus, 
   Search, 
   CheckCircle2, 
@@ -58,7 +57,6 @@ import {
   SpotItem, 
   SpotCategory,
   EventItem, 
-  ThriftItem, 
   MenuItem, 
   ActivityItem,
   TicketTier, 
@@ -368,6 +366,18 @@ export const PRESET_VENUE_AMENITIES = [
   'Professional Stage Lighting Rig'
 ];
 
+
+// Clean tier indicators: KES / KES KES / KES KES KES (no numeric ranges)
+export const PRICE_TIERS = ['KES', 'KES KES', 'KES KES KES'] as const;
+export function normalizePriceTier(raw?: string): string {
+  if (!raw) return 'KES KES';
+  const dollars = (raw.match(/\$/g) || []).length;
+  if (dollars > 0) return PRICE_TIERS[Math.min(dollars, 3) - 1];
+  const kes = (raw.match(/KES/gi) || []).length;
+  if (kes >= 1 && kes <= 3 && !/\d/.test(raw)) return PRICE_TIERS[kes - 1];
+  return 'KES KES';
+}
+
 interface MerchantHubTabProps {
   businesses: BusinessAccount[];
   activeBusinessId: string;
@@ -379,11 +389,12 @@ interface MerchantHubTabProps {
   onUpdateBusiness: (updatedBiz: BusinessAccount) => void;
   spots: SpotItem[];
   onAddOrUpdateSpot: (spot: SpotItem) => void;
-  onDeleteListing: (type: 'spot' | 'event' | 'thrift', id: number) => void;
+  onDeleteListing: (type: 'spot' | 'event', id: number) => void;
   events: EventItem[];
   onAddEvent: (event: EventItem) => void;
-  thriftItems: ThriftItem[];
-  onAddThriftItem: (item: ThriftItem) => void;
+  /** @deprecated Luku/thrift removed. Delete these two props from the <MerchantHubTab/> call site. */
+  thriftItems?: unknown[];
+  onAddThriftItem?: (item: unknown) => void;
   offers: BusinessOffer[];
   onCreateOffer: (offer: BusinessOffer) => void;
   onUpdateOffer: (offer: BusinessOffer) => void;
@@ -410,8 +421,6 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   onDeleteListing,
   events,
   onAddEvent,
-  thriftItems,
-  onAddThriftItem,
   offers,
   onCreateOffer,
   onUpdateOffer,
@@ -528,7 +537,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       whatsapp: onboardWhatsapp.replace(/\s+/g, '') || '+254700000000',
       neighborhood: onboardNeighborhood || 'Westlands',
       address: onboardAddress.trim() || `${onboardNeighborhood || 'Westlands'}, Nairobi`,
-      bio: onboardBio.trim() || `Official ${selectedVertical === 'hospitality' ? 'Spot' : selectedVertical === 'event_organizer' ? 'Event Organizer' : 'Luku Thrift Store'} verified on RADA.`,
+      bio: onboardBio.trim() || `Official ${selectedVertical === 'hospitality' ? 'Spot' : 'Event Organizer'} verified on RADA.`,
       logo: onboardLogo || presetLogos[0],
       coverImage: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
       verified: true,
@@ -579,11 +588,11 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   const [spotAddress, setSpotAddress] = useState('');
   const [spotExactLocationTag, setSpotExactLocationTag] = useState('');
   const [spotLandmark, setSpotLandmark] = useState('');
-  const [spotPrice, setSpotPrice] = useState('KES $$');
+  const [spotPrice, setSpotPrice] = useState('KES KES');
   const [spotPhone, setSpotPhone] = useState('+254 ');
   const [spotOpeningHours, setSpotOpeningHours] = useState('11:00 AM - 11:00 PM');
   const [spotDescription, setSpotDescription] = useState('');
-  const [spotCoverImg, setSpotCoverImg] = useState('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop');
+  const [spotCoverImg, setSpotCoverImg] = useState('');
   const [spotGalleryImgs, setSpotGalleryImgs] = useState<string[]>([]);
   const [newGalleryInput, setNewGalleryInput] = useState('');
 
@@ -715,12 +724,12 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setSpotAddress(currentBiz?.address || 'Westlands, Nairobi');
     setSpotExactLocationTag(`${currentBiz?.address || 'Westlands'}, near Stage`);
     setSpotLandmark('Nearest Stage / Roundabout');
-    setSpotPrice('KES $$');
+    setSpotPrice('KES KES');
     setSpotPhone(currentBiz?.phone || '+254 ');
     setSpotOpeningHours('12:00 PM - 01:00 AM');
     setSpotDescription(currentBiz?.bio || '');
-    setSpotCoverImg('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop');
-    setSpotGalleryImgs(['https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop']);
+    setSpotCoverImg('');
+    setSpotGalleryImgs([]);
     // Reset dynamic category-specific fields with sensible defaults
     setSpotCuisineTypes(['Kenyan / Nyama Choma', 'Craft Cocktails & Tapas']);
     setSpotFeaturedDishes(['Signature House Platter', 'Craft Passion Dawa']);
@@ -782,7 +791,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setSpotAddress(spot.address);
     setSpotExactLocationTag(spot.exactLocationTag || '');
     setSpotLandmark(spot.landmark || '');
-    setSpotPrice(spot.price);
+    setSpotPrice(normalizePriceTier(spot.price));
     setSpotPhone(spot.phone || '');
     setSpotOpeningHours(spot.openingHours || '11:00 AM - 11:00 PM');
     setSpotDescription(spot.description || '');
@@ -850,6 +859,10 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       showToast('Please provide a brief Description for the spot.');
       return;
     }
+    if (!spotCoverImg) {
+      showToast('Please upload a cover photo for the spot.');
+      return;
+    }
 
     // Permission Verification: only owner or verified merchant can edit
     if (editingSpotId) {
@@ -885,9 +898,9 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       lng: existing?.lng || 36.8115,
       rating: existing?.rating || 'New',
       reviewCount: existing?.reviewCount || 0,
-      price: spotPrice || 'KES $$',
-      img: spotCoverImg || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
-      images: spotGalleryImgs.length > 0 ? spotGalleryImgs : [spotCoverImg || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop'],
+      price: spotPrice || 'KES KES',
+      img: spotCoverImg,
+      images: spotGalleryImgs.length > 0 ? spotGalleryImgs : [spotCoverImg],
       description: spotDescription.trim(),
       phone: spotPhone.trim(),
       openingHours: spotOpeningHours.trim(),
@@ -955,11 +968,11 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setSpotAddress('');
     setSpotExactLocationTag('');
     setSpotLandmark('');
-    setSpotPrice('KES $$');
+    setSpotPrice('KES KES');
     setSpotPhone('+254 ');
     setSpotOpeningHours('11:00 AM - 11:00 PM');
     setSpotDescription('');
-    setSpotCoverImg('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop');
+    setSpotCoverImg('');
     setSpotGalleryImgs([]);
     setSpotMenuItems([]);
     setSpotCuisineTypes([]);
@@ -1050,7 +1063,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   const [eventLocation, setEventLocation] = useState('Westlands, Nairobi');
   const [eventExactLocationTag, setEventExactLocationTag] = useState('');
   const [eventUrl, setEventUrl] = useState('https://hustlesasa.com/');
-  const [eventImg, setEventImg] = useState('https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop');
+  const [eventImg, setEventImg] = useState('');
   const [eventGalleryImgs, setEventGalleryImgs] = useState<string[]>([]);
   const [eventDescription, setEventDescription] = useState('');
   const [eventTiers, setEventTiers] = useState<TicketTier[]>([
@@ -1125,8 +1138,8 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setEventLocation(currentBiz?.address || 'Westlands, Nairobi');
     setEventExactLocationTag('Courtyard / Arena Main Stage');
     setEventUrl('https://hustlesasa.com/');
-    setEventImg('https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop');
-    setEventGalleryImgs(['https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&auto=format&fit=crop']);
+    setEventImg('');
+    setEventGalleryImgs([]);
     setEventDescription('Official event curated by ' + currentBiz?.name);
     setEventArtists([
       { name: 'DJ Joe Mfalme', role: 'Main Stage Headliner', img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop' }
@@ -1194,125 +1207,6 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   const myEvents = events.filter(e => e.businessId === currentBiz?.id);
 
   // ----------------------------------------------------
-  // THRIFT / LUKU SELLER WORKFLOW STATE (Full-Screen + Multi-Image + Dynamic Locations)
-  // ----------------------------------------------------
-  const [isThriftFormOpen, setIsThriftFormOpen] = useState(false);
-  const [editingThriftId, setEditingThriftId] = useState<number | null>(null);
-  const [thriftName, setThriftName] = useState('');
-  const [thriftPrice, setThriftPrice] = useState('KES 1,800');
-  const [thriftCategory, setThriftCategory] = useState('Jackets');
-  const [thriftCondition, setThriftCondition] = useState('Thrift Grade A');
-  const [thriftSize, setThriftSize] = useState('L');
-  const [thriftStoreLoc, setThriftStoreLoc] = useState(currentBiz?.address || 'Gikomba Market, Nairobi');
-  const [thriftStallNumber, setThriftStallNumber] = useState('Stall 4B');
-  const [thriftImg, setThriftImg] = useState('https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=800&auto=format&fit=crop');
-  const [thriftGalleryImgs, setThriftGalleryImgs] = useState<string[]>([]);
-
-  // Native file upload handlers for Thrift Fit and Multi-Angle Gallery
-  const handleThriftCoverFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      if (typeof reader.result === 'string') {
-        setThriftImg(reader.result);
-        showToast('Main fit photo uploaded successfully!');
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleThriftGalleryFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    if (thriftGalleryImgs.length >= 5) {
-      showToast('Maximum 5 garment photos allowed.');
-      e.target.value = '';
-      return;
-    }
-
-    const dataUrls = await readFilesAsDataUrls(files);
-    const result = deduplicateAndLimitPhotos(thriftGalleryImgs, dataUrls, 5);
-
-    if (result.duplicateCount > 0 && result.addedCount === 0) {
-      showToast('Duplicate photo(s) skipped — already in garment gallery.');
-    } else if (result.duplicateCount > 0 && result.addedCount > 0) {
-      showToast(`Added ${result.addedCount} photo(s). Skipped ${result.duplicateCount} duplicate(s).`);
-    } else if (result.exceededLimit) {
-      showToast('Maximum 5 garment photos limit reached.');
-    } else if (result.addedCount > 0) {
-      showToast(`Added ${result.addedCount} photo(s) to garment gallery.`);
-    }
-
-    setThriftGalleryImgs(result.updatedList);
-    e.target.value = '';
-  };
-
-  const handleRemoveThriftGalleryImage = (indexToRemove: number) => {
-    setThriftGalleryImgs(prev => prev.filter((_, idx) => idx !== indexToRemove));
-    showToast('Garment photo removed.');
-  };
-
-
-  const openCreateThriftModal = () => {
-    setEditingThriftId(null);
-    setThriftName('');
-    setThriftPrice('KES 1,800');
-    setThriftCategory('Jackets');
-    setThriftCondition('Thrift Grade A');
-    setThriftSize('L (Oversized)');
-    setThriftStoreLoc(currentBiz?.address || 'Gikomba Market, Nairobi');
-    setThriftStallNumber('Lane 3, Stall 4B');
-    setThriftImg('https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=800&auto=format&fit=crop');
-    setThriftGalleryImgs(['https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&auto=format&fit=crop']);
-    setIsThriftFormOpen(true);
-  };
-
-  const openEditThriftModal = (item: ThriftItem) => {
-    setEditingThriftId(item.id);
-    setThriftName(item.name);
-    setThriftPrice(item.price);
-    setThriftCategory(item.category);
-    setThriftCondition(item.condition);
-    setThriftSize(item.size);
-    setThriftStoreLoc(item.storeLocation);
-    setThriftStallNumber(item.stallNumber || '');
-    setThriftImg(item.img);
-    setThriftGalleryImgs(item.images && item.images.length > 0 ? item.images : [item.img]);
-    setIsThriftFormOpen(true);
-  };
-
-  const handleSaveThrift = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!thriftName.trim()) {
-      showToast('Please enter item name.');
-      return;
-    }
-    const item: ThriftItem = {
-      id: editingThriftId || Date.now(),
-      name: thriftName.trim(),
-      price: thriftPrice.startsWith('KES') ? thriftPrice : `KES ${thriftPrice}`,
-      seller: currentBiz.name,
-      storeLocation: thriftStoreLoc,
-      stallNumber: thriftStallNumber,
-      category: thriftCategory,
-      condition: thriftCondition,
-      size: thriftSize,
-      img: thriftImg,
-      images: thriftGalleryImgs.length > 0 ? thriftGalleryImgs : [thriftImg],
-      verified: true,
-      businessId: currentBiz.id,
-      whatsapp: currentBiz.whatsapp
-    };
-    onAddThriftItem(item);
-    setIsThriftFormOpen(false);
-    showToast(editingThriftId ? `"${item.name}" updated in LUKU catalog!` : `"${item.name}" listed in LUKU catalog!`);
-  };
-
-  const myThriftItems = thriftItems.filter(t => t.businessId === currentBiz?.id || t.seller === currentBiz?.name);
-
-  // ----------------------------------------------------
   // DECOUPLED OFFERS & PROMOTIONS MANAGEMENT
   // ----------------------------------------------------
   const [isOfferFormOpen, setIsOfferFormOpen] = useState(false);
@@ -1329,8 +1223,8 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setEditingOfferId(null);
     setOfferTitle('');
     setOfferDesc('');
-    setOfferCategory(currentBiz?.category === 'event_organizer' ? 'Tickets' : currentBiz?.category === 'thrift_store' ? 'Apparel' : 'Drinks');
-    setOfferDiscount(currentBiz?.category === 'event_organizer' ? '15% OFF VIP' : currentBiz?.category === 'thrift_store' ? 'BUNDLE DEAL' : 'BUY 1 GET 1');
+    setOfferCategory(currentBiz?.category === 'event_organizer' ? 'Tickets' : 'Drinks');
+    setOfferDiscount(currentBiz?.category === 'event_organizer' ? '15% OFF VIP' : 'BUY 1 GET 1');
     setOfferPosterUrl(currentBiz?.coverImage || 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&auto=format&fit=crop');
     setOfferValidUntil('Valid through end of month');
     setOfferClaimCode(`RADA-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
@@ -1708,49 +1602,6 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                     </ul>
                   </div>
 
-                  {/* Vertical 3: Thrift / Luku Seller */}
-                  <div 
-                    onClick={() => setSelectedVertical('thrift_store')}
-                    className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                      selectedVertical === 'thrift_store'
-                        ? 'border-emerald-500 bg-emerald-500/5 ring-2 ring-emerald-500/20 shadow-md'
-                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-[#FBFBF9] dark:bg-[#121113]'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
-                          <Shirt className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-black text-sm text-slate-900 dark:text-slate-100">Thrift & Luku Seller</h3>
-                            <BusinessBadge businessId={currentBiz.id} category="thrift_store" size="xs" />
-                          </div>
-                          <p className="text-[11px] text-slate-500 font-medium">Vintage Apparel, Streetwear & Market Stalls</p>
-                        </div>
-                      </div>
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                        selectedVertical === 'thrift_store' ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300 dark:border-slate-600'
-                      }`}>
-                        {selectedVertical === 'thrift_store' && <Check className="w-3 h-3 stroke-[3]" />}
-                      </div>
-                    </div>
-                    <ul className="text-[10px] text-slate-500 space-y-1 mt-3 pl-1 border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
-                      <li className="flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
-                        <span>Direct sync with RADA's "LUKU: What to wear" engine</span>
-                      </li>
-                      <li className="flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
-                        <span>Condition rating (Vintage Mint, Grade A) & sizing matrix</span>
-                      </li>
-                      <li className="flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
-                        <span>Instant WhatsApp order trigger & Gikomba/Toi stall routing</span>
-                      </li>
-                    </ul>
-                  </div>
                 </div>
 
                 {submitError && (
@@ -1959,21 +1810,6 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
               </button>
             )}
 
-            {/* Thrift Store Specific Tabs */}
-            {currentBiz.category === 'thrift_store' && (
-              <button
-                onClick={() => setActiveSubTab('manage')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
-                  activeSubTab === 'manage'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-                }`}
-              >
-                <Shirt className="w-3.5 h-3.5" />
-                <span>LUKU Catalog ({myThriftItems.length})</span>
-              </button>
-            )}
-
             {/* Independent Offers & Deals tab for ALL merchants */}
             <button
               onClick={() => setActiveSubTab('offers')}
@@ -2053,7 +1889,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                     ? myClaimedSpots.length 
                     : currentBiz.category === 'event_organizer' 
                     ? myEvents.length 
-                    : myThriftItems.length}
+                    : 0}
                 </span>
                 <span className="text-[10px] text-[#E0533C] font-semibold">Active Listings</span>
               </div>
@@ -2136,28 +1972,6 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                       <Ticket className="w-5 h-5 text-indigo-600 mb-2 group-hover:scale-110 transition" />
                       <span className="font-extrabold text-xs block">Ticket Tiers & Links</span>
                       <span className="text-[10px] text-slate-500 dark:text-slate-400">HustleSasa, Tikiti setup</span>
-                    </button>
-                  </>
-                )}
-
-                {currentBiz.category === 'thrift_store' && (
-                  <>
-                    <button
-                      onClick={openCreateThriftModal}
-                      className="p-3.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-900 dark:text-emerald-200 border border-emerald-500/30 rounded-2xl text-left transition group cursor-pointer"
-                    >
-                      <Plus className="w-5 h-5 text-emerald-600 mb-2 group-hover:scale-110 transition" />
-                      <span className="font-extrabold text-xs block">Upload LUKU Fit</span>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400">Streetwear, size & price</span>
-                    </button>
-
-                    <button
-                      onClick={() => setActiveSubTab('manage')}
-                      className="p-3.5 bg-teal-500/10 hover:bg-teal-500/20 text-teal-900 dark:text-teal-200 border border-teal-500/30 rounded-2xl text-left transition group cursor-pointer"
-                    >
-                      <Tag className="w-5 h-5 text-teal-600 mb-2 group-hover:scale-110 transition" />
-                      <span className="font-extrabold text-xs block">Stall & Delivery Info</span>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400">Gikomba & Toi routing</span>
                     </button>
                   </>
                 )}
@@ -2369,6 +2183,19 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                             >
                               Release
                             </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`Delete "${spot.title}" permanently? This removes it from RADA for everyone.`)) {
+                                  onDeleteListing('spot', spot.id);
+                                  showToast(`Deleted "${spot.title}".`);
+                                }
+                              }}
+                              className="px-2.5 py-1.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-bold flex items-center gap-1 transition"
+                              title="Delete Spot"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Delete</span>
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -2475,84 +2302,6 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                                 showToast(`Deleted "${evt.title}".`);
                               }}
                               className="px-2.5 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/30 text-red-500 text-xs font-bold"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* C. THRIFT STORE MANAGEMENT */}
-            {currentBiz.category === 'thrift_store' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-base font-black tracking-tight">LUKU Wardrobe Items ({myThriftItems.length})</h3>
-                    <p className="text-xs text-slate-500">Live apparel items synced to "LUKU: What to wear"</p>
-                  </div>
-                  <button 
-                    onClick={openCreateThriftModal}
-                    className="text-xs font-black bg-emerald-600 text-white px-3.5 py-2 rounded-xl flex items-center gap-1 shadow-md shadow-emerald-500/20 cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Upload Fit</span>
-                  </button>
-                </div>
-
-                {myThriftItems.length === 0 ? (
-                  <div className="text-center py-10 bg-white dark:bg-[#1C1A1E] border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl p-6">
-                    <Shirt className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                    <h4 className="font-black text-sm">No thrift items listed yet</h4>
-                    <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
-                      List your curated streetwear pieces, vintage denim, or sneakers to be recommended in the LUKU styling engine.
-                    </p>
-                    <button 
-                      onClick={openCreateThriftModal}
-                      className="mt-4 text-xs bg-emerald-600 text-white font-bold px-4 py-2 rounded-xl"
-                    >
-                      Upload First Piece
-                    </button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3">
-                    {myThriftItems.map(item => (
-                      <div 
-                        key={item.id}
-                        className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 shadow-xs space-y-2 flex flex-col justify-between"
-                      >
-                        <div>
-                          <div className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 mb-2">
-                            <img src={item.img} alt={item.name} className="w-full h-full object-cover" />
-                            <span className="absolute top-1.5 left-1.5 bg-black/70 backdrop-blur-md text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded">
-                              {item.condition}
-                            </span>
-                          </div>
-                          <h4 className="font-bold text-xs truncate">{item.name}</h4>
-                          <p className="text-xs font-black text-[#E0533C] mt-0.5">{item.price}</p>
-                          <p className="text-[10px] text-slate-400 truncate">Size: {item.size} • {item.storeLocation}</p>
-                        </div>
-                        <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800/80">
-                          <BusinessBadge businessId={currentBiz.id} category="thrift_store" size="xs" />
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => openEditThriftModal(item)}
-                              className="p-1.5 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-lg transition"
-                              title="Edit Piece"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                onDeleteListing('thrift', item.id);
-                                showToast(`Removed "${item.name}".`);
-                              }}
-                              className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg"
-                              title="Delete Item"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -2937,10 +2686,9 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                       onChange={(e) => setSpotPrice(e.target.value)}
                       className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 font-semibold focus:outline-none focus:border-[#E0533C]"
                     >
-                      <option value="KES $">KES $ (Budget Friendly &bull; Under 1K)</option>
-                      <option value="KES $$">KES $$ (Moderate &bull; 1K - 2.5K)</option>
-                      <option value="KES $$$">KES $$$ (Premium &bull; 2.5K - 5K)</option>
-                      <option value="KES $$$$">KES $$$$ (Luxury &bull; 5K+)</option>
+                      <option value="KES">KES</option>
+                      <option value="KES KES">KES KES</option>
+                      <option value="KES KES KES">KES KES KES</option>
                     </select>
                   </div>
 
@@ -4935,463 +4683,6 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   <span>{editingEventId ? 'Save & Update Event Listing' : 'Publish Concert to RADA'}</span>
-                </button>
-              </div>
-
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* =========================================================================
-          VIEW 3: DEDICATED FULL-SCREEN VIEW: CREATE / EDIT THRIFT / LUKU FIT
-          ========================================================================= */}
-      {isThriftFormOpen && (
-        <div className="fixed inset-0 z-50 bg-[#FBFBF9] dark:bg-[#121113] overflow-y-auto flex flex-col animate-in fade-in duration-200">
-          {/* Top Sticky Header */}
-          <div className="sticky top-0 z-20 bg-white/95 dark:bg-[#1C1A1E]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 py-3.5 flex items-center justify-between shadow-xs">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setIsThriftFormOpen(false)}
-                className="p-2 -ml-1 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition flex items-center gap-1.5 font-bold text-xs cursor-pointer"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span className="hidden sm:inline">Back to Dashboard</span>
-              </button>
-              <div className="h-5 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100">
-                    {editingThriftId ? 'Edit LUKU Fit Listing' : 'Upload LUKU Fit Piece'}
-                  </h2>
-                  <BusinessBadge businessId={currentBiz.id} category="thrift_store" size="xs" />
-                </div>
-                <p className="text-[11px] text-slate-400">
-                  Store: <strong className="text-slate-700 dark:text-slate-300">{currentBiz.name}</strong> • Live RADA LUKU Catalog
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setIsThriftFormOpen(false)}
-                className="px-3.5 py-2 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={(e) => handleSaveThrift(e as any)}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer flex items-center gap-1.5"
-              >
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>{editingThriftId ? 'Save Fit' : 'Sync to LUKU'}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Main Full-Screen Form Container */}
-          <div className="max-w-3xl mx-auto w-full p-4 sm:p-8 space-y-6 pb-28">
-            <form onSubmit={handleSaveThrift} className="space-y-6">
-
-              {/* Apparel Identity & Attributes Card */}
-              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                    <Shirt className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Garment Details & Pricing</span>
-                  </h3>
-                  <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">
-                    LUKU Styling Engine
-                  </span>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                    Apparel Item Name *
-                  </label>
-                  <input 
-                    type="text" 
-                    value={thriftName} 
-                    onChange={(e) => setThriftName(e.target.value)} 
-                    placeholder="e.g. 90s Vintage Leather Bomber Jacket"
-                    className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-emerald-600"
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Price (KES) *
-                    </label>
-                    <input 
-                      type="text" 
-                      value={thriftPrice} 
-                      onChange={(e) => setThriftPrice(e.target.value)} 
-                      placeholder="e.g. KES 2,500"
-                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-emerald-600"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Apparel Category
-                    </label>
-                    <select 
-                      value={thriftCategory} 
-                      onChange={(e) => setThriftCategory(e.target.value)}
-                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none"
-                    >
-                      <option value="Jackets">Jackets & Coats</option>
-                      <option value="Denim">Vintage Denim & Jeans</option>
-                      <option value="Tees">Graphic Tees & Tops</option>
-                      <option value="Hoodies">Hoodies & Sweats</option>
-                      <option value="Pants">Cargo & Trousers</option>
-                      <option value="Sneakers">Footwear & Sneakers</option>
-                      <option value="Accessories">Caps & Accessories</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Condition & Wash
-                    </label>
-                    <select 
-                      value={thriftCondition} 
-                      onChange={(e) => setThriftCondition(e.target.value)}
-                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none"
-                    >
-                      <option value="Thrift Grade A">Thrift Grade A (Prime)</option>
-                      <option value="Vintage Mint">Vintage Mint Wash</option>
-                      <option value="Brand New">Brand New / Deadstock</option>
-                      <option value="Distressed">Distressed Aesthetic / Raw Hem</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Garment Size *
-                    </label>
-                    <input 
-                      type="text" 
-                      value={thriftSize} 
-                      onChange={(e) => setThriftSize(e.target.value)} 
-                      placeholder="e.g. XL (Boxy Oversized) or 32 Waist"
-                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Store Location & Pickup Stall with Dynamic Auto-search */}
-              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Store / Market Area & Pickup Directions</span>
-                  </h3>
-                  <span className="text-[10px] text-emerald-600 font-bold">Nairobi • Markets • Kiambu</span>
-                </div>
-
-                {/* Dynamic Auto-Search Location Selector */}
-                <DynamicLocationSelector
-                  value={thriftStoreLoc}
-                  onChange={(loc) => setThriftStoreLoc(loc)}
-                  label="Market / Area Location *"
-                  placeholder="Search market (Gikomba, Toi, Ngara, Westlands) or estate stage..."
-                />
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Stall Number / Lane Directions
-                    </label>
-                    <input 
-                      type="text" 
-                      value={thriftStallNumber} 
-                      onChange={(e) => setThriftStallNumber(e.target.value)} 
-                      placeholder="e.g. Lane 3, Stall 4B, Opposite Posta"
-                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-emerald-600"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Direct WhatsApp Orders
-                    </label>
-                    <input 
-                      type="text" 
-                      value={currentBiz.whatsapp || '+254 700 000 000'} 
-                      disabled
-                      className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 cursor-not-allowed"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* NATIVE FILE UPLOADS: GARMENT PRIMARY PHOTO & MULTI-ANGLE GALLERY */}
-              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-5">
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                  <div>
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                      <ImageIcon className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Garment Photos & Multi-Angle Catalog</span>
-                    </h3>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Select front, back, tag, and on-body fit photos directly from your device
-                    </p>
-                  </div>
-                </div>
-
-                {/* Primary Fit Cover Photo */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
-                      Primary Fit Photo *
-                    </label>
-                    <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">
-                      Catalog Thumbnail
-                    </span>
-                  </div>
-
-                  {thriftImg ? (
-                    <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-900 group max-w-sm mx-auto sm:mx-0">
-                      <div className="h-72 w-full relative">
-                        <img 
-                          src={thriftImg} 
-                          alt="Fit Preview" 
-                          className="w-full h-full object-cover group-hover:scale-[1.02] transition duration-300"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30" />
-                        
-                        <div className="absolute top-3 left-3 bg-emerald-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md uppercase tracking-wider flex items-center gap-1">
-                          <Check className="w-3 h-3 stroke-[3]" />
-                          <span>Primary Fit Photo</span>
-                        </div>
-
-                        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2">
-                          <label 
-                            htmlFor="thrift-photo-file-input-replace"
-                            className="px-3.5 py-2 bg-white/90 hover:bg-white text-slate-900 rounded-xl text-xs font-black shadow-lg cursor-pointer transition flex items-center gap-1.5"
-                          >
-                            <Camera className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>Change Photo</span>
-                          </label>
-                          <input
-                            id="thrift-photo-file-input-replace"
-                            type="file"
-                            accept="image/*"
-                            onChange={handleThriftCoverFileUpload}
-                            className="hidden"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setThriftImg('');
-                              showToast('Fit photo removed.');
-                            }}
-                            className="px-3 py-2 bg-red-600/90 hover:bg-red-600 text-white rounded-xl text-xs font-bold shadow-lg transition flex items-center gap-1"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            <span>Remove</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <label
-                      htmlFor="thrift-photo-file-input-empty"
-                      className="w-full py-10 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-600 bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-2 cursor-pointer transition text-center group"
-                    >
-                      <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition">
-                        <Upload className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <p className="text-xs font-black text-slate-800 dark:text-slate-200">
-                          Upload Main Fit Photo
-                        </p>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          Tap to select a crisp garment photo from your device
-                        </p>
-                      </div>
-                      <span className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 mt-1">
-                        <Upload className="w-3.5 h-3.5" />
-                        <span>Select Garment File</span>
-                      </span>
-                      <input
-                        id="thrift-photo-file-input-empty"
-                        type="file"
-                        accept="image/*"
-                        onChange={handleThriftCoverFileUpload}
-                        className="hidden"
-                      />
-                    </label>
-                  )}
-                </div>
-
-                {/* GALLERY OF MULTIPLE ADDITIONAL FIT ANGLES */}
-                <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
-                        Multi-Angle Fit Gallery ({thriftGalleryImgs.length}/5)
-                      </label>
-                      <p className="text-[11px] text-slate-400">
-                        {thriftGalleryImgs.length >= 5
-                          ? 'Maximum 5 photos reached (clean gallery limit)'
-                          : 'Add back angle, tag/size label, fabric wash detail, and styled outfit shots (max 5)'}
-                      </p>
-                    </div>
-
-                    {thriftGalleryImgs.length < 5 && (
-                      <label
-                        htmlFor="thrift-gallery-file-input"
-                        className="px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 rounded-xl text-xs font-extrabold cursor-pointer transition flex items-center gap-1.5 shrink-0"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Upload Angles</span>
-                      </label>
-                    )}
-                    <input
-                      id="thrift-gallery-file-input"
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handleThriftGalleryFileUpload}
-                      className="hidden"
-                    />
-                  </div>
-
-                  {thriftGalleryImgs.length > 0 ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {thriftGalleryImgs.map((imgUrl, idx) => (
-                        <div 
-                          key={idx} 
-                          className="relative group rounded-2xl overflow-hidden aspect-square border border-slate-200 dark:border-slate-800 bg-slate-900 shadow-xs"
-                        >
-                          <img 
-                            src={imgUrl} 
-                            alt={`Fit angle ${idx + 1}`} 
-                            className="w-full h-full object-cover group-hover:scale-105 transition duration-200" 
-                          />
-
-                          {/* Quick 'X' photo removal button */}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveThriftGalleryImage(idx);
-                            }}
-                            className="absolute top-2 right-2 w-6 h-6 bg-black/80 hover:bg-black text-white rounded-full flex items-center justify-center transition cursor-pointer z-10 shadow-md"
-                            title="Remove photo"
-                            aria-label={`Remove garment photo ${idx + 1}`}
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center gap-2 p-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setThriftImg(imgUrl);
-                                showToast('Set as main fit photo!');
-                              }}
-                              className="px-2.5 py-1 bg-white text-slate-900 rounded-lg text-[10px] font-black hover:bg-slate-100 transition"
-                            >
-                              Set as Main
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveThriftGalleryImage(idx)}
-                              className="px-2.5 py-1 bg-red-600 text-white rounded-lg text-[10px] font-bold hover:bg-red-700 flex items-center gap-1 transition"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                              <span>Delete</span>
-                            </button>
-                          </div>
-                          {thriftImg === imgUrl && (
-                            <div className="absolute top-2 left-2 bg-emerald-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md uppercase">
-                              Main
-                            </div>
-                          )}
-                        </div>
-                      ))}
-
-                      {/* Add More Photos Tile (only if < 5) */}
-                      {thriftGalleryImgs.length < 5 && (
-                        <label
-                          htmlFor="thrift-gallery-file-input-grid"
-                          className="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-600 bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-1.5 p-3 aspect-square cursor-pointer transition text-center group"
-                        >
-                          <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition">
-                            <Plus className="w-5 h-5" />
-                          </div>
-                          <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-300">
-                            Add More
-                          </span>
-                          <input
-                            id="thrift-gallery-file-input-grid"
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={handleThriftGalleryFileUpload}
-                            className="hidden"
-                          />
-                        </label>
-                      )}
-                    </div>
-                  ) : (
-                    <label
-                      htmlFor="thrift-gallery-file-input-empty"
-                      className="w-full py-8 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-600 bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-2 cursor-pointer transition text-center"
-                    >
-                      <ImageIcon className="w-8 h-8 text-slate-400" />
-                      <div>
-                        <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">
-                          No additional angle photos uploaded
-                        </p>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          Select multiple photos to show back details, fabric texture, and fit
-                        </p>
-                      </div>
-                      <span className="px-3.5 py-1.5 bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-bold">
-                        Choose Photos
-                      </span>
-                      <input
-                        id="thrift-gallery-file-input-empty"
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={handleThriftGalleryFileUpload}
-                        className="hidden"
-                      />
-                    </label>
-                  )}
-                </div>
-              </div>
-
-              {/* Bottom Submit Bar */}
-              <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
-                <button 
-                  type="button"
-                  onClick={() => setIsThriftFormOpen(false)}
-                  className="w-full sm:w-auto px-6 py-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-extrabold text-xs sm:text-sm rounded-2xl transition cursor-pointer text-center order-2 sm:order-1"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit"
-                  className="w-full flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm py-4 rounded-2xl shadow-xl shadow-emerald-500/20 active:scale-[0.99] transition cursor-pointer flex items-center justify-center gap-2 order-1 sm:order-2"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>{editingThriftId ? 'Save & Update LUKU Piece' : 'Sync Piece to LUKU Engine'}</span>
                 </button>
               </div>
 
