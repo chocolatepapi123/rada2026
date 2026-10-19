@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import type { BusinessAccount, SavedItem, CollectionFolder, OutingPlan, OutingAttendee, ChatConversation } from '../types';
+import type { BusinessAccount, SavedItem, CollectionFolder, OutingPlan, OutingAttendee, ChatConversation, HostAnalytics, HostControls } from '../types';
 import { STATUS_TTL_MS } from '../utils/statusLifecycle';
 
 
@@ -1198,6 +1198,8 @@ export interface ProfileIdentity {
   name?: string;
   username?: string;
   avatarUrl?: string;
+  bio?: string;
+  isCreator?: boolean;
 }
 
 /** Last known identity for this user, so modals show the right values instantly on reopen. */
@@ -1233,6 +1235,9 @@ export async function fetchProfileIdentity(uid: string): Promise<ProfileIdentity
       if (n) out.name = String(n);
       if (data.username) out.username = normalizeUsername(String(data.username));
       if (data.avatar_url) out.avatarUrl = String(data.avatar_url);
+      if (typeof data.bio === 'string') out.bio = data.bio;
+      if (data.is_creator === true || data.account_type === 'professional') out.isCreator = true;
+      else if (data.is_creator === false) out.isCreator = false;
     }
   } catch {}
 
@@ -1309,6 +1314,73 @@ export async function saveProfileDetails(
   }
 
   return { error: null };
+}
+
+const BIO_MAX = 160;
+const isColumnError = (msg?: string) => /column|schema cache/i.test(msg || '');
+
+/**
+ * Single write path for the profile identity used by BOTH UserProfileModal and
+ * AccountSettingsModal. Writes `username` AND `display_name` to `profiles` in one upsert,
+ * mirrors them into auth metadata and the local cache, and returns the normalized values so
+ * the caller can pass them straight to onProfileChange.
+ *
+ * Suggested SQL (run once in Supabase):
+ *   alter table profiles add column if not exists display_name text;
+ *   alter table profiles add column if not exists bio text;
+ */
+export async function saveUnifiedProfile(
+  uid: string,
+  fields: { name: string; username: string; bio?: string }
+): Promise<{ error: string | null; name?: string; username?: string; bio?: string; bioSaved?: boolean }> {
+  const name = (fields.name || '').trim();
+  if (!name) return { error: 'Enter a display name.' };
+  if (name.length > NAME_MAX) return { error: `Display name must be ${NAME_MAX} characters or fewer.` };
+  const formatError = validateUsernameFormat(fields.username);
+  if (formatError) return { error: formatError };
+  const username = normalizeUsername(fields.username);
+  const bio = fields.bio === undefined ? undefined : fields.bio.trim().slice(0, BIO_MAX);
+
+  if (!isSupabaseConfigured || !uid) {
+    cacheIdentity(uid || 'guest', { name, username, ...(bio !== undefined ? { bio } : {}) });
+    return { error: null, name, username, bio, bioSaved: true };
+  }
+
+  const check = await checkUsernameAvailable(username, uid);
+  if (check.error) return { error: check.error };
+  if (!check.available) return { error: 'Username taken' };
+
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from('profiles')
+    .upsert({ id: uid, username, display_name: name, updated_at: now }, { onConflict: 'id' });
+
+  if (error) {
+    if ((error as any).code === '23505' || /duplicate|unique/i.test(error.message || '')) {
+      return { error: 'Username taken' };
+    }
+    if (isColumnError(error.message)) {
+      // display_name column missing: fall back to whichever name column exists
+      const legacy = await saveProfileDetails(uid, { name, username });
+      if (legacy.error) return { error: legacy.error };
+    } else {
+      return { error: error.message };
+    }
+  }
+
+  try {
+    await supabase.auth.updateUser({ data: { username, display_name: name, full_name: name } });
+  } catch {}
+
+  let bioSaved: boolean | undefined;
+  if (bio !== undefined) {
+    const { error: bioErr } = await supabase.from('profiles').update({ bio, updated_at: now }).eq('id', uid);
+    bioSaved = !bioErr;
+    if (bioErr) console.warn('saveUnifiedProfile bio warning:', bioErr.message);
+  }
+
+  cacheIdentity(uid, { name, username, ...(bio !== undefined && bioSaved ? { bio } : {}) });
+  return { error: null, name, username, bio, bioSaved };
 }
 
 function fileToDataUrl(file: File): Promise<string> {
@@ -1454,6 +1526,197 @@ export async function fetchProfileVerification(uid: string): Promise<{
     console.warn('fetchProfileVerification failed:', e);
   }
   return null;
+}
+
+// =====================================================================
+// PROFESSIONAL ACCOUNT (instant switch, no approval)
+// =====================================================================
+/**
+ * Suggested SQL (run once in Supabase):
+ *   alter table profiles add column if not exists is_creator boolean not null default false;
+ *   alter table profiles add column if not exists account_type text not null default 'personal';
+ *   alter table profiles add column if not exists professional_since timestamptz;
+ *   alter table profiles add column if not exists profile_views integer not null default 0;
+ *   alter table profiles add column if not exists priority_listing boolean not null default false;
+ *   alter table profiles add column if not exists featured_spots boolean not null default false;
+ *
+ * Optional analytics RPC (any missing number renders as "—", never mock data):
+ *   create or replace function get_host_analytics(host_uid uuid)
+ *   returns table (impressions bigint, event_saves bigint, profile_views bigint, rsvps bigint)
+ *   language sql security definer as $$ ... $$;
+ */
+export interface ProfessionalState {
+  isCreator: boolean;
+  since?: string;
+}
+
+/** Reads the professional flag from profiles, then auth metadata, then the local cache. */
+export async function fetchProfessionalState(uid: string): Promise<ProfessionalState | null> {
+  if (!uid) return null;
+  if (!isSupabaseConfigured) {
+    const c = readCachedIdentity(uid);
+    return c && typeof c.isCreator === 'boolean' ? { isCreator: c.isCreator } : null;
+  }
+  try {
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle();
+    if (!error && data && (data.is_creator !== undefined || data.account_type !== undefined)) {
+      return {
+        isCreator: data.is_creator === true || data.account_type === 'professional',
+        since: data.professional_since || undefined,
+      };
+    }
+  } catch {}
+  try {
+    const { data: auth } = await supabase.auth.getUser();
+    const meta: any = auth?.user?.user_metadata || {};
+    if (meta.is_creator !== undefined || meta.account_type !== undefined) {
+      return { isCreator: meta.is_creator === true || meta.account_type === 'professional' };
+    }
+  } catch {}
+  const c = readCachedIdentity(uid);
+  return c && typeof c.isCreator === 'boolean' ? { isCreator: c.isCreator } : null;
+}
+
+/**
+ * Instantly switches the account to/from professional. Writes profiles.is_creator and
+ * profiles.account_type. There is no pending state and no admin review.
+ */
+export async function setProfessionalMode(
+  uid: string,
+  enabled: boolean
+): Promise<{ error: string | null; since?: string }> {
+  const now = new Date().toISOString();
+  const since = enabled ? now : undefined;
+  const account_type = enabled ? 'professional' : 'personal';
+
+  if (!isSupabaseConfigured || !uid) {
+    cacheIdentity(uid || 'guest', { isCreator: enabled });
+    return { error: null, since };
+  }
+
+  // Try the full payload first, then degrade if some columns do not exist yet
+  const attempts: Record<string, any>[] = [
+    { is_creator: enabled, account_type, professional_since: enabled ? now : null },
+    { is_creator: enabled, account_type },
+    { is_creator: enabled },
+    { account_type },
+  ];
+  let saved = false;
+  let lastError: string | null = null;
+  for (const fields of attempts) {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({ id: uid, ...fields, updated_at: now }, { onConflict: 'id' });
+      if (!error) { saved = true; break; }
+      lastError = error.message;
+      if (!isColumnError(error.message)) break;
+    } catch (e) {
+      lastError = errMsg(e);
+      break;
+    }
+  }
+
+  // Mirror to auth metadata so the flag survives even if the profiles columns are missing
+  let metaSaved = false;
+  try {
+    const { error } = await supabase.auth.updateUser({ data: { is_creator: enabled, account_type } });
+    metaSaved = !error;
+  } catch {}
+
+  if (!saved && !metaSaved) return { error: lastError || 'Could not switch account type. Please try again.' };
+  cacheIdentity(uid, { isCreator: enabled });
+  return { error: null, since };
+}
+
+function numOrNull(v: unknown): number | null {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Outing analytics for a professional account. Anything we cannot measure comes back as null. */
+export async function fetchHostAnalytics(uid: string): Promise<HostAnalytics> {
+  const out: HostAnalytics = { impressions: null, eventSaves: null, profileViews: null, rsvps: null };
+  if (!isSupabaseConfigured || !uid) return out;
+
+  // 1. Preferred: a single RPC that aggregates everything server-side
+  try {
+    const { data, error } = await supabase.rpc('get_host_analytics', { host_uid: uid });
+    if (!error && data) {
+      const row: any = Array.isArray(data) ? data[0] : data;
+      if (row) {
+        out.impressions = numOrNull(row.impressions);
+        out.eventSaves = numOrNull(row.event_saves ?? row.eventSaves);
+        out.profileViews = numOrNull(row.profile_views ?? row.profileViews);
+        out.rsvps = numOrNull(row.rsvps);
+      }
+    }
+  } catch {}
+
+  // 2. Fallbacks for whatever the RPC did not provide
+  if (out.rsvps === null) {
+    try {
+      const { data: mine } = await supabase.from('outings').select('id').eq('host_id', uid);
+      const ids = (mine || []).map((o: any) => o.id);
+      if (ids.length === 0) {
+        out.rsvps = 0;
+      } else {
+        const { count, error } = await supabase
+          .from('outing_attendees')
+          .select('id', { count: 'exact', head: true })
+          .in('outing_id', ids)
+          .neq('status', 'declined');
+        if (!error && typeof count === 'number') out.rsvps = count;
+      }
+    } catch {}
+  }
+  if (out.profileViews === null) {
+    try {
+      const { data } = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle();
+      if (data) out.profileViews = numOrNull((data as any).profile_views);
+    } catch {}
+  }
+  return out;
+}
+
+const HOST_CONTROLS_KEY = 'host_controls';
+const DEFAULT_HOST_CONTROLS: HostControls = { featuredSpots: false, priorityListing: false };
+
+export async function fetchHostControls(uid: string): Promise<HostControls> {
+  if (!isSupabaseConfigured || !uid) return { ...DEFAULT_HOST_CONTROLS };
+  try {
+    const { data, error } = await supabase
+      .from('rada_user_data')
+      .select('data')
+      .eq('user_id', uid)
+      .eq('key', HOST_CONTROLS_KEY)
+      .maybeSingle();
+    if (!error && data?.data) {
+      return {
+        featuredSpots: data.data.featuredSpots === true,
+        priorityListing: data.data.priorityListing === true,
+      };
+    }
+  } catch {}
+  return { ...DEFAULT_HOST_CONTROLS };
+}
+
+export async function saveHostControls(uid: string, controls: HostControls): Promise<{ error: string | null }> {
+  if (!isSupabaseConfigured || !uid) return { error: null };
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from('rada_user_data')
+    .upsert({ user_id: uid, key: HOST_CONTROLS_KEY, data: controls, updated_at: now }, { onConflict: 'user_id,key' });
+  if (error) return { error: error.message };
+  // Best-effort mirror onto profiles so feed queries can read the flags (rada_user_data is owner-only)
+  try {
+    await supabase
+      .from('profiles')
+      .update({ featured_spots: controls.featuredSpots, priority_listing: controls.priorityListing, updated_at: now })
+      .eq('id', uid);
+  } catch {}
+  return { error: null };
 }
 
 // =====================================================================
