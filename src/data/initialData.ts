@@ -3,7 +3,6 @@ import {
   BusinessOffer,
   SpotItem, 
   EventItem, 
-  ThriftItem, 
   CinemaMovie, 
   StatusPost, 
   DatingProfile, 
@@ -15,7 +14,7 @@ import {
 } from '../types.ts';
 import { generatePlayableWavDataUrl } from '../utils/mediaUtils.ts';
 
-// 10 Detailed Realistic Running Offers & Promotions spanning Tickets, Food, Drinks, and Apparel
+// 8 Detailed Realistic Running Offers & Promotions spanning Tickets, Food, and Drinks
 export const initialOffers: BusinessOffer[] = [
   {
     id: 'off-1',
@@ -61,20 +60,6 @@ export const initialOffers: BusinessOffer[] = [
     createdAt: '2026-10-12'
   },
   {
-    id: 'off-4',
-    businessId: 'biz-4',
-    businessName: 'Gikomba Stall 4B Vintage',
-    businessCategory: 'thrift_store',
-    title: 'Streetwear Bundle: Jeans + Graphic Tee + Free Cap',
-    description: 'Buy any pair of Japanese carpenter denim and 90s vintage band tee, get an authentic vintage washed camp cap free!',
-    category: 'Apparel',
-    discount: 'BUNDLE & SAVE',
-    posterUrl: 'https://images.unsplash.com/photo-1544441893-675973e31985?w=800&auto=format&fit=crop',
-    validUntil: 'While stocks last this month',
-    claimCode: 'LUKU-FREEHAT',
-    createdAt: '2026-10-13'
-  },
-  {
     id: 'off-5',
     businessId: 'biz-5',
     businessName: 'The Talisman Restaurant',
@@ -115,20 +100,6 @@ export const initialOffers: BusinessOffer[] = [
     posterUrl: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&auto=format&fit=crop',
     validUntil: 'Daily 8:00 AM - 12:00 PM',
     claimCode: 'PALLET-BRUNCH',
-    createdAt: '2026-10-14'
-  },
-  {
-    id: 'off-8',
-    businessId: 'biz-8',
-    businessName: 'Toi Market Curated Drops',
-    businessCategory: 'thrift_store',
-    title: 'Vintage Leather & Puffer Jacket Flash Sale 25% OFF',
-    description: '25% off all vintage oversized leather bombers and washed puffers this weekend at Adams Arcade.',
-    category: 'Apparel',
-    discount: '25% OFF JACKETS',
-    posterUrl: 'https://images.unsplash.com/photo-1520975954732-35dd22299614?w=800&auto=format&fit=crop',
-    validUntil: 'Fri - Sun Only',
-    claimCode: 'TOI-LEATHER25',
     createdAt: '2026-10-14'
   },
   {
@@ -230,22 +201,6 @@ export const initialBusinesses: BusinessAccount[] = [
     verified: true,
     instagram: '@vibecraft_ke',
     createdDate: '2026-07-20'
-  },
-  {
-    id: 'biz-4',
-    name: 'Gikomba Stall 4B Vintage',
-    category: 'thrift_store',
-    email: 'gikombastall4b@gmail.com',
-    phone: '+254 711 554 433',
-    whatsapp: '+254711554433',
-    neighborhood: 'Nairobi CBD',
-    address: 'Gikomba Market, Lane 3, Stall 4B, Nairobi',
-    bio: 'Hand-picked 90s vintage band tees, selvedge denim, chore coats, and streetwear grails.',
-    logo: 'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=200&auto=format&fit=crop',
-    coverImage: 'https://images.unsplash.com/photo-1544441893-675973e31985?w=800&auto=format&fit=crop',
-    verified: true,
-    instagram: '@gikombastall4b',
-    createdDate: '2026-09-01'
   },
   {
     id: 'biz-5',
@@ -1000,156 +955,6 @@ export const initialEvents: EventItem[] = [
       { name: 'Ravers Pass', price: 'KES 2,500', perks: 'All-night warehouse pass' },
       { name: 'VIP Booth Package', price: 'KES 15,000', perks: 'Table for 6 + 2 premium spirit bottles' }
     ]
-  }
-];
-
-// 10 Detailed Realistic Thrift / Luku Items spanning Streetwear, Vintage Denim, Jackets, Accessories, and Sneakers
-export const initialThriftItems: ThriftItem[] = [
-  {
-    id: 1,
-    name: '90s Carhartt Heavyweight Washed Canvas Jacket',
-    price: 'KES 3,200',
-    seller: 'Gikomba Stall 4B Vintage',
-    storeLocation: 'Gikomba Market, Lane 3',
-    stallNumber: 'Stall 4B',
-    category: 'Jackets & Coats',
-    condition: 'Mint Condition',
-    size: 'L',
-    img: 'https://images.unsplash.com/photo-1544441893-675973e31985?w=600&auto=format&fit=crop',
-    images: [
-      'https://images.unsplash.com/photo-1544441893-675973e31985?w=600&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1520975954732-35dd22299614?w=600&auto=format&fit=crop'
-    ],
-    verified: true,
-    businessId: 'biz-4',
-    whatsapp: '+254711554433'
-  },
-  {
-    id: 2,
-    name: 'Vintage 1996 Nirvana "In Utero" Promo Graphic Tee',
-    price: 'KES 1,800',
-    seller: 'Nairobi Archive Thrifters',
-    storeLocation: 'Nairobi CBD, Tom Mboya St',
-    stallNumber: 'Stall 12C',
-    category: 'Tees & Tops',
-    condition: 'Grade A Vintage',
-    size: 'XL (Oversized Fit)',
-    img: 'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=600&auto=format&fit=crop',
-    verified: true,
-    whatsapp: '+254722887766'
-  },
-  {
-    id: 3,
-    name: 'Japanese Selvedge Relaxed Fit Denim Jeans',
-    price: 'KES 2,600',
-    seller: 'Kaps Streetwear Vault',
-    storeLocation: 'Westlands, Mpaka Arcade',
-    stallNumber: 'Shop 08',
-    category: 'Pants & Jeans',
-    condition: 'Mint Condition',
-    size: 'W32 L32',
-    img: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=600&auto=format&fit=crop',
-    verified: true,
-    whatsapp: '+254799332211'
-  },
-  {
-    id: 4,
-    name: 'Nike Air Jordan 1 Retro High \'Chicago\' Vintage',
-    price: 'KES 4,500',
-    seller: 'Sneaker Plug Nairobi',
-    storeLocation: 'Kilimani, Chania Ave',
-    stallNumber: 'Suite 2A',
-    category: 'Footwear',
-    condition: 'Grade A',
-    size: '43 EU (US 9.5)',
-    img: 'https://images.unsplash.com/photo-1552346154-21d32810aba3?w=600&auto=format&fit=crop',
-    verified: true,
-    whatsapp: '+254712445566'
-  },
-  {
-    id: 5,
-    name: 'Harley Davidson Washed Biker Eagle T-Shirt',
-    price: 'KES 1,600',
-    seller: 'Gikomba Stall 4B Vintage',
-    storeLocation: 'Gikomba Market, Lane 3',
-    stallNumber: 'Stall 4B',
-    category: 'Tees & Tops',
-    condition: 'Grade A Vintage',
-    size: 'L',
-    img: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=600&auto=format&fit=crop',
-    verified: true,
-    businessId: 'biz-4',
-    whatsapp: '+254711554433'
-  },
-  {
-    id: 6,
-    name: '90s Retro Leather Oversized Bomber Jacket',
-    price: 'KES 4,200',
-    seller: 'Toi Market Curated Drops',
-    storeLocation: 'Toi Market, Adams Arcade',
-    stallNumber: 'Stall 18A',
-    category: 'Jackets & Coats',
-    condition: 'Mint Condition',
-    size: 'XL',
-    img: 'https://images.unsplash.com/photo-1520975954732-35dd22299614?w=600&auto=format&fit=crop',
-    verified: true,
-    whatsapp: '+254700998877'
-  },
-  {
-    id: 7,
-    name: 'Vintage Dickies 874 Double-Knee Workwear Chinos',
-    price: 'KES 2,200',
-    seller: 'Muthurwa Retro Stalls',
-    storeLocation: 'Muthurwa Market, CBD',
-    stallNumber: 'Stall 71B',
-    category: 'Pants & Jeans',
-    condition: 'Like New',
-    size: 'W34 L32',
-    img: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=600&auto=format&fit=crop',
-    verified: true,
-    whatsapp: '+254733112299'
-  },
-  {
-    id: 8,
-    name: 'New Balance 550 Retro White & Forest Green',
-    price: 'KES 3,800',
-    seller: 'Sneaker Plug Nairobi',
-    storeLocation: 'Kilimani, Chania Ave',
-    stallNumber: 'Suite 2A',
-    category: 'Footwear',
-    condition: 'Grade A',
-    size: '42 EU (US 8.5)',
-    img: 'https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=600&auto=format&fit=crop',
-    verified: true,
-    whatsapp: '+254712445566'
-  },
-  {
-    id: 9,
-    name: 'Supreme 5-Panel Washed Canvas Camp Cap',
-    price: 'KES 1,400',
-    seller: 'Kaps Streetwear Vault',
-    storeLocation: 'Westlands, Mpaka Arcade',
-    stallNumber: 'Shop 08',
-    category: 'Accessories',
-    condition: 'Mint Condition',
-    size: 'Adjustable',
-    img: 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=600&auto=format&fit=crop',
-    verified: true,
-    whatsapp: '+254799332211'
-  },
-  {
-    id: 10,
-    name: 'Vintage Hand-Knitted Chunky Coogi-Style Cardigan',
-    price: 'KES 2,900',
-    seller: 'Nairobi Archive Thrifters',
-    storeLocation: 'Nairobi CBD, Tom Mboya St',
-    stallNumber: 'Stall 12C',
-    category: 'Jackets & Coats',
-    condition: 'Grade A Vintage',
-    size: 'M / L',
-    img: 'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=600&auto=format&fit=crop',
-    verified: true,
-    whatsapp: '+254722887766'
   }
 ];
 
