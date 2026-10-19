@@ -27,7 +27,10 @@ import {
   RotateCcw,
   AlertCircle,
   Plus,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ShieldCheck,
+  Lock,
+  UserCheck
 } from 'lucide-react';
 import { DatingProfile, ChatConversation, ChatMessage, ChatTheme, UserProfile } from '../types.ts';
 import { EmojiPicker } from './EmojiPicker.tsx';
@@ -38,23 +41,30 @@ import { generatePlayableWavDataUrl, generateFallbackVideoBlobUrl, formatMediaDu
 interface SocialsTabProps {
   discoveryProfiles: DatingProfile[];
   conversations: ChatConversation[];
+  currentUserProfile: UserProfile;
   onOpenPlanDateModal: () => void;
   onOpenCreateGroupModal: () => void;
   onAcceptRequest: (name: string, avatar: string) => void;
   onViewUserProfile: (profile: UserProfile) => void;
+  onOpenVerificationModal?: () => void;
   showToast: (msg: string) => void;
 }
 
 export const SocialsTab: React.FC<SocialsTabProps> = ({
   discoveryProfiles,
   conversations,
+  currentUserProfile,
   onOpenPlanDateModal,
   onOpenCreateGroupModal,
   onAcceptRequest,
   onViewUserProfile,
+  onOpenVerificationModal,
   showToast
 }) => {
+  const isUserSingle = currentUserProfile?.relationshipStatus === 'single';
+  const isUserVerifiedSingle = isUserSingle && Boolean(currentUserProfile?.isLivenessVerified);
   const [subtab, setSubtab] = useState<'discover' | 'queue' | 'chats' | 'search'>('discover');
+  const [showGateModal, setShowGateModal] = useState(false);
   const [profileIndex, setProfileIndex] = useState(0);
   const [swipeAnimation, setSwipeAnimation] = useState<'like' | 'pass' | null>(null);
 
@@ -110,9 +120,10 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
       .trim();
   };
 
-  // Discovery: all community profiles are discoverable without filtering
-  const currentProfile = discoveryProfiles.length > 0 
-    ? discoveryProfiles[profileIndex % discoveryProfiles.length]
+  // Filter out all non-single users from appearing in the Discover candidate list or browse grids
+  const singleDiscoveryProfiles = discoveryProfiles.filter(p => p.relationshipStatus === 'single');
+  const currentProfile = singleDiscoveryProfiles.length > 0 
+    ? singleDiscoveryProfiles[profileIndex % singleDiscoveryProfiles.length]
     : null;
 
   const handleSwipe = (action: 'like' | 'pass') => {
@@ -1001,7 +1012,14 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
         ].map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setSubtab(tab.id as any)}
+            onClick={() => {
+              if (tab.id === 'discover' && (!isUserSingle || !isUserVerifiedSingle)) {
+                setShowGateModal(true);
+                setSubtab('discover');
+                return;
+              }
+              setSubtab(tab.id as any);
+            }}
             className={`py-2 rounded-xl transition ${
               subtab === tab.id
                 ? 'font-black bg-white dark:bg-[#121113] text-slate-900 dark:text-white shadow-sm'
@@ -1013,8 +1031,78 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
         ))}
       </div>
 
-      {/* DISCOVER TAB: SWIPE CARD (SPEC 5: Fix Discover layout so bios don't overlay/cover profile photos. Remove 'Not single' from matching) */}
-      {subtab === 'discover' && (
+      {/* DISCOVER TAB: Explanatory Gate Screen if NOT single or NOT verified single */}
+      {subtab === 'discover' && (!isUserSingle || !isUserVerifiedSingle) && (
+        <div className="space-y-4">
+          <div className="p-6 sm:p-7 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl text-center space-y-4 shadow-sm animate-in fade-in duration-200">
+            <div className="w-16 h-16 rounded-3xl bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center justify-center mx-auto shadow-sm">
+              <ShieldCheck className="w-8 h-8" />
+            </div>
+
+            <div className="space-y-1.5 max-w-sm mx-auto">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-wider">
+                <Lock className="w-3 h-3" />
+                <span>Single-Only Discover Access Gate</span>
+              </div>
+              <h3 className="font-black text-base text-slate-900 dark:text-slate-100">
+                Discover is reserved for verified single profiles.
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
+                Discover is reserved for verified single profiles. You can still create and join Group Chats!
+              </p>
+            </div>
+
+            <div className="p-3.5 bg-white dark:bg-[#121113] rounded-2xl border border-slate-200 dark:border-slate-800 text-[11px] text-left space-y-2 max-w-sm mx-auto">
+              <div className="flex items-center justify-between font-bold">
+                <span className="text-slate-500">Profile Status:</span>
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
+                  isUserSingle 
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' 
+                    : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                }`}>
+                  {currentUserProfile?.relationshipStatus === 'single' ? 'Single' : 'Not single'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between font-bold">
+                <span className="text-slate-500">Camera Liveness:</span>
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
+                  currentUserProfile?.isLivenessVerified 
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' 
+                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                }`}>
+                  {currentUserProfile?.isLivenessVerified ? 'Verified' : 'Verification Required'}
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-2 flex flex-col gap-2.5 max-w-sm mx-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onOpenVerificationModal) onOpenVerificationModal();
+                  else showToast('Opening verification modal...');
+                }}
+                className="w-full py-3.5 px-4 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Camera className="w-4 h-4" />
+                <span>Verify Single Profile (Camera Liveness Check)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSubtab('chats')}
+                className="w-full py-2.5 px-4 bg-white dark:bg-[#121113] hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Users className="w-4 h-4 text-[#E0533C]" />
+                <span>Explore & Join Group Chats</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DISCOVER TAB: SWIPE CARD (Active ONLY when user is single AND liveness verified) */}
+      {subtab === 'discover' && isUserSingle && isUserVerifiedSingle && (
         <div className="space-y-4">
           {currentProfile ? (
             <div
@@ -1270,7 +1358,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           </div>
 
           <div className="space-y-2">
-            {discoveryProfiles
+            {singleDiscoveryProfiles
               .filter(p => !userSearchQuery.trim() || 
                 p.name.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
                 p.loc.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
@@ -1300,16 +1388,85 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                       <p className="text-[10px] text-slate-400 truncate">{cleanLocation(p.loc)}</p>
                     </div>
                   </div>
-                  {/* SPEC 5: Strictly Single or Not single without emojis */}
-                  <span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${
-                    p.relationshipStatus === 'single'
-                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300'
-                      : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                  }`}>
-                    {p.relationshipStatus === 'single' ? 'Single' : 'Not single'}
+                  {/* Verified Single Badge */}
+                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 flex items-center gap-1">
+                    <UserCheck className="w-3 h-3" />
+                    <span>Single</span>
                   </span>
                 </div>
               ))}
+          </div>
+        </div>
+      )}
+
+      {/* Non-Single or Unverified Explanatory Gate Modal */}
+      {showGateModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-[#1C1A1E] rounded-3xl max-w-sm w-full p-5 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center justify-center mx-auto shadow-xs">
+              <ShieldCheck className="w-7 h-7" />
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="font-black text-base text-slate-900 dark:text-slate-100">
+                Single-Only Discover
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+                Discover is reserved for verified single profiles. You can still create and join Group Chats!
+              </p>
+            </div>
+
+            <div className="p-3 bg-[#F8F8F6] dark:bg-[#121113] rounded-2xl border border-slate-200 dark:border-slate-800 text-[11px] text-left space-y-1.5">
+              <div className="flex items-center justify-between font-bold">
+                <span className="text-slate-500">Your Status:</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  isUserSingle ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                }`}>
+                  {currentUserProfile?.relationshipStatus === 'single' ? 'Single' : 'Not single'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between font-bold">
+                <span className="text-slate-500">Liveness Check:</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  currentUserProfile?.isLivenessVerified ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                }`}>
+                  {currentUserProfile?.isLivenessVerified ? 'Verified' : 'Verification Required'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGateModal(false);
+                  if (onOpenVerificationModal) onOpenVerificationModal();
+                }}
+                className="w-full py-3 px-4 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Camera className="w-4 h-4" />
+                <span>Verify Single Profile Now</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGateModal(false);
+                  setSubtab('chats');
+                }}
+                className="w-full py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs transition cursor-pointer"
+              >
+                Go to Group Chats
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowGateModal(false)}
+                className="text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-semibold py-1 cursor-pointer"
+              >
+                Dismiss
+              </button>
+            </div>
           </div>
         </div>
       )}

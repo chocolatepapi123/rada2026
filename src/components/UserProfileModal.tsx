@@ -97,12 +97,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <p className="text-xs font-bold text-orange-300">{user.handle}</p>
             </div>
 
-            <span className={`text-[10px] font-black px-3 py-1 rounded-full backdrop-blur-md shadow-md ${
+            <span className={`text-[10px] font-black px-3 py-1 rounded-full backdrop-blur-md shadow-md flex items-center gap-1 ${
               isSingle 
                 ? 'bg-emerald-600/90 text-white' 
                 : 'bg-slate-800/90 text-slate-200'
             }`}>
-              {isSingle ? 'Single' : 'Not single'}
+              {isSingle && <CheckCircle2 className="w-3 h-3 text-white" />}
+              <span>{isSingle ? (user.isLivenessVerified ? 'Single (Verified)' : 'Single') : 'Not single'}</span>
             </span>
           </div>
         </div>

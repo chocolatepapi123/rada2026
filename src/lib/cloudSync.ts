@@ -1027,3 +1027,67 @@ export async function saveUserData(
   const { error } = await supabase.from('rada_user_data').upsert(rows, { onConflict: 'user_id,key' });
   return { error: error ? error.message : null, cleaned };
 }
+
+// =====================================================================
+// PROFILE VERIFICATION (Supabase 'profiles' table)
+// =====================================================================
+export async function updateProfileVerification(
+  uid: string,
+  relationshipStatus: string,
+  isLivenessVerified: boolean,
+  avatarUrl?: string
+): Promise<{ error: string | null }> {
+  if (!isSupabaseConfigured || !uid) return { error: null };
+  try {
+    const payload: Record<string, any> = {
+      id: uid,
+      relationship_status: relationshipStatus,
+      is_liveness_verified: isLivenessVerified,
+      updated_at: new Date().toISOString()
+    };
+    if (avatarUrl) {
+      payload.avatar_url = avatarUrl;
+    }
+    const { error } = await supabase.from('profiles').upsert(payload, { onConflict: 'id' });
+    if (error) {
+      console.warn('profiles table upsert warning:', error.message);
+      // Fallback: try update if upsert had conflict issues
+      const { error: updateErr } = await supabase
+        .from('profiles')
+        .update({
+          relationship_status: relationshipStatus,
+          is_liveness_verified: isLivenessVerified,
+          ...(avatarUrl ? { avatar_url: avatarUrl } : {})
+        })
+        .eq('id', uid);
+      if (updateErr) {
+        return { error: updateErr.message };
+      }
+    }
+    return { error: null };
+  } catch (err: any) {
+    console.warn('updateProfileVerification error:', err);
+    return { error: err?.message || String(err) };
+  }
+}
+
+export async function fetchProfileVerification(uid: string): Promise<{
+  relationship_status?: string;
+  is_liveness_verified?: boolean;
+} | null> {
+  if (!isSupabaseConfigured || !uid) return null;
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('relationship_status, is_liveness_verified')
+      .eq('id', uid)
+      .maybeSingle();
+    if (!error && data) {
+      return data;
+    }
+  } catch (e) {
+    console.warn('fetchProfileVerification failed:', e);
+  }
+  return null;
+}
+

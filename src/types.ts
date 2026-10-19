@@ -290,6 +290,7 @@ export interface DatingProfile {
   bio?: string;
   relationshipStatus: 'single' | 'not_single';
   vibes?: string[];
+  isLivenessVerified?: boolean;
 }
 
 export interface UserProfile {
@@ -300,6 +301,9 @@ export interface UserProfile {
   loc: string;
   relationshipStatus: 'single' | 'not_single';
   vibes?: string[];
+  isLivenessVerified?: boolean;
+  is_liveness_verified?: boolean;
+  relationship_status?: string;
 }
 
 export interface ChatMessage {
