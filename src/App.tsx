@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import * as cloud from './lib/cloudSync';
 import { BusinessesProvider } from './components/BusinessBadge.tsx';
@@ -26,7 +26,6 @@ import { AccountSettingsModal } from './components/AccountSettingsModal.tsx';
 import { SavedPlacesModal } from './components/SavedPlacesModal.tsx';
 import { LivenessVerificationModal } from './components/LivenessVerificationModal.tsx';
 import { getTimeOfDayGreeting } from './utils/greetingUtils';
-import { getCategoryMood } from './utils/categoryAccents.ts';
 
 import {
   initialBusinesses,
@@ -246,62 +245,31 @@ export default function App() {
 
   
 
-  // Theme State: Default to Luxury White Theme with Dark Mode Toggle
+  // Theme State: Default to pure white / light mode
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('rada_theme');
-    if (saved) {
-      return saved === 'dark';
-    }
-    return false; // Default to luxury premium white theme
+    return saved === 'dark';
   });
 
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
       document.documentElement.classList.remove('light');
+      localStorage.setItem('rada_theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
       document.documentElement.classList.add('light');
+      localStorage.setItem('rada_theme', 'light');
     }
   }, [isDarkMode]);
 
-  // Dynamically listen to system theme changes if no manual override
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return;
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleSystemThemeChange = (e: MediaQueryListEvent) => {
-      const manual = localStorage.getItem('rada_theme_manual');
-      if (!manual) {
-        setIsDarkMode(e.matches);
-      }
-    };
-    try {
-      mediaQuery.addEventListener('change', handleSystemThemeChange);
-      return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
-    } catch {
-      mediaQuery.addListener(handleSystemThemeChange);
-      return () => mediaQuery.removeListener(handleSystemThemeChange);
-    }
-  }, []);
-
   const handleToggleTheme = () => {
-    setIsDarkMode(prev => {
-      const next = !prev;
-      localStorage.setItem('rada_theme_manual', 'true');
-      localStorage.setItem('rada_theme', next ? 'dark' : 'light');
-      showToast(next ? 'Dark theme enabled (Slate Black).' : 'Switched to Light theme (Warm White).');
-      return next;
-    });
+    setIsDarkMode(prev => !prev);
+    showToast(!isDarkMode ? 'Dark theme enabled.' : 'Switched to Light theme (Default White).');
   };
 
   // Navigation
   const [activeTab, setActiveTab] = useState('home');
-  const [activeCategoryMood, setActiveCategoryMood] = useState<string>('all');
-
-  // Dynamic Mood Palette Engine - responds to active category, vibe, or tab
-  const currentMood = useMemo(() => {
-    return getCategoryMood(activeCategoryMood, activeTab);
-  }, [activeCategoryMood, activeTab]);
 
   // Business Hub State
   const [businesses, setBusinesses] = useState<BusinessAccount[]>(() => {
@@ -412,7 +380,6 @@ export default function App() {
 
   // Overlays state
   const [activeOverlay, setActiveOverlay] = useState<string | null>(null);
-  const [isWagwanOpen, setIsWagwanOpen] = useState(false);
   const [selectedSpotModal, setSelectedSpotModal] = useState<SpotItem | null>(null);
   const [selectedEventModal, setSelectedEventModal] = useState<EventItem | null>(null);
   const [qrPassTitle, setQrPassTitle] = useState<string | null>(null);
@@ -683,7 +650,6 @@ export default function App() {
     viewAllTitle ||
     selectedSpotModal ||
     selectedEventModal ||
-    isWagwanOpen ||
     activeOverlay ||
     isBusinessHubOpen ||
     isLivenessModalOpen
@@ -735,7 +701,6 @@ export default function App() {
         }
         if (selectedSpotModal) setSelectedSpotModal(null);
         if (selectedEventModal) setSelectedEventModal(null);
-        if (isWagwanOpen) setIsWagwanOpen(false);
         if (activeOverlay) setActiveOverlay(null);
         if (isBusinessHubOpen) setIsBusinessHubOpen(false);
         if (isLivenessModalOpen) setIsLivenessModalOpen(false);
@@ -784,7 +749,6 @@ export default function App() {
     viewAllTitle,
     selectedSpotModal,
     selectedEventModal,
-    isWagwanOpen,
     activeOverlay,
     isBusinessHubOpen,
     activeTab,
@@ -1643,24 +1607,7 @@ export default function App() {
   };
   return (
     <BusinessesProvider businesses={businesses}>
-    <div 
-      className="min-h-screen text-[#0F172A] dark:text-[#F8FAFC] flex flex-col transition-colors duration-500 ease-in-out antialiased overflow-x-hidden relative"
-      style={{
-        backgroundColor: isDarkMode ? currentMood.bgHex : currentMood.lightBgHex,
-        backgroundImage: isDarkMode ? currentMood.gradientDark : currentMood.gradientLight
-      }}
-    >
-      {/* Immersive Category Ambient Mood Glow */}
-      <div 
-        className="fixed inset-0 pointer-events-none transition-all duration-700 ease-in-out z-0"
-        style={{
-          background: isDarkMode
-            ? `radial-gradient(circle at 50% 12%, ${currentMood.ambientGlow} 0%, transparent 65%)`
-            : `radial-gradient(circle at 50% 8%, ${currentMood.ambientGlowLight} 0%, transparent 60%)`,
-          opacity: isDarkMode ? 0.7 : 0.35
-        }}
-      />
-
+    <div className="min-h-screen bg-white text-slate-900 dark:bg-[#121113] dark:text-slate-100 flex flex-col transition-colors duration-200 antialiased overflow-x-hidden">
       {/* Primary Application Splash Screen */}
       {showSplash && <SplashScreen durationMs={2000} onDismiss={() => setShowSplash(false)} />}
 
@@ -1701,14 +1648,13 @@ export default function App() {
         </div>
       ) : (
         <>
+
+
           {/* Top Header */}
           <Header
             onOpenOverlay={handleOpenOverlay}
-            onOpenWagwanAI={() => setIsWagwanOpen(true)}
             onSwitchTab={(tab) => {
               setActiveTab(tab);
-              if (tab === 'luku') setActiveCategoryMood('luku');
-              else setActiveCategoryMood('all');
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             currentLocation={currentLocation}
@@ -1732,7 +1678,7 @@ export default function App() {
           />
 
           {/* Main Content Viewports */}
-          <main className="flex-1 pb-24 max-w-lg mx-auto w-full relative z-10 px-0 transition-colors duration-700 ease-in-out">
+          <main className="flex-1 pb-24 max-w-lg mx-auto w-full relative px-0">
             {activeTab === 'home' && (
               <HomeTab
                 events={events}
@@ -1755,8 +1701,6 @@ export default function App() {
                 }}
                 onOpenCreateEvent={() => requireAuth('add a spot or business', () => setIsBusinessHubOpen(true))}
                 onOpenBusinessProfile={handleOpenBusinessProfile}
-                onOpenWagwanAI={() => setIsWagwanOpen(true)}
-                onCategoryChange={setActiveCategoryMood}
                 showToast={showToast}
               />
             )}
@@ -1774,7 +1718,6 @@ export default function App() {
                 }}
                 onOpenCreateSpot={() => requireAuth('add a spot or business', () => setIsBusinessHubOpen(true))}
                 onPostReview={handlePostReview}
-                onCategoryChange={setActiveCategoryMood}
                 showToast={showToast}
               />
             )}
@@ -1791,7 +1734,6 @@ export default function App() {
                   else showToast(`Browsing ${storeName} official catalog!`);
                 }}
                 onOpenCreateFit={() => requireAuth('add a spot or business', () => setIsBusinessHubOpen(true))}
-                onCategoryChange={setActiveCategoryMood}
                 showToast={showToast}
               />
             )}
@@ -1877,11 +1819,6 @@ export default function App() {
                 if (tab !== 'home') {
                   window.history.pushState({ radaApp: true, tab }, '');
                 }
-                if (tab === 'luku') {
-                  setActiveCategoryMood('luku');
-                } else {
-                  setActiveCategoryMood('all');
-                }
                 setActiveTab(tab);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }
@@ -1890,7 +1827,7 @@ export default function App() {
 
           {/* Modals & Overlays */}
           {isBusinessHubOpen && (
-            <div className="fixed inset-0 z-50 bg-[#0A1128] overflow-y-auto">
+            <div className="fixed inset-0 z-50 bg-[#FBFBF9] dark:bg-[#121113] overflow-y-auto">
               <MerchantHubTab
                 businesses={businesses}
                 activeBusinessId={activeBusinessId}
@@ -1931,8 +1868,6 @@ export default function App() {
           <Overlays
             activeOverlay={activeOverlay}
             onCloseOverlay={() => setActiveOverlay(null)}
-            isWagwanOpen={isWagwanOpen}
-            onCloseWagwan={() => setIsWagwanOpen(false)}
             selectedLocation={currentLocation}
             activeCategory={viewAllCategory || undefined}
             activeCategories={[
