@@ -1,13 +1,13 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 import type { BusinessAccount, SavedItem, CollectionFolder, OutingPlan, OutingAttendee, ChatConversation } from '../types';
+import { STATUS_TTL_MS } from '../utils/statusLifecycle';
 
 
-export type ListingKind = 'spot' | 'event' | 'thrift' | 'offer';
+export type ListingKind = 'spot' | 'event' | 'offer';
 
 export interface CloudListings {
   spot: any[];
   event: any[];
-  thrift: any[];
   offer: any[];
 }
 
@@ -440,7 +440,7 @@ export async function reviewBusiness(
 // =====================================================================
 export async function fetchListings(): Promise<CloudListings | null> {
   if (!isSupabaseConfigured) return null;
-  const out: CloudListings = { spot: [], event: [], thrift: [], offer: [] };
+  const out: CloudListings = { spot: [], event: [], offer: [] };
   const seenSpotIds = new Set<string>();
 
   // 1. Fetch from 'spots' table (standard Supabase table used across RADA)
@@ -567,11 +567,6 @@ export async function fetchSpots(): Promise<any[] | null> {
 export async function fetchEvents(): Promise<any[] | null> {
   const listings = await fetchListings();
   return listings ? listings.event : null;
-}
-
-export async function fetchThrift(): Promise<any[] | null> {
-  const listings = await fetchListings();
-  return listings ? listings.thrift : null;
 }
 
 export async function fetchOffers(): Promise<any[] | null> {
@@ -901,10 +896,19 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
+/** Returns a clean ISO string, or undefined if the value is missing or not a valid date. */
+function toIsoOrUndefined(value: unknown): string | undefined {
+  if (!value) return undefined;
+  const t = new Date(value as any).getTime();
+  return Number.isNaN(t) ? undefined : new Date(t).toISOString();
+}
+
 export async function fetchStatuses(): Promise<any[] | null> {
   if (!isSupabaseConfigured) return null;
+  // Statuses live for 12 hours, so only ask for rows newer than that
+  const cutoff = new Date(Date.now() - STATUS_TTL_MS).toISOString();
   const [st, rp] = await Promise.all([
-    supabase.from('rada_statuses').select('*').order('created_at', { ascending: false }),
+    supabase.from('rada_statuses').select('*').gte('created_at', cutoff).order('created_at', { ascending: false }),
     supabase.from('rada_status_replies').select('*').order('created_at', { ascending: true }),
   ]);
   if (st.error || rp.error) {
@@ -921,12 +925,19 @@ export async function fetchStatuses(): Promise<any[] | null> {
     });
   }
 
-  return (st.data || []).map((row: any) => ({
-    ...row.data,
-    id: row.id,
-    timeAgo: timeAgo(row.created_at),
-    replies: repliesByStatus[row.id] || [],
-  }));
+  // created_at and user_id come from the table columns (server time, not the phone clock)
+  // so the 12-hour expiry and "is this my status" checks in utils/statusLifecycle.ts work.
+  return (st.data || []).map((row: any) => {
+    const createdAt = toIsoOrUndefined(row.created_at) || toIsoOrUndefined(row.data?.createdAt);
+    return {
+      ...row.data,
+      id: row.id,
+      userId: row.user_id ? String(row.user_id) : row.data?.userId,
+      createdAt,
+      timeAgo: timeAgo(row.created_at),
+      replies: repliesByStatus[row.id] || [],
+    };
+  });
 }
 
 export async function insertStatus(post: any, userId: string): Promise<string | null> {
@@ -944,6 +955,28 @@ export async function insertStatus(post: any, userId: string): Promise<string | 
     data: clean,
   });
   return error ? error.message : null;
+}
+
+/**
+ * Deletes one of the signed-in user's statuses (used by "Delete Status" and when a new
+ * status replaces the old one). Needs a delete policy on rada_statuses, for example:
+ *   create policy "owner deletes own status" on rada_statuses
+ *     for delete using (auth.uid() = user_id);
+ */
+export async function deleteStatusFromCloud(statusId: string, userId: string): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase
+    .from('rada_statuses')
+    .delete()
+    .eq('id', String(statusId))
+    .eq('user_id', userId)
+    .select('id');
+  if (error) return error.message;
+  if (!data || data.length === 0) {
+    // Not found online (never synced) or blocked by row-level security
+    console.warn('deleteStatusFromCloud: no row deleted for', statusId);
+  }
+  return null;
 }
 
 export async function insertStatusReply(statusId: string, reply: any, userId: string): Promise<string | null> {
