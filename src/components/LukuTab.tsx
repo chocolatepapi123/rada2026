@@ -29,6 +29,7 @@ interface LukuTabProps {
   onToggleSave?: (item: any, kind: 'spot' | 'event' | 'thrift' | 'offer') => void;
   onOpenStore?: (sellerName: string) => void;
   onOpenCreateFit?: (initialTitle?: string) => void;
+  onCategoryChange?: (category: string) => void;
   showToast: (msg: string) => void;
 }
 
@@ -39,6 +40,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
   onToggleSave,
   onOpenStore,
   onOpenCreateFit,
+  onCategoryChange,
   showToast
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -48,6 +50,10 @@ export const LukuTab: React.FC<LukuTabProps> = ({
   const [isListening, setIsListening] = useState(false);
   const [activeStoreModal, setActiveStoreModal] = useState<BusinessAccount | null>(null);
   const [activeImageIndices, setActiveImageIndices] = useState<Record<number, number>>({});
+
+  React.useEffect(() => {
+    onCategoryChange?.(selectedCategory === 'all' ? 'luku' : selectedCategory);
+  }, [selectedCategory, onCategoryChange]);
 
   const handlePrevImage = (e: React.MouseEvent, itemId: number, maxImages: number) => {
     e.stopPropagation();
@@ -138,7 +144,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
   };
 
   return (
-    <section className="px-4 py-4 space-y-6">
+    <section className="px-4 py-4 space-y-6 transition-colors duration-700 ease-in-out">
       {/* Header with requested title "LUKU: What to wear" (badges removed) */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -158,21 +164,21 @@ export const LukuTab: React.FC<LukuTabProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search fits, streetwear, vintage tees, jackets, sneakers..."
-            className="w-full pl-10 pr-20 py-3 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+            className="w-full pl-10 pr-20 py-3 bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#FF5733] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 shadow-sm transition-colors duration-700"
           />
 
           <div className="absolute right-2.5 flex items-center gap-1">
             {isListening && (
-              <span className="w-2 h-2 rounded-full bg-[#E0533C] mr-1" />
+              <span className="w-2 h-2 rounded-full bg-[#FF5733] mr-1" />
             )}
             <button
               type="button"
               onClick={handleToggleVoiceSearch}
               title={isListening ? 'Stop Listening' : 'Voice Search with Web Speech API'}
-              className={`p-2 rounded-xl transition ${
+              className={`p-2 rounded-xl transition cursor-pointer ${
                 isListening 
-                  ? 'bg-[#E0533C] text-white shadow-md' 
-                  : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-[#E0533C] hover:text-white'
+                  ? 'bg-[#FF5733] text-white shadow-md' 
+                  : 'bg-slate-200/80 dark:bg-white/10 text-slate-700 dark:text-slate-200 hover:bg-[#FF5733] hover:text-white'
               }`}
             >
               <Mic className="w-3.5 h-3.5" />
@@ -193,10 +199,10 @@ export const LukuTab: React.FC<LukuTabProps> = ({
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className={`px-3 py-1.5 rounded-full text-xs shrink-0 transition ${
+              className={`px-3 py-1.5 rounded-full text-xs shrink-0 transition-all cursor-pointer backdrop-blur-md ${
                 selectedCategory === cat.id
-                  ? 'bg-[#E9C46A] text-slate-900 font-black shadow-xs'
-                  : 'bg-[#F1F1EE] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-800'
+                  ? 'bg-[#FF5733] text-white font-black shadow-md'
+                  : 'bg-white/80 dark:bg-black/40 text-slate-700 dark:text-slate-300 font-semibold border border-slate-200/80 dark:border-white/10'
               }`}
             >
               {cat.label}
@@ -270,7 +276,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
             return (
               <div
                 key={item.id}
-                className="bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 shadow-sm flex flex-col justify-between hover:border-[#E9C46A] transition group"
+                className="bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-2xl p-2.5 shadow-lg flex flex-col justify-between hover:border-[#FF5733] transition group"
               >
                 <div>
                   <div
@@ -437,7 +443,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
           {thriftStores.map((store) => (
             <div
               key={store.id}
-              className="bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 shadow-sm flex items-center justify-between gap-3"
+              className="bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-2xl p-3 shadow-lg flex items-center justify-between gap-3"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div

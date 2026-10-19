@@ -183,3 +183,189 @@ export function getCategoryAccent(category?: string, title?: string, description
   const key = normalizeCategoryKey(category, title, description);
   return CATEGORY_ACCENTS[key] || CATEGORY_ACCENTS.restaurants_dining;
 }
+
+export interface CategoryMoodPalette {
+  id: string;
+  name: string;
+  bgHex: string;             // Dark base hex
+  lightBgHex: string;        // Light base hex
+  gradientDark: string;      // Atmospheric background gradient in dark mode
+  gradientLight: string;     // Atmospheric background gradient in light mode
+  ambientGlow: string;       // Radial ambient glow color
+  accentColor: string;       // Vibrant category accent
+  description: string;
+}
+
+export const CATEGORY_MOODS: Record<string, CategoryMoodPalette> = {
+  all: {
+    id: 'all',
+    name: 'All Categories',
+    bgHex: '#0B0D13',
+    lightBgHex: '#FAFAFC',
+    gradientDark: 'radial-gradient(ellipse at 50% 0%, #151926 0%, #0E111A 55%, #0B0D13 100%)',
+    gradientLight: 'radial-gradient(ellipse at 50% 0%, #FFFFFF 0%, #F6F8FB 55%, #ECEFF5 100%)',
+    ambientGlow: 'rgba(59, 130, 246, 0.08)',
+    accentColor: '#FF5733',
+    description: 'Deep urban obsidian & midnight slate'
+  },
+  restaurants_dining: {
+    id: 'restaurants_dining',
+    name: 'Restaurants & Dining',
+    bgHex: '#120E0A',
+    lightBgHex: '#FFFBF5',
+    gradientDark: 'radial-gradient(ellipse at 50% 0%, #251B12 0%, #19120D 55%, #120E0A 100%)',
+    gradientLight: 'radial-gradient(ellipse at 50% 0%, #FFFFFF 0%, #FFF8EE 55%, #FEF3C7 100%)',
+    ambientGlow: 'rgba(245, 158, 11, 0.12)',
+    accentColor: '#F59E0B',
+    description: 'Deep charcoal with a warm amber-bronze undertone'
+  },
+  nature: {
+    id: 'nature',
+    name: 'Nature & Outdoors',
+    bgHex: '#0B1410',
+    lightBgHex: '#F4FBF7',
+    gradientDark: 'radial-gradient(ellipse at 50% 0%, #13271E 0%, #0E1B15 55%, #0B1410 100%)',
+    gradientLight: 'radial-gradient(ellipse at 50% 0%, #FFFFFF 0%, #EEF9F2 55%, #D1FAE5 100%)',
+    ambientGlow: 'rgba(16, 185, 129, 0.12)',
+    accentColor: '#10B981',
+    description: 'Rich jungle olive & deep forest teal'
+  },
+  creative_leisure: {
+    id: 'creative_leisure',
+    name: 'Creative & Leisure',
+    bgHex: '#140B13',
+    lightBgHex: '#FDF4FF',
+    gradientDark: 'radial-gradient(ellipse at 50% 0%, #2A1227 0%, #1A0E1A 55%, #140B13 100%)',
+    gradientLight: 'radial-gradient(ellipse at 50% 0%, #FFFFFF 0%, #FAF0FD 55%, #FAE8FF 100%)',
+    ambientGlow: 'rgba(217, 70, 239, 0.12)',
+    accentColor: '#D946EF',
+    description: 'Deep midnight magenta & violet'
+  },
+  tech_gaming: {
+    id: 'tech_gaming',
+    name: 'Tech & Gaming',
+    bgHex: '#0B1317',
+    lightBgHex: '#F2FCFE',
+    gradientDark: 'radial-gradient(ellipse at 50% 0%, #11252E 0%, #0D181D 55%, #0B1317 100%)',
+    gradientLight: 'radial-gradient(ellipse at 50% 0%, #FFFFFF 0%, #ECFAFD 55%, #CFFAFE 100%)',
+    ambientGlow: 'rgba(6, 182, 212, 0.12)',
+    accentColor: '#06B6D4',
+    description: 'Electric cyber blue & deep navy'
+  },
+  action_sports: {
+    id: 'action_sports',
+    name: 'Action & Sports',
+    bgHex: '#140A0A',
+    lightBgHex: '#FFF5F5',
+    gradientDark: 'radial-gradient(ellipse at 50% 0%, #2A1010 0%, #1A0D0D 55%, #140A0A 100%)',
+    gradientLight: 'radial-gradient(ellipse at 50% 0%, #FFFFFF 0%, #FFF0F0 55%, #FEE2E2 100%)',
+    ambientGlow: 'rgba(239, 68, 68, 0.12)',
+    accentColor: '#EF4444',
+    description: 'High-energy dark crimson & charcoal'
+  },
+  date_spots: {
+    id: 'date_spots',
+    name: 'Date Spots & Romance',
+    bgHex: '#0A0C16',
+    lightBgHex: '#F8F6FF',
+    gradientDark: 'radial-gradient(ellipse at 75% 0%, #2B1138 0%, #160B24 45%, #0A0C16 100%)',
+    gradientLight: 'radial-gradient(ellipse at 50% 0%, #FFFFFF 0%, #F5EEFF 55%, #EADBFF 100%)',
+    ambientGlow: 'rgba(244, 63, 94, 0.14)',
+    accentColor: '#F43F5E',
+    description: 'Moody neon purple, deep rose & midnight blue'
+  },
+  clubs_lounges: {
+    id: 'clubs_lounges',
+    name: 'Clubs & Lounges',
+    bgHex: '#0A0C16',
+    lightBgHex: '#F8F6FF',
+    gradientDark: 'radial-gradient(ellipse at 75% 0%, #250F3B 0%, #140A26 40%, #0A0C16 100%)',
+    gradientLight: 'radial-gradient(ellipse at 50% 0%, #FFFFFF 0%, #F3ECFF 55%, #E9DEFF 100%)',
+    ambientGlow: 'rgba(139, 92, 246, 0.15)',
+    accentColor: '#8B5CF6',
+    description: 'Moody neon purple, deep rose & midnight blue gradients'
+  },
+  cafes_bakeries: {
+    id: 'cafes_bakeries',
+    name: 'Cafes & Bakeries',
+    bgHex: '#120E0A',
+    lightBgHex: '#FFFBF3',
+    gradientDark: 'radial-gradient(ellipse at 50% 0%, #241A11 0%, #18120C 55%, #120E0A 100%)',
+    gradientLight: 'radial-gradient(ellipse at 50% 0%, #FFFFFF 0%, #FFF7EC 55%, #FEF3C7 100%)',
+    ambientGlow: 'rgba(217, 119, 6, 0.12)',
+    accentColor: '#D97706',
+    description: 'Deep roasted amber & dark charcoal'
+  },
+  hotels_luxury: {
+    id: 'hotels_luxury',
+    name: 'Hotels & Luxury',
+    bgHex: '#12100A',
+    lightBgHex: '#FFFCF0',
+    gradientDark: 'radial-gradient(ellipse at 50% 0%, #262111 0%, #19150D 55%, #12100A 100%)',
+    gradientLight: 'radial-gradient(ellipse at 50% 0%, #FFFFFF 0%, #FFFCE8 55%, #FEF9C3 100%)',
+    ambientGlow: 'rgba(234, 179, 8, 0.12)',
+    accentColor: '#EAB308',
+    description: 'Royal obsidian with warm gold undertones'
+  },
+  vacation_escapes: {
+    id: 'vacation_escapes',
+    name: 'Vacation Escapes',
+    bgHex: '#0A1017',
+    lightBgHex: '#F3F8FF',
+    gradientDark: 'radial-gradient(ellipse at 50% 0%, #112136 0%, #0D1620 55%, #0A1017 100%)',
+    gradientLight: 'radial-gradient(ellipse at 50% 0%, #FFFFFF 0%, #EBF3FF 55%, #DBEAFE 100%)',
+    ambientGlow: 'rgba(59, 130, 246, 0.12)',
+    accentColor: '#3B82F6',
+    description: 'Deep oceanic azure'
+  },
+  luku: {
+    id: 'luku',
+    name: 'Luku & Streetwear',
+    bgHex: '#0E0C12',
+    lightBgHex: '#FCF8FD',
+    gradientDark: 'radial-gradient(ellipse at 50% 0%, #241421 0%, #160D17 55%, #0E0C12 100%)',
+    gradientLight: 'radial-gradient(ellipse at 50% 0%, #FFFFFF 0%, #FAF0F9 55%, #F5E6F3 100%)',
+    ambientGlow: 'rgba(255, 87, 51, 0.12)',
+    accentColor: '#FF5733',
+    description: 'Deep urban asphalt with neon coral/terracotta warmth'
+  }
+};
+
+/**
+ * Resolves the CategoryMoodPalette for any category key, tab, or title.
+ */
+export function getCategoryMood(categoryOrVibe?: string, activeTab?: string): CategoryMoodPalette {
+  if (activeTab === 'luku' && (!categoryOrVibe || categoryOrVibe === 'all')) {
+    return CATEGORY_MOODS.luku;
+  }
+
+  if (!categoryOrVibe || categoryOrVibe === 'all') {
+    return CATEGORY_MOODS.all;
+  }
+
+  const raw = categoryOrVibe.toLowerCase().trim();
+
+  if (raw === 'luku' || raw === 'thrift' || raw === 'apparel' || raw === 'streetwear') {
+    return CATEGORY_MOODS.luku;
+  }
+
+  if (raw === 'events' || raw === 'nightlife' || raw === 'concerts' || raw === 'cinemas' || raw === 'party') {
+    return CATEGORY_MOODS.clubs_lounges;
+  }
+
+  if (raw === 'art') {
+    return CATEGORY_MOODS.creative_leisure;
+  }
+
+  if (raw === 'gaming') {
+    return CATEGORY_MOODS.tech_gaming;
+  }
+
+  if (raw === 'adrenaline' || raw === 'sports') {
+    return CATEGORY_MOODS.action_sports;
+  }
+
+  const key = normalizeCategoryKey(raw);
+  return CATEGORY_MOODS[key] || CATEGORY_MOODS.all;
+}
+

@@ -63,6 +63,7 @@ interface HomeTabProps {
   onOpenCreateEvent?: (initialTitle?: string) => void;
   onOpenBusinessProfile?: (businessId: string) => void;
   onOpenWagwanAI?: () => void;
+  onCategoryChange?: (category: string) => void;
   showToast: (msg: string) => void;
 }
 
@@ -85,6 +86,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   onOpenCreateEvent,
   onOpenBusinessProfile,
   onOpenWagwanAI,
+  onCategoryChange,
   showToast
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -108,6 +110,19 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
   // Outdoor & Social Activity sub-category filter
   const [selectedActivityCategory, setSelectedActivityCategory] = useState<'all' | 'nature' | 'art' | 'gaming' | 'adrenaline'>('all');
+
+  // Notify parent of category mood shifts
+  React.useEffect(() => {
+    if (selectedActivityCategory !== 'all') {
+      onCategoryChange?.(selectedActivityCategory);
+    } else if (selectedVibe !== 'all') {
+      onCategoryChange?.(selectedVibe);
+    } else if (selectedOfferCategory !== 'all') {
+      onCategoryChange?.(selectedOfferCategory);
+    } else {
+      onCategoryChange?.('all');
+    }
+  }, [selectedVibe, selectedActivityCategory, selectedOfferCategory, onCategoryChange]);
 
   // Universal Bookmark Checker
   const isSaved = (id: string | number, kind: 'spot' | 'event' | 'thrift' | 'offer') => {
@@ -809,7 +824,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             {filteredOffers.map(offer => (
               <div
                 key={offer.id}
-                className="w-72 sm:w-80 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shrink-0 shadow-sm flex flex-col justify-between hover:border-rose-400/60 transition group"
+                className="w-72 sm:w-80 bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-3xl overflow-hidden shrink-0 shadow-lg flex flex-col justify-between hover:border-rose-400/60 transition group"
               >
                 {/* Poster Banner */}
                 <div className="h-36 w-full relative bg-slate-900 overflow-hidden">
@@ -1062,7 +1077,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <div
                   key={evt.id}
                   onClick={() => onOpenEventDetails(evt)}
-                  className="event-card flex flex-col justify-between w-64 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm cursor-pointer hover:border-[#E0533C] transition group"
+                  className="event-card flex flex-col justify-between w-64 bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-3xl p-3 shrink-0 shadow-lg cursor-pointer hover:border-[#E0533C] transition group"
                 >
                   <div>
                     <div
@@ -1214,7 +1229,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               <div
                 key={movie.id}
                 onClick={() => onBookCinema(movie)}
-                className="cinema-card flex flex-col justify-between w-52 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-2.5 shrink-0 shadow-sm cursor-pointer hover:border-[#2D6A4F] transition group"
+                className="cinema-card flex flex-col justify-between w-52 bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-3xl p-2.5 shrink-0 shadow-lg cursor-pointer hover:border-[#2D6A4F] transition group"
               >
                 <div>
                   <div
@@ -1289,7 +1304,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <div
                   key={spot.id}
                   onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
-                  className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-[#2D6A4F] transition group"
+                  className="w-72 bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-3xl p-3 shrink-0 shadow-lg flex flex-col justify-between cursor-pointer hover:border-[#2D6A4F] transition group"
                 >
                   <div>
                     <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
@@ -1394,7 +1409,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <div
                   key={spot.id}
                   onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
-                  className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-purple-500 transition group"
+                  className="w-72 bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-3xl p-3 shrink-0 shadow-lg flex flex-col justify-between cursor-pointer hover:border-purple-500 transition group"
                 >
                   <div>
                     <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
@@ -1499,7 +1514,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <div
                   key={spot.id}
                   onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
-                  className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-cyan-500 transition group"
+                  className="w-72 bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-3xl p-3 shrink-0 shadow-lg flex flex-col justify-between cursor-pointer hover:border-cyan-500 transition group"
                 >
                   <div>
                     <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
@@ -1604,7 +1619,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <div
                   key={spot.id}
                   onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
-                  className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-orange-500 transition group"
+                  className="w-72 bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-3xl p-3 shrink-0 shadow-lg flex flex-col justify-between cursor-pointer hover:border-orange-500 transition group"
                 >
                   <div>
                     <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
@@ -1696,7 +1711,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         </div>
 
         {/* Post Creation Box */}
-        <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3.5 shadow-sm space-y-3">
+        <div className="bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-3xl p-3.5 shadow-lg space-y-3">
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] text-white flex items-center justify-center font-black text-xs shrink-0">
               W
@@ -1722,7 +1737,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800/80">
+          <div className="flex items-center justify-between pt-2 border-t border-slate-200/80 dark:border-white/10">
             <div className="flex items-center gap-1.5">
               <label className="cursor-pointer p-1.5 text-slate-500 hover:text-[#E0533C] transition" title="Attach Photo">
                 <Camera className="w-4 h-4" />
@@ -1771,7 +1786,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           {statuses.map((post) => (
             <div
               key={post.id}
-              className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3.5 shadow-sm space-y-2.5"
+              className="bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-3xl p-3.5 shadow-lg space-y-2.5"
             >
               <div className="flex items-center justify-between">
                 <div 

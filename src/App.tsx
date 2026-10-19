@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import * as cloud from './lib/cloudSync';
 import { BusinessesProvider } from './components/BusinessBadge.tsx';
@@ -26,6 +26,7 @@ import { AccountSettingsModal } from './components/AccountSettingsModal.tsx';
 import { SavedPlacesModal } from './components/SavedPlacesModal.tsx';
 import { LivenessVerificationModal } from './components/LivenessVerificationModal.tsx';
 import { getTimeOfDayGreeting } from './utils/greetingUtils';
+import { getCategoryMood } from './utils/categoryAccents.ts';
 
 import {
   initialBusinesses,
@@ -299,6 +300,12 @@ export default function App() {
 
   // Navigation
   const [activeTab, setActiveTab] = useState('home');
+  const [activeCategoryMood, setActiveCategoryMood] = useState<string>('all');
+
+  // Dynamic Mood Palette Engine - responds to active category, vibe, or tab
+  const currentMood = useMemo(() => {
+    return getCategoryMood(activeCategoryMood, activeTab);
+  }, [activeCategoryMood, activeTab]);
 
   // Business Hub State
   const [businesses, setBusinesses] = useState<BusinessAccount[]>(() => {
@@ -1640,7 +1647,21 @@ export default function App() {
   };
   return (
     <BusinessesProvider businesses={businesses}>
-    <div className="min-h-screen bg-[#FAFAFC] text-[#0F172A] dark:bg-[#0A0C10] dark:text-[#F8FAFC] flex flex-col transition-colors duration-200 antialiased overflow-x-hidden">
+    <div 
+      className="min-h-screen text-[#0F172A] dark:text-[#F8FAFC] flex flex-col transition-colors duration-700 ease-in-out antialiased overflow-x-hidden relative"
+      style={{
+        backgroundColor: isDarkMode ? currentMood.bgHex : currentMood.lightBgHex,
+        backgroundImage: isDarkMode ? currentMood.gradientDark : currentMood.gradientLight
+      }}
+    >
+      {/* Immersive Category Ambient Mood Glow */}
+      <div 
+        className="fixed inset-0 pointer-events-none transition-all duration-700 ease-in-out z-0 opacity-70"
+        style={{
+          background: `radial-gradient(circle at 50% 12%, ${currentMood.ambientGlow} 0%, transparent 65%)`
+        }}
+      />
+
       {/* Primary Application Splash Screen */}
       {showSplash && <SplashScreen durationMs={2000} onDismiss={() => setShowSplash(false)} />}
 
@@ -1681,14 +1702,14 @@ export default function App() {
         </div>
       ) : (
         <>
-
-
           {/* Top Header */}
           <Header
             onOpenOverlay={handleOpenOverlay}
             onOpenWagwanAI={() => setIsWagwanOpen(true)}
             onSwitchTab={(tab) => {
               setActiveTab(tab);
+              if (tab === 'luku') setActiveCategoryMood('luku');
+              else setActiveCategoryMood('all');
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             currentLocation={currentLocation}
@@ -1712,7 +1733,7 @@ export default function App() {
           />
 
           {/* Main Content Viewports */}
-          <main className="flex-1 pb-24 max-w-lg mx-auto w-full relative px-0">
+          <main className="flex-1 pb-24 max-w-lg mx-auto w-full relative z-10 px-0 transition-colors duration-700 ease-in-out">
             {activeTab === 'home' && (
               <HomeTab
                 events={events}
@@ -1736,6 +1757,7 @@ export default function App() {
                 onOpenCreateEvent={() => requireAuth('add a spot or business', () => setIsBusinessHubOpen(true))}
                 onOpenBusinessProfile={handleOpenBusinessProfile}
                 onOpenWagwanAI={() => setIsWagwanOpen(true)}
+                onCategoryChange={setActiveCategoryMood}
                 showToast={showToast}
               />
             )}
@@ -1753,6 +1775,7 @@ export default function App() {
                 }}
                 onOpenCreateSpot={() => requireAuth('add a spot or business', () => setIsBusinessHubOpen(true))}
                 onPostReview={handlePostReview}
+                onCategoryChange={setActiveCategoryMood}
                 showToast={showToast}
               />
             )}
@@ -1769,6 +1792,7 @@ export default function App() {
                   else showToast(`Browsing ${storeName} official catalog!`);
                 }}
                 onOpenCreateFit={() => requireAuth('add a spot or business', () => setIsBusinessHubOpen(true))}
+                onCategoryChange={setActiveCategoryMood}
                 showToast={showToast}
               />
             )}
@@ -1853,6 +1877,11 @@ export default function App() {
               if (tab !== activeTab) {
                 if (tab !== 'home') {
                   window.history.pushState({ radaApp: true, tab }, '');
+                }
+                if (tab === 'luku') {
+                  setActiveCategoryMood('luku');
+                } else {
+                  setActiveCategoryMood('all');
                 }
                 setActiveTab(tab);
                 window.scrollTo({ top: 0, behavior: 'smooth' });

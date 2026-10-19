@@ -27,6 +27,7 @@ interface LukuEventsTabProps {
   events: EventItem[];
   onOpenEventDetails: (event: EventItem) => void;
   onExploreTrendingEvents?: () => void;
+  onCategoryChange?: (category: string) => void;
   showToast?: (msg: string) => void;
 }
 
@@ -34,6 +35,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
   events = [],
   onOpenEventDetails,
   onExploreTrendingEvents,
+  onCategoryChange,
   showToast
 }) => {
   // Calendar state - default to October 2026, day 24 (or 14 for today)
@@ -41,6 +43,10 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
   const [selectedMonth, setSelectedMonth] = useState(9); // 0-indexed: 9 = October
   const [selectedDay, setSelectedDay] = useState<number | null>(24);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+
+  React.useEffect(() => {
+    onCategoryChange?.(selectedCategory === 'all' ? 'events' : selectedCategory);
+  }, [selectedCategory, onCategoryChange]);
 
   // Month navigation
   const handlePrevMonth = () => {
@@ -111,14 +117,14 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
   return (
     <div className="space-y-5 px-3 sm:px-4 py-3">
       {/* Calendar Header Card */}
-      <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-sm space-y-4">
+      <div className="bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-3xl p-4 shadow-lg space-y-4">
         {/* Month & Year Navigation */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={handlePrevMonth}
-              className="p-1.5 rounded-xl bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:text-[#E0533C] transition cursor-pointer"
+              className="p-1.5 rounded-xl bg-white/80 dark:bg-white/10 border border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:text-[#E0533C] transition cursor-pointer"
               title="Previous Month"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -131,7 +137,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
             <button
               type="button"
               onClick={handleNextMonth}
-              className="p-1.5 rounded-xl bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:text-[#E0533C] transition cursor-pointer"
+              className="p-1.5 rounded-xl bg-white/80 dark:bg-white/10 border border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:text-[#E0533C] transition cursor-pointer"
               title="Next Month"
             >
               <ChevronRight className="w-4 h-4" />
@@ -151,7 +157,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
               className={`px-3 py-1 rounded-xl text-[11px] font-black transition cursor-pointer ${
                 isSelectedDayToday
                   ? 'bg-[#E0533C] text-white shadow-xs'
-                  : 'bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+                  : 'bg-white/80 dark:bg-white/10 border border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:border-slate-300'
               }`}
             >
               Today
@@ -199,7 +205,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
                     : isDayToday
                     ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 font-black border border-amber-300 dark:border-amber-700'
                     : hasEvents
-                    ? 'bg-white dark:bg-[#14171F] text-slate-900 dark:text-slate-100 font-extrabold border border-slate-200 dark:border-[#222735] hover:border-[#FF5733]'
+                    ? 'bg-white/80 dark:bg-white/10 text-slate-900 dark:text-slate-100 font-extrabold border border-slate-200/80 dark:border-white/10 hover:border-[#FF5733]'
                     : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
                 }`}
               >
@@ -264,7 +270,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
               <div
                 key={event.id}
                 onClick={() => onOpenEventDetails(event)}
-                className="bg-white dark:bg-[#14171F] border border-slate-200/90 dark:border-[#222735] rounded-3xl p-3.5 shadow-sm hover:border-[#FF5733] transition-all cursor-pointer group flex flex-col sm:flex-row gap-3.5"
+                className="bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-3xl p-3.5 shadow-lg hover:border-[#FF5733] transition-all cursor-pointer group flex flex-col sm:flex-row gap-3.5"
               >
                 {/* Event Poster / Banner */}
                 <div
@@ -343,7 +349,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
         </div>
       ) : (
         /* Sleek Empty State Card */
-        <div className="bg-[#FAFAFC] dark:bg-[#14171F] border border-dashed border-slate-300 dark:border-[#222735] rounded-3xl p-6 sm:p-8 text-center space-y-3.5 shadow-2xs">
+        <div className="bg-white/60 dark:bg-black/30 backdrop-blur-md border border-dashed border-slate-300 dark:border-white/10 rounded-3xl p-6 sm:p-8 text-center space-y-3.5 shadow-sm">
           <div className="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#FF5733] mx-auto flex items-center justify-center shadow-xs">
             <CalendarIcon className="w-6 h-6" />
           </div>
