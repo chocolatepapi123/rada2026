@@ -60,7 +60,6 @@ import {
   SpotItem, 
   EventItem, 
   CinemaMovie,
-  ThriftItem,
   DatingProfile, 
   EmergencyContact,
   Review,
@@ -87,7 +86,6 @@ interface OverlaysProps {
   spots: SpotItem[];
   events?: EventItem[];
   cinemaMovies?: CinemaMovie[];
-  thriftItems?: ThriftItem[];
   onOpenSpotDetails: (spot: SpotItem) => void;
   onOpenEventDetails?: (event: EventItem) => void;
   onBookCinema?: (movie: CinemaMovie) => void;
@@ -151,7 +149,7 @@ interface OverlaysProps {
   onOpenAccountSettings?: () => void;
   savedCount?: number;
   savedItems?: SavedItem[];
-  onToggleSave?: (item: any, kind: 'spot' | 'event' | 'thrift' | 'offer') => void;
+  onToggleSave?: (item: any, kind: 'spot' | 'event' | 'offer') => void;
   onNavigateToCalendar?: (dateStr?: string, eventId?: number | string) => void;
 }
 
@@ -164,7 +162,6 @@ export const Overlays: React.FC<OverlaysProps> = ({
   spots,
   events = [],
   cinemaMovies = [],
-  thriftItems = [],
   savedItems = [],
   onToggleSave,
   onNavigateToCalendar,
@@ -2391,21 +2388,6 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       <button className="w-full mt-2 py-1.5 bg-[#2D6A4F] text-white rounded-lg text-[10px] font-bold">
                         Book Movie
                       </button>
-                    </div>
-                  ))}
-                </div>
-              ) : viewAllCategory === 'thrift' ? (
-                /* STRICTLY DISPLAY THRIFT LUKU ITEMS */
-                <div className="grid grid-cols-2 gap-3">
-                  {thriftItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 shadow-xs"
-                    >
-                      <div className="h-36 rounded-xl bg-cover bg-center mb-2" style={{ backgroundImage: `url('${item.img}')` }} />
-                      <h4 className="font-bold text-xs truncate">{item.name}</h4>
-                      <p className="text-[10px] text-[#E0533C] font-black">{item.price} • {item.size}</p>
-                      <p className="text-[9px] text-slate-400 truncate">{item.seller}</p>
                     </div>
                   ))}
                 </div>

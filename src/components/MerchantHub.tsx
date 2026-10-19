@@ -21,6 +21,16 @@ import {
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { SpotItem, Review, BusinessAccount } from '../types.ts';
 
+/** Price tiers are KES, KES KES, KES KES KES (same as MerchantHubTab). Old "KES $$" values convert. */
+const normalizePriceTier = (value?: string): string => {
+  const v = String(value || '').trim();
+  if (/^KES( KES){0,2}$/.test(v)) return v;
+  const dollars = (v.match(/\$/g) || []).length;
+  if (dollars >= 3) return 'KES KES KES';
+  if (dollars === 2) return 'KES KES';
+  return 'KES';
+};
+
 export interface SpotMetricSummary {
   spotId: number | string;
   title: string;
@@ -142,7 +152,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
                     neighborhood: row.neighborhood || row.data?.neighborhood || 'Nairobi',
                     rating: row.rating ? String(row.rating) : 'New',
                     reviewCount: Number(row.review_count || 0),
-                    price: row.price || row.data?.price || 'KES $$',
+                    price: normalizePriceTier(row.price || row.data?.price),
                     lat: row.lat || -1.2675,
                     lng: row.lng || 36.8115,
                     address: row.address || `${row.neighborhood || 'Nairobi'}, Kenya`,
