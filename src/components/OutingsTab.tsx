@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Users, 
   Calendar, 
@@ -14,6 +14,7 @@ import {
   Check, 
   ChevronRight, 
   Share2, 
+  Link2, 
   Compass, 
   AlertCircle,
   Building2,
@@ -307,6 +308,54 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
     return outings.find(o => o.id === managingOuting.id) || managingOuting;
   }, [outings, managingOuting]);
 
+  // ---- Custom deep link for hosted plans ----------------------------------
+  const buildOutingLink = (plan: OutingPlan) =>
+    `${window.location.origin}/?tab=outings&outing=${encodeURIComponent(String(plan.id))}&ref=share`;
+
+  const handleShareOutingLink = (plan: OutingPlan) => {
+    const link = buildOutingLink(plan);
+    shareContent({
+      title: `RADA Outing: ${plan.spotTitle}`,
+      text: `${plan.hostName} is hosting a plan at ${plan.spotTitle} (${plan.date}). Join on RADA:`,
+      url: link,
+      onSuccess: showToast,
+      onError: async () => {
+        try {
+          await navigator.clipboard.writeText(link);
+          showToast('Outing link copied to clipboard!');
+        } catch {
+          showToast(link);
+        }
+      }
+    });
+  };
+
+  const handleCopyOutingLink = async (plan: OutingPlan) => {
+    const link = buildOutingLink(plan);
+    try {
+      await navigator.clipboard.writeText(link);
+      showToast('Outing link copied!');
+    } catch {
+      showToast(link);
+    }
+  };
+
+  // Open the outing when someone lands on a shared link (?outing=ID)
+  useEffect(() => {
+    if (typeof window === 'undefined' || outings.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const outingId = params.get('outing');
+    if (!outingId) return;
+    const match = outings.find(o => String(o.id) === outingId);
+    if (match) {
+      setSelectedOutingDetail(match);
+      params.delete('outing');
+      params.delete('ref');
+      const qs = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+    }
+  }, [outings]);
+
   const activeSelectedOutingDetail = useMemo(() => {
     if (!selectedOutingDetail) return null;
     return outings.find(o => o.id === selectedOutingDetail.id) || selectedOutingDetail;
@@ -599,18 +648,20 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
 
   return (
     <section className="px-3 sm:px-4 py-4 space-y-4 max-w-lg mx-auto pb-24">
-      {/* Header Banner */}
-      <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200/90 dark:border-slate-800 rounded-3xl p-4 shadow-xs space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
+      {/* =====================================================================
+          SECTION 1: HOST A PLAN (own card, separate from search & filters)
+          ===================================================================== */}
+      <div className="bg-gradient-to-br from-[#E0533C]/10 via-white to-white dark:from-[#E0533C]/15 dark:via-[#1C1A1E] dark:to-[#1C1A1E] border border-[#E0533C]/25 rounded-3xl p-4 shadow-xs">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#E0533C] animate-pulse" />
+              <span className="w-2.5 h-2.5 rounded-full bg-[#E0533C] animate-pulse shrink-0" />
               <h1 className="text-base font-black text-slate-900 dark:text-slate-100 tracking-tight">
                 Outings & Public Plans
               </h1>
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-              Discover real community-hosted hangouts or post your own plan!
+              Got a plan? Host it and let the community join.
             </p>
           </div>
 
@@ -624,13 +675,22 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
               }
               setIsHostModalOpen(true);
             }}
-            className="px-3.5 py-2 rounded-2xl bg-[#E0533C] hover:bg-orange-700 text-white text-xs font-black shadow-sm transition flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
+            className="px-4 py-2.5 rounded-2xl bg-[#E0533C] hover:bg-orange-700 text-white text-xs font-black shadow-md shadow-orange-500/20 transition flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
-            <span className="hidden sm:inline">Host a Plan</span>
-            <span className="sm:hidden">Host</span>
+            <span>Host a Plan</span>
           </button>
         </div>
+      </div>
+
+      {/* =====================================================================
+          SECTION 2: SEARCH + CATEGORY / LOCATION FILTERS (separate card)
+          ===================================================================== */}
+      <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200/90 dark:border-slate-800 rounded-3xl p-4 shadow-xs space-y-3">
+        <h2 className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+          <Search className="w-3 h-3 text-[#E0533C]" />
+          <span>Find a plan</span>
+        </h2>
 
         {/* Venue/Host/Vibe Search Bar */}
         <div className="relative flex items-center">
@@ -1647,20 +1707,21 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => {
-                    const targetPlan = activeSelectedOutingDetail || selectedOutingDetail;
-                    shareContent({
-                      title: `RADA Outing: ${targetPlan.spotTitle}`,
-                      text: `Join ${targetPlan.hostName} for a hangout at ${targetPlan.spotTitle} (${targetPlan.date}) on RADA!`,
-                      url: window.location.href,
-                      onSuccess: showToast,
-                      onError: showToast
-                    });
-                  }}
-                  className="p-3 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 transition cursor-pointer"
-                  title="Share Outing"
+                  onClick={() => handleShareOutingLink((activeSelectedOutingDetail || selectedOutingDetail)!)}
+                  className="px-4 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5"
+                  title="Share Outing Link"
                 >
                   <Share2 className="w-4 h-4 text-[#E0533C]" />
+                  <span>Share Outing Link</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleCopyOutingLink((activeSelectedOutingDetail || selectedOutingDetail)!)}
+                  className="p-3 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition cursor-pointer"
+                  title="Copy outing link"
+                  aria-label="Copy outing link"
+                >
+                  <Link2 className="w-4 h-4 text-[#E0533C]" />
                 </button>
               </div>
             </div>
