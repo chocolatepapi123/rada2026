@@ -10,7 +10,8 @@ import {
   ChatConversation, 
   VaultTicket, 
   EmergencyContact,
-  CollectionFolder
+  CollectionFolder,
+  OutingPlan
 } from '../types.ts';
 import { generatePlayableWavDataUrl } from '../utils/mediaUtils.ts';
 
@@ -1362,3 +1363,136 @@ export const initialFolders: CollectionFolder[] = [
   { id: 'folder-2', name: 'Sunday Chill', emoji: '☕', createdAt: '2026-10-14T11:00:00Z', description: 'Relaxed cafe hangouts and nature trails' },
   { id: 'folder-3', name: 'Date Ideas', emoji: '✨', createdAt: '2026-10-14T12:00:00Z', description: 'Romantic dinners, sunsets and cozy spots' }
 ];
+
+export const initialOutings: OutingPlan[] = [
+  {
+    id: 'out-1',
+    hostId: 'host-1',
+    hostName: 'Natasha Muthoni',
+    hostAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop',
+    hostHandle: '@natasham',
+    isHostVerified: true,
+    spotId: 1,
+    spotTitle: 'The Alchemist Bar',
+    spotAddress: 'Parklands Rd, Westlands, Nairobi',
+    spotImage: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
+    spotCategory: 'clubs_lounges',
+    date: '2026-10-24',
+    time: '17:30',
+    maxAttendees: 6,
+    currentAttendeesCount: 3,
+    description: 'Heading to Alchemist for the Saturday sundowner DJ set and woodfired tacos. Looking for easygoing music lovers to hang with!',
+    accessType: 'open',
+    tags: ['All Plans', 'Group Hangouts', 'Weekend'],
+    status: 'active',
+    createdAt: '2026-10-18T10:00:00Z',
+    attendees: [
+      { id: 'att-1', outingId: 'out-1', userId: 'usr-1', userName: 'Brian Omondi', userAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop', userHandle: '@brian_o', status: 'joined', requestedAt: '2026-10-18T11:00:00Z' },
+      { id: 'att-2', outingId: 'out-1', userId: 'usr-2', userName: 'Amina Abdi', userAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop', userHandle: '@amina_a', status: 'joined', requestedAt: '2026-10-18T12:00:00Z' },
+      { id: 'att-3', outingId: 'out-1', userId: 'usr-3', userName: 'Kev Mwangi', userAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&auto=format&fit=crop', userHandle: '@kevmwangi', status: 'joined', requestedAt: '2026-10-18T13:00:00Z' }
+    ]
+  },
+  {
+    id: 'out-2',
+    hostId: 'host-2',
+    hostName: 'Kevin Mwangi',
+    hostAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=500&auto=format&fit=crop',
+    hostHandle: '@kevmwangi',
+    isHostVerified: true,
+    spotId: 5,
+    spotTitle: 'Unseen Nairobi',
+    spotAddress: 'Wood Avenue, Kilimani, Nairobi',
+    spotImage: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=800&auto=format&fit=crop',
+    spotCategory: 'date_spots',
+    date: '2026-10-23',
+    time: '19:00',
+    maxAttendees: 8,
+    currentAttendeesCount: 4,
+    description: 'Casual rooftop wine night & indie screening for Nairobi singles. Zero pressure, relaxed vibes, good laughter & wine.',
+    accessType: 'singles_only',
+    tags: ['All Plans', 'Singles Only', 'Weekend'],
+    status: 'active',
+    createdAt: '2026-10-18T14:00:00Z',
+    attendees: [
+      { id: 'att-4', outingId: 'out-2', userId: 'usr-4', userName: 'Faith Chebet', userAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop', userHandle: '@faith_c', status: 'joined', requestedAt: '2026-10-18T15:00:00Z' },
+      { id: 'att-5', outingId: 'out-2', userId: 'usr-5', userName: 'Ian Kipchumba', userAvatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=200&auto=format&fit=crop', userHandle: '@ian_k', status: 'joined', requestedAt: '2026-10-18T16:00:00Z' }
+    ]
+  },
+  {
+    id: 'out-3',
+    hostId: 'host-3',
+    hostName: 'Sarah Wanjiku',
+    hostAvatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&auto=format&fit=crop',
+    hostHandle: '@sarahw',
+    isHostVerified: true,
+    spotId: 4,
+    spotTitle: 'Karura Forest Trails',
+    spotAddress: 'Limuru Road, Gate A, Nairobi',
+    spotImage: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&auto=format&fit=crop',
+    spotCategory: 'nature_outdoors',
+    date: '2026-10-25',
+    time: '09:00',
+    maxAttendees: 10,
+    currentAttendeesCount: 6,
+    description: 'Morning 7km scenic hike to the waterfalls, followed by iced coffee & pastries at The River Cafe. Let us get some fresh air!',
+    accessType: 'open',
+    tags: ['All Plans', 'Group Hangouts', 'Weekend'],
+    status: 'active',
+    createdAt: '2026-10-17T08:00:00Z',
+    attendees: [
+      { id: 'att-6', outingId: 'out-3', userId: 'usr-6', userName: 'David Njoroge', userAvatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&auto=format&fit=crop', userHandle: '@d_njoroge', status: 'joined', requestedAt: '2026-10-17T09:00:00Z' },
+      { id: 'att-7', outingId: 'out-3', userId: 'usr-7', userName: 'Mercy Achieng', userAvatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&auto=format&fit=crop', userHandle: '@mercy_a', status: 'joined', requestedAt: '2026-10-17T10:00:00Z' }
+    ]
+  },
+  {
+    id: 'out-4',
+    hostId: 'host-4',
+    hostName: 'Dennis Otieno',
+    hostAvatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=500&auto=format&fit=crop',
+    hostHandle: '@denno_eats',
+    isHostVerified: false,
+    spotId: 2,
+    spotTitle: 'Nairobi Street Kitchen',
+    spotAddress: 'Mpaka Rd, Westlands, Nairobi',
+    spotImage: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop',
+    spotCategory: 'restaurants',
+    date: '2026-10-22',
+    time: '18:30',
+    maxAttendees: 6,
+    currentAttendeesCount: 4,
+    description: 'Tasting the artisan street food trucks & craft IPAs at NSK. Come hungry and ready for lively conversations!',
+    accessType: 'open',
+    tags: ['All Plans', 'Group Hangouts'],
+    status: 'active',
+    createdAt: '2026-10-18T18:00:00Z',
+    attendees: [
+      { id: 'att-8', outingId: 'out-4', userId: 'usr-8', userName: 'Brenda Kerubo', userAvatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=200&auto=format&fit=crop', userHandle: '@brenda_k', status: 'joined', requestedAt: '2026-10-18T19:00:00Z' }
+    ]
+  },
+  {
+    id: 'out-5',
+    hostId: 'host-5',
+    hostName: 'Chloe Njeri',
+    hostAvatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=500&auto=format&fit=crop',
+    hostHandle: '@chloenjeri',
+    isHostVerified: true,
+    spotId: 8,
+    spotTitle: 'Geco Cafe',
+    spotAddress: 'Mbaazi Ave, Lavington, Nairobi',
+    spotImage: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?w=800&auto=format&fit=crop',
+    spotCategory: 'clubs_lounges',
+    date: '2026-10-23',
+    time: '20:00',
+    maxAttendees: 5,
+    currentAttendeesCount: 3,
+    description: 'Live jazz & wood-fired pizza session for singles. Come unwind after a long week with soulful music.',
+    accessType: 'singles_only',
+    tags: ['All Plans', 'Singles Only', 'Weekend'],
+    status: 'active',
+    createdAt: '2026-10-19T08:00:00Z',
+    attendees: [
+      { id: 'att-10', outingId: 'out-5', userId: 'usr-10', userName: 'Martin Mutua', userAvatar: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=200&auto=format&fit=crop', userHandle: '@martin_m', status: 'joined', requestedAt: '2026-10-19T09:00:00Z' }
+    ]
+  }
+];
+

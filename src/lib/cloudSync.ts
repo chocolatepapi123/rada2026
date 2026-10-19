@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import type { BusinessAccount, SavedItem, CollectionFolder } from '../types';
+import type { BusinessAccount, SavedItem, CollectionFolder, OutingPlan, OutingAttendee } from '../types';
 
 
 export type ListingKind = 'spot' | 'event' | 'thrift' | 'offer';
@@ -1135,6 +1135,208 @@ export async function fetchSavedPlans(uid: string): Promise<{
     console.warn('fetchSavedPlans error:', err);
   }
   return { savedItems: null, savedFolders: null };
+}
+
+// =====================================================================
+// OUTINGS & PUBLIC PLANS SYNC (SUPABASE)
+// =====================================================================
+const OUTINGS_LOCAL_KEY = 'rada_outings_cache';
+
+export async function fetchOutings(): Promise<OutingPlan[] | null> {
+  if (!isSupabaseConfigured) {
+    const cached = localStorage.getItem(OUTINGS_LOCAL_KEY);
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch (e) {}
+    }
+    return null;
+  }
+
+  try {
+    const { data: outingsData, error: outingsError } = await supabase
+      .from('outings')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!outingsError && outingsData && outingsData.length > 0) {
+      const outingIds = outingsData.map(o => o.id);
+      const { data: attendeesData } = await supabase
+        .from('outing_attendees')
+        .select('*')
+        .in('outing_id', outingIds);
+
+      const attendeesMap: Record<string, OutingAttendee[]> = {};
+      if (attendeesData) {
+        attendeesData.forEach((att: any) => {
+          const outId = att.outing_id;
+          if (!attendeesMap[outId]) attendeesMap[outId] = [];
+          attendeesMap[outId].push({
+            id: String(att.id),
+            outingId: att.outing_id,
+            userId: att.user_id,
+            userName: att.user_name || att.userName || 'Explorer',
+            userAvatar: att.user_avatar || att.userAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop',
+            userHandle: att.user_handle || att.userHandle,
+            status: att.status || 'pending',
+            requestedAt: att.created_at || att.requestedAt || new Date().toISOString()
+          });
+        });
+      }
+
+      const formatted: OutingPlan[] = outingsData.map((row: any) => {
+        const d = row.data && typeof row.data === 'object' ? row.data : {};
+        const attList = attendeesMap[row.id] || d.attendees || [];
+        return {
+          id: String(row.id),
+          hostId: row.host_id || d.hostId || 'anonymous',
+          hostName: row.host_name || d.hostName || 'Host',
+          hostAvatar: row.host_avatar || d.hostAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop',
+          hostHandle: row.host_handle || d.hostHandle || '@host',
+          isHostVerified: row.is_host_verified ?? d.isHostVerified ?? true,
+          spotId: row.spot_id || d.spotId,
+          spotTitle: row.spot_title || d.spotTitle || 'Hangout Venue',
+          spotAddress: row.spot_address || d.spotAddress || 'Nairobi',
+          spotImage: row.spot_image || d.spotImage || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
+          spotCategory: row.spot_category || d.spotCategory || 'hospitality',
+          date: row.date || d.date || '2026-10-24',
+          time: row.time || d.time || '18:00',
+          maxAttendees: Number(row.max_attendees || d.maxAttendees || 6),
+          currentAttendeesCount: attList.filter((a: any) => a.status === 'joined').length + 1,
+          description: row.description || d.description || '',
+          accessType: (row.access_type || d.accessType || 'open') as 'open' | 'singles_only',
+          tags: row.tags || d.tags || ['All Plans', 'Group Hangouts'],
+          status: row.status || d.status || 'active',
+          createdAt: row.created_at || d.createdAt || new Date().toISOString(),
+          attendees: attList
+        };
+      });
+
+      localStorage.setItem(OUTINGS_LOCAL_KEY, JSON.stringify(formatted));
+      return formatted;
+    }
+  } catch (err) {
+    console.warn('fetchOutings failed or table not found:', err);
+  }
+
+  const cached = localStorage.getItem(OUTINGS_LOCAL_KEY);
+  if (cached) {
+    try {
+      return JSON.parse(cached);
+    } catch (e) {}
+  }
+  return null;
+}
+
+export async function createOuting(outing: OutingPlan): Promise<{ error: string | null; data?: OutingPlan }> {
+  try {
+    const cached = localStorage.getItem(OUTINGS_LOCAL_KEY);
+    const list: OutingPlan[] = cached ? JSON.parse(cached) : [];
+    const updated = [outing, ...list.filter(o => o.id !== outing.id)];
+    localStorage.setItem(OUTINGS_LOCAL_KEY, JSON.stringify(updated));
+  } catch (e) {}
+
+  if (!isSupabaseConfigured) {
+    return { error: null, data: outing };
+  }
+
+  try {
+    const row = {
+      id: outing.id,
+      host_id: outing.hostId,
+      host_name: outing.hostName,
+      host_avatar: outing.hostAvatar,
+      host_handle: outing.hostHandle,
+      is_host_verified: outing.isHostVerified ?? false,
+      spot_id: outing.spotId,
+      spot_title: outing.spotTitle,
+      spot_address: outing.spotAddress,
+      spot_image: outing.spotImage,
+      spot_category: outing.spotCategory,
+      date: outing.date,
+      time: outing.time,
+      max_attendees: outing.maxAttendees,
+      description: outing.description,
+      access_type: outing.accessType,
+      tags: outing.tags,
+      status: outing.status || 'active',
+      data: outing
+    };
+
+    const { error } = await supabase.from('outings').upsert(row, { onConflict: 'id' });
+    if (error) {
+      console.warn('createOuting Supabase upsert note:', error.message);
+    }
+    return { error: null, data: outing };
+  } catch (err: any) {
+    console.warn('createOuting failed:', err);
+    return { error: null, data: outing };
+  }
+}
+
+export async function requestJoinOuting(
+  outingId: string,
+  attendee: OutingAttendee
+): Promise<{ error: string | null; attendee?: OutingAttendee }> {
+  try {
+    const cached = localStorage.getItem(OUTINGS_LOCAL_KEY);
+    if (cached) {
+      const list: OutingPlan[] = JSON.parse(cached);
+      const updated = list.map(o => {
+        if (o.id === outingId) {
+          const existingAtts = o.attendees || [];
+          const filtered = existingAtts.filter(a => a.userId !== attendee.userId && a.id !== attendee.id);
+          const newAtts = [...filtered, attendee];
+          return {
+            ...o,
+            attendees: newAtts,
+            currentAttendeesCount: newAtts.filter(a => a.status === 'joined').length + 1
+          };
+        }
+        return o;
+      });
+      localStorage.setItem(OUTINGS_LOCAL_KEY, JSON.stringify(updated));
+    }
+  } catch (e) {}
+
+  if (!isSupabaseConfigured) {
+    return { error: null, attendee };
+  }
+
+  try {
+    const row = {
+      id: attendee.id,
+      outing_id: outingId,
+      user_id: attendee.userId,
+      user_name: attendee.userName,
+      user_avatar: attendee.userAvatar,
+      user_handle: attendee.userHandle,
+      status: attendee.status,
+      created_at: attendee.requestedAt
+    };
+
+    const { error } = await supabase.from('outing_attendees').upsert(row, { onConflict: 'id' });
+    if (error) {
+      console.warn('requestJoinOuting Supabase note:', error.message);
+    }
+    return { error: null, attendee };
+  } catch (err: any) {
+    console.warn('requestJoinOuting error:', err);
+    return { error: null, attendee };
+  }
+}
+
+export async function updateOutingAttendeeStatus(
+  attendeeId: string,
+  status: 'pending' | 'joined' | 'declined'
+): Promise<{ error: string | null }> {
+  if (!isSupabaseConfigured) return { error: null };
+  try {
+    await supabase.from('outing_attendees').update({ status }).eq('id', attendeeId);
+    return { error: null };
+  } catch (err: any) {
+    return { error: err?.message || String(err) };
+  }
 }
 
 

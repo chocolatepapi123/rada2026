@@ -381,3 +381,38 @@ export interface SavedItem {
   folderId?: string;
 }
 
+export interface OutingAttendee {
+  id: string;
+  outingId: string;
+  userId: string;
+  userName: string;
+  userAvatar: string;
+  userHandle?: string;
+  status: 'pending' | 'joined' | 'declined';
+  requestedAt: string;
+}
+
+export interface OutingPlan {
+  id: string;
+  hostId: string;
+  hostName: string;
+  hostAvatar: string;
+  hostHandle?: string;
+  isHostVerified?: boolean;
+  spotId?: number;
+  spotTitle: string;
+  spotAddress?: string;
+  spotImage?: string;
+  spotCategory?: string;
+  date: string;
+  time: string;
+  maxAttendees: number;
+  currentAttendeesCount?: number;
+  description: string;
+  accessType: 'open' | 'singles_only';
+  tags?: string[];
+  status?: 'active' | 'full' | 'completed' | 'cancelled';
+  createdAt?: string;
+  attendees?: OutingAttendee[];
+}
+

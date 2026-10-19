@@ -15,6 +15,7 @@ import { MerchantHubTab } from './components/MerchantHubTab.tsx';
 import { PublicBusinessProfileModal } from './components/PublicBusinessProfileModal.tsx';
 import { HomeTab } from './components/HomeTab.tsx';
 import { SpotsTab } from './components/SpotsTab.tsx';
+import { OutingsTab } from './components/OutingsTab.tsx';
 import { LukuTab } from './components/LukuTab.tsx';
 import { SocialsTab } from './components/SocialsTab.tsx';
 import { VaultTab } from './components/VaultTab.tsx';
@@ -40,7 +41,8 @@ import {
   discoveryProfiles,
   initialConversations,
   initialTickets,
-  initialContacts
+  initialContacts,
+  initialOutings
 } from './data/initialData.ts';
 
 import {
@@ -58,7 +60,9 @@ import {
   Review,
   UserProfile,
   SavedItem,
-  CollectionFolder
+  CollectionFolder,
+  OutingPlan,
+  OutingAttendee
 } from './types.ts';
 
 
@@ -381,6 +385,18 @@ export default function App() {
     return initialOffers;
   });
 
+  // Outings & Public Plans State
+  const [outings, setOutings] = useState<OutingPlan[]>(() => {
+    const saved = localStorage.getItem('rada_outings_cache');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {}
+    }
+    return initialOutings;
+  });
+
   // Public Business Profile View Modal State
   const [selectedPublicBusiness, setSelectedPublicBusiness] = useState<BusinessAccount | null>(null);
 
@@ -572,6 +588,39 @@ export default function App() {
       });
     }
   }, [session]);
+
+  // Restore outings and public plans from Supabase / cloud cache
+  useEffect(() => {
+    cloud.fetchOutings().then(res => {
+      if (res && res.length > 0) {
+        setOutings(res);
+      }
+    }).catch(err => {
+      console.warn('Could not restore outings from Supabase:', err);
+    });
+  }, [session]);
+
+  const handleCreateOuting = async (newPlan: OutingPlan) => {
+    setOutings(prev => [newPlan, ...prev.filter(o => o.id !== newPlan.id)]);
+    await cloud.createOuting(newPlan);
+  };
+
+  const handleRequestJoin = async (outingId: string, attendee: OutingAttendee) => {
+    setOutings(prev => prev.map(o => {
+      if (o.id === outingId) {
+        const existing = o.attendees || [];
+        const filtered = existing.filter(a => a.userId !== attendee.userId && a.id !== attendee.id);
+        const updatedAtts = [...filtered, attendee];
+        return {
+          ...o,
+          attendees: updatedAtts,
+          currentAttendeesCount: updatedAtts.filter(a => a.status === 'joined').length + 1
+        };
+      }
+      return o;
+    }));
+    await cloud.requestJoinOuting(outingId, attendee);
+  };
 
   // Seamless Calendar Routing
   const handleNavigateToCalendar = (dateStr?: string, eventId?: number | string) => {
@@ -1794,18 +1843,17 @@ export default function App() {
               />
             )}
 
-            {activeTab === 'luku' && (
-              <LukuTab
-                thriftItems={thriftItems}
-                businesses={businesses}
-                savedItems={savedItems}
-                onToggleSave={handleToggleSave}
-                onOpenStore={(storeName) => {
-                  const biz = businesses.find(b => b.name.toLowerCase() === storeName.toLowerCase());
-                  if (biz) setSelectedPublicBusiness(biz);
-                  else showToast(`Browsing ${storeName} official catalog!`);
-                }}
-                onOpenCreateFit={() => requireAuth('add a spot or business', () => setIsBusinessHubOpen(true))}
+            {(activeTab === 'outings' || activeTab === 'plans' || activeTab === 'luku') && (
+              <OutingsTab
+                outings={outings}
+                spots={spots}
+                currentUserProfile={currentUserProfile}
+                currentUserId={session?.user?.id}
+                isUserSignedIn={Boolean(session?.user?.id)}
+                onOpenAuth={() => setIsAuthModalOpen(true)}
+                onCreateOuting={handleCreateOuting}
+                onRequestJoin={handleRequestJoin}
+                onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
                 showToast={showToast}
               />
             )}

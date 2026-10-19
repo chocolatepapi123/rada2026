@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, MapPin, Shirt, Users, Wallet } from 'lucide-react';
+import { Home, MapPin, CalendarPlus, Users, Wallet } from 'lucide-react';
 
 interface NavigationProps {
   activeTab: string;
@@ -10,7 +10,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
   const tabs = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'spots', label: 'Spots', icon: MapPin },
-    { id: 'luku', label: 'Luku', icon: Shirt },
+    { id: 'outings', label: 'Outings', icon: CalendarPlus },
     { id: 'socials', label: 'Socials', icon: Users },
     { id: 'vault', label: 'Vault', icon: Wallet },
   ];
@@ -19,7 +19,9 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
     <nav className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-white/90 dark:bg-black/75 backdrop-blur-xl border-t border-slate-200/80 dark:border-white/10 px-2 py-2 flex items-center justify-around z-40 shadow-lg transition-colors duration-500 ease-in-out">
       {tabs.map((tab) => {
         const Icon = tab.icon;
-        const isActive = activeTab === tab.id || (tab.id === 'vault' && activeTab === 'calendar');
+        const isActive = activeTab === tab.id || 
+          (tab.id === 'vault' && activeTab === 'calendar') ||
+          (tab.id === 'outings' && (activeTab === 'plans' || activeTab === 'luku'));
         return (
           <button
             key={tab.id}
