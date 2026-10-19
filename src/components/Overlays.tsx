@@ -273,7 +273,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
     setNewReviewText('');
     setReviewPhotos([]);
     setShowReviewForm(false);
-    showToast('Review and photos published live on RADA!');
+    showToast('Review Submitted');
   };
 
 
@@ -508,7 +508,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     if (!isSpotSaved) {
                       onToggleSave?.(selectedSpot, 'spot');
                     } else {
-                      showToast(`"${selectedSpot.title}" is in your plans!`);
+                      showToast('Spot Saved to Vault');
                     }
                     const matchingEvt = events.find(e => 
                       (selectedSpot.title && e.location?.toLowerCase().includes(selectedSpot.title.toLowerCase())) ||

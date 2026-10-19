@@ -297,7 +297,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
       activeChat.messages.push(newMsg);
       activeChat.lastMessage = `🎙️ Voice note (${formatMediaDuration(dur)})`;
       setReplyingTo(null);
-      showToast('Voice note sent!');
+      showToast('Voice Note Sent');
     }
 
     audioChunksRef.current = [];
@@ -396,7 +396,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
       activeChat.messages.push(newMsg);
       activeChat.lastMessage = `📹 Video note (${dur}s)`;
       setReplyingTo(null);
-      showToast('Circular video note sent!');
+      showToast('Video Note Sent');
     }
 
     videoChunksRef.current = [];

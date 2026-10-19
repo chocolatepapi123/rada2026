@@ -179,7 +179,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
       [sid]: [newRev, ...(prev[sid] || [])]
     }));
 
-    showToast?.('Review published live on RADA!');
+    showToast?.('Review Submitted');
     setReviewModalSpot(null);
     setReviewComment('');
     setReviewPhotos([]);

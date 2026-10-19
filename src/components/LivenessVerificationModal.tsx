@@ -298,7 +298,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
       }
 
       // Visual confirmation & toast
-      showToast('Profile Verified Successfully!');
+      showToast('Profile Verified');
       setStep('success');
 
       // Auto-close modal after 1.5s visual confirmation

@@ -26,6 +26,7 @@ import { SplashScreen } from './components/SplashScreen.tsx';
 import { AccountSettingsModal } from './components/AccountSettingsModal.tsx';
 import { SavedPlacesModal } from './components/SavedPlacesModal.tsx';
 import { LivenessVerificationModal } from './components/LivenessVerificationModal.tsx';
+import { ToastProvider, showToast as triggerToast } from './components/Toast.tsx';
 import { getTimeOfDayGreeting } from './utils/greetingUtils';
 
 import {
@@ -468,16 +469,9 @@ export default function App() {
   // Profile View Modal state (to view anyone's profile and bio)
   const [viewingProfile, setViewingProfile] = useState<UserProfile | null>(null);
 
-  // Sleek minimal single-line toast notification (one at a time, quick fade, no green glow or stacking)
-  const [activeToast, setActiveToast] = useState<string | null>(null);
-  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  const showToast = (text: string) => {
-    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-    setActiveToast(text);
-    toastTimeoutRef.current = setTimeout(() => {
-      setActiveToast(null);
-    }, 3500);
+  // Unified RADA Toast Dispatcher with 2.5s auto-dismiss and glassmorphism styling
+  const showToast = (text: string, options?: any) => {
+    triggerToast(text, options);
   };
 
   // Saved Moves / Bookmarked Listings State
@@ -552,7 +546,13 @@ export default function App() {
           showToast('Removed from your plans.');
           updated = prev.filter(s => !(String(s.id) === String(item.id) && s.kind === kind));
         } else {
-          showToast(`Saved "${item.title || item.name}" to your personal plans & Vault!`);
+          if (kind === 'spot') {
+            showToast('Spot Saved to Vault');
+          } else if (kind === 'event') {
+            showToast('Event Saved to Vault');
+          } else {
+            showToast(`Saved "${item.title || item.name}" to Vault`);
+          }
           updated = [{ id: item.id, kind, savedAt: new Date().toISOString() }, ...prev];
         }
         if (session?.user?.id) {
@@ -1396,7 +1396,7 @@ export default function App() {
         return s;
       }));
 
-      showToast(`Review posted for ★ ${review.rating} rating!`);
+      showToast('Review Submitted');
     });
   };
 
@@ -1568,7 +1568,7 @@ export default function App() {
     }
 
     setIsLivenessModalOpen(false);
-    showToast('Profile Verified Successfully!');
+    showToast('Profile Verified');
   };
 
   const handleBuyEventTicket = (event: EventItem) => {
@@ -1688,19 +1688,11 @@ export default function App() {
     }
   };
   return (
-    <BusinessesProvider businesses={businesses}>
-    <div className="min-h-screen bg-white text-slate-900 dark:bg-[#121113] dark:text-slate-100 flex flex-col transition-colors duration-200 antialiased overflow-x-hidden">
-      {/* Primary Application Splash Screen */}
-      {showSplash && <SplashScreen durationMs={2000} onDismiss={() => setShowSplash(false)} />}
-
-      {/* Sleek Minimal Single-Line Toast Notification */}
-      {activeToast && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[200] pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-150">
-          <div className="bg-slate-900/90 dark:bg-white/95 text-white dark:text-slate-900 backdrop-blur-md text-xs font-semibold px-4 py-2 rounded-full shadow-lg border border-slate-700/50 dark:border-slate-200/50 flex items-center gap-2 whitespace-nowrap">
-            <span>{activeToast}</span>
-          </div>
-        </div>
-      )}
+    <ToastProvider>
+      <BusinessesProvider businesses={businesses}>
+        <div className="min-h-screen bg-white text-slate-900 dark:bg-[#121113] dark:text-slate-100 flex flex-col transition-colors duration-200 antialiased overflow-x-hidden">
+          {/* Primary Application Splash Screen */}
+          {showSplash && <SplashScreen durationMs={2000} onDismiss={() => setShowSplash(false)} />}
 
       {authLoading ? (
         <div 
@@ -2147,8 +2139,9 @@ export default function App() {
 )}
         </>
       )}
-    </div>
-    </BusinessesProvider>
+        </div>
+      </BusinessesProvider>
+    </ToastProvider>
   );
 }
  
