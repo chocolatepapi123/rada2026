@@ -6,6 +6,7 @@ import {
   Plus, 
   Search, 
   CheckCircle2, 
+  BarChart3,
   Edit3, 
   Trash2, 
   MapPin, 
@@ -67,6 +68,7 @@ import { BusinessBadge } from './BusinessBadge.tsx';
 import { DynamicLocationSelector } from './DynamicLocationSelector.tsx';
 import { toValidUuid } from '../lib/cloudSync.ts';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
+import { SpotInsightsAnalytics } from './MerchantHub.tsx';
 
 export type MainCategoryKey = 
   | 'restaurants_dining'
@@ -457,7 +459,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   const [onboardingStep, setOnboardingStep] = useState<1 | 2>(1);
 
   // Active sub-tab inside the vertical dashboard
-  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'manage' | 'claim' | 'offers' | 'profile'>('overview');
+  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'manage' | 'claim' | 'offers' | 'profile' | 'analytics'>('overview');
 
   // Business Switcher Dropdown
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
@@ -1901,6 +1903,18 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
               Overview
             </button>
 
+            <button
+              onClick={() => setActiveSubTab('analytics')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
+                activeSubTab === 'analytics'
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span>Spot Analytics</span>
+            </button>
+
             {/* Spot Merchant Specific Tabs */}
             {currentBiz.category === 'hospitality' && (
               <>
@@ -2061,6 +2075,15 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                 <span className="text-[10px] text-slate-400 font-medium">Verified Merchant</span>
               </div>
             </div>
+
+            {/* Dynamic Metrics & Analytics Overview */}
+            <SpotInsightsAnalytics
+              spots={spots}
+              currentBiz={currentBiz}
+              userId={userId || effectiveUserId}
+              onOpenCreateSpot={openCreateSpotModal}
+              showToast={showToast}
+            />
 
             {/* Operational Hub Action Cards */}
             <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xs space-y-4">
@@ -2541,6 +2564,21 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* =========================================================================
+            SUB-TAB: SPOT ANALYTICS & INSIGHTS
+            ========================================================================= */}
+        {activeSubTab === 'analytics' && (
+          <div className="space-y-6 animate-in fade-in duration-150">
+            <SpotInsightsAnalytics
+              spots={spots}
+              currentBiz={currentBiz}
+              userId={userId || effectiveUserId}
+              onOpenCreateSpot={openCreateSpotModal}
+              showToast={showToast}
+            />
           </div>
         )}
 
