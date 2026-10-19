@@ -8,15 +8,15 @@
   --color-brandViolet: #8B5CF6;
   --color-brandVioletHover: #7C3AED;
   
-  /* Theme tokens: Rich saturated palette (#0A1128 base) */
-  --color-lightBg: #0A1128;
-  --color-lightSurface: #101935;
-  --color-lightText: #F8FAFC;
-  --color-lightMuted: #94A3B8;
-  --color-lightBorder: rgba(255, 255, 255, 0.1);
+  /* Theme tokens: Luxury premium white theme & dark mode tokens */
+  --color-lightBg: #FAFAFC;
+  --color-lightSurface: #FFFFFF;
+  --color-lightText: #0F172A;
+  --color-lightMuted: #64748B;
+  --color-lightBorder: rgba(15, 23, 42, 0.08);
 
-  --color-darkBg: #0A1128;
-  --color-darkSurface: #101935;
+  --color-darkBg: #0B0F17;
+  --color-darkSurface: #111827;
   --color-darkText: #F8FAFC;
   --color-darkMuted: #94A3B8;
   --color-darkBorder: rgba(255, 255, 255, 0.1);
@@ -28,7 +28,7 @@
   --color-catTech: #06B6D4;
   --color-catAction: #EF4444;
   --color-catDate: #F43F5E;
-  --color-catClubs: #A855F7;
+  --color-catClubs: #8B5CF6;
   --color-catCafes: #D97706;
   --color-catHotels: #EAB308;
   --color-catVacation: #3B82F6;
@@ -42,13 +42,13 @@
 }
 
 html {
-  background-color: #0A1128;
-  color: #F8FAFC;
+  background-color: #FAFAFC;
+  color: #0F172A;
   overscroll-behavior-y: none;
 }
 
 html.dark {
-  background-color: #0A1128;
+  background-color: #0B0F17;
   color: #F8FAFC;
 }
 

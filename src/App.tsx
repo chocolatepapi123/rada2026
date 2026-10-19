@@ -246,13 +246,13 @@ export default function App() {
 
   
 
-  // Theme State: Default to Rich Saturated Artistic Palette
+  // Theme State: Default to Luxury White Theme with Dark Mode Toggle
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('rada_theme');
     if (saved) {
-      return saved !== 'light';
+      return saved === 'dark';
     }
-    return true; // Default to rich, saturated artistic theme
+    return false; // Default to luxury premium white theme
   });
 
   useEffect(() => {
@@ -1644,17 +1644,20 @@ export default function App() {
   return (
     <BusinessesProvider businesses={businesses}>
     <div 
-      className="min-h-screen text-[#F8FAFC] flex flex-col transition-colors duration-700 ease-in-out antialiased overflow-x-hidden relative"
+      className="min-h-screen text-[#0F172A] dark:text-[#F8FAFC] flex flex-col transition-colors duration-500 ease-in-out antialiased overflow-x-hidden relative"
       style={{
-        backgroundColor: currentMood.bgHex,
-        backgroundImage: currentMood.gradientDark
+        backgroundColor: isDarkMode ? currentMood.bgHex : currentMood.lightBgHex,
+        backgroundImage: isDarkMode ? currentMood.gradientDark : currentMood.gradientLight
       }}
     >
       {/* Immersive Category Ambient Mood Glow */}
       <div 
-        className="fixed inset-0 pointer-events-none transition-all duration-700 ease-in-out z-0 opacity-70"
+        className="fixed inset-0 pointer-events-none transition-all duration-700 ease-in-out z-0"
         style={{
-          background: `radial-gradient(circle at 50% 12%, ${currentMood.ambientGlow} 0%, transparent 65%)`
+          background: isDarkMode
+            ? `radial-gradient(circle at 50% 12%, ${currentMood.ambientGlow} 0%, transparent 65%)`
+            : `radial-gradient(circle at 50% 8%, ${currentMood.ambientGlowLight} 0%, transparent 60%)`,
+          opacity: isDarkMode ? 0.7 : 0.35
         }}
       />
 
