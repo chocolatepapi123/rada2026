@@ -10,8 +10,7 @@ import {
   Sun,
   Moon,
   Bookmark,
-  LogIn,
-  RefreshCw
+  LogIn
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -33,8 +32,9 @@ interface HeaderProps {
   onOpenSaved?: () => void;
   savedCount?: number;
   onOpenAccountSettings?: () => void;
-  /** Dedicated refresh action (the ONLY way to refresh; pull-to-refresh is removed). Icon renders only when provided. */
+  /** @deprecated The header no longer renders a refresh button. Accepted so existing callers still compile. */
   onRefresh?: () => void;
+  /** @deprecated See onRefresh. */
   isRefreshing?: boolean;
 }
 
@@ -54,9 +54,7 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
   onOpenSaved,
   savedCount,
-  onOpenAccountSettings,
-  onRefresh,
-  isRefreshing = false
+  onOpenAccountSettings
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -76,12 +74,15 @@ export const Header: React.FC<HeaderProps> = ({
     onOpenOverlay(overlayId);
   };
 
+  // Primary city/area only: "Kiambu / Thika, Kenya" -> "Kiambu", "Westlands, Nairobi" -> "Westlands"
   const singleLocality = React.useMemo(() => {
     if (!currentLocation || typeof currentLocation !== 'string') return '';
-    const trimmed = currentLocation.trim();
-    if (!trimmed) return '';
-    const area = trimmed.split(',')[0]?.trim();
-    return area || '';
+    const primary = currentLocation
+      .trim()
+      .split(/\s*[,/|•·;]\s*|\s+[-–—]\s+/)[0]
+      ?.replace(/\s*\.{2,}$|…$/g, '')
+      .trim();
+    return primary || '';
   }, [currentLocation]);
 
   return (
@@ -110,11 +111,11 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Dynamic Detected Current Location: ONLY single locality name, hidden if unavailable or null */}
           {singleLocality && (
             <div 
-              className="min-w-0 shrink text-xs bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 font-semibold px-2 sm:px-2.5 py-1 rounded-full flex items-center gap-1 sm:gap-1.5 border border-slate-200 dark:border-slate-800 select-none max-w-[100px] xs:max-w-[130px] sm:max-w-[180px] cursor-default shadow-2xs overflow-hidden"
+              className="min-w-0 shrink text-xs bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 font-semibold px-2 sm:px-2.5 py-1 rounded-full flex items-center gap-1 sm:gap-1.5 border border-slate-200 dark:border-slate-800 select-none max-w-[42vw] sm:max-w-[220px] cursor-default shadow-2xs overflow-hidden"
               title={`Location: ${singleLocality}`}
             >
               <MapPin className="w-3.5 h-3.5 shrink-0 text-[#E05328]" />
-              <span className="truncate text-[10px] sm:text-[11px] font-bold min-w-0">{singleLocality}</span>
+              <span className="whitespace-nowrap truncate text-[11px] font-bold min-w-0">{singleLocality}</span>
             </div>
           )}
         </div>
@@ -140,20 +141,6 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               </div>
             </div>
-          )}
-
-          {/* Header Refresh Icon (dedicated; no pull-down-to-refresh) */}
-          {onRefresh && (
-            <button
-              type="button"
-              onClick={onRefresh}
-              disabled={isRefreshing}
-              className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 flex items-center justify-center rounded-full bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-slate-700 dark:text-slate-200 focus:outline-none disabled:opacity-60 cursor-pointer"
-              aria-label="Refresh"
-              title="Refresh"
-            >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            </button>
           )}
 
           {/* 3-Dot Overflow Menu */}

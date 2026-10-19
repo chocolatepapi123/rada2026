@@ -11,41 +11,16 @@ import {
   Loader2,
   AlertCircle,
   User as UserIcon,
-  BadgeCheck,
-  BarChart3,
-  Megaphone,
-  Sparkles,
   Eye,
   EyeOff,
   Camera,
-  Check,
-  AtSign,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import {
-  checkUsernameAvailable,
-  normalizeUsername,
-  updateUsername,
-  uploadAvatar,
-  validateUsernameFormat,
-  USERNAME_MAX,
-} from '../lib/cloudSync';
 import { UserProfile } from '../types';
 import { VerifiedBadge } from './VerifiedBadge';
-import {
-  ProfessionalAccount,
-  ProfessionalKind,
-  EMPTY_PROFESSIONAL,
-  PROFESSIONAL_CATEGORIES,
-  loadProfessionalAccount,
-  saveProfessionalAccount,
-} from '../utils/professionalAccount';
-
-interface ProfessionalStats {
-  profileViews?: number;
-  outingsHosted?: number;
-  joinRequests?: number;
-}
+import { ProfileIdentityForm } from './ProfileIdentityForm';
+import { uploadAvatar, normalizeUsername } from '../lib/cloudSync';
+import { loadProfessionalAccount } from '../utils/professionalAccount';
 
 interface AccountSettingsModalProps {
   isOpen: boolean;
@@ -55,15 +30,15 @@ interface AccountSettingsModalProps {
   showToast: (msg: string) => void;
   onOpenAuth?: () => void;
   onSignOut?: () => void;
-  /** Optional: persist the professional application/settings to your backend (e.g. Supabase profiles). */
-  onUpdateProfessional?: (data: ProfessionalAccount) => Promise<void> | void;
-  /** Called after a username or avatar change is saved so the app can update the profile in real time. */
+  /** Called whenever name, username or avatar changes so the global App profile state stays in sync. */
   onProfileChange?: (patch: Partial<UserProfile>) => void;
-  /** Optional: real analytics numbers. Anything undefined renders as an empty state, never mock data. */
-  professionalStats?: ProfessionalStats;
+  /** @deprecated The professional account toggle now lives in UserProfileModal. Ignored here. */
+  onUpdateProfessional?: (data: any) => Promise<void> | void;
+  /** @deprecated Professional insights now live in UserProfileModal. Ignored here. */
+  professionalStats?: { profileViews?: number; outingsHosted?: number; joinRequests?: number };
 }
 
-type Screen = 'main' | 'password' | 'professional';
+type Screen = 'main' | 'password';
 
 const Row: React.FC<{
   icon: React.ReactNode;
@@ -112,9 +87,7 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
   showToast,
   onOpenAuth,
   onSignOut,
-  onUpdateProfessional,
   onProfileChange,
-  professionalStats,
 }) => {
   const [screen, setScreen] = useState<Screen>('main');
 
@@ -125,78 +98,39 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
-  // Professional account
   const user = session?.user;
   const isLoggedIn = !!user;
   const accountKey: string | undefined = user?.id || currentUserProfile?.handle;
-  const [pro, setPro] = useState<ProfessionalAccount>(EMPTY_PROFESSIONAL);
-  const [isSavingPro, setIsSavingPro] = useState(false);
 
-  // Username
-  const savedUsername = normalizeUsername(currentUserProfile?.username || currentUserProfile?.handle || '');
-  const [usernameInput, setUsernameInput] = useState(savedUsername);
-  type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken' | 'invalid' | 'error';
-  const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle');
-  const [usernameMsg, setUsernameMsg] = useState('');
-  const [isSavingUsername, setIsSavingUsername] = useState(false);
-  const checkSeq = useRef(0);
+  // Local copy of identity so the modal always shows the latest saved values,
+  // even if the parent has not re-rendered yet. Cleared when the account changes.
+  const [identity, setIdentity] = useState<Partial<UserProfile>>({});
+  useEffect(() => {
+    setIdentity({});
+  }, [accountKey]);
+
+  const profile: Partial<UserProfile> = { ...(currentUserProfile || {}), ...identity };
+  const handle = profile.handle || '';
+  const username = normalizeUsername(profile.username || handle);
+
+  const applyProfileChange = (patch: Partial<UserProfile>) => {
+    setIdentity((prev) => ({ ...prev, ...patch }));
+    onProfileChange?.(patch);
+  };
 
   // Avatar
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
-      setScreen('main');
-      setPro(loadProfessionalAccount(accountKey));
-      setUsernameInput(savedUsername);
-      setUsernameStatus('idle');
-      setUsernameMsg('');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, accountKey]);
-
-  // Live availability check (debounced, ignores stale responses)
-  useEffect(() => {
-    if (!isOpen) return;
-    const value = normalizeUsername(usernameInput);
-    if (value === savedUsername) {
-      setUsernameStatus('idle');
-      setUsernameMsg('');
-      return;
-    }
-    const formatError = validateUsernameFormat(value);
-    if (formatError) {
-      setUsernameStatus('invalid');
-      setUsernameMsg(formatError);
-      return;
-    }
-    setUsernameStatus('checking');
-    setUsernameMsg('Checking…');
-    const seq = ++checkSeq.current;
-    const timer = setTimeout(async () => {
-      const res = await checkUsernameAvailable(value, user?.id);
-      if (seq !== checkSeq.current) return;
-      if (res.error) {
-        setUsernameStatus('error');
-        setUsernameMsg(res.error);
-      } else if (res.available) {
-        setUsernameStatus('available');
-        setUsernameMsg('Available');
-      } else {
-        setUsernameStatus('taken');
-        setUsernameMsg('Username taken');
-      }
-    }, 400);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [usernameInput, isOpen, savedUsername]);
+    if (isOpen) setScreen('main');
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const email =
     user?.email ||
-    (currentUserProfile ? `${currentUserProfile.handle.replace('@', '')}@rada.ke` : 'guest@rada.ke');
+    (handle ? `${handle.replace('@', '')}@rada.ke` : 'guest@rada.ke');
 
   const rawProvider =
     user?.app_metadata?.provider || user?.identities?.[0]?.provider || (isLoggedIn ? 'email' : 'Local Guest');
@@ -204,44 +138,12 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
     rawProvider === 'google' ? 'Google' : rawProvider === 'email' ? 'Email & password' : rawProvider;
   const canChangePassword = isLoggedIn && rawProvider === 'email';
 
-  const isProfessional = pro.status !== 'none';
+  // Read-only badge; the professional toggle itself lives in the profile modal
+  const proStatus = loadProfessionalAccount(accountKey).status;
 
   const requireLogin = () => {
     showToast('Please sign in first.');
     if (onOpenAuth) onOpenAuth();
-  };
-
-  const persistPro = async (next: ProfessionalAccount) => {
-    setPro(next);
-    saveProfessionalAccount(accountKey, next);
-    if (onUpdateProfessional) await onUpdateProfessional(next);
-  };
-
-  const canSaveUsername =
-    isLoggedIn &&
-    !isSavingUsername &&
-    usernameStatus === 'available' &&
-    normalizeUsername(usernameInput) !== savedUsername;
-
-  const handleSaveUsername = async () => {
-    if (!isLoggedIn) return requireLogin();
-    if (!canSaveUsername) return;
-    setIsSavingUsername(true);
-    const res = await updateUsername(user.id, usernameInput);
-    setIsSavingUsername(false);
-    if (res.error || !res.username) {
-      if (res.error === 'Username taken') {
-        setUsernameStatus('taken');
-        setUsernameMsg('Username taken');
-      }
-      showToast(res.error || 'Could not save username.');
-      return;
-    }
-    setUsernameInput(res.username);
-    setUsernameStatus('idle');
-    setUsernameMsg('');
-    onProfileChange?.({ username: res.username, handle: `@${res.username}` });
-    showToast(`Username updated to @${res.username}`);
   };
 
   const handleAvatarPicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -253,7 +155,7 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
     const res = await uploadAvatar(user.id, file);
     setIsUploadingAvatar(false);
     if (res.error || !res.url) return showToast(res.error || 'Could not upload photo.');
-    onProfileChange?.({ avatar: res.url });
+    applyProfileChange({ avatar: res.url });
     showToast('Profile photo updated.');
   };
 
@@ -281,46 +183,6 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
     }
   };
 
-  // Toggle ON -> open application. Toggle OFF -> switch back to personal.
-  const handleToggleProfessional = async () => {
-    if (!isLoggedIn) return requireLogin();
-    if (isProfessional) {
-      if (!window.confirm('Switch back to a personal account? Your professional settings will be removed.')) return;
-      await persistPro({ ...EMPTY_PROFESSIONAL });
-      showToast('Switched back to a personal account.');
-    } else {
-      setScreen('professional');
-    }
-  };
-
-  const handleSubmitProfessional = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!pro.category) return showToast('Please pick a category.');
-    if (!pro.brandName.trim()) return showToast('Please enter your brand or creator name.');
-    setIsSavingPro(true);
-    try {
-      const next: ProfessionalAccount = {
-        ...pro,
-        brandName: pro.brandName.trim(),
-        contactEmail: pro.contactEmail.trim() || email,
-        website: pro.website.trim(),
-        status: pro.status === 'approved' ? 'approved' : 'pending',
-        appliedAt: pro.appliedAt || new Date().toISOString(),
-      };
-      await persistPro(next);
-      showToast(
-        next.status === 'approved'
-          ? 'Professional settings saved.'
-          : 'Application submitted. We will review it shortly.'
-      );
-      setScreen('main');
-    } catch (err: any) {
-      showToast(`Could not save: ${err?.message || 'try again'}`);
-    } finally {
-      setIsSavingPro(false);
-    }
-  };
-
   const inputCls =
     'w-full px-3.5 py-2.5 text-[13px] bg-slate-50 dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-[#E0533C] text-slate-900 dark:text-slate-100 placeholder:text-slate-400';
   const labelCls = 'block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1';
@@ -328,10 +190,7 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
   const titles: Record<Screen, string> = {
     main: 'Account & Security',
     password: 'Password',
-    professional: isProfessional ? 'Professional account' : 'Switch to professional',
   };
-
-  const statNumber = (n?: number) => (typeof n === 'number' ? n.toLocaleString() : '—');
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
@@ -369,10 +228,10 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
               {/* Identity header */}
               <div className="flex flex-col items-center text-center px-4 pt-6 pb-2">
                 <div className="relative">
-                  {currentUserProfile?.avatar ? (
+                  {profile.avatar ? (
                     <img
-                      src={currentUserProfile.avatar}
-                      alt={currentUserProfile.handle || 'Profile photo'}
+                      src={profile.avatar}
+                      alt={handle || 'Profile photo'}
                       className="w-20 h-20 rounded-full object-cover border-2 border-white dark:border-[#1C1A1E] shadow-md"
                     />
                   ) : (
@@ -395,24 +254,13 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
                   >
                     <Camera className="w-3.5 h-3.5" />
                   </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleAvatarPicked}
-                  />
+                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarPicked} />
                 </div>
                 <div className="mt-3 flex items-center gap-1.5">
-                  <h2 className="text-base font-black">{currentUserProfile?.handle || 'Guest'}</h2>
-                  <VerifiedBadge status={pro.status} size="md" />
+                  <h2 className="text-base font-black">{handle || 'Guest'}</h2>
+                  <VerifiedBadge status={proStatus} size="md" />
                 </div>
                 <p className="text-[11px] text-slate-400">Only your @username is shown to others</p>
-                {isProfessional && (
-                  <span className="mt-2 text-[10px] font-black px-2.5 py-0.5 rounded-full bg-[#1D9BF0]/10 text-[#1D9BF0]">
-                    {pro.kind === 'creator' ? 'Creator account' : 'Personal brand'}
-                  </span>
-                )}
               </div>
 
               {!isLoggedIn && (
@@ -438,64 +286,18 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
                 </div>
               )}
 
-              <SectionTitle>Username</SectionTitle>
-              <div className="mx-3 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-2">
-                <label className={labelCls} htmlFor="username-input">
-                  Your public @username
-                </label>
-                <div className="relative">
-                  <AtSign className="w-3.5 h-3.5 text-slate-400 absolute left-3.5 top-3.5" />
-                  <input
-                    id="username-input"
-                    type="text"
-                    value={usernameInput}
-                    onChange={(e) => setUsernameInput(normalizeUsername(e.target.value))}
-                    maxLength={USERNAME_MAX}
-                    disabled={!isLoggedIn || isSavingUsername}
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    spellCheck={false}
-                    placeholder="wayne_dev"
-                    className={`${inputCls} pl-9 pr-10 ${
-                      usernameStatus === 'taken' || usernameStatus === 'invalid' || usernameStatus === 'error'
-                        ? '!border-red-500'
-                        : usernameStatus === 'available'
-                        ? '!border-emerald-500'
-                        : ''
-                    }`}
-                  />
-                  <span className="absolute right-3 top-3">
-                    {usernameStatus === 'checking' && <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />}
-                    {usernameStatus === 'available' && <Check className="w-4 h-4 text-emerald-500" />}
-                    {(usernameStatus === 'taken' || usernameStatus === 'invalid' || usernameStatus === 'error') && (
-                      <AlertCircle className="w-4 h-4 text-red-500" />
-                    )}
-                  </span>
-                </div>
-                <p
-                  className={`text-[11px] min-h-[16px] font-semibold ${
-                    usernameStatus === 'available'
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : usernameStatus === 'checking'
-                      ? 'text-slate-400'
-                      : usernameStatus === 'idle'
-                      ? 'text-slate-400 font-normal'
-                      : 'text-red-500'
-                  }`}
-                  aria-live="polite"
-                >
-                  {usernameStatus === 'available' && '✓ '}
-                  {usernameMsg || `3–${USERNAME_MAX} characters: lowercase letters, numbers, _ and -`}
-                </p>
-                <button
-                  type="button"
-                  onClick={handleSaveUsername}
-                  disabled={!canSaveUsername}
-                  className="w-full py-2.5 bg-[#E0533C] hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-xl text-[13px] transition flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {isSavingUsername ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Save username</span>}
-                </button>
-                <p className="text-[10px] text-slate-400">
+              <SectionTitle>Profile</SectionTitle>
+              <div className="mx-3 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-4">
+                <ProfileIdentityForm
+                  userId={user?.id}
+                  name={profile.name || ''}
+                  username={username}
+                  handle={handle}
+                  showToast={showToast}
+                  onRequireLogin={requireLogin}
+                  onChange={applyProfileChange}
+                />
+                <p className="mt-3 text-[10px] text-slate-400">
                   Your real name, email and phone number are never shown on cards, statuses, comments or plans.
                 </p>
               </div>
@@ -529,99 +331,19 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
                       ? `Managed by ${authProviderName}`
                       : 'Log in to manage'
                   }
-                  onClick={() => (isLoggedIn ? (canChangePassword ? setScreen('password') : showToast(`Your password is managed by ${authProviderName}.`)) : requireLogin())}
+                  onClick={() =>
+                    isLoggedIn
+                      ? canChangePassword
+                        ? setScreen('password')
+                        : showToast(`Your password is managed by ${authProviderName}.`)
+                      : requireLogin()
+                  }
                 />
               </Card>
 
-              <SectionTitle>Account type</SectionTitle>
-              <Card>
-                <div className="px-4 py-3.5 flex items-center gap-3">
-                  <span className="w-8 h-8 rounded-full bg-[#1D9BF0]/10 text-[#1D9BF0] flex items-center justify-center shrink-0">
-                    <BadgeCheck className="w-4 h-4" />
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-semibold">Switch to professional account</p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      {pro.status === 'pending'
-                        ? 'Application under review'
-                        : pro.status === 'approved'
-                        ? 'Verified professional'
-                        : 'For personal brands and creators'}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={isProfessional}
-                    onClick={handleToggleProfessional}
-                    className={`relative w-11 h-6 rounded-full transition-colors shrink-0 cursor-pointer ${
-                      isProfessional ? 'bg-[#1D9BF0]' : 'bg-slate-300 dark:bg-slate-700'
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                        isProfessional ? 'translate-x-5' : ''
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {isProfessional && (
-                  <Row
-                    icon={<Sparkles className="w-4 h-4" />}
-                    label="Professional settings"
-                    value={`${pro.brandName || 'Brand'} • ${pro.category || 'No category'}`}
-                    onClick={() => setScreen('professional')}
-                  />
-                )}
-              </Card>
-
-              {/* Professional-only: benefits + analytics */}
-              {isProfessional && (
-                <>
-                  <SectionTitle>Profile insights</SectionTitle>
-                  {pro.status === 'approved' ? (
-                    <div className="mx-3 grid grid-cols-3 gap-2">
-                      {[
-                        ['Profile views', professionalStats?.profileViews],
-                        ['Plans hosted', professionalStats?.outingsHosted],
-                        ['Join requests', professionalStats?.joinRequests],
-                      ].map(([label, n]) => (
-                        <div
-                          key={label as string}
-                          className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-center"
-                        >
-                          <BarChart3 className="w-3.5 h-3.5 text-[#1D9BF0] mx-auto mb-1" />
-                          <p className="text-lg font-black">{statNumber(n as number | undefined)}</p>
-                          <p className="text-[10px] text-slate-500 font-semibold">{label as string}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="mx-4 text-[11px] text-slate-500">
-                      Insights unlock once your account is approved.
-                    </p>
-                  )}
-
-                  <SectionTitle>Host benefits</SectionTitle>
-                  <Card>
-                    {[
-                      ['Verified badge on your profile and hosted plans', pro.status === 'approved'],
-                      ['Advanced profile settings and brand details', true],
-                      ['Priority placement for plans you host', pro.status === 'approved'],
-                      ['Profile analytics', pro.status === 'approved'],
-                    ].map(([text, active]) => (
-                      <div key={text as string} className="px-4 py-3 flex items-center gap-3">
-                        <Megaphone className={`w-4 h-4 shrink-0 ${active ? 'text-[#1D9BF0]' : 'text-slate-300'}`} />
-                        <span className={`text-xs font-medium ${active ? '' : 'text-slate-400'}`}>{text as string}</span>
-                        {!active && (
-                          <span className="ml-auto text-[10px] font-bold text-slate-400">After approval</span>
-                        )}
-                      </div>
-                    ))}
-                  </Card>
-                </>
-              )}
+              <p className="mx-4 mt-4 text-[11px] text-slate-400">
+                Looking for the professional account switch? It&apos;s now in your Profile.
+              </p>
 
               {isLoggedIn && onSignOut && (
                 <div className="mx-3 mt-6">
@@ -705,109 +427,6 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
                   </>
                 ) : (
                   <span>Update password</span>
-                )}
-              </button>
-            </form>
-          )}
-
-          {/* ===================== PROFESSIONAL ===================== */}
-          {screen === 'professional' && (
-            <form onSubmit={handleSubmitProfessional} className="px-4 pt-5 space-y-4">
-              {!isProfessional && (
-                <div className="p-3.5 rounded-2xl bg-[#1D9BF0]/10 border border-[#1D9BF0]/20 text-xs text-slate-700 dark:text-slate-200 space-y-1">
-                  <p className="font-black flex items-center gap-1.5">
-                    <BadgeCheck className="w-4 h-4 text-[#1D9BF0]" /> What you get
-                  </p>
-                  <p>Advanced profile settings, host benefits, profile analytics, and a verified badge once approved.</p>
-                </div>
-              )}
-
-              {pro.status !== 'none' && (
-                <div className="flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800">
-                  <span className="text-xs font-semibold">Status</span>
-                  <VerifiedBadge status={pro.status} size="sm" showLabel />
-                </div>
-              )}
-
-              <div>
-                <label className={labelCls}>Account type</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {([
-                    ['personal_brand', 'Personal brand'],
-                    ['creator', 'Creator'],
-                  ] as [ProfessionalKind, string][]).map(([k, label]) => (
-                    <button
-                      key={k}
-                      type="button"
-                      onClick={() => setPro({ ...pro, kind: k })}
-                      className={`py-2.5 rounded-xl text-xs font-black border transition cursor-pointer ${
-                        pro.kind === k
-                          ? 'bg-[#1D9BF0] text-white border-[#1D9BF0]'
-                          : 'bg-white dark:bg-[#1C1A1E] border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className={labelCls}>Category</label>
-                <select
-                  value={pro.category}
-                  onChange={(e) => setPro({ ...pro, category: e.target.value })}
-                  className={inputCls}
-                >
-                  <option value="">Select a category</option>
-                  {PROFESSIONAL_CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className={labelCls}>Brand / creator name</label>
-                <input
-                  type="text"
-                  value={pro.brandName}
-                  onChange={(e) => setPro({ ...pro, brandName: e.target.value })}
-                  className={inputCls}
-                />
-              </div>
-
-              <div>
-                <label className={labelCls}>Contact email (optional)</label>
-                <input
-                  type="email"
-                  value={pro.contactEmail}
-                  onChange={(e) => setPro({ ...pro, contactEmail: e.target.value })}
-                  placeholder={email}
-                  className={inputCls}
-                />
-              </div>
-
-              <div>
-                <label className={labelCls}>Website (optional)</label>
-                <input
-                  type="url"
-                  value={pro.website}
-                  onChange={(e) => setPro({ ...pro, website: e.target.value })}
-                  className={inputCls}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isSavingPro}
-                className="w-full py-3 bg-[#1D9BF0] hover:bg-[#1a8cd8] disabled:opacity-50 text-white font-black rounded-xl text-[13px] transition flex items-center justify-center gap-2 cursor-pointer"
-              >
-                {isSavingPro ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <span>{isProfessional ? 'Save changes' : 'Submit for approval'}</span>
                 )}
               </button>
             </form>

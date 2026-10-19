@@ -26,6 +26,42 @@ import {
 } from '../utils/calendarUtils.ts';
 import { getCategoryAccent } from '../utils/categoryAccents.ts';
 
+type EventFilterId = 'all' | 'nightlife' | 'concerts' | 'tech' | 'art' | 'sports';
+
+const EVENT_FILTERS: { id: EventFilterId; label: string; emoji: string }[] = [
+  { id: 'all', label: 'All Events', emoji: '✨' },
+  { id: 'nightlife', label: 'Parties & Nightlife', emoji: '🪩' },
+  { id: 'concerts', label: 'Concerts & Live', emoji: '🎤' },
+  { id: 'tech', label: 'Tech & Gaming', emoji: '🎮' },
+  { id: 'art', label: 'Art & Culture', emoji: '🎨' },
+  { id: 'sports', label: 'Sports', emoji: '⚽' },
+];
+
+const TECH_RE = /\b(tech|gaming|game|gamer|esports?|hackathon|developer|startup|ai|coding|code|robotics|fifa|playstation|ps5)\b/i;
+const SPORTS_RE = /\b(sports?|football|soccer|rugby|marathon|run|race|rally|basketball|cricket|golf|boxing|tournament|match|derby|gym|fitness|safari rally)\b/i;
+
+/** Maps an event onto the category filters using its category, genre and title. */
+function eventMatchesFilter(evt: EventItem, filter: EventFilterId): boolean {
+  if (filter === 'all') return true;
+  const text = `${evt.genre || ''} ${evt.title || ''}`;
+  const isTech = TECH_RE.test(text);
+  const isSports = SPORTS_RE.test(text);
+  switch (filter) {
+    case 'tech':
+      return isTech;
+    case 'sports':
+      return isSports && !isTech;
+    case 'nightlife':
+      return evt.category === 'nightlife' && !isTech && !isSports;
+    case 'concerts':
+      return evt.category === 'concerts' && !isTech && !isSports;
+    case 'art':
+      return (evt.category === 'art' || evt.category === 'cinemas') && !isTech && !isSports;
+    default:
+      return true;
+  }
+}
+
 interface LukuEventsTabProps {
   events: EventItem[];
   onOpenEventDetails: (event: EventItem) => void;
@@ -62,7 +98,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
   const [selectedYear, setSelectedYear] = useState<number>(() => parsedTargetDate?.year || 2026);
   const [selectedMonth, setSelectedMonth] = useState<number>(() => (parsedTargetDate?.month !== undefined ? parsedTargetDate.month : 9));
   const [selectedDay, setSelectedDay] = useState<number | null>(() => (parsedTargetDate?.day !== undefined ? parsedTargetDate.day : 24));
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<EventFilterId>('all');
   const [focusedEventId, setFocusedEventId] = useState<number | string | null>(highlightEventId);
 
   // Sync state whenever initialDate changes
@@ -79,7 +115,12 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
   }, [highlightEventId]);
 
   React.useEffect(() => {
-    onCategoryChange?.(selectedCategory === 'all' ? 'events' : selectedCategory);
+    // Parent only knows the original event categories; tech/sports roll up to the generic 'events'
+    const parentCategory =
+      selectedCategory === 'nightlife' || selectedCategory === 'concerts' || selectedCategory === 'art'
+        ? selectedCategory
+        : 'events';
+    onCategoryChange?.(parentCategory);
   }, [selectedCategory, onCategoryChange]);
 
   // Month navigation
@@ -128,11 +169,11 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
   // Filter events for the currently selected day
   const dayEvents = useMemo(() => {
     if (selectedDay === null) {
-      return events.filter(e => selectedCategory === 'all' || e.category === selectedCategory);
+      return events.filter(e => eventMatchesFilter(e, selectedCategory));
     }
     return events.filter(e => {
       const matchesDay = doesEventMatchDay(e.date, selectedYear, selectedMonth, selectedDay, isSelectedDayToday);
-      const matchesCategory = selectedCategory === 'all' || e.category === selectedCategory;
+      const matchesCategory = eventMatchesFilter(e, selectedCategory);
       return matchesDay && matchesCategory;
     });
   }, [events, selectedDay, selectedYear, selectedMonth, isSelectedDayToday, selectedCategory]);
@@ -314,6 +355,34 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
         </div>
       </div>
 
+      {/* Category filters */}
+      <div
+        className="-mx-3 sm:-mx-4 px-3 sm:px-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        role="tablist"
+        aria-label="Event categories"
+      >
+        {EVENT_FILTERS.map((f) => {
+          const active = selectedCategory === f.id;
+          return (
+            <button
+              key={f.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setSelectedCategory(f.id)}
+              className={`shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-full text-[11px] font-black border transition cursor-pointer flex items-center gap-1.5 ${
+                active
+                  ? 'bg-[#E0533C] text-white border-[#E0533C] shadow-xs'
+                  : 'bg-white dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-[#E0533C]/60'
+              }`}
+            >
+              <span aria-hidden="true">{f.emoji}</span>
+              <span>{f.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Date Header & Action Bar */}
       <div className="flex items-center justify-between pt-1">
         <div>
@@ -471,7 +540,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
 
           <div className="space-y-1">
             <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
-              No events scheduled for this day
+              {selectedCategory === 'all' ? 'No events scheduled for this day' : 'No events in this category for this day'}
             </h4>
             <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto leading-relaxed">
               Check back soon or explore trending events across Nairobi!

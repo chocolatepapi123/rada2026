@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useLayoutEffect } from 'react';
 import { 
   Heart, 
   X, 
@@ -204,6 +204,20 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
     setAttachedPhotos(prev => prev.filter((_, idx) => idx !== indexToRemove));
     showToast('Attached photo removed.');
   };
+
+  // Multiline chat input: grows downward with the text, up to 4 lines, then scrolls
+  const chatTextareaRef = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = chatTextareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const cs = window.getComputedStyle(el);
+    const lineHeight = parseFloat(cs.lineHeight) || 18;
+    const padding = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+    const maxHeight = lineHeight * 4 + padding;
+    el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
+    el.style.overflowY = el.scrollHeight > maxHeight ? 'auto' : 'hidden';
+  }, [chatInputText]);
 
   const handleSendMessage = () => {
     if ((!chatInputText.trim() && attachedPhotos.length === 0) || !activeChat) return;
@@ -748,7 +762,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                         ))}
                       </div>
                     )}
-                    {msg.text && <p>{msg.text}</p>}
+                    {msg.text && <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{msg.text}</p>}
                     <span className="text-[9px] opacity-70 block text-right mt-1">{msg.time}</span>
                   </div>
                 )}
@@ -942,7 +956,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
         )}
 
         {/* Input Bar */}
-        <div className="w-full overflow-hidden px-2 py-2 sm:px-3 sm:py-2.5 bg-white/95 dark:bg-[#121113]/95 border-t border-slate-200 dark:border-slate-800 max-w-lg mx-auto flex items-center gap-1.5 sm:gap-2">
+        <div className="w-full overflow-hidden px-2 py-2 sm:px-3 sm:py-2.5 bg-white/95 dark:bg-[#121113]/95 border-t border-slate-200 dark:border-slate-800 max-w-lg mx-auto flex items-end gap-1.5 sm:gap-2">
           {/* Hidden File Inputs for real attachments */}
           <input
             type="file"
@@ -1001,13 +1015,21 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           </button>
 
 
-          <input
-            type="text"
+          <textarea
+            ref={chatTextareaRef}
+            rows={1}
             value={chatInputText}
             onChange={(e) => setChatInputText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+            onKeyDown={(e) => {
+              // Enter sends; Shift+Enter inserts a new line. Ignore Enter while an IME is composing.
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
             placeholder="Type a message..."
-            className="flex-1 min-w-0 px-3 py-2 sm:py-2.5 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl sm:rounded-2xl text-xs focus:outline-none focus:ring-1 focus:ring-[#E0533C] text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+            enterKeyHint="send"
+            className="flex-1 min-w-0 px-3 py-2 sm:py-2.5 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl sm:rounded-2xl text-xs leading-[18px] resize-none whitespace-pre-wrap break-words [overflow-wrap:anywhere] focus:outline-none focus:ring-1 focus:ring-[#E0533C] text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
           />
 
           {/* Circular Video Note Button */}
