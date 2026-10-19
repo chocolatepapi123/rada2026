@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   X,
   ChevronLeft,
@@ -10,17 +10,19 @@ import {
   KeyRound,
   Loader2,
   AlertCircle,
-  User as UserIcon,
   Eye,
   EyeOff,
-  Camera,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { UserProfile } from '../types';
-import { VerifiedBadge } from './VerifiedBadge';
-import { ProfileIdentityForm } from './ProfileIdentityForm';
-import { uploadAvatar, normalizeUsername } from '../lib/cloudSync';
-import { loadProfessionalAccount } from '../utils/professionalAccount';
+import {
+  AvatarHero,
+  IdentityFields,
+  ProfessionalHub,
+  ProfessionalSwitchCard,
+  Section,
+  useOwnProfile,
+} from './ProfileSettingsKit';
 
 interface AccountSettingsModalProps {
   isOpen: boolean;
@@ -30,11 +32,11 @@ interface AccountSettingsModalProps {
   showToast: (msg: string) => void;
   onOpenAuth?: () => void;
   onSignOut?: () => void;
-  /** Called whenever name, username or avatar changes so the global App profile state stays in sync. */
+  /** Called on every save/switch/upload so the parent App state (the one shared user object) updates immediately. */
   onProfileChange?: (patch: Partial<UserProfile>) => void;
-  /** @deprecated The professional account toggle now lives in UserProfileModal. Ignored here. */
+  /** @deprecated Professional state is written straight to Supabase. Ignored. */
   onUpdateProfessional?: (data: any) => Promise<void> | void;
-  /** @deprecated Professional insights now live in UserProfileModal. Ignored here. */
+  /** Optional numbers from the app. Used only when the server has none. */
   professionalStats?: { profileViews?: number; outingsHosted?: number; joinRequests?: number };
 }
 
@@ -69,16 +71,6 @@ const Row: React.FC<{
   );
 };
 
-const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <h4 className="px-4 pt-5 pb-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider">{children}</h4>
-);
-
-const Card: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="mx-3 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl divide-y divide-slate-100 dark:divide-slate-800/80 overflow-hidden">
-    {children}
-  </div>
-);
-
 export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
   isOpen,
   onClose,
@@ -88,6 +80,7 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
   onOpenAuth,
   onSignOut,
   onProfileChange,
+  professionalStats,
 }) => {
   const [screen, setScreen] = useState<Screen>('main');
 
@@ -100,27 +93,23 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
 
   const user = session?.user;
   const isLoggedIn = !!user;
-  const accountKey: string | undefined = user?.id || currentUserProfile?.handle;
 
-  // Local copy of identity so the modal always shows the latest saved values,
-  // even if the parent has not re-rendered yet. Cleared when the account changes.
-  const [identity, setIdentity] = useState<Partial<UserProfile>>({});
-  useEffect(() => {
-    setIdentity({});
-  }, [accountKey]);
-
-  const profile: Partial<UserProfile> = { ...(currentUserProfile || {}), ...identity };
-  const handle = profile.handle || '';
-  const username = normalizeUsername(profile.username || handle);
-
-  const applyProfileChange = (patch: Partial<UserProfile>) => {
-    setIdentity((prev) => ({ ...prev, ...patch }));
-    onProfileChange?.(patch);
+  const requireLogin = () => {
+    showToast('Please sign in first.');
+    if (onOpenAuth) onOpenAuth();
   };
 
-  // Avatar
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  // Same hook as UserProfileModal: both read/write the one parent-owned user object
+  const own = useOwnProfile({
+    profile: currentUserProfile || {},
+    userId: user?.id,
+    active: isOpen && isLoggedIn,
+    onProfileChange,
+    showToast,
+    onRequireLogin: requireLogin,
+    statsFallback: professionalStats,
+  });
+  const handle = own.handle;
 
   useEffect(() => {
     if (isOpen) setScreen('main');
@@ -137,27 +126,6 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
   const authProviderName =
     rawProvider === 'google' ? 'Google' : rawProvider === 'email' ? 'Email & password' : rawProvider;
   const canChangePassword = isLoggedIn && rawProvider === 'email';
-
-  // Read-only badge; the professional toggle itself lives in the profile modal
-  const proStatus = loadProfessionalAccount(accountKey).status;
-
-  const requireLogin = () => {
-    showToast('Please sign in first.');
-    if (onOpenAuth) onOpenAuth();
-  };
-
-  const handleAvatarPicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    if (!isLoggedIn) return requireLogin();
-    setIsUploadingAvatar(true);
-    const res = await uploadAvatar(user.id, file);
-    setIsUploadingAvatar(false);
-    if (res.error || !res.url) return showToast(res.error || 'Could not upload photo.');
-    applyProfileChange({ avatar: res.url });
-    showToast('Profile photo updated.');
-  };
 
   const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -225,43 +193,7 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
           {/* ===================== MAIN ===================== */}
           {screen === 'main' && (
             <>
-              {/* Identity header */}
-              <div className="flex flex-col items-center text-center px-4 pt-6 pb-2">
-                <div className="relative">
-                  {profile.avatar ? (
-                    <img
-                      src={profile.avatar}
-                      alt={handle || 'Profile photo'}
-                      className="w-20 h-20 rounded-full object-cover border-2 border-white dark:border-[#1C1A1E] shadow-md"
-                    />
-                  ) : (
-                    <div className="w-20 h-20 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center">
-                      <UserIcon className="w-8 h-8 text-slate-400" />
-                    </div>
-                  )}
-                  {isUploadingAvatar && (
-                    <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center">
-                      <Loader2 className="w-5 h-5 text-white animate-spin" />
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => (isLoggedIn ? fileInputRef.current?.click() : requireLogin())}
-                    disabled={isUploadingAvatar}
-                    className="absolute -bottom-0.5 -right-0.5 w-7 h-7 rounded-full bg-[#E0533C] hover:bg-orange-700 text-white flex items-center justify-center shadow-md border-2 border-white dark:border-[#1C1A1E] cursor-pointer disabled:opacity-60"
-                    aria-label="Change profile photo"
-                    title="Change profile photo"
-                  >
-                    <Camera className="w-3.5 h-3.5" />
-                  </button>
-                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarPicked} />
-                </div>
-                <div className="mt-3 flex items-center gap-1.5">
-                  <h2 className="text-base font-black">{handle || 'Guest'}</h2>
-                  <VerifiedBadge status={proStatus} size="md" />
-                </div>
-                <p className="text-[11px] text-slate-400">Only your @username is shown to others</p>
-              </div>
+              <AvatarHero p={own} subtitle={<p className="mt-1 text-[11px] text-slate-400">Only your @username is shown to others</p>} />
 
               {!isLoggedIn && (
                 <div className="mx-3 mt-4 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-3">
@@ -286,24 +218,20 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
                 </div>
               )}
 
-              <SectionTitle>Profile</SectionTitle>
-              <div className="mx-3 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-4">
-                <ProfileIdentityForm
-                  userId={user?.id}
-                  name={profile.name || ''}
-                  username={username}
-                  handle={handle}
-                  showToast={showToast}
-                  onRequireLogin={requireLogin}
-                  onChange={applyProfileChange}
-                />
-                <p className="mt-3 text-[10px] text-slate-400">
-                  Your real name, email and phone number are never shown on cards, statuses, comments or plans.
-                </p>
-              </div>
+              <Section title="Profile" description="Saved to your account and updated everywhere right away.">
+                <IdentityFields p={own} showSave saveLabel="Save changes" />
+              </Section>
 
-              <SectionTitle>Account</SectionTitle>
-              <Card>
+              <Section
+                title="Professional account"
+                description="Host outings with a verified badge and see how they perform."
+              >
+                <ProfessionalSwitchCard p={own} />
+                {own.isPro && <ProfessionalHub p={own} />}
+              </Section>
+
+              <Section title="Account">
+                <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
                 <Row
                   icon={<Mail className="w-4 h-4" />}
                   label="Email (private)"
@@ -317,10 +245,11 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
                   }
                 />
                 <Row icon={<Globe className="w-4 h-4" />} label="Sign-in method" value={authProviderName} />
-              </Card>
+              </div>
+              </Section>
 
-              <SectionTitle>Security</SectionTitle>
-              <Card>
+              <Section title="Security">
+                <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
                 <Row
                   icon={<KeyRound className="w-4 h-4" />}
                   label="Password"
@@ -339,11 +268,8 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
                       : requireLogin()
                   }
                 />
-              </Card>
-
-              <p className="mx-4 mt-4 text-[11px] text-slate-400">
-                Looking for the professional account switch? It&apos;s now in your Profile.
-              </p>
+              </div>
+              </Section>
 
               {isLoggedIn && onSignOut && (
                 <div className="mx-3 mt-6">
