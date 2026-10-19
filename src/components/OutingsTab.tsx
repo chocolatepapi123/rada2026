@@ -174,17 +174,46 @@ function matchOutingCategory(plan: OutingPlan, categoryId: string, spot?: SpotIt
   }
 }
 
-function matchOutingLocation(plan: OutingPlan, selectedLocation: string, spot?: SpotItem): boolean {
-  if (!selectedLocation || selectedLocation === 'All Locations') return true;
+export function getCategoryFallbackImage(category: string): string {
+  switch (category) {
+    case 'restaurants_dining':
+    case 'restaurants':
+      return 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop';
+    case 'tech_gaming':
+      return 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=800&auto=format&fit=crop';
+    case 'clubs_lounges':
+      return 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop';
+    case 'nature':
+    case 'nature_outdoors':
+      return 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&auto=format&fit=crop';
+    case 'action_sports':
+      return 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=800&auto=format&fit=crop';
+    case 'cafes_bakeries':
+      return 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800&auto=format&fit=crop';
+    case 'date_spots':
+      return 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=800&auto=format&fit=crop';
+    case 'creative_leisure':
+      return 'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=800&auto=format&fit=crop';
+    case 'hotels_luxury':
+      return 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&auto=format&fit=crop';
+    case 'vacation_escapes':
+      return 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop';
+    default:
+      return 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop';
+  }
+}
 
-  const loc = selectedLocation.toLowerCase();
+function matchOutingLocation(plan: OutingPlan, selectedLocation: string, spot?: SpotItem): boolean {
+  if (!selectedLocation || selectedLocation === 'All Locations' || !selectedLocation.trim()) return true;
+
+  const loc = selectedLocation.trim().toLowerCase();
   const address = (plan.spotAddress || '').toLowerCase();
   const spotAddress = (spot?.address || '').toLowerCase();
   const spotNeigh = (spot?.neighborhood || '').toLowerCase();
   const spotTag = (spot?.exactLocationTag || '').toLowerCase();
   const spotTitle = (spot?.title || plan.spotTitle || '').toLowerCase();
 
-  if (loc === 'nairobi cbd') {
+  if (loc === 'cbd' || loc === 'nairobi cbd') {
     return (
       address.includes('cbd') ||
       address.includes('central business') ||
@@ -196,7 +225,7 @@ function matchOutingLocation(plan: OutingPlan, selectedLocation: string, spot?: 
     );
   }
 
-  if (loc === 'kiambu road') {
+  if (loc === 'kiambu' || loc === 'kiambu road') {
     return (
       address.includes('kiambu') ||
       spotNeigh.includes('kiambu') ||
@@ -205,7 +234,7 @@ function matchOutingLocation(plan: OutingPlan, selectedLocation: string, spot?: 
     );
   }
 
-  if (loc === 'ruiru / thika road') {
+  if (loc === 'thika' || loc === 'ruiru' || loc === 'thika road' || loc === 'ruiru / thika road') {
     return (
       address.includes('ruiru') ||
       address.includes('thika') ||
@@ -263,7 +292,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   onOpenSpotDetails,
   showToast
 }) => {
-  const [selectedLocation, setSelectedLocation] = useState<string>('All Locations');
+  const [selectedLocation, setSelectedLocation] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [accessTypeFilter, setAccessTypeFilter] = useState<'All Plans' | 'Open Plans' | 'Singles Only'>('All Plans');
   const [searchQuery, setSearchQuery] = useState('');
@@ -307,9 +336,15 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
     }
   };
 
-  // Form state for Hosting a Plan
+  // Form state for Hosting a Plan (Catalog Spot vs Custom Spot / Venue)
+  const [venueMode, setVenueMode] = useState<'catalog' | 'custom'>('catalog');
   const [selectedSpotId, setSelectedSpotId] = useState<number | null>(spots[0]?.id || null);
   const [spotSearchQuery, setSpotSearchQuery] = useState('');
+  const [customSpotTitle, setCustomSpotTitle] = useState('');
+  const [customSpotAddress, setCustomSpotAddress] = useState('');
+  const [customSpotCategory, setCustomSpotCategory] = useState('restaurants_dining');
+  const [customSpotImage, setCustomSpotImage] = useState('');
+
   const [planDate, setPlanDate] = useState('2026-10-24');
   const [planTime, setPlanTime] = useState('18:00');
   const [maxAttendees, setMaxAttendees] = useState(6);
@@ -317,6 +352,42 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   const [description, setDescription] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>(['All Plans', 'Group Hangouts']);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Dynamically extracted locations from active spots and outings database
+  const dynamicLocations = useMemo(() => {
+    const locSet = new Set<string>();
+
+    spots.forEach(s => {
+      if (s.neighborhood && s.neighborhood.trim()) {
+        locSet.add(s.neighborhood.trim());
+      }
+      if (s.exactLocationTag && s.exactLocationTag.trim()) {
+        locSet.add(s.exactLocationTag.trim());
+      }
+    });
+
+    outings.forEach(o => {
+      if (o.spotAddress && o.spotAddress.trim()) {
+        const parts = o.spotAddress.split(',').map(p => p.trim()).filter(Boolean);
+        parts.forEach(part => {
+          if (part.length > 2 && !part.toLowerCase().includes('nairobi') && !part.toLowerCase().includes('kenya')) {
+            locSet.add(part);
+          }
+        });
+      }
+    });
+
+    // Curated high-frequency locations ensuring key zones are accessible
+    ['Westlands', 'Kilimani', 'Karen', 'Nairobi CBD', 'Kiambu Road', 'Lavington', 'Lang\'ata', 'Parklands', 'Ruiru', 'Thika Road', 'Ngong Road', 'Gigiri', 'Kileleshwa'].forEach(loc => {
+      locSet.add(loc);
+    });
+
+    return Array.from(locSet).sort((a, b) => a.localeCompare(b));
+  }, [spots, outings]);
+
+  const popularLocationChips = useMemo(() => {
+    return ['All', 'Westlands', 'Kilimani', 'Karen', 'Ruiru', 'CBD', 'Kiambu Rd', 'Lavington', 'Parklands'];
+  }, []);
 
   // Real-Time Feed Filtering
   const filteredOutings = useMemo(() => {
@@ -459,9 +530,18 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       return;
     }
 
-    if (!selectedSpot) {
-      showToast('Please select a target hangout spot or venue.');
-      return;
+    const isCustom = venueMode === 'custom';
+
+    if (isCustom) {
+      if (!customSpotTitle.trim()) {
+        showToast('Please enter a Venue or Spot Name for your custom outing.');
+        return;
+      }
+    } else {
+      if (!selectedSpot) {
+        showToast('Please select a target hangout spot or venue.');
+        return;
+      }
     }
 
     if (!description.trim()) {
@@ -471,6 +551,13 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
 
     setIsSubmitting(true);
     try {
+      const spotTitle = isCustom ? customSpotTitle.trim() : selectedSpot.title;
+      const spotAddress = isCustom ? (customSpotAddress.trim() || 'Nairobi Area') : selectedSpot.address;
+      const spotCategory = isCustom ? customSpotCategory : selectedSpot.category;
+      const spotImage = isCustom
+        ? (customSpotImage.trim() || getCategoryFallbackImage(customSpotCategory))
+        : (selectedSpot.img || selectedSpot.images?.[0] || getCategoryFallbackImage(selectedSpot.category));
+
       const newPlan: OutingPlan = {
         id: `out-${Date.now()}`,
         hostId: currentUserId || `host-${Date.now()}`,
@@ -478,11 +565,11 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
         hostAvatar: currentUserProfile.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop',
         hostHandle: currentUserProfile.handle || '@host',
         isHostVerified: currentUserProfile.isLivenessVerified ?? true,
-        spotId: selectedSpot.id,
-        spotTitle: selectedSpot.title,
-        spotAddress: selectedSpot.address,
-        spotImage: selectedSpot.img || selectedSpot.images?.[0] || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
-        spotCategory: selectedSpot.category,
+        spotId: isCustom ? undefined : selectedSpot.id,
+        spotTitle,
+        spotAddress,
+        spotImage,
+        spotCategory,
         date: planDate,
         time: planTime,
         maxAttendees: Number(maxAttendees),
@@ -496,9 +583,13 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       };
 
       await onCreateOuting(newPlan);
-      showToast(`Outing Plan "${selectedSpot.title}" Published! 🎉`);
+      showToast(`Outing Plan "${spotTitle}" Published! 🎉`);
       setIsHostModalOpen(false);
       setDescription('');
+      setCustomSpotTitle('');
+      setCustomSpotAddress('');
+      setCustomSpotImage('');
+      setVenueMode('catalog');
     } catch (err: any) {
       showToast(err?.message || 'Could not publish outing plan');
     } finally {
@@ -515,7 +606,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-[#E0533C] animate-pulse" />
               <h1 className="text-base font-black text-slate-900 dark:text-slate-100 tracking-tight">
-                Nairobi Outings & Public Plans
+                Outings & Public Plans
               </h1>
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
@@ -541,7 +632,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
           </button>
         </div>
 
-        {/* Search Bar */}
+        {/* Venue/Host/Vibe Search Bar */}
         <div className="relative flex items-center">
           <Search className="w-4 h-4 absolute left-3.5 text-slate-400 pointer-events-none" />
           <input
@@ -549,7 +640,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search venue, host, or vibe (e.g. Alchemist, Jazz, Karura)..."
-            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+            className="w-full pl-10 pr-8 py-2.5 bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
           />
           {searchQuery && (
             <button
@@ -562,26 +653,41 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
           )}
         </div>
 
-        {/* Dropdown Filters (Location & Category) */}
+        {/* Dynamic Filters (Dynamic Location & Category) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
-          {/* Location Filter Dropdown */}
+          {/* Dynamic Location Search / Type Input with Autocomplete */}
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
               <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
             </div>
-            <select
-              aria-label="Filter by Nairobi Location"
+            <input
+              type="text"
+              list="dynamic-locations-datalist"
+              aria-label="Filter area or neighborhood"
               value={selectedLocation}
               onChange={(e) => setSelectedLocation(e.target.value)}
-              className="w-full pl-9 pr-8 py-2.5 bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#E0533C] appearance-none cursor-pointer"
-            >
-              {NAIROBI_KEY_LOCATIONS.map((loc) => (
-                <option key={loc} value={loc} className="bg-white dark:bg-[#1C1A1E] text-slate-900 dark:text-slate-100">
-                  {loc}
-                </option>
+              placeholder="Filter area (e.g. Ruiru, Karen, Kilimani)..."
+              className="w-full pl-9 pr-8 py-2.5 bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#E0533C] placeholder:text-slate-400"
+            />
+            <datalist id="dynamic-locations-datalist">
+              {dynamicLocations.map((loc) => (
+                <option key={loc} value={loc} />
               ))}
-            </select>
-            <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </datalist>
+            {selectedLocation ? (
+              <button
+                type="button"
+                onClick={() => setSelectedLocation('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 cursor-pointer"
+                title="Clear area filter"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 pointer-events-none">
+                Area
+              </span>
+            )}
           </div>
 
           {/* Category Filter Dropdown (10 RADA Categories) */}
@@ -603,6 +709,32 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
             </select>
             <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           </div>
+        </div>
+
+        {/* Dynamic Quick Area Chips for 1-tap filtering */}
+        <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pt-0.5">
+          <span className="text-[10px] font-black uppercase text-slate-400 shrink-0">
+            Areas:
+          </span>
+          {popularLocationChips.map((chip) => {
+            const isChipActive = chip === 'All'
+              ? (!selectedLocation || selectedLocation === 'All Locations')
+              : selectedLocation.trim().toLowerCase() === chip.toLowerCase();
+            return (
+              <button
+                key={chip}
+                type="button"
+                onClick={() => setSelectedLocation(chip === 'All' ? '' : chip)}
+                className={`px-2.5 py-1 rounded-xl text-[10px] font-bold transition shrink-0 cursor-pointer ${
+                  isChipActive
+                    ? 'bg-[#E0533C] text-white shadow-2xs'
+                    : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'
+                }`}
+              >
+                {chip}
+              </button>
+            );
+          })}
         </div>
 
         {/* Access Type Toggle: "All Plans", "Open Plans", "Singles Only" */}
@@ -643,11 +775,11 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
           <span>Active Plans ({filteredOutings.length})</span>
         </span>
         <div className="flex items-center gap-2">
-          {(selectedLocation !== 'All Locations' || selectedCategory !== 'all' || accessTypeFilter !== 'All Plans' || searchQuery.trim() !== '') && (
+          {(Boolean(selectedLocation && selectedLocation !== 'All Locations') || selectedCategory !== 'all' || accessTypeFilter !== 'All Plans' || searchQuery.trim() !== '') && (
             <button
               type="button"
               onClick={() => {
-                setSelectedLocation('All Locations');
+                setSelectedLocation('');
                 setSelectedCategory('all');
                 setAccessTypeFilter('All Plans');
                 setSearchQuery('');
@@ -660,7 +792,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
           )}
           <span className="text-[11px] text-slate-400 font-medium truncate max-w-[200px]">
             {accessTypeFilter}
-            {selectedLocation !== 'All Locations' ? ` • ${selectedLocation}` : ''}
+            {selectedLocation && selectedLocation !== 'All Locations' ? ` • ${selectedLocation}` : ''}
             {selectedCategory !== 'all' ? ` • ${RADA_10_CATEGORIES.find(c => c.id === selectedCategory)?.label}` : ''}
           </span>
         </div>
@@ -939,7 +1071,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                 </div>
                 <div>
                   <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-                    Host a Nairobi Outing
+                    Host an Outing Plan
                   </h3>
                   <p className="text-[10px] text-slate-500 dark:text-slate-400">
                     Create a public plan and invite fellow explorers
@@ -958,63 +1090,197 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
 
             {/* Modal Form */}
             <form onSubmit={handleSubmitPlan} className="p-5 overflow-y-auto space-y-4 text-xs">
-              {/* 1. Target Spot / Venue Selection */}
-              <div className="space-y-1.5">
-                <label className="font-extrabold text-slate-900 dark:text-slate-100 flex items-center justify-between">
-                  <span>1. Choose Venue / Spot *</span>
-                  {selectedSpot && (
-                    <span className="text-[10px] text-[#E0533C] font-black uppercase">
-                      {selectedSpot.category}
-                    </span>
-                  )}
-                </label>
+              {/* 1. Target Spot / Venue Selection with Custom Entry Toggle */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
+                    <span>1. Hangout Venue / Spot *</span>
+                  </label>
 
-                {/* Spot Search input */}
-                <div className="relative">
-                  <Search className="w-3.5 h-3.5 absolute left-3 text-slate-400 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={spotSearchQuery}
-                    onChange={(e) => setSpotSearchQuery(e.target.value)}
-                    placeholder="Search Nairobi spots (e.g., Alchemist, Talisman, NSK)..."
-                    className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:ring-2 focus:ring-[#E0533C] focus:outline-none"
-                  />
+                  {/* Toggle between selecting from database or typing custom spot */}
+                  <div className="flex items-center p-0.5 bg-slate-100 dark:bg-slate-800/80 rounded-xl text-[11px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setVenueMode('catalog')}
+                      className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
+                        venueMode === 'catalog'
+                          ? 'bg-white dark:bg-slate-900 text-[#E0533C] shadow-2xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      Browse Spots
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVenueMode('custom')}
+                      className={`px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                        venueMode === 'custom'
+                          ? 'bg-[#E0533C] text-white shadow-2xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-[#E0533C]'
+                      }`}
+                    >
+                      <Plus className="w-3 h-3 stroke-[3]" />
+                      <span>Custom Venue</span>
+                    </button>
+                  </div>
                 </div>
 
-                {/* Spot Select Carousel/List */}
-                <div className="flex gap-2 overflow-x-auto hide-scrollbar py-1">
-                  {filteredSpotsForHosting.map((spot) => {
-                    const isSelected = selectedSpotId === spot.id;
-                    return (
-                      <div
-                        key={spot.id}
-                        onClick={() => setSelectedSpotId(spot.id)}
-                        className={`w-36 p-2 rounded-2xl border transition cursor-pointer shrink-0 flex flex-col justify-between ${
-                          isSelected
-                            ? 'border-[#E0533C] ring-2 ring-[#E0533C]/40 bg-orange-50/60 dark:bg-orange-950/30'
-                            : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 hover:border-slate-300'
-                        }`}
-                      >
-                        <div
-                          className="h-16 rounded-xl bg-cover bg-center mb-1.5 relative overflow-hidden"
-                          style={{ backgroundImage: `url('${spot.img}')` }}
+                {venueMode === 'catalog' ? (
+                  /* Catalog Spot Selection */
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 absolute left-3 text-slate-400 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={spotSearchQuery}
+                        onChange={(e) => setSpotSearchQuery(e.target.value)}
+                        placeholder="Search spots or enter custom venue..."
+                        className="w-full pl-9 pr-8 py-2 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:ring-2 focus:ring-[#E0533C] focus:outline-none"
+                      />
+                      {spotSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setSpotSearchQuery('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                         >
-                          {isSelected && (
-                            <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#E0533C] text-white flex items-center justify-center">
-                              <Check className="w-2.5 h-2.5 stroke-[3]" />
-                            </span>
-                          )}
-                        </div>
-                        <h4 className="font-extrabold text-[11px] truncate text-slate-900 dark:text-slate-100">
-                          {spot.title}
-                        </h4>
-                        <p className="text-[9px] text-slate-500 truncate">
-                          {spot.neighborhood}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Spot Select Carousel/List */}
+                    <div className="flex gap-2 overflow-x-auto hide-scrollbar py-1">
+                      {filteredSpotsForHosting.map((spot) => {
+                        const isSelected = selectedSpotId === spot.id;
+                        return (
+                          <div
+                            key={spot.id}
+                            onClick={() => setSelectedSpotId(spot.id)}
+                            className={`w-36 p-2 rounded-2xl border transition cursor-pointer shrink-0 flex flex-col justify-between ${
+                              isSelected
+                                ? 'border-[#E0533C] ring-2 ring-[#E0533C]/40 bg-orange-50/60 dark:bg-orange-950/30'
+                                : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 hover:border-slate-300'
+                            }`}
+                          >
+                            <div
+                              className="h-16 rounded-xl bg-cover bg-center mb-1.5 relative overflow-hidden"
+                              style={{ backgroundImage: `url('${spot.img}')` }}
+                            >
+                              {isSelected && (
+                                <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#E0533C] text-white flex items-center justify-center">
+                                  <Check className="w-2.5 h-2.5 stroke-[3]" />
+                                </span>
+                              )}
+                            </div>
+                            <h4 className="font-extrabold text-[11px] truncate text-slate-900 dark:text-slate-100">
+                              {spot.title}
+                            </h4>
+                            <p className="text-[9px] text-slate-500 truncate">
+                              {spot.neighborhood}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-0.5">
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                        Selected: <span className="font-bold text-slate-800 dark:text-slate-200">{selectedSpot?.title}</span> • {selectedSpot?.neighborhood}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setVenueMode('custom');
+                          if (spotSearchQuery.trim()) setCustomSpotTitle(spotSearchQuery.trim());
+                        }}
+                        className="text-[10px] font-extrabold text-[#E0533C] hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Can't find it? Add Custom</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Custom Venue Entry Form */
+                  <div className="p-3.5 bg-orange-50/50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/40 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black text-[#E0533C] flex items-center gap-1">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Custom Spot & Venue Details</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setVenueMode('catalog')}
+                        className="text-[10px] text-slate-500 hover:text-slate-700 dark:text-slate-400 underline font-semibold cursor-pointer"
+                      >
+                        Switch to Catalog Spots
+                      </button>
+                    </div>
+
+                    {/* Venue Name */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-extrabold text-slate-800 dark:text-slate-200 block">
+                        Venue / Spot Name *
+                      </label>
+                      <input
+                        type="text"
+                        required={venueMode === 'custom'}
+                        value={customSpotTitle}
+                        onChange={(e) => setCustomSpotTitle(e.target.value)}
+                        placeholder="e.g. K1 Klub House, Brew Bistro, Ruiru Falls, Java House..."
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-[#E0533C] focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Location / Area */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-extrabold text-slate-800 dark:text-slate-200 block">
+                        Location / Area / Address
+                      </label>
+                      <input
+                        type="text"
+                        value={customSpotAddress}
+                        onChange={(e) => setCustomSpotAddress(e.target.value)}
+                        placeholder="e.g. Ruiru Bypass, Ojijo Rd Parklands, Karen Road..."
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-[#E0533C] focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Spot Category (10 Standard Categories) */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-extrabold text-slate-800 dark:text-slate-200 block">
+                        Spot Category * (10 Standard Categories)
+                      </label>
+                      <select
+                        value={customSpotCategory}
+                        onChange={(e) => setCustomSpotCategory(e.target.value)}
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-[#E0533C] focus:outline-none"
+                      >
+                        {RADA_10_CATEGORIES.filter(c => c.id !== 'all').map((cat) => (
+                          <option key={cat.id} value={cat.id}>
+                            {cat.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Optional Image URL */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-extrabold text-slate-800 dark:text-slate-200 flex items-center justify-between">
+                        <span>Cover Photo URL (optional)</span>
+                        <span className="text-[10px] text-slate-400 font-normal">Auto-assigned if left empty</span>
+                      </label>
+                      <input
+                        type="url"
+                        value={customSpotImage}
+                        onChange={(e) => setCustomSpotImage(e.target.value)}
+                        placeholder="https://images.unsplash.com/... (optional)"
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:ring-2 focus:ring-[#E0533C] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* 2. Date and Time */}
