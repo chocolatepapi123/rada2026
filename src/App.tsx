@@ -420,6 +420,9 @@ export default function App() {
   const [viewAllTitle, setViewAllTitle] = useState<string | null>(null);
   const [viewAllCategory, setViewAllCategory] = useState<string | null>(null);
 
+  // Shortcut navigation to a specific chat (e.g. Outing Group Chat)
+  const [targetChatId, setTargetChatId] = useState<string | null>(null);
+
   // Dynamic Header Location: Detected physical location; if unavailable or null, no default fallback is set
   const [currentLocation, setCurrentLocation] = useState<string>(() => {
     return localStorage.getItem('rada_current_location') || '';
@@ -614,12 +617,70 @@ export default function App() {
         return {
           ...o,
           attendees: updatedAtts,
-          currentAttendeesCount: updatedAtts.filter(a => a.status === 'joined').length + 1
+          currentAttendeesCount: updatedAtts.filter(a => a.status === 'joined' || a.status === 'approved').length + 1
         };
       }
       return o;
     }));
     await cloud.requestJoinOuting(outingId, attendee);
+  };
+
+  const handleUpdateAttendeeStatus = async (
+    outingId: string,
+    attendeeId: string,
+    status: 'approved' | 'declined'
+  ) => {
+    let targetOuting: OutingPlan | undefined;
+    let targetApplicant: OutingAttendee | undefined;
+
+    setOutings(prev => {
+      const updatedList = prev.map(o => {
+        if (o.id === outingId) {
+          const updatedAttendees = (o.attendees || []).map(a => {
+            if (a.id === attendeeId) {
+              targetApplicant = { ...a, status };
+              return targetApplicant;
+            }
+            return a;
+          });
+          const confirmedCount = updatedAttendees.filter(a => a.status === 'joined' || a.status === 'approved').length + 1;
+          const updatedPlan: OutingPlan = {
+            ...o,
+            attendees: updatedAttendees,
+            currentAttendeesCount: confirmedCount
+          };
+          targetOuting = updatedPlan;
+          return updatedPlan;
+        }
+        return o;
+      });
+      localStorage.setItem('rada_outings_cache', JSON.stringify(updatedList));
+      return updatedList;
+    });
+
+    // Supabase update for outing_attendees status
+    await cloud.updateOutingAttendeeStatus(attendeeId, status);
+
+    // If approved, automatically create / link temporary Group Chat and add host + confirmed members
+    if (status === 'approved') {
+      const basePlan = targetOuting || outings.find(o => o.id === outingId);
+      if (basePlan) {
+        const updatedConversations = cloud.createOrUnlockOutingGroupChat(basePlan, targetApplicant);
+        setConversations(updatedConversations);
+        showToast(`${targetApplicant?.userName || 'Applicant'} approved! Temporary Group Chat unlocked 🎉`);
+      }
+    } else if (status === 'declined') {
+      showToast('Join request declined.');
+    }
+  };
+
+  const handleOpenOutingChat = (outing: OutingPlan) => {
+    // Ensure temporary group chat is unlocked and synced
+    const updatedConversations = cloud.createOrUnlockOutingGroupChat(outing);
+    setConversations(updatedConversations);
+    setTargetChatId(`grp-outing-${outing.id}`);
+    setActiveTab('socials');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Seamless Calendar Routing
@@ -1853,6 +1914,8 @@ export default function App() {
                 onOpenAuth={() => setIsAuthModalOpen(true)}
                 onCreateOuting={handleCreateOuting}
                 onRequestJoin={handleRequestJoin}
+                onUpdateAttendeeStatus={handleUpdateAttendeeStatus}
+                onOpenOutingChat={handleOpenOutingChat}
                 onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
                 showToast={showToast}
               />
@@ -1902,6 +1965,8 @@ export default function App() {
                 onAcceptRequest={(name, avatar) => requireAuth('send messages', () => handleAcceptRequest(name, avatar))}
                 onViewUserProfile={(profile) => setViewingProfile(profile)}
                 onOpenVerificationModal={() => setIsLivenessModalOpen(true)}
+                targetChatId={targetChatId}
+                onClearTargetChatId={() => setTargetChatId(null)}
                 showToast={showToast}
               />
             )}

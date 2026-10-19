@@ -343,6 +343,9 @@ export interface ChatConversation {
   theme?: ChatTheme;
   members?: string[];
   messages: ChatMessage[];
+  outingId?: string;
+  outingTitle?: string;
+  isTemporary?: boolean;
 }
 
 export interface VaultTicket {
@@ -388,7 +391,8 @@ export interface OutingAttendee {
   userName: string;
   userAvatar: string;
   userHandle?: string;
-  status: 'pending' | 'joined' | 'declined';
+  status: 'pending' | 'joined' | 'approved' | 'declined';
+  isVerified?: boolean;
   requestedAt: string;
 }
 

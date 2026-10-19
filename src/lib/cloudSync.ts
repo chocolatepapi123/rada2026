@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import type { BusinessAccount, SavedItem, CollectionFolder, OutingPlan, OutingAttendee } from '../types';
+import type { BusinessAccount, SavedItem, CollectionFolder, OutingPlan, OutingAttendee, ChatConversation } from '../types';
 
 
 export type ListingKind = 'spot' | 'event' | 'thrift' | 'offer';
@@ -1328,15 +1328,133 @@ export async function requestJoinOuting(
 
 export async function updateOutingAttendeeStatus(
   attendeeId: string,
-  status: 'pending' | 'joined' | 'declined'
+  status: 'pending' | 'joined' | 'approved' | 'declined'
 ): Promise<{ error: string | null }> {
+  // Update local storage cache
+  try {
+    const cached = localStorage.getItem(OUTINGS_LOCAL_KEY);
+    if (cached) {
+      const list: OutingPlan[] = JSON.parse(cached);
+      const updated = list.map(o => {
+        if (o.attendees && o.attendees.some(a => a.id === attendeeId)) {
+          const updatedAtts = o.attendees.map(a => a.id === attendeeId ? { ...a, status } : a);
+          return {
+            ...o,
+            attendees: updatedAtts,
+            currentAttendeesCount: updatedAtts.filter(a => a.status === 'joined' || a.status === 'approved').length + 1
+          };
+        }
+        return o;
+      });
+      localStorage.setItem(OUTINGS_LOCAL_KEY, JSON.stringify(updated));
+    }
+  } catch (e) {}
+
   if (!isSupabaseConfigured) return { error: null };
   try {
-    await supabase.from('outing_attendees').update({ status }).eq('id', attendeeId);
+    const { error } = await supabase.from('outing_attendees').update({ status }).eq('id', attendeeId);
+    if (error) {
+      console.warn('updateOutingAttendeeStatus Supabase error:', error.message);
+      return { error: error.message };
+    }
     return { error: null };
   } catch (err: any) {
     return { error: err?.message || String(err) };
   }
+}
+
+/**
+ * Automatically creates or updates a temporary Group Chat thread for an Outing when host approves an applicant
+ */
+export function createOrUnlockOutingGroupChat(
+  outing: OutingPlan,
+  approvedApplicant?: OutingAttendee
+): ChatConversation[] {
+  const CHATS_LOCAL_KEY = 'rada_conversations';
+  let conversations: ChatConversation[] = [];
+  try {
+    const raw = localStorage.getItem(CHATS_LOCAL_KEY);
+    if (raw) conversations = JSON.parse(raw);
+  } catch (e) {}
+
+  const chatId = `grp-outing-${outing.id}`;
+  const existingIndex = conversations.findIndex(c => c.id === chatId);
+
+  const confirmedNames = Array.from(new Set([
+    outing.hostName,
+    ...(approvedApplicant ? [approvedApplicant.userName] : []),
+    ...(outing.attendees || [])
+      .filter(a => a.status === 'approved' || a.status === 'joined')
+      .map(a => a.userName)
+  ]));
+
+  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  if (existingIndex >= 0) {
+    const existing = conversations[existingIndex];
+    const newMembers = Array.from(new Set([...(existing.members || []), ...confirmedNames]));
+    const updatedMessages = [...existing.messages];
+    if (approvedApplicant) {
+      updatedMessages.push({
+        id: `msg-appr-${Date.now()}`,
+        sender: 'system',
+        text: `👋 ${approvedApplicant.userName} was approved by ${outing.hostName}! Welcome to the group chat.`,
+        time: timeStr
+      });
+    }
+
+    const updatedConv: ChatConversation = {
+      ...existing,
+      members: newMembers,
+      lastMessage: approvedApplicant 
+        ? `${approvedApplicant.userName} joined the group` 
+        : existing.lastMessage,
+      messages: updatedMessages
+    };
+
+    conversations[existingIndex] = updatedConv;
+  } else {
+    const initialMessages = [
+      {
+        id: `msg-welcome-${Date.now()}`,
+        sender: 'system' as const,
+        text: `🎉 Temporary Group Chat unlocked for "${outing.spotTitle}" on ${outing.date} at ${outing.time}! Hosted by ${outing.hostName}.`,
+        time: timeStr
+      }
+    ];
+
+    if (approvedApplicant) {
+      initialMessages.push({
+        id: `msg-appr-${Date.now() + 1}`,
+        sender: 'system' as const,
+        text: `👋 ${approvedApplicant.userName} joined the hangout group! Connect with everyone before heading out.`,
+        time: timeStr
+      });
+    }
+
+    const newGroupConv: ChatConversation = {
+      id: chatId,
+      name: `Outing: ${outing.spotTitle}`,
+      avatar: outing.spotImage || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
+      type: 'group',
+      lastMessage: approvedApplicant 
+        ? `${approvedApplicant.userName} joined the hangout` 
+        : `Temporary group chat unlocked for ${outing.spotTitle}`,
+      outingId: outing.id,
+      outingTitle: outing.spotTitle,
+      isTemporary: true,
+      members: confirmedNames,
+      messages: initialMessages
+    };
+
+    conversations = [newGroupConv, ...conversations];
+  }
+
+  try {
+    localStorage.setItem(CHATS_LOCAL_KEY, JSON.stringify(conversations));
+  } catch (e) {}
+
+  return conversations;
 }
 
 

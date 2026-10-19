@@ -1367,10 +1367,10 @@ export const initialFolders: CollectionFolder[] = [
 export const initialOutings: OutingPlan[] = [
   {
     id: 'out-1',
-    hostId: 'host-1',
-    hostName: 'Natasha Muthoni',
-    hostAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop',
-    hostHandle: '@natasham',
+    hostId: 'current-user',
+    hostName: 'Wayne Waweru',
+    hostAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop',
+    hostHandle: '@lowk3yFX',
     isHostVerified: true,
     spotId: 1,
     spotTitle: 'The Alchemist Bar',
@@ -1380,7 +1380,7 @@ export const initialOutings: OutingPlan[] = [
     date: '2026-10-24',
     time: '17:30',
     maxAttendees: 6,
-    currentAttendeesCount: 3,
+    currentAttendeesCount: 2,
     description: 'Heading to Alchemist for the Saturday sundowner DJ set and woodfired tacos. Looking for easygoing music lovers to hang with!',
     accessType: 'open',
     tags: ['All Plans', 'Group Hangouts', 'Weekend'],
@@ -1388,8 +1388,8 @@ export const initialOutings: OutingPlan[] = [
     createdAt: '2026-10-18T10:00:00Z',
     attendees: [
       { id: 'att-1', outingId: 'out-1', userId: 'usr-1', userName: 'Brian Omondi', userAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop', userHandle: '@brian_o', status: 'joined', requestedAt: '2026-10-18T11:00:00Z' },
-      { id: 'att-2', outingId: 'out-1', userId: 'usr-2', userName: 'Amina Abdi', userAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop', userHandle: '@amina_a', status: 'joined', requestedAt: '2026-10-18T12:00:00Z' },
-      { id: 'att-3', outingId: 'out-1', userId: 'usr-3', userName: 'Kev Mwangi', userAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&auto=format&fit=crop', userHandle: '@kevmwangi', status: 'joined', requestedAt: '2026-10-18T13:00:00Z' }
+      { id: 'att-2', outingId: 'out-1', userId: 'usr-2', userName: 'Amina Abdi', userAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop', userHandle: '@amina_a', status: 'pending', requestedAt: '2026-10-18T12:00:00Z' },
+      { id: 'att-3', outingId: 'out-1', userId: 'usr-3', userName: 'Joy Muthoni', userAvatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&auto=format&fit=crop', userHandle: '@joy_m', status: 'pending', requestedAt: '2026-10-18T13:00:00Z' }
     ]
   },
   {
@@ -1415,7 +1415,8 @@ export const initialOutings: OutingPlan[] = [
     createdAt: '2026-10-18T14:00:00Z',
     attendees: [
       { id: 'att-4', outingId: 'out-2', userId: 'usr-4', userName: 'Faith Chebet', userAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop', userHandle: '@faith_c', status: 'joined', requestedAt: '2026-10-18T15:00:00Z' },
-      { id: 'att-5', outingId: 'out-2', userId: 'usr-5', userName: 'Ian Kipchumba', userAvatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=200&auto=format&fit=crop', userHandle: '@ian_k', status: 'joined', requestedAt: '2026-10-18T16:00:00Z' }
+      { id: 'att-5', outingId: 'out-2', userId: 'usr-5', userName: 'Ian Kipchumba', userAvatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=200&auto=format&fit=crop', userHandle: '@ian_k', status: 'joined', requestedAt: '2026-10-18T16:00:00Z' },
+      { id: 'att-w1', outingId: 'out-2', userId: 'current-user', userName: 'Wayne Waweru', userAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop', userHandle: '@lowk3yFX', status: 'approved', requestedAt: '2026-10-18T16:30:00Z' }
     ]
   },
   {

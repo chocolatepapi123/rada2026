@@ -48,6 +48,8 @@ interface SocialsTabProps {
   onViewUserProfile: (profile: UserProfile) => void;
   onOpenVerificationModal?: () => void;
   showToast: (msg: string) => void;
+  targetChatId?: string | null;
+  onClearTargetChatId?: () => void;
 }
 
 export const SocialsTab: React.FC<SocialsTabProps> = ({
@@ -59,7 +61,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   onAcceptRequest,
   onViewUserProfile,
   onOpenVerificationModal,
-  showToast
+  showToast,
+  targetChatId,
+  onClearTargetChatId
 }) => {
   const isUserSingle = currentUserProfile?.relationshipStatus === 'single' || currentUserProfile?.relationship_status?.toLowerCase() === 'single';
   const isUserVerifiedSingle = isUserSingle && Boolean(currentUserProfile?.isLivenessVerified || currentUserProfile?.is_liveness_verified);
@@ -74,6 +78,18 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
   const [currentTheme, setCurrentTheme] = useState<ChatTheme>('terracotta');
+
+  // Auto-open target chat if requested (e.g. from Outings Feed)
+  React.useEffect(() => {
+    if (targetChatId) {
+      const match = conversations.find(c => c.id === targetChatId || c.outingId === targetChatId);
+      if (match) {
+        setActiveChat(match);
+        setSubtab('chats');
+      }
+      onClearTargetChatId?.();
+    }
+  }, [targetChatId, conversations, onClearTargetChatId]);
 
   // Swipe-to-reply state
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
@@ -535,7 +551,16 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                 <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{activeChat.name}</h4>
                 <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  <span>{activeChat.type === 'group' ? 'Group Chat' : 'Active'}</span>
+                  <span>
+                    {activeChat.isTemporary 
+                      ? 'Temporary Outing Group Chat' 
+                      : activeChat.type === 'group' 
+                      ? 'Group Chat' 
+                      : 'Active'}
+                  </span>
+                  {activeChat.members && (
+                    <span>• {activeChat.members.length} members</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -587,25 +612,60 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
 
         {/* Messages Stream */}
         <div className="flex-1 p-4 space-y-3 overflow-y-auto max-w-lg mx-auto w-full">
-          {activeChat.messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex flex-col group ${msg.sender === 'me' ? 'items-end' : 'items-start'}`}
-            >
-              {/* Swipe-to-reply button row */}
-              <div className="flex items-center gap-1 max-w-[85%]">
-                {msg.sender !== 'me' && (
-                  <button
-                    onClick={() => {
-                      setReplyingTo(msg);
-                      showToast(`Replying to ${activeChat.name}`);
-                    }}
-                    title="Swipe or click to reply"
-                    className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-[#E0533C] transition"
-                  >
-                    <Reply className="w-3.5 h-3.5" />
-                  </button>
+          {/* Outing Squad Banner for Outing Group Chats */}
+          {activeChat.isTemporary && (
+            <div className="p-3 bg-gradient-to-r from-orange-500/15 via-rose-500/15 to-amber-500/15 border border-[#E0533C]/30 rounded-2xl shadow-xs text-xs space-y-2 backdrop-blur-xs">
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#E0533C] text-white text-[10px] font-black uppercase tracking-wider">
+                  <Sparkles className="w-3 h-3" />
+                  <span>Temporary Outing Squad Chat</span>
+                </span>
+                {activeChat.members && (
+                  <span className="text-[10px] font-extrabold text-[#E0533C] dark:text-orange-300">
+                    {activeChat.members.length} Squad Members
+                  </span>
                 )}
+              </div>
+              {activeChat.members && activeChat.members.length > 0 && (
+                <div className="text-[11px] text-slate-700 dark:text-slate-200">
+                  <span className="font-bold opacity-75">Confirmed: </span>
+                  <span className="font-semibold">{activeChat.members.join(' • ')}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeChat.messages.map((msg) => {
+            if (msg.sender === 'system') {
+              return (
+                <div key={msg.id} className="flex justify-center my-2 w-full animate-in fade-in duration-200">
+                  <div className="bg-black/10 dark:bg-white/10 text-slate-800 dark:text-slate-200 border border-black/5 dark:border-white/10 rounded-2xl px-4 py-2 text-[11px] font-medium text-center max-w-sm shadow-xs backdrop-blur-xs">
+                    <p className="leading-relaxed font-semibold">{msg.text}</p>
+                    <span className="text-[9px] opacity-60 block mt-1">{msg.time}</span>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div
+                key={msg.id}
+                className={`flex flex-col group ${msg.sender === 'me' ? 'items-end' : 'items-start'}`}
+              >
+                {/* Swipe-to-reply button row */}
+                <div className="flex items-center gap-1 max-w-[85%]">
+                  {msg.sender !== 'me' && (
+                    <button
+                      onClick={() => {
+                        setReplyingTo(msg);
+                        showToast(`Replying to ${activeChat.name}`);
+                      }}
+                      title="Swipe or click to reply"
+                      className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-[#E0533C] transition"
+                    >
+                      <Reply className="w-3.5 h-3.5" />
+                    </button>
+                  )}
 
                 {msg.dateInvite ? (
                   <div className="w-full bg-gradient-to-r from-[#E0533C] to-orange-600 text-white p-3.5 rounded-2xl shadow-md space-y-2">
@@ -708,7 +768,8 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                 )}
               </div>
             </div>
-          ))}
+          );
+        })}
         </div>
 
         {/* Swipe-to-reply Preview Banner */}
@@ -1320,11 +1381,17 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                     <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#14171F]" />
                   </div>
                   <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">
                         {conv.name}
                       </h4>
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                      {conv.isTemporary ? (
+                        <span className="px-1.5 py-0.2 rounded bg-orange-100 dark:bg-orange-950/80 text-[#E0533C] text-[9px] font-black uppercase tracking-wider shrink-0">
+                          Outing Group
+                        </span>
+                      ) : (
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                      )}
                     </div>
                     <p className="text-[10px] text-slate-400 truncate mt-0.5">
                       {conv.lastMessage}
@@ -1333,7 +1400,11 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                 </div>
                 <div className="text-right shrink-0">
                   <span className="text-[9px] text-slate-400 block">Just now</span>
-                  <span className="w-2 h-2 rounded-full bg-[#FF5733] inline-block mt-1" />
+                  {conv.isTemporary ? (
+                    <span className="text-[9px] font-extrabold text-[#E0533C] block mt-0.5">Unlocked</span>
+                  ) : (
+                    <span className="w-2 h-2 rounded-full bg-[#FF5733] inline-block mt-1" />
+                  )}
                 </div>
               </div>
             ))}

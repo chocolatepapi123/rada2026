@@ -21,7 +21,9 @@ import {
   ArrowRight,
   ShieldCheck,
   ChevronDown,
-  RotateCcw
+  RotateCcw,
+  UserCheck,
+  MessageSquare
 } from 'lucide-react';
 import { OutingPlan, OutingAttendee, SpotItem, UserProfile } from '../types.ts';
 import { shareContent } from '../utils/shareUtils.ts';
@@ -241,6 +243,8 @@ interface OutingsTabProps {
   onOpenAuth: () => void;
   onCreateOuting: (outing: OutingPlan) => Promise<void>;
   onRequestJoin: (outingId: string, attendee: OutingAttendee) => Promise<void>;
+  onUpdateAttendeeStatus?: (outingId: string, attendeeId: string, status: 'approved' | 'declined') => Promise<void>;
+  onOpenOutingChat?: (outing: OutingPlan) => void;
   onOpenSpotDetails?: (spot: SpotItem) => void;
   showToast: (msg: string) => void;
 }
@@ -254,6 +258,8 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   onOpenAuth,
   onCreateOuting,
   onRequestJoin,
+  onUpdateAttendeeStatus,
+  onOpenOutingChat,
   onOpenSpotDetails,
   showToast
 }) => {
@@ -263,6 +269,43 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [isHostModalOpen, setIsHostModalOpen] = useState(false);
   const [selectedOutingDetail, setSelectedOutingDetail] = useState<OutingPlan | null>(null);
+  const [managingOuting, setManagingOuting] = useState<OutingPlan | null>(null);
+  const [isProcessingAction, setIsProcessingAction] = useState<string | null>(null);
+
+  // Keep managingOuting in sync with fresh outings array
+  const activeManagingOuting = useMemo(() => {
+    if (!managingOuting) return null;
+    return outings.find(o => o.id === managingOuting.id) || managingOuting;
+  }, [outings, managingOuting]);
+
+  const activeSelectedOutingDetail = useMemo(() => {
+    if (!selectedOutingDetail) return null;
+    return outings.find(o => o.id === selectedOutingDetail.id) || selectedOutingDetail;
+  }, [outings, selectedOutingDetail]);
+
+  const handleApproveApplicant = async (outingId: string, attendeeId: string) => {
+    if (!onUpdateAttendeeStatus) return;
+    setIsProcessingAction(attendeeId);
+    try {
+      await onUpdateAttendeeStatus(outingId, attendeeId, 'approved');
+    } catch (err: any) {
+      showToast(err?.message || 'Could not approve applicant');
+    } finally {
+      setIsProcessingAction(null);
+    }
+  };
+
+  const handleDeclineApplicant = async (outingId: string, attendeeId: string) => {
+    if (!onUpdateAttendeeStatus) return;
+    setIsProcessingAction(attendeeId);
+    try {
+      await onUpdateAttendeeStatus(outingId, attendeeId, 'declined');
+    } catch (err: any) {
+      showToast(err?.message || 'Could not decline applicant');
+    } finally {
+      setIsProcessingAction(null);
+    }
+  };
 
   // Form state for Hosting a Plan
   const [selectedSpotId, setSelectedSpotId] = useState<number | null>(spots[0]?.id || null);
@@ -357,8 +400,8 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       a.userName === currentUserProfile.name ||
       (currentUserProfile.handle && a.userHandle === currentUserProfile.handle)
     );
-    if (!myAttendee) return 'none';
-    return myAttendee.status === 'joined' ? 'joined' : 'pending';
+    if (!myAttendee || myAttendee.status === 'declined') return 'none';
+    return (myAttendee.status === 'joined' || myAttendee.status === 'approved') ? 'joined' : 'pending';
   };
 
   // Handle Join Request
@@ -385,7 +428,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
     }
 
     // Check available slots
-    const joinedCount = plan.attendees?.filter(a => a.status === 'joined').length || 0;
+    const joinedCount = plan.attendees?.filter(a => a.status === 'joined' || a.status === 'approved').length || 0;
     const remainingSlots = Math.max(0, plan.maxAttendees - joinedCount - 1);
     if (remainingSlots <= 0) {
       showToast('This outing has reached maximum attendee capacity.');
@@ -628,7 +671,8 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
         <div className="space-y-3.5">
           {filteredOutings.map((plan) => {
             const attendeeStatus = getAttendeeStatus(plan);
-            const joinedAttendees = plan.attendees?.filter(a => a.status === 'joined') || [];
+            const joinedAttendees = plan.attendees?.filter(a => a.status === 'joined' || a.status === 'approved') || [];
+            const pendingAttendees = plan.attendees?.filter(a => a.status === 'pending') || [];
             // Host is 1 attendee
             const totalOccupied = joinedAttendees.length + 1;
             const remainingSlots = Math.max(0, plan.maxAttendees - totalOccupied);
@@ -714,7 +758,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                 </p>
 
                 {/* Slots & Attendees Row */}
-                <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800/80 text-xs">
+                <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800/80 text-xs gap-2 flex-wrap">
                   <div className="flex items-center gap-2">
                     {/* Available Slots Badge */}
                     <span className={`px-2.5 py-1 rounded-xl text-[11px] font-black flex items-center gap-1.5 ${
@@ -752,13 +796,41 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                     )}
                   </div>
 
-                  {/* Join Request Button / Status Badge */}
-                  <div className="flex items-center gap-1.5">
+                  {/* Join Request Button / Host Actions / Chat Shortcut */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     {attendeeStatus === 'host' && (
-                      <span className="px-3 py-1.5 rounded-xl text-xs font-black bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-[#E0533C]" />
-                        <span>Your Plan</span>
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setManagingOuting(plan);
+                          }}
+                          className="px-3 py-1.5 rounded-xl text-xs font-black bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/70 dark:hover:bg-amber-900/70 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700 transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
+                          title="Manage join requests and attendees"
+                        >
+                          <UserCheck className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                          <span>Manage Attendees</span>
+                          {pendingAttendees.length > 0 && (
+                            <span className="px-1.5 py-0.2 rounded-full bg-[#E0533C] text-white text-[9px] font-black animate-pulse">
+                              {pendingAttendees.length}
+                            </span>
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenOutingChat?.(plan);
+                          }}
+                          className="px-3 py-1.5 rounded-xl text-xs font-black bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 shadow-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95"
+                          title="Open Outing Group Chat"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 text-[#E0533C]" />
+                          <span>Group Chat</span>
+                        </button>
+                      </div>
                     )}
 
                     {attendeeStatus === 'pending' && (
@@ -769,10 +841,25 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                     )}
 
                     {attendeeStatus === 'joined' && (
-                      <span className="px-3 py-1.5 rounded-xl text-xs font-black bg-emerald-100 dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1 shadow-2xs">
-                        <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
-                        <span>Joined ✓</span>
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="px-2.5 py-1.5 rounded-xl text-xs font-black bg-emerald-100 dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1 shadow-2xs">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
+                          <span>Joined ✓</span>
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenOutingChat?.(plan);
+                          }}
+                          className="px-3 py-1.5 rounded-xl text-xs font-black bg-[#E0533C] hover:bg-orange-700 text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95"
+                          title="Open Outing Group Chat"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <span>Open Group Chat</span>
+                        </button>
+                      </div>
                     )}
 
                     {attendeeStatus === 'none' && (
@@ -1168,7 +1255,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                 <div className="flex items-center justify-between">
                   <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
                     <Users className="w-3.5 h-3.5 text-[#E0533C]" />
-                    <span>Joined Attendees ({selectedOutingDetail.attendees?.filter(a => a.status === 'joined').length || 0})</span>
+                    <span>Joined Attendees ({selectedOutingDetail.attendees?.filter(a => a.status === 'joined' || a.status === 'approved').length || 0})</span>
                   </h4>
                   <span className="text-[10px] font-bold text-slate-400">
                     Host: {selectedOutingDetail.hostName}
@@ -1188,7 +1275,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                     <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">Confirmed</span>
                   </div>
 
-                  {/* Joined attendees */}
+                  {/* Joined / Approved attendees */}
                   {selectedOutingDetail.attendees?.map((att) => (
                     <div key={att.id} className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -1199,11 +1286,11 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                         </div>
                       </div>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                        att.status === 'joined'
+                        att.status === 'joined' || att.status === 'approved'
                           ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300'
                           : 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300'
                       }`}>
-                        {att.status === 'joined' ? 'Joined ✓' : 'Pending'}
+                        {att.status === 'joined' || att.status === 'approved' ? 'Approved ✓' : 'Pending'}
                       </span>
                     </div>
                   ))}
@@ -1213,18 +1300,60 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
               {/* Action Buttons */}
               <div className="pt-2 flex items-center gap-2">
                 {(() => {
-                  const status = getAttendeeStatus(selectedOutingDetail);
+                  const targetPlan = activeSelectedOutingDetail || selectedOutingDetail;
+                  const status = getAttendeeStatus(targetPlan);
                   if (status === 'host') {
+                    const pendingCount = (targetPlan.attendees || []).filter(a => a.status === 'pending').length;
                     return (
-                      <div className="flex-1 py-3 text-center rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold text-xs">
-                        You are hosting this outing!
+                      <div className="flex items-center gap-2 flex-1 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setManagingOuting(targetPlan);
+                          }}
+                          className="flex-1 py-3 px-3 rounded-2xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/70 dark:hover:bg-amber-900/70 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700 font-extrabold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
+                        >
+                          <UserCheck className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                          <span>Manage Attendees</span>
+                          {pendingCount > 0 && (
+                            <span className="px-1.5 py-0.2 rounded-full bg-[#E0533C] text-white text-[9px] font-black animate-pulse">
+                              {pendingCount}
+                            </span>
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onOpenOutingChat?.(targetPlan);
+                            setSelectedOutingDetail(null);
+                          }}
+                          className="flex-1 py-3 px-3 rounded-2xl bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 font-black text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
+                        >
+                          <MessageSquare className="w-4 h-4 text-[#E0533C]" />
+                          <span>Open Group Chat</span>
+                        </button>
                       </div>
                     );
                   }
                   if (status === 'joined') {
                     return (
-                      <div className="flex-1 py-3 text-center rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 font-extrabold text-xs">
-                        You have joined this outing ✓
+                      <div className="flex items-center gap-2 flex-1 flex-wrap">
+                        <div className="px-3.5 py-3 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 font-extrabold text-xs flex items-center justify-center gap-1">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
+                          <span>Joined ✓</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onOpenOutingChat?.(targetPlan);
+                            setSelectedOutingDetail(null);
+                          }}
+                          className="flex-1 py-3 px-3 rounded-2xl bg-[#E0533C] hover:bg-orange-700 text-white font-black text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-95"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                          <span>Open Group Chat</span>
+                        </button>
                       </div>
                     );
                   }
@@ -1239,7 +1368,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                     <button
                       type="button"
                       onClick={(e) => {
-                        handleJoinClick(e, selectedOutingDetail);
+                        handleJoinClick(e, targetPlan);
                         setSelectedOutingDetail(null);
                       }}
                       className="flex-1 py-3 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-2xl shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer"
@@ -1253,9 +1382,10 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                 <button
                   type="button"
                   onClick={() => {
+                    const targetPlan = activeSelectedOutingDetail || selectedOutingDetail;
                     shareContent({
-                      title: `RADA Outing: ${selectedOutingDetail.spotTitle}`,
-                      text: `Join ${selectedOutingDetail.hostName} for a hangout at ${selectedOutingDetail.spotTitle} (${selectedOutingDetail.date}) on RADA!`,
+                      title: `RADA Outing: ${targetPlan.spotTitle}`,
+                      text: `Join ${targetPlan.hostName} for a hangout at ${targetPlan.spotTitle} (${targetPlan.date}) on RADA!`,
                       url: window.location.href,
                       onSuccess: showToast,
                       onError: showToast
@@ -1267,6 +1397,281 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                   <Share2 className="w-4 h-4 text-[#E0533C]" />
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          HOST ATTENDEE MANAGEMENT MODAL
+          ========================================================================= */}
+      {activeManagingOuting && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#1C1A1E] text-slate-900 dark:text-slate-100 rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[92vh]">
+            {/* Modal Header */}
+            <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-black/20">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-orange-100 dark:bg-orange-950/80 text-[#E0533C] flex items-center justify-center font-bold shadow-2xs">
+                  <UserCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
+                    Manage Outing Attendees
+                  </h3>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[220px]">
+                    {activeManagingOuting.spotTitle} • {formatOutingDate(activeManagingOuting.date, activeManagingOuting.time)}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setManagingOuting(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-4 sm:p-5 overflow-y-auto space-y-4 text-xs">
+              {/* Capacity & Outing Summary Card */}
+              <div className="p-3 bg-slate-50 dark:bg-black/30 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <img
+                      src={activeManagingOuting.spotImage}
+                      alt={activeManagingOuting.spotTitle}
+                      className="w-9 h-9 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">
+                        {activeManagingOuting.spotTitle}
+                      </h4>
+                      <p className="text-[10px] text-slate-400 truncate">
+                        {activeManagingOuting.spotAddress}
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className="px-2.5 py-1 rounded-xl text-[10px] font-black bg-orange-100 dark:bg-orange-950 text-[#E0533C] border border-orange-200 dark:border-orange-900 shrink-0">
+                    {activeManagingOuting.accessType === 'singles_only' ? '💖 Singles' : '👥 Open'}
+                  </span>
+                </div>
+
+                {/* Capacity progress */}
+                {(() => {
+                  const confirmedCount = (activeManagingOuting.attendees || []).filter(a => a.status === 'joined' || a.status === 'approved').length + 1; // + host
+                  const remaining = Math.max(0, activeManagingOuting.maxAttendees - confirmedCount);
+                  const isFull = remaining === 0;
+                  const pct = Math.min(100, Math.round((confirmedCount / activeManagingOuting.maxAttendees) * 100));
+                  return (
+                    <div className="space-y-1 pt-1">
+                      <div className="flex items-center justify-between text-[11px] font-bold">
+                        <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1">
+                          <Users className="w-3.5 h-3.5 text-[#E0533C]" />
+                          <span>Squad: {confirmedCount} / {activeManagingOuting.maxAttendees} Filled</span>
+                        </span>
+                        <span className={isFull ? 'text-rose-500 font-extrabold' : 'text-emerald-600 font-extrabold'}>
+                          {isFull ? 'Outing Full' : `${remaining} slots left`}
+                        </span>
+                      </div>
+                      <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-orange-500 to-[#E0533C] rounded-full transition-all duration-300"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* 1. Pending Join Requests */}
+              {(() => {
+                const pendingList = (activeManagingOuting.attendees || []).filter(a => a.status === 'pending');
+                const confirmedCount = (activeManagingOuting.attendees || []).filter(a => a.status === 'joined' || a.status === 'approved').length + 1;
+                const isFull = confirmedCount >= activeManagingOuting.maxAttendees;
+
+                return (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Pending Join Requests ({pendingList.length})</span>
+                      </h4>
+                      {pendingList.length > 0 && (
+                        <span className="text-[10px] text-amber-700 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/80 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">
+                          Requires Action
+                        </span>
+                      )}
+                    </div>
+
+                    {pendingList.length === 0 ? (
+                      <div className="p-4 bg-slate-50/50 dark:bg-black/20 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-center space-y-1">
+                        <p className="font-bold text-xs text-slate-700 dark:text-slate-300">
+                          No pending join requests right now.
+                        </p>
+                        <p className="text-[11px] text-slate-400">
+                          When explorers request to join this plan, their profile and approval actions will appear here.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">
+                        {pendingList.map((applicant) => (
+                          <div
+                            key={applicant.id}
+                            className="p-3 bg-white dark:bg-[#121113] border border-amber-200 dark:border-amber-900/60 rounded-2xl shadow-xs space-y-2.5"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <img
+                                  src={applicant.userAvatar}
+                                  alt={applicant.userName}
+                                  className="w-10 h-10 rounded-full object-cover border-2 border-amber-300 dark:border-amber-700 shrink-0"
+                                />
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <h5 className="font-black text-xs text-slate-900 dark:text-slate-100 truncate">
+                                      {applicant.userName}
+                                    </h5>
+                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
+                                      <ShieldCheck className="w-2.5 h-2.5" />
+                                      <span>Verified</span>
+                                    </span>
+                                  </div>
+                                  <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                                    {applicant.userHandle || '@explorer'} • Nairobi Hangouts
+                                  </p>
+                                </div>
+                              </div>
+
+                              <span className="text-[9px] text-amber-700 dark:text-amber-400 font-bold shrink-0 bg-amber-50 dark:bg-amber-950/80 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">
+                                Pending
+                              </span>
+                            </div>
+
+                            {/* Action buttons: Approve and Decline */}
+                            <div className="flex items-center gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+                              <button
+                                type="button"
+                                disabled={isProcessingAction === applicant.id || isFull}
+                                onClick={() => handleApproveApplicant(activeManagingOuting.id, applicant.id)}
+                                className="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-95"
+                              >
+                                <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                <span>{isProcessingAction === applicant.id ? 'Approving...' : isFull ? 'Outing Full' : 'Approve & Unlock Chat'}</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={isProcessingAction === applicant.id}
+                                onClick={() => handleDeclineApplicant(activeManagingOuting.id, applicant.id)}
+                                className="py-2 px-3 bg-slate-100 hover:bg-rose-50 dark:bg-slate-800 dark:hover:bg-rose-950/50 text-slate-700 hover:text-rose-600 dark:text-slate-300 dark:hover:text-rose-300 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                                <span>Decline</span>
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* 2. Confirmed Attendees & Host */}
+              {(() => {
+                const confirmedList = (activeManagingOuting.attendees || []).filter(a => a.status === 'joined' || a.status === 'approved');
+
+                return (
+                  <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5 text-[#E0533C]" />
+                        <span>Confirmed Squad ({confirmedList.length + 1})</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        Host + Approved Members
+                      </span>
+                    </h4>
+
+                    <div className="space-y-1.5">
+                      {/* Host line */}
+                      <div className="p-2.5 rounded-xl bg-orange-50/70 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900/40 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <img
+                            src={activeManagingOuting.hostAvatar}
+                            alt="Host"
+                            className="w-8 h-8 rounded-full object-cover border border-orange-300 shrink-0"
+                          />
+                          <div>
+                            <div className="flex items-center gap-1">
+                              <span className="font-extrabold text-xs">{activeManagingOuting.hostName}</span>
+                              <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                            </div>
+                            <span className="text-[9px] text-[#E0533C] font-black uppercase">Host & Organizer</span>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-md">
+                          Confirmed
+                        </span>
+                      </div>
+
+                      {/* Confirmed / Approved applicants */}
+                      {confirmedList.map((att) => (
+                        <div
+                          key={att.id}
+                          className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between"
+                        >
+                          <div className="flex items-center gap-2">
+                            <img
+                              src={att.userAvatar}
+                              alt={att.userName}
+                              className="w-8 h-8 rounded-full object-cover border border-slate-300 dark:border-slate-700 shrink-0"
+                            />
+                            <div>
+                              <div className="flex items-center gap-1">
+                                <span className="font-bold text-xs">{att.userName}</span>
+                                <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                              </div>
+                              <span className="text-[10px] text-slate-400">{att.userHandle || '@explorer'}</span>
+                            </div>
+                          </div>
+                          <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 rounded-md flex items-center gap-1">
+                            <Check className="w-3 h-3 stroke-[3]" />
+                            <span>Approved</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Modal Footer with Group Chat Shortcut */}
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-black/20 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenOutingChat?.(activeManagingOuting);
+                  setManagingOuting(null);
+                }}
+                className="flex-1 py-3 px-4 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-2xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer active:scale-95 text-xs"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Open Outing Group Chat</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setManagingOuting(null)}
+                className="py-3 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-2xl transition cursor-pointer text-xs"
+              >
+                Done
+              </button>
             </div>
           </div>
         </div>
