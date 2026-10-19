@@ -308,7 +308,7 @@ export default function App() {
       const parsed = JSON.parse(saved);
 
       if (Array.isArray(parsed)) {
-        return parsed;
+        return parsed.filter((b: any) => b?.category !== 'thrift_store');
       }
     } catch (e) {
       console.error('Failed to load businesses:', e);
@@ -393,8 +393,8 @@ export default function App() {
     const saved = localStorage.getItem('rada_offers');
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length >= 10) return parsed;
+        const parsed = (JSON.parse(saved) as any[]).filter(o => o?.businessCategory !== 'thrift_store');
+        if (Array.isArray(parsed) && parsed.length >= initialOffers.length) return parsed;
       } catch (e) {}
     }
     return initialOffers;
@@ -1137,7 +1137,7 @@ export default function App() {
         return [...remote, ...toMigrate, ...seeds];
       };
 
-      const safeListings: cloud.CloudListings = remoteListings || { spot: [], event: [], thrift: [], offer: [] };
+      const safeListings: cloud.CloudListings = remoteListings || { spot: [], event: [], offer: [] };
 
       const mergedSpotsRaw = await mergeKind('spot', initialSpots, L.spots, safeListings.spot);
 
@@ -1582,12 +1582,10 @@ export default function App() {
   };
 
   // Status Posting with clean location (e.g. Westlands, Nairobi - no GPS coordinates)
-  // Removes a status online too, if lib/cloudSync.ts provides deleteStatus(id)
+  // Removes a status from Supabase (rada_statuses) as well as from the screen
   const deleteStatusInCloud = (statusId: string) => {
-    const del = (cloud as any).deleteStatus as ((id: string) => Promise<string | null>) | undefined;
-    if (typeof del === 'function' && session?.user?.id) {
-      cloudWrite(() => del(statusId));
-    }
+    const uid: string | undefined = session?.user?.id;
+    if (uid) cloudWrite(() => cloud.deleteStatusFromCloud(statusId, uid));
   };
 
   const handlePostStatus = (text: string, mediaUrl?: string, locationName?: string) => {
