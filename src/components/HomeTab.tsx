@@ -62,8 +62,6 @@ interface HomeTabProps {
   onOpenDedicatedViewAll: (title: string, category: string) => void;
   onOpenCreateEvent?: (initialTitle?: string) => void;
   onOpenBusinessProfile?: (businessId: string) => void;
-  onOpenWagwanAI?: () => void;
-  onCategoryChange?: (category: string) => void;
   showToast: (msg: string) => void;
 }
 
@@ -85,8 +83,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   onOpenDedicatedViewAll,
   onOpenCreateEvent,
   onOpenBusinessProfile,
-  onOpenWagwanAI,
-  onCategoryChange,
   showToast
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -110,19 +106,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
   // Outdoor & Social Activity sub-category filter
   const [selectedActivityCategory, setSelectedActivityCategory] = useState<'all' | 'nature' | 'art' | 'gaming' | 'adrenaline'>('all');
-
-  // Notify parent of category mood shifts
-  React.useEffect(() => {
-    if (selectedActivityCategory !== 'all') {
-      onCategoryChange?.(selectedActivityCategory);
-    } else if (selectedVibe !== 'all') {
-      onCategoryChange?.(selectedVibe);
-    } else if (selectedOfferCategory !== 'all') {
-      onCategoryChange?.(selectedOfferCategory);
-    } else {
-      onCategoryChange?.('all');
-    }
-  }, [selectedVibe, selectedActivityCategory, selectedOfferCategory, onCategoryChange]);
 
   // Universal Bookmark Checker
   const isSaved = (id: string | number, kind: 'spot' | 'event' | 'thrift' | 'offer') => {
@@ -473,17 +456,17 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search Kenyan events, venues, movies, or DJs..."
-              className="w-full pl-10 pr-20 py-3 bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#FF5733] shadow-xs text-white placeholder:text-slate-400"
+              className="w-full pl-10 pr-20 py-3 bg-white dark:bg-[#1C1A1E] border border-slate-300 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] shadow-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
             />
 
             <div className="absolute right-2.5 flex items-center gap-1.5">
               {/* Listening Waveform Animation */}
               {isListening && (
-                <div className="flex items-center gap-0.5 px-2 py-1 bg-red-950/80 rounded-full border border-red-500/30">
-                  <span className="w-1 h-3 bg-[#FF5733] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1 h-4 bg-[#FF5733] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-1 h-2 bg-[#FF5733] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                  <span className="text-[9px] font-black text-[#FF5733] ml-1">Listening</span>
+                <div className="flex items-center gap-0.5 px-2 py-1 bg-red-100 dark:bg-red-950/80 rounded-full">
+                  <span className="w-1 h-3 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-1 h-4 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-1 h-2 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <span className="text-[9px] font-black text-[#E0533C] ml-1">Listening</span>
                 </div>
               )}
 
@@ -492,10 +475,10 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 type="button"
                 onClick={handleToggleVoiceSearch}
                 title={isListening ? 'Stop Listening' : 'Voice Search with Web Speech API'}
-                className={`p-2 rounded-xl transition cursor-pointer border border-white/10 ${
+                className={`p-2 rounded-xl transition ${
                   isListening 
-                    ? 'bg-[#FF5733] text-white shadow-md' 
-                    : 'bg-black/50 text-slate-300 hover:bg-[#FF5733] hover:text-white'
+                    ? 'bg-[#E0533C] text-white shadow-md' 
+                    : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-[#E0533C] hover:text-white'
                 }`}
               >
                 <Mic className="w-3.5 h-3.5" />
@@ -509,8 +492,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             onClick={() => setIsEventFilterModalOpen(true)}
             className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-xs ${
               selectedGenre !== 'all' || selectedEventDateRange !== 'all' || selectedEventPriceTier !== 'all'
-                ? 'bg-[#FF5733] text-white border-[#FF5733] shadow-md'
-                : 'bg-black/60 backdrop-blur-xl text-slate-300 border-white/10 hover:border-white/30'
+                ? 'bg-[#E0533C] text-white border-[#E0533C] shadow-md'
+                : 'bg-white dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
             }`}
             title="Filter Events (Date, Price, Expanded Genres)"
           >
@@ -536,44 +519,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 setIsRefreshing(false);
               }
             }}
-            className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-xs bg-black/60 backdrop-blur-xl text-slate-300 border-white/10 hover:text-[#FF5733] hover:border-white/30 ${
+            className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-xs bg-white dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:text-[#E0533C] hover:border-slate-300 ${
               isRefreshing ? 'opacity-80' : ''
             }`}
             title="Refresh Feed"
           >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-[#FF5733]' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-[#E0533C]' : ''}`} />
           </button>
         </div>
-
-        {/* Wagwan AI Lifestyle Concierge Banner */}
-        {onOpenWagwanAI && (
-          <div 
-            onClick={onOpenWagwanAI}
-            className="p-3 sm:p-3.5 bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-transparent dark:from-orange-950/35 dark:via-amber-950/25 dark:to-transparent border border-orange-200/90 dark:border-orange-900/60 rounded-3xl flex items-center justify-between gap-3 cursor-pointer hover:border-[#E0533C] transition group shadow-2xs"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] text-white flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <div className="min-w-0 space-y-0.5">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <h4 className="font-black text-xs text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition">
-                    Wagwan AI Concierge
-                  </h4>
-                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-[#E0533C] text-white shadow-xs">
-                    Ask Anything
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                  Quiet cafés with Wi-Fi, indoor sports & bowling, hidden date night spots...
-                </p>
-              </div>
-            </div>
-            <div className="w-8 h-8 rounded-full bg-[#E0533C] text-white flex items-center justify-center shrink-0 shadow-xs group-hover:translate-x-0.5 transition-transform">
-              <ArrowRight className="w-4 h-4" />
-            </div>
-          </div>
-        )}
 
         {/* Active Filter Indicators */}
         {(selectedGenre !== 'all' || selectedEventDateRange !== 'all' || selectedEventPriceTier !== 'all') && (
@@ -790,7 +743,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-[#E0533C] to-amber-400 flex items-center justify-center text-white shadow-xs">
               <Flame className="w-3 h-3 fill-white" />
             </div>
-            <h2 className="text-xs font-black tracking-wider uppercase text-slate-800 dark:text-slate-200">
+            <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
               Running Offers & Promotions
             </h2>
           </div>
@@ -811,7 +764,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 className={`px-3 py-1 rounded-full text-[11px] shrink-0 font-bold transition cursor-pointer ${
                   selectedOfferCategory === tab.id
                     ? 'bg-rose-600 text-white shadow-xs'
-                    : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                    : 'bg-white dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
                 }`}
               >
                 {tab.label}
@@ -824,7 +777,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             {filteredOffers.map(offer => (
               <div
                 key={offer.id}
-                className="w-72 sm:w-80 bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shrink-0 shadow-xl flex flex-col justify-between hover:border-white/30 transition group text-white"
+                className="w-72 sm:w-80 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shrink-0 shadow-sm flex flex-col justify-between hover:border-rose-400/60 transition group"
               >
                 {/* Poster Banner */}
                 <div className="h-36 w-full relative bg-slate-900 overflow-hidden">
@@ -874,13 +827,13 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                       onClick={() => onOpenBusinessProfile && onOpenBusinessProfile(offer.businessId)}
                       className="flex items-center justify-between cursor-pointer group/biz"
                     >
-                      <span className="text-xs font-black text-slate-800 dark:text-slate-200 group-hover/biz:text-[#E0533C] transition truncate max-w-[150px]">
+                      <span className="text-xs font-black text-slate-900 dark:text-slate-100 group-hover/biz:text-[#E0533C] transition truncate max-w-[150px]">
                         {offer.businessName}
                       </span>
                       <BusinessBadge businessId={offer.businessId} category={offer.businessCategory} size="xs" />
                     </div>
 
-                    <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
+                    <p className="text-[11px] text-[#475569] dark:text-slate-300 line-clamp-2 leading-relaxed font-medium">
                       {offer.description}
                     </p>
                   </div>
@@ -971,7 +924,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       {(selectedVibe === 'all' || selectedVibe === 'concerts' || selectedVibe === 'nightlife' || selectedVibe === 'art') && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+            <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-[#E0533C]"></span>
               <span>
                 {selectedCalendarDay !== null 
@@ -984,7 +937,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <button
                   type="button"
                   onClick={() => setSelectedCalendarDay(null)}
-                  className="text-[11px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  className="text-[11px] font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
                 >
                   Show All Dates
                 </button>
@@ -1024,7 +977,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 className={`px-3 py-1.5 rounded-full font-bold shrink-0 transition text-xs cursor-pointer ${
                   selectedCalendarDay === d.id
                     ? 'bg-[#E0533C] text-white shadow-xs'
-                    : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                    : 'bg-white dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
                 }`}
               >
                 {d.label}
@@ -1077,7 +1030,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <div
                   key={evt.id}
                   onClick={() => onOpenEventDetails(evt)}
-                  className="event-card flex flex-col justify-between w-64 bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-3 shrink-0 shadow-xl cursor-pointer hover:border-white/30 transition group text-white"
+                  className="event-card flex flex-col justify-between w-64 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm cursor-pointer hover:border-[#E0533C] transition group"
                 >
                   <div>
                     <div
@@ -1131,14 +1084,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                       <Clock className="w-3 h-3 shrink-0" />
                       <span>{evt.date} • {evt.time || 'Evening'}</span>
                     </p>
-                    <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
+                    <p className="text-[10px] text-[#475569] dark:text-slate-300 mt-0.5 flex items-center gap-1">
                       <MapPin className="w-3 h-3 shrink-0" />
                       <span className="truncate">{evt.location}</span>
                     </p>
                   </div>
 
                   <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800">
-                    <span className="text-[10px] font-bold text-slate-500">
+                    <span className="text-[10px] font-bold text-[#475569] dark:text-slate-300">
                       {evt.goingCount} going
                     </span>
                     <button
@@ -1188,7 +1141,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Film className="w-4 h-4 text-[#2D6A4F]" />
-              <h2 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400">
+              <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
                 Century Cinemax Showings
               </h2>
             </div>
@@ -1215,7 +1168,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 className={`px-3 py-1.5 rounded-full text-xs shrink-0 transition ${
                   selectedCinemaLoc === loc.id
                     ? 'bg-[#2D6A4F] text-white font-black shadow-xs'
-                    : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-800'
+                    : 'bg-white dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-800'
                 }`}
               >
                 {loc.label}
@@ -1229,7 +1182,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               <div
                 key={movie.id}
                 onClick={() => onBookCinema(movie)}
-                className="cinema-card flex flex-col justify-between w-52 bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-2.5 shrink-0 shadow-xl cursor-pointer hover:border-[#2D6A4F] transition group text-white"
+                className="cinema-card flex flex-col justify-between w-52 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-2.5 shrink-0 shadow-sm cursor-pointer hover:border-[#2D6A4F] transition group"
               >
                 <div>
                   <div
@@ -1252,7 +1205,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     <MapPin className="w-3 h-3" />
                     <span>{movie.locationName}</span>
                   </p>
-                  <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
+                  <p className="text-[10px] text-[#475569] dark:text-slate-300 mt-0.5 flex items-center gap-1">
                     <Clock className="w-3 h-3" />
                     <span className="truncate">{movie.times}</span>
                   </p>
@@ -1285,7 +1238,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               <div className="w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-xs">
                 <Trees className="w-3.5 h-3.5" />
               </div>
-              <h2 className="text-xs font-black tracking-wider uppercase text-slate-800 dark:text-slate-200">
+              <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
                 Connect with Nature
               </h2>
             </div>
@@ -1304,7 +1257,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <div
                   key={spot.id}
                   onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
-                  className="w-72 bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-3 shrink-0 shadow-xl flex flex-col justify-between cursor-pointer hover:border-[#10B981] transition group text-white"
+                  className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-[#2D6A4F] transition group"
                 >
                   <div>
                     <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
@@ -1345,12 +1298,12 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         </div>
                       </div>
 
-                      <p className="text-[11px] text-slate-500 flex items-center gap-1 truncate">
+                      <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
                         <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
                         <span className="truncate">{spot.address || spot.neighborhood}</span>
                       </p>
 
-                      <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2 mt-1 leading-relaxed">
+                      <p className="text-[11px] text-[#475569] dark:text-slate-300 line-clamp-2 mt-1 leading-relaxed">
                         {spot.description}
                       </p>
                     </div>
@@ -1390,7 +1343,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               <div className="w-6 h-6 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shadow-xs">
                 <Palette className="w-3.5 h-3.5" />
               </div>
-              <h2 className="text-xs font-black tracking-wider uppercase text-slate-800 dark:text-slate-200">
+              <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
                 Creative & Leisure
               </h2>
             </div>
@@ -1409,7 +1362,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <div
                   key={spot.id}
                   onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
-                  className="w-72 bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-3 shrink-0 shadow-xl flex flex-col justify-between cursor-pointer hover:border-purple-500 transition group text-white"
+                  className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-purple-500 transition group"
                 >
                   <div>
                     <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
@@ -1450,12 +1403,12 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         </div>
                       </div>
 
-                      <p className="text-[11px] text-slate-500 flex items-center gap-1 truncate">
+                      <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
                         <MapPin className="w-3 h-3 text-purple-500 shrink-0" />
                         <span className="truncate">{spot.address || spot.neighborhood}</span>
                       </p>
 
-                      <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2 mt-1 leading-relaxed">
+                      <p className="text-[11px] text-[#475569] dark:text-slate-300 line-clamp-2 mt-1 leading-relaxed font-medium">
                         {spot.description}
                       </p>
                     </div>
@@ -1495,7 +1448,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               <div className="w-6 h-6 rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shadow-xs">
                 <Gamepad2 className="w-3.5 h-3.5" />
               </div>
-              <h2 className="text-xs font-black tracking-wider uppercase text-slate-800 dark:text-slate-200">
+              <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
                 Tech & Gaming
               </h2>
             </div>
@@ -1514,7 +1467,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <div
                   key={spot.id}
                   onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
-                  className="w-72 bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-3 shrink-0 shadow-xl flex flex-col justify-between cursor-pointer hover:border-cyan-500 transition group text-white"
+                  className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-cyan-500 transition group"
                 >
                   <div>
                     <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
@@ -1555,12 +1508,12 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         </div>
                       </div>
 
-                      <p className="text-[11px] text-slate-500 flex items-center gap-1 truncate">
+                      <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
                         <MapPin className="w-3 h-3 text-cyan-500 shrink-0" />
                         <span className="truncate">{spot.address || spot.neighborhood}</span>
                       </p>
 
-                      <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2 mt-1 leading-relaxed">
+                      <p className="text-[11px] text-[#475569] dark:text-slate-300 line-clamp-2 mt-1 leading-relaxed font-medium">
                         {spot.description}
                       </p>
                     </div>
@@ -1600,7 +1553,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               <div className="w-6 h-6 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center shadow-xs">
                 <Flame className="w-3.5 h-3.5" />
               </div>
-              <h2 className="text-xs font-black tracking-wider uppercase text-slate-800 dark:text-slate-200">
+              <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
                 Action & Sports
               </h2>
             </div>
@@ -1619,7 +1572,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <div
                   key={spot.id}
                   onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
-                  className="w-72 bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-3 shrink-0 shadow-xl flex flex-col justify-between cursor-pointer hover:border-orange-500 transition group text-white"
+                  className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-orange-500 transition group"
                 >
                   <div>
                     <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
@@ -1660,12 +1613,12 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         </div>
                       </div>
 
-                      <p className="text-[11px] text-slate-500 flex items-center gap-1 truncate">
+                      <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
                         <MapPin className="w-3 h-3 text-orange-500 shrink-0" />
                         <span className="truncate">{spot.address || spot.neighborhood}</span>
                       </p>
 
-                      <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2 mt-1 leading-relaxed">
+                      <p className="text-[11px] text-[#475569] dark:text-slate-300 line-clamp-2 mt-1 leading-relaxed font-medium">
                         {spot.description}
                       </p>
                     </div>
@@ -1700,18 +1653,18 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           ======================================================== */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+          <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
             <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
             <span>Where Are You At?</span>
           </h2>
-          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-700/60 flex items-center gap-1.5">
+          <span className="text-[10px] text-slate-600 dark:text-slate-300 font-bold bg-white dark:bg-slate-800 px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-700/60 flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
             <span>Community Feed</span>
           </span>
         </div>
 
         {/* Post Creation Box */}
-        <div className="bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-3xl p-3.5 shadow-lg space-y-3">
+        <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3.5 shadow-sm space-y-3">
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] text-white flex items-center justify-center font-black text-xs shrink-0">
               W
@@ -1737,7 +1690,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-2 border-t border-slate-200/80 dark:border-white/10">
+          <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800/80">
             <div className="flex items-center gap-1.5">
               <label className="cursor-pointer p-1.5 text-slate-500 hover:text-[#E0533C] transition" title="Attach Photo">
                 <Camera className="w-4 h-4" />
@@ -1755,7 +1708,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <Smile className="w-4 h-4" />
               </button>
 
-              <span className="text-[10px] text-slate-400 font-medium truncate max-w-[150px]">
+              <span className="text-[10px] text-slate-500 font-medium truncate max-w-[150px]">
                 📍 {statusLocation}
               </span>
             </div>
@@ -1786,7 +1739,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           {statuses.map((post) => (
             <div
               key={post.id}
-              className="bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-3xl p-3.5 shadow-lg space-y-2.5"
+              className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3.5 shadow-sm space-y-2.5"
             >
               <div className="flex items-center justify-between">
                 <div 
@@ -1808,7 +1761,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition">
                       {post.author}
                     </h4>
-                    <span className="text-[10px] text-slate-400">
+                    <span className="text-[10px] text-slate-500">
                       {post.handle} • {post.timeAgo}
                     </span>
                   </div>
@@ -1822,7 +1775,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 )}
               </div>
 
-              <p className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed">
+              <p className="text-xs text-slate-900 dark:text-slate-100 leading-relaxed font-normal">
                 {post.text}
               </p>
 

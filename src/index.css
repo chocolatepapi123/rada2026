@@ -3,52 +3,24 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-brandCoral: #FF5733;
-  --color-brandCoralHover: #FF6B4A;
-  --color-brandViolet: #8B5CF6;
-  --color-brandVioletHover: #7C3AED;
-  
-  /* Theme tokens: Luxury premium white theme & dark mode tokens */
-  --color-lightBg: #FAFAFC;
+  --color-brandTerracotta: #E0533C;
+  --color-brandSage: #2D6A4F;
+  --color-brandAmber: #E9C46A;
+  --color-darkBg: #121113;
+  --color-darkSurface: #1C1A1E;
+  --color-lightBg: #FFFFFF;
   --color-lightSurface: #FFFFFF;
-  --color-lightText: #0F172A;
-  --color-lightMuted: #64748B;
-  --color-lightBorder: rgba(15, 23, 42, 0.08);
-
-  --color-darkBg: #0B0F17;
-  --color-darkSurface: #111827;
-  --color-darkText: #F8FAFC;
-  --color-darkMuted: #94A3B8;
-  --color-darkBorder: rgba(255, 255, 255, 0.1);
-
-  /* 10 Main Category Vibrant Accents */
-  --color-catDining: #F59E0B;
-  --color-catNature: #10B981;
-  --color-catCreative: #D946EF;
-  --color-catTech: #06B6D4;
-  --color-catAction: #EF4444;
-  --color-catDate: #F43F5E;
-  --color-catClubs: #8B5CF6;
-  --color-catCafes: #D97706;
-  --color-catHotels: #EAB308;
-  --color-catVacation: #3B82F6;
-
-  /* Legacy aliases mapped to new brand palette */
-  --color-brandTerracotta: #FF5733;
-  --color-brandSage: #10B981;
-  --color-brandAmber: #F59E0B;
-
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 html {
-  background-color: #FAFAFC;
+  background-color: #FFFFFF;
   color: #0F172A;
   overscroll-behavior-y: none;
 }
 
 html.dark {
-  background-color: #0B0F17;
+  background-color: #121113;
   color: #F8FAFC;
 }
 
@@ -60,7 +32,7 @@ body {
 }
 
 .spot-title {
-  color: #FF5733 !important;
+  color: #E0533C !important;
 }
 
 .hide-scrollbar::-webkit-scrollbar {
