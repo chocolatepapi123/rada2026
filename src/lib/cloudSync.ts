@@ -766,8 +766,8 @@ export async function fetchReviews(): Promise<Record<string, any[]> | null> {
             id: revId,
             spotId,
             userId: row.user_id || row.userId || '',
-            userName: row.user_name || row.userName || row.data?.userName || 'Anonymous Explorer',
-            userHandle: row.user_handle || row.userHandle || row.data?.userHandle || '@explorer',
+            userName: toHandle(row.user_handle || row.userHandle || row.data?.userHandle),
+            userHandle: toHandle(row.user_handle || row.userHandle || row.data?.userHandle),
             userAvatar: row.user_avatar || row.userAvatar || row.data?.userAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop',
             rating: Number(row.rating ?? row.data?.rating ?? 5),
             comment: row.comment || row.content || row.data?.comment || '',
@@ -775,6 +775,8 @@ export async function fetchReviews(): Promise<Record<string, any[]> | null> {
             date: row.created_at ? new Date(row.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : (row.date || 'Recent'),
             ...(row.data || {})
           };
+          revObj.userHandle = toHandle(revObj.userHandle);
+          revObj.userName = revObj.userHandle;
           (out[spotId] = out[spotId] || []).push(revObj);
         }
       }
@@ -796,7 +798,8 @@ export async function fetchReviews(): Promise<Record<string, any[]> | null> {
         const revId = String(row.id);
         if (spotId && !seenIds.has(revId)) {
           seenIds.add(revId);
-          (out[spotId] = out[spotId] || []).push({ ...row.data, id: revId, spotId });
+          const h = toHandle(row.data?.userHandle);
+          (out[spotId] = out[spotId] || []).push({ ...row.data, id: revId, spotId, userHandle: h, userName: h });
         }
       }
     }
@@ -816,6 +819,8 @@ export async function insertReview(spotId: number | string, review: any, userId:
     return `photo upload failed: ${errMsg(e)}`;
   }
 
+  clean.userHandle = toHandle(clean.userHandle);
+  clean.userName = clean.userHandle;
   const sId = String(spotId);
   const ratingNum = Number(clean.rating || 5);
   let hasSuccess = false;
@@ -827,8 +832,8 @@ export async function insertReview(spotId: number | string, review: any, userId:
       user_id: isValidUuid(userId) ? userId : null,
       rating: ratingNum,
       comment: clean.comment || '',
-      user_name: clean.userName || 'Anonymous',
-      user_handle: clean.userHandle || '@explorer',
+      user_name: clean.userHandle,
+      user_handle: clean.userHandle,
       user_avatar: clean.userAvatar || '',
       images: clean.images || [],
     };
@@ -918,8 +923,11 @@ export async function fetchStatuses(): Promise<any[] | null> {
 
   const repliesByStatus: Record<string, any[]> = {};
   for (const row of rp.data || []) {
+    const rh = toHandle(row.data?.handle);
     (repliesByStatus[row.status_id] = repliesByStatus[row.status_id] || []).push({
       ...row.data,
+      author: rh,
+      handle: rh,
       id: row.id,
       timeAgo: timeAgo(row.created_at),
     });
@@ -929,8 +937,11 @@ export async function fetchStatuses(): Promise<any[] | null> {
   // so the 12-hour expiry and "is this my status" checks in utils/statusLifecycle.ts work.
   return (st.data || []).map((row: any) => {
     const createdAt = toIsoOrUndefined(row.created_at) || toIsoOrUndefined(row.data?.createdAt);
+    const sh = toHandle(row.data?.handle);
     return {
       ...row.data,
+      author: sh,
+      handle: sh,
       id: row.id,
       userId: row.user_id ? String(row.user_id) : row.data?.userId,
       createdAt,
@@ -949,6 +960,8 @@ export async function insertStatus(post: any, userId: string): Promise<string | 
   } catch (e) {
     return `photo upload failed: ${errMsg(e)}`;
   }
+  clean.handle = toHandle(clean.handle);
+  clean.author = clean.handle;
   const { error } = await supabase.from('rada_statuses').insert({
     id: String(post.id),
     user_id: userId,
@@ -981,7 +994,8 @@ export async function deleteStatusFromCloud(statusId: string, userId: string): P
 
 export async function insertStatusReply(statusId: string, reply: any, userId: string): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
-  const { timeAgo: _ta, ...rest } = reply;
+  const { timeAgo: _ta, ...restReply } = reply;
+  const rest = { ...restReply, handle: toHandle(restReply.handle), author: toHandle(restReply.handle) };
   const { error } = await supabase.from('rada_status_replies').insert({
     id: String(reply.id),
     status_id: String(statusId),
@@ -1063,6 +1077,216 @@ export async function saveUserData(
 }
 
 // =====================================================================
+// PUBLIC IDENTITY (username-only visibility)
+// =====================================================================
+export const USERNAME_MIN = 3;
+export const USERNAME_MAX = 20;
+export const USERNAME_REGEX = /^[a-z0-9_-]{3,20}$/;
+const AVATAR_BUCKET = 'avatars';
+const FALLBACK_HANDLE = '@explorer';
+
+/** Lowercases and strips a leading "@" and whitespace. */
+export function normalizeUsername(raw: string): string {
+  return (raw || '').trim().replace(/^@+/, '').toLowerCase();
+}
+
+/** Returns an error message, or null when the format is valid. */
+export function validateUsernameFormat(raw: string): string | null {
+  const u = normalizeUsername(raw);
+  if (!u) return 'Enter a username.';
+  if (u.length < USERNAME_MIN) return `At least ${USERNAME_MIN} characters.`;
+  if (u.length > USERNAME_MAX) return `At most ${USERNAME_MAX} characters.`;
+  if (!USERNAME_REGEX.test(u)) return 'Use only lowercase letters, numbers, _ and -.';
+  return null;
+}
+
+/**
+ * Turns anything into a safe public "@handle". Emails and phone numbers are never used:
+ * if the value looks like one (or is not a valid username) we fall back to a neutral handle.
+ */
+export function toHandle(value?: unknown): string {
+  const u = normalizeUsername(typeof value === 'string' ? value : '');
+  return USERNAME_REGEX.test(u) ? `@${u}` : FALLBACK_HANDLE;
+}
+
+export interface UsernameCheck {
+  available: boolean;
+  error: string | null; // set when the check itself failed (network etc.)
+}
+
+/**
+ * Live availability check. Tries the `check_username_available` RPC first, then falls back
+ * to querying `profiles`. `currentUid` lets a user keep their own existing username.
+ *
+ * Suggested SQL (run once in Supabase):
+ *   alter table profiles add column if not exists username text;
+ *   create unique index if not exists profiles_username_key on profiles (lower(username));
+ *   create or replace function check_username_available(username_to_check text)
+ *   returns boolean language sql security definer as $$
+ *     select not exists (select 1 from profiles where lower(username) = lower(username_to_check)
+ *                        and id is distinct from auth.uid());
+ *   $$;
+ *   grant execute on function check_username_available(text) to anon, authenticated;
+ */
+export async function checkUsernameAvailable(raw: string, currentUid?: string): Promise<UsernameCheck> {
+  const username = normalizeUsername(raw);
+  const formatError = validateUsernameFormat(username);
+  if (formatError) return { available: false, error: formatError };
+  if (!isSupabaseConfigured) return { available: true, error: null };
+
+  try {
+    const rpc = await supabase.rpc('check_username_available', { username_to_check: username });
+    if (!rpc.error && typeof rpc.data === 'boolean') {
+      return { available: rpc.data, error: null };
+    }
+  } catch {
+    // fall through to the table query
+  }
+
+  try {
+    let q = supabase.from('profiles').select('id').ilike('username', username).limit(1);
+    if (currentUid) q = q.neq('id', currentUid);
+    const { data, error } = await q;
+    if (error) return { available: false, error: 'Could not check availability. Try again.' };
+    return { available: !data || data.length === 0, error: null };
+  } catch (err) {
+    return { available: false, error: 'Could not check availability. Try again.' };
+  }
+}
+
+/** Saves the username (re-validates format and availability first). */
+export async function updateUsername(uid: string, raw: string): Promise<{ error: string | null; username?: string }> {
+  const username = normalizeUsername(raw);
+  const formatError = validateUsernameFormat(username);
+  if (formatError) return { error: formatError };
+  if (!isSupabaseConfigured || !uid) return { error: null, username };
+
+  const check = await checkUsernameAvailable(username, uid);
+  if (check.error) return { error: check.error };
+  if (!check.available) return { error: 'Username taken' };
+
+  try {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ username, updated_at: now })
+      .eq('id', uid)
+      .select('id');
+    let err = error;
+    if (!err && (!data || data.length === 0)) {
+      // No profile row yet
+      err = (await supabase.from('profiles').upsert({ id: uid, username, updated_at: now }, { onConflict: 'id' })).error;
+    }
+    if (err) {
+      // 23505 = unique violation: someone grabbed it between the check and the save
+      if ((err as any).code === '23505' || /duplicate|unique/i.test(err.message || '')) {
+        return { error: 'Username taken' };
+      }
+      return { error: err.message };
+    }
+    try { await supabase.auth.updateUser({ data: { username } }); } catch {}
+    return { error: null, username };
+  } catch (e) {
+    return { error: errMsg(e) };
+  }
+}
+
+export async function fetchProfileIdentity(uid: string): Promise<{ username?: string; avatarUrl?: string } | null> {
+  if (!isSupabaseConfigured || !uid) return null;
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('username, avatar_url')
+      .eq('id', uid)
+      .maybeSingle();
+    if (error || !data) return null;
+    return { username: data.username || undefined, avatarUrl: data.avatar_url || undefined };
+  } catch {
+    return null;
+  }
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(new Error('could not read file'));
+    r.readAsDataURL(file);
+  });
+}
+
+/** Center-crops to a square and downsizes to 512px, so avatars stay small and consistent. */
+async function avatarBlobFromFile(file: File): Promise<Blob> {
+  const img = await loadImage(await fileToDataUrl(file));
+  const side = Math.min(img.width, img.height);
+  const size = Math.min(512, side);
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('no canvas');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, size, size);
+  ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, size, size);
+  const blob: Blob | null = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.85));
+  if (!blob) throw new Error('could not process image');
+  return blob;
+}
+
+export const AVATAR_MAX_BYTES = 8 * 1024 * 1024;
+
+/**
+ * Uploads a picked image to the `avatars` bucket and saves the public URL as
+ * profiles.avatar_url. Returns the new URL so the UI can update immediately.
+ *
+ * Bucket setup: create a PUBLIC bucket named "avatars" with policies letting authenticated
+ * users insert/update/delete objects whose path starts with their own uid folder:
+ *   (storage.foldername(name))[1] = auth.uid()::text
+ */
+export async function uploadAvatar(uid: string, file: File): Promise<{ url?: string; error: string | null }> {
+  if (!file.type.startsWith('image/')) return { error: 'Please choose an image file.' };
+  if (file.size > AVATAR_MAX_BYTES) return { error: 'Image is too large (max 8 MB).' };
+
+  let blob: Blob;
+  try {
+    blob = await avatarBlobFromFile(file);
+  } catch (e) {
+    return { error: errMsg(e) };
+  }
+
+  // Offline / not configured: keep it local so the preview still works
+  if (!isSupabaseConfigured || !uid) {
+    return { url: await fileToDataUrl(new File([blob], 'avatar.jpg', { type: 'image/jpeg' })), error: null };
+  }
+
+  const path = `${uid}/avatar-${Date.now()}.jpg`;
+  const { error: upErr } = await supabase.storage.from(AVATAR_BUCKET).upload(path, blob, {
+    contentType: 'image/jpeg',
+    cacheControl: '31536000',
+    upsert: true,
+  });
+  if (upErr) return { error: `Upload failed: ${upErr.message}` };
+
+  const url = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path).data.publicUrl;
+  const now = new Date().toISOString();
+  const { data, error } = await supabase.from('profiles').update({ avatar_url: url, updated_at: now }).eq('id', uid).select('id');
+  let err = error;
+  if (!err && (!data || data.length === 0)) {
+    err = (await supabase.from('profiles').upsert({ id: uid, avatar_url: url, updated_at: now }, { onConflict: 'id' })).error;
+  }
+  if (err) return { error: `Could not save photo: ${err.message}` };
+
+  // Best-effort cleanup of older avatar files for this user
+  try {
+    const { data: files } = await supabase.storage.from(AVATAR_BUCKET).list(uid);
+    const stale = (files || []).filter(f => `${uid}/${f.name}` !== path).map(f => `${uid}/${f.name}`);
+    if (stale.length) await supabase.storage.from(AVATAR_BUCKET).remove(stale);
+  } catch {}
+
+  return { url, error: null };
+}
+
+// =====================================================================
 // PROFILE VERIFICATION (Supabase 'profiles' table)
 // =====================================================================
 export async function updateProfileVerification(
@@ -1108,12 +1332,14 @@ export async function updateProfileVerification(
 export async function fetchProfileVerification(uid: string): Promise<{
   relationship_status?: string;
   is_liveness_verified?: boolean;
+  username?: string;
+  avatar_url?: string;
 } | null> {
   if (!isSupabaseConfigured || !uid) return null;
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('relationship_status, is_liveness_verified')
+      .select('relationship_status, is_liveness_verified, username, avatar_url')
       .eq('id', uid)
       .maybeSingle();
     if (!error && data) {
@@ -1208,9 +1434,9 @@ export async function fetchOutings(): Promise<OutingPlan[] | null> {
             id: String(att.id),
             outingId: att.outing_id,
             userId: att.user_id,
-            userName: att.user_name || att.userName || 'Explorer',
+            userName: toHandle(att.user_handle || att.userHandle),
             userAvatar: att.user_avatar || att.userAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop',
-            userHandle: att.user_handle || att.userHandle,
+            userHandle: toHandle(att.user_handle || att.userHandle),
             status: att.status || 'pending',
             requestedAt: att.created_at || att.requestedAt || new Date().toISOString()
           });
@@ -1219,13 +1445,17 @@ export async function fetchOutings(): Promise<OutingPlan[] | null> {
 
       const formatted: OutingPlan[] = outingsData.map((row: any) => {
         const d = row.data && typeof row.data === 'object' ? row.data : {};
-        const attList = attendeesMap[row.id] || d.attendees || [];
+        const attList: OutingAttendee[] = (attendeesMap[row.id] || d.attendees || []).map((a: any) => {
+          const ah = toHandle(a.userHandle || a.user_handle);
+          return { ...a, userHandle: ah, userName: ah };
+        });
+        const hostH = toHandle(row.host_handle || d.hostHandle);
         return {
           id: String(row.id),
           hostId: row.host_id || d.hostId || 'anonymous',
-          hostName: row.host_name || d.hostName || 'Host',
+          hostName: hostH,
           hostAvatar: row.host_avatar || d.hostAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop',
-          hostHandle: row.host_handle || d.hostHandle || '@host',
+          hostHandle: hostH,
           isHostVerified: row.is_host_verified ?? d.isHostVerified ?? true,
           spotId: row.spot_id || d.spotId,
           spotTitle: row.spot_title || d.spotTitle || 'Hangout Venue',
@@ -1261,7 +1491,9 @@ export async function fetchOutings(): Promise<OutingPlan[] | null> {
   return null;
 }
 
-export async function createOuting(outing: OutingPlan): Promise<{ error: string | null; data?: OutingPlan }> {
+export async function createOuting(rawOuting: OutingPlan): Promise<{ error: string | null; data?: OutingPlan }> {
+  const hostH = toHandle(rawOuting.hostHandle);
+  const outing: OutingPlan = { ...rawOuting, hostHandle: hostH, hostName: hostH };
   try {
     const cached = localStorage.getItem(OUTINGS_LOCAL_KEY);
     const list: OutingPlan[] = cached ? JSON.parse(cached) : [];
@@ -1309,8 +1541,10 @@ export async function createOuting(outing: OutingPlan): Promise<{ error: string 
 
 export async function requestJoinOuting(
   outingId: string,
-  attendee: OutingAttendee
+  rawAttendee: OutingAttendee
 ): Promise<{ error: string | null; attendee?: OutingAttendee }> {
+  const attH = toHandle(rawAttendee.userHandle);
+  const attendee: OutingAttendee = { ...rawAttendee, userHandle: attH, userName: attH };
   try {
     const cached = localStorage.getItem(OUTINGS_LOCAL_KEY);
     if (cached) {
@@ -1400,9 +1634,22 @@ export async function updateOutingAttendeeStatus(
  * Automatically creates or updates a temporary Group Chat thread for an Outing when host approves an applicant
  */
 export function createOrUnlockOutingGroupChat(
-  outing: OutingPlan,
-  approvedApplicant?: OutingAttendee
+  rawOuting: OutingPlan,
+  rawApplicant?: OutingAttendee
 ): ChatConversation[] {
+  // Public surfaces (chat members, system messages) only ever carry @usernames
+  const hostLabel = toHandle(rawOuting.hostHandle);
+  const outing: OutingPlan = {
+    ...rawOuting,
+    hostName: hostLabel,
+    attendees: (rawOuting.attendees || []).map(a => {
+      const h = toHandle(a.userHandle);
+      return { ...a, userHandle: h, userName: h };
+    }),
+  };
+  const approvedApplicant: OutingAttendee | undefined = rawApplicant
+    ? { ...rawApplicant, userHandle: toHandle(rawApplicant.userHandle), userName: toHandle(rawApplicant.userHandle) }
+    : undefined;
   const CHATS_LOCAL_KEY = 'rada_conversations';
   let conversations: ChatConversation[] = [];
   try {
