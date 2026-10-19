@@ -202,7 +202,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
               className={`px-3 py-1.5 rounded-full text-xs shrink-0 transition-all cursor-pointer backdrop-blur-md ${
                 selectedCategory === cat.id
                   ? 'bg-[#FF5733] text-white font-black shadow-md'
-                  : 'bg-white/80 dark:bg-black/40 text-slate-700 dark:text-slate-300 font-semibold border border-slate-200/80 dark:border-white/10'
+                  : 'bg-black/60 text-slate-300 font-semibold border border-white/10 hover:border-white/30'
               }`}
             >
               {cat.label}
@@ -222,10 +222,10 @@ export const LukuTab: React.FC<LukuTabProps> = ({
             <button
               key={c.id}
               onClick={() => setSelectedCondition(c.id)}
-              className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold shrink-0 transition ${
+              className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold shrink-0 transition cursor-pointer backdrop-blur-md ${
                 selectedCondition === c.id
-                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
-                  : 'bg-[#F1F1EE] dark:bg-[#1C1A1E] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800'
+                  ? 'bg-[#FF5733] text-white'
+                  : 'bg-black/60 text-slate-300 border border-white/10 hover:border-white/30'
               }`}
             >
               {c.label}
@@ -242,10 +242,10 @@ export const LukuTab: React.FC<LukuTabProps> = ({
             <button
               key={p.id}
               onClick={() => setSelectedPriceRange(p.id)}
-              className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold shrink-0 transition ${
+              className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold shrink-0 transition cursor-pointer backdrop-blur-md ${
                 selectedPriceRange === p.id
                   ? 'bg-[#2D6A4F] text-white'
-                  : 'bg-[#F1F1EE] dark:bg-[#1C1A1E] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800'
+                  : 'bg-black/60 text-slate-300 border border-white/10 hover:border-white/30'
               }`}
             >
               {p.label}
@@ -276,7 +276,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
             return (
               <div
                 key={item.id}
-                className="bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-2xl p-2.5 shadow-lg flex flex-col justify-between hover:border-[#FF5733] transition group"
+                className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl p-2.5 shadow-xl flex flex-col justify-between hover:border-white/30 transition group text-white"
               >
                 <div>
                   <div

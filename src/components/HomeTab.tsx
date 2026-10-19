@@ -473,17 +473,17 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search Kenyan events, venues, movies, or DJs..."
-              className="w-full pl-10 pr-20 py-3 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] shadow-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+              className="w-full pl-10 pr-20 py-3 bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#FF5733] shadow-xs text-white placeholder:text-slate-400"
             />
 
             <div className="absolute right-2.5 flex items-center gap-1.5">
               {/* Listening Waveform Animation */}
               {isListening && (
-                <div className="flex items-center gap-0.5 px-2 py-1 bg-red-100 dark:bg-red-950/80 rounded-full">
-                  <span className="w-1 h-3 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1 h-4 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-1 h-2 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                  <span className="text-[9px] font-black text-[#E0533C] ml-1">Listening</span>
+                <div className="flex items-center gap-0.5 px-2 py-1 bg-red-950/80 rounded-full border border-red-500/30">
+                  <span className="w-1 h-3 bg-[#FF5733] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-1 h-4 bg-[#FF5733] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-1 h-2 bg-[#FF5733] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <span className="text-[9px] font-black text-[#FF5733] ml-1">Listening</span>
                 </div>
               )}
 
@@ -492,10 +492,10 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 type="button"
                 onClick={handleToggleVoiceSearch}
                 title={isListening ? 'Stop Listening' : 'Voice Search with Web Speech API'}
-                className={`p-2 rounded-xl transition ${
+                className={`p-2 rounded-xl transition cursor-pointer border border-white/10 ${
                   isListening 
-                    ? 'bg-[#E0533C] text-white shadow-md' 
-                    : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-[#E0533C] hover:text-white'
+                    ? 'bg-[#FF5733] text-white shadow-md' 
+                    : 'bg-black/50 text-slate-300 hover:bg-[#FF5733] hover:text-white'
                 }`}
               >
                 <Mic className="w-3.5 h-3.5" />
@@ -509,8 +509,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             onClick={() => setIsEventFilterModalOpen(true)}
             className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-xs ${
               selectedGenre !== 'all' || selectedEventDateRange !== 'all' || selectedEventPriceTier !== 'all'
-                ? 'bg-[#E0533C] text-white border-[#E0533C] shadow-md'
-                : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                ? 'bg-[#FF5733] text-white border-[#FF5733] shadow-md'
+                : 'bg-black/60 backdrop-blur-xl text-slate-300 border-white/10 hover:border-white/30'
             }`}
             title="Filter Events (Date, Price, Expanded Genres)"
           >
@@ -536,12 +536,12 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 setIsRefreshing(false);
               }
             }}
-            className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-xs bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:text-[#E0533C] hover:border-slate-300 ${
+            className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-xs bg-black/60 backdrop-blur-xl text-slate-300 border-white/10 hover:text-[#FF5733] hover:border-white/30 ${
               isRefreshing ? 'opacity-80' : ''
             }`}
             title="Refresh Feed"
           >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-[#E0533C]' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-[#FF5733]' : ''}`} />
           </button>
         </div>
 
@@ -824,7 +824,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             {filteredOffers.map(offer => (
               <div
                 key={offer.id}
-                className="w-72 sm:w-80 bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-3xl overflow-hidden shrink-0 shadow-lg flex flex-col justify-between hover:border-rose-400/60 transition group"
+                className="w-72 sm:w-80 bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shrink-0 shadow-xl flex flex-col justify-between hover:border-white/30 transition group text-white"
               >
                 {/* Poster Banner */}
                 <div className="h-36 w-full relative bg-slate-900 overflow-hidden">
@@ -1077,7 +1077,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <div
                   key={evt.id}
                   onClick={() => onOpenEventDetails(evt)}
-                  className="event-card flex flex-col justify-between w-64 bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-3xl p-3 shrink-0 shadow-lg cursor-pointer hover:border-[#E0533C] transition group"
+                  className="event-card flex flex-col justify-between w-64 bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-3 shrink-0 shadow-xl cursor-pointer hover:border-white/30 transition group text-white"
                 >
                   <div>
                     <div
@@ -1229,7 +1229,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               <div
                 key={movie.id}
                 onClick={() => onBookCinema(movie)}
-                className="cinema-card flex flex-col justify-between w-52 bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-3xl p-2.5 shrink-0 shadow-lg cursor-pointer hover:border-[#2D6A4F] transition group"
+                className="cinema-card flex flex-col justify-between w-52 bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-2.5 shrink-0 shadow-xl cursor-pointer hover:border-[#2D6A4F] transition group text-white"
               >
                 <div>
                   <div
@@ -1304,7 +1304,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <div
                   key={spot.id}
                   onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
-                  className="w-72 bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-3xl p-3 shrink-0 shadow-lg flex flex-col justify-between cursor-pointer hover:border-[#2D6A4F] transition group"
+                  className="w-72 bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-3 shrink-0 shadow-xl flex flex-col justify-between cursor-pointer hover:border-[#10B981] transition group text-white"
                 >
                   <div>
                     <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
@@ -1409,7 +1409,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <div
                   key={spot.id}
                   onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
-                  className="w-72 bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-3xl p-3 shrink-0 shadow-lg flex flex-col justify-between cursor-pointer hover:border-purple-500 transition group"
+                  className="w-72 bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-3 shrink-0 shadow-xl flex flex-col justify-between cursor-pointer hover:border-purple-500 transition group text-white"
                 >
                   <div>
                     <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
@@ -1514,7 +1514,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <div
                   key={spot.id}
                   onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
-                  className="w-72 bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-3xl p-3 shrink-0 shadow-lg flex flex-col justify-between cursor-pointer hover:border-cyan-500 transition group"
+                  className="w-72 bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-3 shrink-0 shadow-xl flex flex-col justify-between cursor-pointer hover:border-cyan-500 transition group text-white"
                 >
                   <div>
                     <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
@@ -1619,7 +1619,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <div
                   key={spot.id}
                   onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
-                  className="w-72 bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-3xl p-3 shrink-0 shadow-lg flex flex-col justify-between cursor-pointer hover:border-orange-500 transition group"
+                  className="w-72 bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-3 shrink-0 shadow-xl flex flex-col justify-between cursor-pointer hover:border-orange-500 transition group text-white"
                 >
                   <div>
                     <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">

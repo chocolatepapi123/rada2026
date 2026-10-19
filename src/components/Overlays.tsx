@@ -370,15 +370,15 @@ export const Overlays: React.FC<OverlaysProps> = ({
             }}
           />
 
-          <div className="sticky top-0 z-20 bg-white/80 dark:bg-black/40 backdrop-blur-md border-b border-slate-200/80 dark:border-white/10 transition-colors duration-700 ease-in-out">
+          <div className="sticky top-0 z-20 bg-black/60 backdrop-blur-xl border-b border-white/10 transition-colors duration-700 ease-in-out">
             <div className="max-w-lg mx-auto w-full px-4 py-3 flex items-center justify-between">
               <button
                 onClick={onCloseSpotModal}
-                className="w-9 h-9 rounded-full bg-white/80 dark:bg-white/10 border border-slate-200/80 dark:border-white/10 flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-[#E0533C] transition cursor-pointer"
+                className="w-9 h-9 rounded-full bg-black/60 border border-white/10 flex items-center justify-center text-white hover:bg-white/20 transition cursor-pointer"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
-              <h3 className="font-black text-sm uppercase tracking-wider text-slate-500">
+              <h3 className="font-black text-sm uppercase tracking-wider text-slate-200">
                 Spot Hub & Reviews
               </h3>
               <div className="flex items-center gap-1.5">
@@ -388,7 +388,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   className={`w-9 h-9 rounded-full flex items-center justify-center transition cursor-pointer ${
                     savedItems.some(s => String(s.id) === String(selectedSpot.id) && s.kind === 'spot')
                       ? 'bg-[#E0533C] text-white shadow-xs'
-                      : 'bg-white/80 dark:bg-white/10 border border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:text-[#E0533C]'
+                      : 'bg-black/60 border border-white/10 text-white hover:bg-white/20'
                   }`}
                   title={savedItems.some(s => String(s.id) === String(selectedSpot.id) && s.kind === 'spot') ? 'Remove from saved' : 'Save spot'}
                 >
@@ -406,7 +406,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     });
                   }}
                   title="Share Spot Link"
-                  className="w-9 h-9 rounded-full bg-[#F8F8F6] dark:bg-[#1C1A1E] flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-[#E0533C] transition cursor-pointer"
+                  className="w-9 h-9 rounded-full bg-black/60 border border-white/10 flex items-center justify-center text-white hover:bg-white/20 transition cursor-pointer"
                 >
                   <Share2 className="w-4 h-4" />
                 </button>
@@ -1125,11 +1125,11 @@ export const Overlays: React.FC<OverlaysProps> = ({
             }}
           />
 
-          <div className="sticky top-0 z-20 bg-white/80 dark:bg-black/40 backdrop-blur-md border-b border-slate-200/80 dark:border-white/10 transition-colors duration-700 ease-in-out">
+          <div className="sticky top-0 z-20 bg-black/60 backdrop-blur-xl border-b border-white/10 transition-colors duration-700 ease-in-out">
             <div className="max-w-lg mx-auto w-full px-4 py-3 flex items-center justify-between">
               <button
                 onClick={onCloseEventModal}
-                className="w-9 h-9 rounded-full bg-white/80 dark:bg-white/10 border border-slate-200/80 dark:border-white/10 flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-[#E0533C] transition cursor-pointer"
+                className="w-9 h-9 rounded-full bg-black/60 border border-white/10 flex items-center justify-center text-white hover:bg-white/20 transition cursor-pointer"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
@@ -1140,7 +1140,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   className={`w-9 h-9 rounded-full flex items-center justify-center transition cursor-pointer ${
                     savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event')
                       ? 'bg-[#E0533C] text-white shadow-xs'
-                      : 'bg-white/80 dark:bg-white/10 border border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:text-[#E0533C]'
+                      : 'bg-black/60 border border-white/10 text-white hover:bg-white/20'
                   }`}
                   title={savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event') ? 'Remove from saved' : 'Save event'}
                 >
@@ -1158,7 +1158,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     });
                   }}
                   title="Share Event Link"
-                  className="w-9 h-9 rounded-full bg-[#F8F8F6] dark:bg-[#1C1A1E] flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-[#E0533C] transition cursor-pointer"
+                  className="w-9 h-9 rounded-full bg-black/60 border border-white/10 flex items-center justify-center text-white hover:bg-white/20 transition cursor-pointer"
                 >
                   <Share2 className="w-4 h-4" />
                 </button>
@@ -1304,7 +1304,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
       {/* 4. PLAN A DATE MODAL (SPEC 5: Allow free browsing across ALL categories) */}
       {isPlanDateModalOpen && !datePlanningSpot && (
-        <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 bg-[#0A1128] text-white flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
@@ -1377,7 +1377,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
       {/* 5. PLAN A DATE: DATE & TIME PICKER */}
       {datePlanningSpot && (
-        <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 bg-[#0A1128] text-white flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
@@ -1434,7 +1434,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
       {/* 6. CREATE GROUP MODAL */}
       {isCreateGroupOpen && (
-        <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 bg-[#0A1128] text-white flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
               <h3 className="font-black text-sm uppercase tracking-wider text-slate-900 dark:text-slate-100">
@@ -1536,7 +1536,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
       {/* 8. EMERGENCY & SOS OVERLAY */}
       {activeOverlay === 'sosOverlay' && (
-        <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 bg-[#220C0C] text-white flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
@@ -1679,7 +1679,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
       {/* 9. REDESIGNED SETTINGS (SPEC 6: Redesigned like Instagram / TikTok) */}
       {activeOverlay === 'settingsOverlay' && (
-        <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 bg-[#0A1128] text-white flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
@@ -2113,10 +2113,10 @@ export const Overlays: React.FC<OverlaysProps> = ({
         const viewAllMood = getCategoryMood(viewAllCategory || viewAllTitle || 'all');
         return (
         <div 
-          className="fixed inset-0 z-50 flex flex-col p-4 overflow-y-auto animate-in fade-in duration-300 text-[#0F172A] dark:text-[#F8FAFC] transition-colors duration-700 ease-in-out relative"
+          className="fixed inset-0 z-50 flex flex-col p-4 overflow-y-auto animate-in fade-in duration-300 text-white transition-colors duration-700 ease-in-out relative"
           style={{
-            backgroundColor: isDarkMode ? viewAllMood.bgHex : viewAllMood.lightBgHex,
-            backgroundImage: isDarkMode ? viewAllMood.gradientDark : viewAllMood.gradientLight
+            backgroundColor: viewAllMood.bgHex,
+            backgroundImage: viewAllMood.gradientDark
           }}
         >
           {/* Ambient Glow */}
@@ -2127,17 +2127,39 @@ export const Overlays: React.FC<OverlaysProps> = ({
             }}
           />
           <div className="max-w-lg mx-auto w-full flex-1 flex flex-col relative z-10">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-200/80 dark:border-white/10">
-              <div className="flex items-center gap-2">
-                <Compass className="w-5 h-5 text-[#E0533C]" />
-                <h3 className="font-black text-sm uppercase tracking-wider">{viewAllTitle}</h3>
+            {/* Category Signature Header Banner */}
+            <div 
+              className="flex items-center justify-between p-3.5 rounded-3xl border border-white/15 backdrop-blur-xl shadow-2xl mb-3"
+              style={{
+                backgroundColor: `${viewAllMood.accentColor}25`,
+                borderColor: `${viewAllMood.accentColor}50`
+              }}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div 
+                  className="w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-lg shrink-0"
+                  style={{ backgroundColor: viewAllMood.accentColor }}
+                >
+                  <Compass className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-white/80 block">
+                    Category Deep Dive
+                  </span>
+                  <h3 className="font-black text-sm uppercase tracking-wider text-white truncate">
+                    {viewAllTitle}
+                  </h3>
+                </div>
               </div>
-              <button onClick={onCloseViewAll} className="p-1">
-                <X className="w-5 h-5" />
+              <button 
+                onClick={onCloseViewAll} 
+                className="w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center border border-white/20 transition cursor-pointer shrink-0 shadow-sm"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="py-4 space-y-3 flex-1 text-xs">
+            <div className="py-2 space-y-3 flex-1 text-xs">
               {/* Category-Specific Strict Filtering */}
               {viewAllCategory === 'events' ? (
                 /* STRICTLY DISPLAY EVENTS with Dynamic Calendar Day Filter */
@@ -2145,7 +2167,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   {/* Calendar Quick Day Filter Bar */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-300 flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5 text-[#E0533C]" />
                         <span>Filter by Calendar Date</span>
                       </span>
@@ -2153,7 +2175,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                         <button
                           type="button"
                           onClick={() => setEventsCalendarDay(null)}
-                          className="text-[10px] font-bold text-[#E0533C] hover:underline cursor-pointer"
+                          className="text-[10px] font-bold text-[#FF5733] hover:underline cursor-pointer"
                         >
                           Show All Dates
                         </button>
@@ -2177,10 +2199,10 @@ export const Overlays: React.FC<OverlaysProps> = ({
                           key={idx}
                           type="button"
                           onClick={() => setEventsCalendarDay(item.id)}
-                          className={`px-3 py-1.5 rounded-full font-bold shrink-0 transition text-xs cursor-pointer ${
+                          className={`px-3 py-1.5 rounded-full font-bold shrink-0 transition text-xs cursor-pointer backdrop-blur-md ${
                             eventsCalendarDay === item.id
-                              ? 'bg-[#E0533C] text-white shadow-xs'
-                              : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                              ? 'bg-[#E0533C] text-white shadow-md'
+                              : 'bg-black/60 text-slate-300 border border-white/10 hover:border-white/30'
                           }`}
                         >
                           {item.label}
@@ -2203,8 +2225,8 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
                     return (
                       <div className="space-y-3">
-                        <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
-                          <h4 className="font-black text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                        <div className="flex items-center justify-between pb-1 border-b border-white/10">
+                          <h4 className="font-black text-xs uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
                             <span className="w-2 h-2 rounded-full bg-[#E0533C]" />
                             <span>{headerText}</span>
                           </h4>
@@ -2226,7 +2248,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                                     onCloseViewAll();
                                     if (onOpenEventDetails) onOpenEventDetails(evt);
                                   }}
-                                  className="bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-2xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg cursor-pointer hover:border-[#E0533C] transition group"
+                                  className="bg-black/60 backdrop-blur-xl border border-white/10 text-white rounded-2xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xl cursor-pointer hover:border-white/30 transition group"
                                 >
                                   <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
                                     <div
@@ -2239,11 +2261,11 @@ export const Overlays: React.FC<OverlaysProps> = ({
                                     </div>
                                     <div className="min-w-0 flex-1">
                                       <div className="flex items-center gap-1.5 flex-wrap">
-                                        <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition truncate">
+                                        <h4 className="font-extrabold text-xs text-white group-hover:text-[#FF5733] transition truncate">
                                           {evt.title}
                                         </h4>
                                       </div>
-                                      <p className="text-[10px] text-[#E0533C] font-semibold flex items-center gap-1 mt-0.5">
+                                      <p className="text-[10px] text-[#FF5733] font-semibold flex items-center gap-1 mt-0.5">
                                         <Clock className="w-3 h-3 shrink-0" />
                                         <span>{evt.date} • {evt.time || 'Evening'}</span>
                                       </p>
@@ -2254,8 +2276,8 @@ export const Overlays: React.FC<OverlaysProps> = ({
                                     </div>
                                   </div>
 
-                                  <div className="flex items-center justify-between w-full sm:w-auto sm:flex-col sm:items-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200/60 dark:border-slate-800/80">
-                                    <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                  <div className="flex items-center justify-between w-full sm:w-auto sm:flex-col sm:items-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/10">
+                                    <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-800">
                                       {priceDisplay}
                                     </span>
                                     <button
@@ -2265,7 +2287,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                                         onCloseViewAll();
                                         if (onOpenEventDetails) onOpenEventDetails(evt);
                                       }}
-                                      className="px-3 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-black shadow-xs transition flex items-center gap-1 cursor-pointer"
+                                      className="px-3 py-1.5 bg-[#FF5733] hover:bg-orange-600 text-white rounded-xl text-xs font-black shadow-xs transition flex items-center gap-1 cursor-pointer"
                                     >
                                       <span>Event Details</span>
                                       <ChevronRight className="w-3 h-3" />
@@ -2277,22 +2299,22 @@ export const Overlays: React.FC<OverlaysProps> = ({
                           </div>
                         ) : (
                           /* Sleek Empty State Card */
-                          <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-dashed border-slate-300 dark:border-slate-800 rounded-3xl p-6 text-center space-y-3 shadow-2xs">
-                            <div className="w-10 h-10 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] mx-auto flex items-center justify-center">
+                          <div className="bg-black/60 backdrop-blur-xl border border-dashed border-white/20 rounded-3xl p-6 text-center space-y-3 shadow-xl">
+                            <div className="w-10 h-10 rounded-2xl bg-orange-950/60 text-[#FF5733] border border-orange-500/30 mx-auto flex items-center justify-center">
                               <Calendar className="w-5 h-5" />
                             </div>
                             <div className="space-y-1">
-                              <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">
+                              <h4 className="font-extrabold text-xs text-white">
                                 No events scheduled for this day
                               </h4>
-                              <p className="text-[11px] text-slate-500 max-w-xs mx-auto leading-relaxed">
+                              <p className="text-[11px] text-slate-400 max-w-xs mx-auto leading-relaxed">
                                 Check back soon or explore trending events!
                               </p>
                             </div>
                             <button
                               type="button"
                               onClick={() => setEventsCalendarDay(null)}
-                              className="px-4 py-2 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5 cursor-pointer"
+                              className="px-4 py-2 bg-[#FF5733] hover:bg-orange-600 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5 cursor-pointer"
                             >
                               <Sparkles className="w-3.5 h-3.5" />
                               <span>Explore Trending Events</span>
@@ -2313,12 +2335,12 @@ export const Overlays: React.FC<OverlaysProps> = ({
                         onCloseViewAll();
                         if (onBookCinema) onBookCinema(movie);
                       }}
-                      className="bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-2xl p-2.5 shadow-lg cursor-pointer hover:border-[#2D6A4F] transition flex flex-col justify-between"
+                      className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl p-2.5 shadow-xl cursor-pointer hover:border-[#2D6A4F] transition flex flex-col justify-between"
                     >
                       <div>
                         <div className="h-44 rounded-xl bg-cover bg-center mb-2" style={{ backgroundImage: `url('${movie.img}')` }} />
-                        <h4 className="font-bold text-xs truncate">{movie.title}</h4>
-                        <p className="text-[10px] text-[#2D6A4F] font-semibold">{movie.locationName}</p>
+                        <h4 className="font-bold text-xs truncate text-white">{movie.title}</h4>
+                        <p className="text-[10px] text-emerald-400 font-semibold">{movie.locationName}</p>
                         <p className="text-[9px] text-slate-400">{movie.format}</p>
                       </div>
                       <button className="w-full mt-2 py-1.5 bg-[#2D6A4F] text-white rounded-lg text-[10px] font-bold">
@@ -2333,11 +2355,11 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   {thriftItems.map((item) => (
                     <div
                       key={item.id}
-                      className="bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-2xl p-2.5 shadow-lg"
+                      className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl p-2.5 shadow-xl"
                     >
                       <div className="h-36 rounded-xl bg-cover bg-center mb-2" style={{ backgroundImage: `url('${item.img}')` }} />
-                      <h4 className="font-bold text-xs truncate">{item.name}</h4>
-                      <p className="text-[10px] text-[#E0533C] font-black">{item.price} • {item.size}</p>
+                      <h4 className="font-bold text-xs truncate text-white">{item.name}</h4>
+                      <p className="text-[10px] text-[#FF5733] font-black">{item.price} • {item.size}</p>
                       <p className="text-[9px] text-slate-400 truncate">{item.seller}</p>
                     </div>
                   ))}
@@ -2369,15 +2391,15 @@ export const Overlays: React.FC<OverlaysProps> = ({
                           onCloseViewAll();
                           onOpenSpotDetails(s);
                         }}
-                        className="bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-2xl p-2.5 shadow-lg space-y-1.5 cursor-pointer hover:border-[#E0533C] transition"
+                        className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl p-2.5 shadow-xl space-y-1.5 cursor-pointer hover:border-white/30 transition"
                       >
                         <div
                           className="h-28 rounded-xl bg-cover bg-center"
                           style={{ backgroundImage: `url('${s.img}')` }}
                         />
-                        <h4 className="font-bold text-xs truncate text-[#E0533C]">{s.title}</h4>
-                        <p className="text-[10px] text-slate-500">{s.neighborhood} • ★{s.rating}</p>
-                        <button className="w-full py-1.5 bg-[#E0533C] text-white rounded-lg text-[11px] font-bold">
+                        <h4 className="font-bold text-xs truncate text-[#FF5733]">{s.title}</h4>
+                        <p className="text-[10px] text-slate-300">{s.neighborhood} • ★{s.rating}</p>
+                        <button className="w-full py-1.5 bg-[#FF5733] hover:bg-orange-600 text-white rounded-lg text-[11px] font-bold transition">
                           View Details
                         </button>
                       </div>

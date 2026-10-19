@@ -8,18 +8,18 @@
   --color-brandViolet: #8B5CF6;
   --color-brandVioletHover: #7C3AED;
   
-  /* Theme tokens: Light default (#FAFAFC / #FFFFFF) & Dark (#0A0C10 / #14171F) */
-  --color-lightBg: #FAFAFC;
-  --color-lightSurface: #FFFFFF;
-  --color-lightText: #0F172A;
-  --color-lightMuted: #64748B;
-  --color-lightBorder: #E2E8F0;
+  /* Theme tokens: Rich saturated palette (#0A1128 base) */
+  --color-lightBg: #0A1128;
+  --color-lightSurface: #101935;
+  --color-lightText: #F8FAFC;
+  --color-lightMuted: #94A3B8;
+  --color-lightBorder: rgba(255, 255, 255, 0.1);
 
-  --color-darkBg: #0A0C10;
-  --color-darkSurface: #14171F;
+  --color-darkBg: #0A1128;
+  --color-darkSurface: #101935;
   --color-darkText: #F8FAFC;
   --color-darkMuted: #94A3B8;
-  --color-darkBorder: #222735;
+  --color-darkBorder: rgba(255, 255, 255, 0.1);
 
   /* 10 Main Category Vibrant Accents */
   --color-catDining: #F59E0B;
@@ -42,13 +42,13 @@
 }
 
 html {
-  background-color: #FAFAFC;
-  color: #0F172A;
+  background-color: #0A1128;
+  color: #F8FAFC;
   overscroll-behavior-y: none;
 }
 
 html.dark {
-  background-color: #0A0C10;
+  background-color: #0A1128;
   color: #F8FAFC;
 }
 

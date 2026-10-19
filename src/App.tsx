@@ -246,17 +246,13 @@ export default function App() {
 
   
 
-  // Theme State: Default to Crisp Warm White (#FAFAFC) with System Auto-Detect
+  // Theme State: Default to Rich Saturated Artistic Palette
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('rada_theme');
     if (saved) {
-      return saved === 'dark';
+      return saved !== 'light';
     }
-    // Auto-detect phone / system dark mode preference
-    if (typeof window !== 'undefined' && window.matchMedia) {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-    return false; // Crisp Warm White Light Mode default
+    return true; // Default to rich, saturated artistic theme
   });
 
   useEffect(() => {
@@ -1648,10 +1644,10 @@ export default function App() {
   return (
     <BusinessesProvider businesses={businesses}>
     <div 
-      className="min-h-screen text-[#0F172A] dark:text-[#F8FAFC] flex flex-col transition-colors duration-700 ease-in-out antialiased overflow-x-hidden relative"
+      className="min-h-screen text-[#F8FAFC] flex flex-col transition-colors duration-700 ease-in-out antialiased overflow-x-hidden relative"
       style={{
-        backgroundColor: isDarkMode ? currentMood.bgHex : currentMood.lightBgHex,
-        backgroundImage: isDarkMode ? currentMood.gradientDark : currentMood.gradientLight
+        backgroundColor: currentMood.bgHex,
+        backgroundImage: currentMood.gradientDark
       }}
     >
       {/* Immersive Category Ambient Mood Glow */}
@@ -1891,7 +1887,7 @@ export default function App() {
 
           {/* Modals & Overlays */}
           {isBusinessHubOpen && (
-            <div className="fixed inset-0 z-50 bg-[#FBFBF9] dark:bg-[#121113] overflow-y-auto">
+            <div className="fixed inset-0 z-50 bg-[#0A1128] overflow-y-auto">
               <MerchantHubTab
                 businesses={businesses}
                 activeBusinessId={activeBusinessId}

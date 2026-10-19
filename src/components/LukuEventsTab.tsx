@@ -117,7 +117,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
   return (
     <div className="space-y-5 px-3 sm:px-4 py-3">
       {/* Calendar Header Card */}
-      <div className="bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-3xl p-4 shadow-lg space-y-4">
+      <div className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-4 shadow-xl space-y-4">
         {/* Month & Year Navigation */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -270,7 +270,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
               <div
                 key={event.id}
                 onClick={() => onOpenEventDetails(event)}
-                className="bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-3xl p-3.5 shadow-lg hover:border-[#FF5733] transition-all cursor-pointer group flex flex-col sm:flex-row gap-3.5"
+                className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-3.5 shadow-xl hover:border-white/30 transition-all cursor-pointer group flex flex-col sm:flex-row gap-3.5 text-white"
               >
                 {/* Event Poster / Banner */}
                 <div
@@ -349,16 +349,16 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
         </div>
       ) : (
         /* Sleek Empty State Card */
-        <div className="bg-white/60 dark:bg-black/30 backdrop-blur-md border border-dashed border-slate-300 dark:border-white/10 rounded-3xl p-6 sm:p-8 text-center space-y-3.5 shadow-sm">
-          <div className="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#FF5733] mx-auto flex items-center justify-center shadow-xs">
+        <div className="bg-black/60 backdrop-blur-xl border border-dashed border-white/20 rounded-3xl p-6 sm:p-8 text-center space-y-3.5 shadow-xl text-white">
+          <div className="w-12 h-12 rounded-2xl bg-orange-950/60 text-[#FF5733] border border-orange-500/30 mx-auto flex items-center justify-center shadow-xs">
             <CalendarIcon className="w-6 h-6" />
           </div>
 
           <div className="space-y-1">
-            <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
+            <h4 className="font-extrabold text-sm text-white">
               No events scheduled for this day
             </h4>
-            <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+            <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
               Check back soon or explore trending events across Nairobi!
             </p>
           </div>
