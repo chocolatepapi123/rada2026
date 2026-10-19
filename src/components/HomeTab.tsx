@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Search, 
   Calendar, 
@@ -22,7 +22,6 @@ import {
   Copy,
   Check,
   Store,
-  ShoppingBag,
   SlidersHorizontal,
   Smile,
   Bookmark,
@@ -30,6 +29,7 @@ import {
   Palette,
   Gamepad2,
   RefreshCw,
+  Trash2,
   Compass,
   Star
 } from 'lucide-react';
@@ -51,13 +51,15 @@ interface HomeTabProps {
   offers?: BusinessOffer[];
   spots?: SpotItem[];
   savedItems?: SavedItem[];
-  onToggleSave?: (item: any, kind: 'spot' | 'event' | 'thrift' | 'offer') => void;
+  onToggleSave?: (item: any, kind: 'spot' | 'event' | 'offer') => void;
   onRefreshFeed?: () => Promise<void> | void;
   onOpenSpotDetails?: (spot: SpotItem) => void;
   onOpenEventDetails: (event: EventItem) => void;
   onBookCinema: (movie: CinemaMovie) => void;
   onPostStatus: (text: string, mediaUrl?: string, locationName?: string) => void;
   onReplyStatus: (statusId: string, text: string) => void;
+  onDeleteStatus?: (statusId: string) => void;
+  myStatusId?: string;
   onViewUserProfile: (profile: UserProfile) => void;
   onOpenDedicatedViewAll: (title: string, category: string) => void;
   onOpenCreateEvent?: (initialTitle?: string) => void;
@@ -79,6 +81,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   onBookCinema,
   onPostStatus,
   onReplyStatus,
+  onDeleteStatus,
+  myStatusId,
   onViewUserProfile,
   onOpenDedicatedViewAll,
   onOpenCreateEvent,
@@ -108,65 +112,12 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   const [selectedActivityCategory, setSelectedActivityCategory] = useState<'all' | 'nature' | 'art' | 'gaming' | 'adrenaline'>('all');
 
   // Universal Bookmark Checker
-  const isSaved = (id: string | number, kind: 'spot' | 'event' | 'thrift' | 'offer') => {
+  const isSaved = (id: string | number, kind: 'spot' | 'event' | 'offer') => {
     return savedItems.some(s => String(s.id) === String(id) && s.kind === kind);
   };
 
-  // Pull to refresh gesture handler for mobile
-  const [pullY, setPullY] = useState(0);
-  const [isPulling, setIsPulling] = useState(false);
+  // Explicit refresh only (Refresh Feed button). No pull-down gesture.
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const startYRef = useRef(0);
-  const canPullRef = useRef(false);
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (window.scrollY <= 2) {
-      canPullRef.current = true;
-      startYRef.current = e.touches[0].clientY;
-    } else {
-      canPullRef.current = false;
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!canPullRef.current || isRefreshing) return;
-    const currentY = e.touches[0].clientY;
-    const diff = currentY - startYRef.current;
-    if (diff > 0 && window.scrollY <= 2) {
-      const damped = Math.min(diff * 0.42, 85);
-      setPullY(damped);
-      setIsPulling(true);
-    }
-  };
-
-  const handleTouchEnd = async () => {
-    if (!canPullRef.current || isRefreshing) return;
-    canPullRef.current = false;
-    if (pullY > 45) {
-      setIsRefreshing(true);
-      setPullY(50);
-      if (navigator.vibrate) {
-        try { navigator.vibrate(15); } catch (e) {}
-      }
-      try {
-        if (onRefreshFeed) {
-          await onRefreshFeed();
-        } else {
-          await new Promise(r => setTimeout(r, 650));
-        }
-        showToast('Feed refreshed ✨');
-      } finally {
-        setTimeout(() => {
-          setIsRefreshing(false);
-          setPullY(0);
-          setIsPulling(false);
-        }, 300);
-      }
-    } else {
-      setPullY(0);
-      setIsPulling(false);
-    }
-  };
 
   // 1. Connect with Nature (Hiking, nature trails, waterfalls, mountains, and outdoor groups)
   const natureSpots = useMemo(() => {
@@ -429,23 +380,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   });
 
   return (
-    <section 
-      className="px-4 py-4 space-y-6 relative"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
-      {/* Mobile Pull-to-Refresh Indicator */}
-      <div 
-        className="overflow-hidden transition-all duration-150 flex items-center justify-center select-none"
-        style={{ height: `${pullY}px` }}
-      >
-        <div className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3.5 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 shadow-2xs">
-          <RefreshCw className={`w-3.5 h-3.5 text-[#E0533C] ${isRefreshing ? 'animate-spin' : ''}`} />
-          <span>{isRefreshing ? 'Refreshing vibes...' : pullY > 45 ? 'Release to refresh' : 'Pull down to refresh'}</span>
-        </div>
-      </div>
-
+    <section className="px-4 py-4 space-y-6 relative">
       {/* Search Bar with Web Speech API & Waveform Animation */}
       <div className="space-y-3">
         <div className="relative flex items-center gap-2">
@@ -503,7 +438,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             )}
           </button>
 
-          {/* Refresh Feed Button (desktop/1-tap complement to mobile pull-to-refresh) */}
+          {/* Refresh Feed Button (explicit refresh) */}
           <button
             type="button"
             onClick={async () => {
@@ -838,11 +773,10 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     </p>
                   </div>
 
-                  {/* Customized CTA Button: View Tickets, Visit Shop, or Visit Spot */}
+                  {/* Customized CTA Button: View Tickets or Visit Spot */}
                   <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
                     {(() => {
                       const isEventOffer = offer.category === 'Tickets' || offer.businessCategory === 'event_organizer';
-                      const isThriftOffer = offer.category === 'Apparel' || offer.businessCategory === 'thrift_store';
 
                       if (isEventOffer) {
                         return (
@@ -865,27 +799,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                           >
                             <Ticket className="w-3.5 h-3.5 shrink-0" />
                             <span>View Tickets</span>
-                            <ArrowRight className="w-3.5 h-3.5 shrink-0" />
-                          </button>
-                        );
-                      }
-
-                      if (isThriftOffer) {
-                        return (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (onOpenBusinessProfile) {
-                                onOpenBusinessProfile(offer.businessId);
-                              } else {
-                                onOpenDedicatedViewAll('Streetwear & Fits', 'thrift');
-                              }
-                            }}
-                            className="flex-1 py-2 px-3 bg-[#2D6A4F] hover:bg-emerald-800 text-white rounded-xl text-xs font-extrabold shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98]"
-                            title={`Visit Shop: ${offer.businessName}`}
-                          >
-                            <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
-                            <span>Visit Shop</span>
                             <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                           </button>
                         );
@@ -1678,6 +1591,12 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             />
           </div>
 
+          {myStatusId && (
+            <p className="text-[10px] text-slate-500 font-medium">
+              You already have a live status. Broadcasting again replaces it. Statuses disappear after 12 hours.
+            </p>
+          )}
+
           {statusMediaUrl && (
             <div className="relative w-28 h-20 rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700">
               <img src={statusMediaUrl} alt="Status upload" className="w-full h-full object-cover" />
@@ -1794,6 +1713,21 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   <MessageCircle className="w-3.5 h-3.5" />
                   <span>{post.replies?.length || 0} Replies</span>
                 </button>
+
+                {myStatusId === post.id && onDeleteStatus && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('Delete your status?')) onDeleteStatus(post.id);
+                    }}
+                    className="text-slate-500 hover:text-red-600 font-bold text-[11px] flex items-center gap-1 transition cursor-pointer"
+                    title="Delete Status"
+                    aria-label="Delete status"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete Status</span>
+                  </button>
+                )}
               </div>
 
               {/* Replies Drawer */}

@@ -11,7 +11,6 @@ import {
   Sparkles, 
   Store, 
   Ticket, 
-  Shirt, 
   Percent, 
   Copy, 
   Check, 
@@ -23,8 +22,7 @@ import {
   BusinessAccount, 
   BusinessOffer, 
   SpotItem, 
-  EventItem, 
-  ThriftItem 
+  EventItem 
 } from '../types.ts';
 import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
 import { isBusinessApproved } from './BusinessBadge.tsx';
@@ -37,7 +35,6 @@ interface PublicBusinessProfileModalProps {
   offers: BusinessOffer[];
   spots: SpotItem[];
   events: EventItem[];
-  thriftItems: ThriftItem[];
   onOpenSpotDetails?: (spot: SpotItem) => void;
   onOpenEventDetails?: (event: EventItem) => void;
   showToast: (msg: string) => void;
@@ -49,7 +46,6 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
   offers,
   spots,
   events,
-  thriftItems,
   onOpenSpotDetails,
   onOpenEventDetails,
   showToast
@@ -60,10 +56,9 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
   // Filter offers for this business
   const businessOffers = offers.filter(o => o.businessId === business.id);
 
-  // Filter spots, events, or thrift items for this business
+  // Filter spots and events for this business
   const businessSpots = spots.filter(s => s.businessId === business.id);
   const businessEvents = events.filter(e => e.businessId === business.id);
-  const businessThrift = thriftItems.filter(t => t.businessId === business.id || t.seller === business.name);
 
   const handleCopyCode = (offerId: string, code?: string) => {
     if (!code) return;
@@ -319,29 +314,6 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
                       </div>
                     </div>
                     <span className="text-[10px] font-bold text-purple-600 shrink-0">Tickets →</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Thrift Showcase */}
-          {business.category === 'thrift_store' && businessThrift.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <Shirt className="w-3.5 h-3.5 text-emerald-500" />
-                <span>LUKU Catalog ({businessThrift.length})</span>
-              </h3>
-              <div className="grid grid-cols-2 gap-2.5">
-                {businessThrift.map(item => (
-                  <div 
-                    key={item.id}
-                    className="p-2.5 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl"
-                  >
-                    <img src={item.img} alt={item.name} className="w-full aspect-square rounded-xl object-cover mb-1.5" />
-                    <h5 className="font-bold text-[11px] truncate">{item.name}</h5>
-                    <p className="text-xs font-black text-[#E0533C]">{item.price}</p>
-                    <span className="text-[9px] text-slate-400 block">{item.size} • {item.condition}</span>
                   </div>
                 ))}
               </div>
