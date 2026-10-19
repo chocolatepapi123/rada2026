@@ -1191,19 +1191,124 @@ export async function updateUsername(uid: string, raw: string): Promise<{ error:
   }
 }
 
-export async function fetchProfileIdentity(uid: string): Promise<{ username?: string; avatarUrl?: string } | null> {
-  if (!isSupabaseConfigured || !uid) return null;
+export const NAME_MAX = 40;
+const IDENTITY_CACHE_PREFIX = 'rada_profile_identity_';
+
+export interface ProfileIdentity {
+  name?: string;
+  username?: string;
+  avatarUrl?: string;
+}
+
+/** Last known identity for this user, so modals show the right values instantly on reopen. */
+export function readCachedIdentity(uid?: string): ProfileIdentity | null {
+  if (!uid) return null;
   try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('username, avatar_url')
-      .eq('id', uid)
-      .maybeSingle();
-    if (error || !data) return null;
-    return { username: data.username || undefined, avatarUrl: data.avatar_url || undefined };
+    const raw = localStorage.getItem(IDENTITY_CACHE_PREFIX + uid);
+    return raw ? (JSON.parse(raw) as ProfileIdentity) : null;
   } catch {
     return null;
   }
+}
+
+export function cacheIdentity(uid: string, patch: ProfileIdentity): void {
+  try {
+    localStorage.setItem(IDENTITY_CACHE_PREFIX + uid, JSON.stringify({ ...(readCachedIdentity(uid) || {}), ...patch }));
+  } catch {}
+}
+
+/**
+ * Reads display name, username and avatar from `profiles` (column-agnostic: display_name,
+ * full_name or name), falling back to auth metadata, then to the local cache.
+ */
+export async function fetchProfileIdentity(uid: string): Promise<ProfileIdentity | null> {
+  if (!uid) return null;
+  if (!isSupabaseConfigured) return readCachedIdentity(uid);
+
+  const out: ProfileIdentity = {};
+  try {
+    const { data } = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle();
+    if (data) {
+      const n = data.display_name || data.full_name || data.name;
+      if (n) out.name = String(n);
+      if (data.username) out.username = normalizeUsername(String(data.username));
+      if (data.avatar_url) out.avatarUrl = String(data.avatar_url);
+    }
+  } catch {}
+
+  if (!out.name || !out.username) {
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const meta: any = auth?.user?.user_metadata || {};
+      if (!out.name && (meta.display_name || meta.full_name)) out.name = String(meta.display_name || meta.full_name);
+      if (!out.username && meta.username) out.username = normalizeUsername(String(meta.username));
+    } catch {}
+  }
+
+  const merged: ProfileIdentity = { ...(readCachedIdentity(uid) || {}), ...out };
+  if (Object.keys(merged).length === 0) return null;
+  cacheIdentity(uid, merged);
+  return merged;
+}
+
+let nameColumn: string | null = null;
+
+/**
+ * Persists display name and/or username to `profiles` in one go (plus auth metadata and a
+ * local cache). Username goes through updateUsername(), which re-validates uniqueness.
+ */
+export async function saveProfileDetails(
+  uid: string,
+  fields: { name?: string; username?: string }
+): Promise<{ error: string | null }> {
+  const name = fields.name === undefined ? undefined : fields.name.trim();
+  if (name !== undefined) {
+    if (!name) return { error: 'Enter a display name.' };
+    if (name.length > NAME_MAX) return { error: `Display name must be ${NAME_MAX} characters or fewer.` };
+  }
+  if (fields.username !== undefined) {
+    const formatError = validateUsernameFormat(fields.username);
+    if (formatError) return { error: formatError };
+  }
+
+  if (!isSupabaseConfigured || !uid) {
+    cacheIdentity(uid || 'guest', {
+      ...(name !== undefined ? { name } : {}),
+      ...(fields.username !== undefined ? { username: normalizeUsername(fields.username) } : {}),
+    });
+    return { error: null };
+  }
+
+  if (fields.username !== undefined) {
+    const r = await updateUsername(uid, fields.username);
+    if (r.error) return { error: r.error };
+    cacheIdentity(uid, { username: r.username });
+  }
+
+  if (name !== undefined) {
+    let saved = false;
+    const candidates = nameColumn ? [nameColumn] : ['display_name', 'full_name', 'name'];
+    for (const col of candidates) {
+      const now = new Date().toISOString();
+      try {
+        const { data, error } = await supabase.from('profiles').update({ [col]: name, updated_at: now }).eq('id', uid).select('id');
+        if (!error && data && data.length > 0) { saved = true; nameColumn = col; break; }
+        if (!error) {
+          const up = await supabase.from('profiles').upsert({ id: uid, [col]: name, updated_at: now }, { onConflict: 'id' });
+          if (!up.error) { saved = true; nameColumn = col; break; }
+        }
+      } catch {}
+    }
+    // Always mirror into auth metadata so the name survives even if the profiles column is missing
+    try {
+      const { error } = await supabase.auth.updateUser({ data: { display_name: name, full_name: name } });
+      if (!error) saved = true;
+    } catch {}
+    if (!saved) return { error: 'Could not save display name. Please try again.' };
+    cacheIdentity(uid, { name });
+  }
+
+  return { error: null };
 }
 
 function fileToDataUrl(file: File): Promise<string> {
