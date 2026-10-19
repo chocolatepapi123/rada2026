@@ -118,7 +118,7 @@ export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, custo
           </div>
           <h2 className="text-2xl font-black tracking-tight">Welcome to RADA</h2>
           <p className="text-stone-400 text-xs mt-1 font-medium">
-            {customMessage || (isSignUp ? 'Create your account to discover & manage Nairobi moves' : 'Log in to continue to your RADA account')}
+            {customMessage || (isSignUp ? 'Create your account to discover local spots near you & find experiences in your city' : 'Log in to continue to your RADA account')}
           </p>
         </div>
 

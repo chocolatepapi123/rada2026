@@ -77,6 +77,7 @@ import {
   isDateToday 
 } from '../utils/calendarUtils.ts';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
+import { WagwanAI } from './WagwanAI';
 
 interface OverlaysProps {
   // Overlays state
@@ -203,192 +204,8 @@ export const Overlays: React.FC<OverlaysProps> = ({
   onOpenAccountSettings,
   savedCount
 }) => {
-  // Wagwan AI Chat State (SPEC 6: Fix Wagwan AI functionality to process custom typed text & suggested chips)
-  const [wagwanInput, setWagwanInput] = useState('');
-  const [wagwanMessages, setWagwanMessages] = useState<Array<{ 
-    sender: 'user' | 'ai'; 
-    text: string; 
-    spotMatch?: SpotItem;
-    eventMatch?: EventItem;
-    thriftMatch?: ThriftItem;
-  }>>([
-    { 
-      sender: 'ai', 
-      text: 'Wagwan! 👋 I am your Nairobi concierge. You can tap suggested chips below or type any custom request in your own words: "where can I get vintage jeans in CBD", "best rooftop in Westlands", "quiet romantic dinner in Karen", "amapiano rave this weekend", or "budget choma in Ruiru"!' 
-    }
-  ]);
+  // Wagwan AI is managed dynamically by the dedicated WagwanAI component
 
-  const handleAskWagwan = (query?: string) => {
-    const q = (query || wagwanInput).trim();
-    if (!q) return;
-
-    setWagwanMessages(prev => [...prev, { sender: 'user', text: q }]);
-    setWagwanInput('');
-
-    const qLower = q.toLowerCase();
-
-    // 1. Detect if query is asking about clothes / streetwear / vintage / thrift
-    const isThriftQuery = 
-      qLower.includes('thrift') || 
-      qLower.includes('luku') || 
-      qLower.includes('streetwear') || 
-      qLower.includes('vintage') || 
-      qLower.includes('denim') || 
-      qLower.includes('jean') || 
-      qLower.includes('jacket') || 
-      qLower.includes('hoodie') || 
-      qLower.includes('bomber') || 
-      qLower.includes('cargo') || 
-      qLower.includes('sneaker') || 
-      qLower.includes('kicks') || 
-      qLower.includes('gikomba') || 
-      qLower.includes('toi') || 
-      qLower.includes('wear') || 
-      qLower.includes('fit');
-
-    // 2. Detect if query is looking for an event / party / concert / tickets
-    const isEventQuery = 
-      qLower.includes('party') || 
-      qLower.includes('event') || 
-      qLower.includes('rave') || 
-      qLower.includes('concert') || 
-      qLower.includes('ticket') || 
-      qLower.includes('festival') || 
-      qLower.includes('amapiano') || 
-      qLower.includes('afro-tech') || 
-      qLower.includes('tonight') || 
-      qLower.includes('weekend') ||
-      qLower.includes('blankets');
-
-    // 3. Detect general platform / help questions
-    const isHelpQuery = 
-      qLower.includes('what is rada') || 
-      qLower.includes('how does rada work') || 
-      qLower.includes('register business') || 
-      qLower.includes('how to post') || 
-      qLower.includes('sos') || 
-      qLower.includes('emergency');
-
-    setTimeout(() => {
-      if (isHelpQuery) {
-        if (qLower.includes('register') || qLower.includes('post')) {
-          setWagwanMessages(prev => [
-            ...prev,
-            {
-              sender: 'ai',
-              text: 'RADA Business Hub empowers venue owners, event promoters, and thrift stores to verify their brand, publish listings, sell passes, and drop running offers! Tap the Business Hub icon at top right to register or manage your business profile.'
-            }
-          ]);
-        } else if (qLower.includes('sos') || qLower.includes('emergency')) {
-          setWagwanMessages(prev => [
-            ...prev,
-            {
-              sender: 'ai',
-              text: 'Safety first in Nairobi! Tap the red SOS shield on the top menu to view your designated emergency contacts, local helpline numbers, or broadcast your live GPS beacon to friends.'
-            }
-          ]);
-        } else {
-          setWagwanMessages(prev => [
-            ...prev,
-            {
-              sender: 'ai',
-              text: 'RADA is Nairobi\'s premier lifestyle guide — Where to go (Spots), What to wear (LUKU Thrift), and Who to go with (Socials & Matches). Everything includes direct verified links, tickets, and interactive maps!'
-            }
-          ]);
-        }
-        return;
-      }
-
-      if (isThriftQuery && thriftItems.length > 0) {
-        const thriftMatch = thriftItems.find(t => 
-          t.name.toLowerCase().includes(qLower) ||
-          t.category.toLowerCase().includes(qLower) ||
-          t.condition.toLowerCase().includes(qLower) ||
-          t.seller.toLowerCase().includes(qLower) ||
-          t.storeLocation.toLowerCase().includes(qLower) ||
-          (qLower.includes('jean') && t.category === 'Denim') ||
-          (qLower.includes('jacket') && t.category === 'Jackets') ||
-          (qLower.includes('sneaker') && t.category === 'Sneakers') ||
-          (qLower.includes('tee') && t.category === 'Tees') ||
-          (qLower.includes('hoodie') && t.category === 'Hoodies')
-        ) || thriftItems[0];
-
-        setWagwanMessages(prev => [
-          ...prev,
-          {
-            sender: 'ai',
-            text: `LUKU fit recommendation: "${thriftMatch.name}" from ${thriftMatch.seller} (${thriftMatch.storeLocation}) for ${thriftMatch.price}! Quality: ${thriftMatch.condition}. You can reach the merchant directly below.`,
-            thriftMatch
-          }
-        ]);
-        return;
-      }
-
-      if (isEventQuery && events.length > 0) {
-        const eventMatch = events.find(e => 
-          e.title.toLowerCase().includes(qLower) || 
-          (e.genre && e.genre.toLowerCase().includes(qLower)) ||
-          e.location.toLowerCase().includes(qLower) ||
-          (e.description && e.description.toLowerCase().includes(qLower)) ||
-          (qLower.includes('amapiano') && (e.title.toLowerCase().includes('amapiano') || e.genre?.toLowerCase().includes('amapiano'))) ||
-          (qLower.includes('concert') && e.category === 'concerts') ||
-          (qLower.includes('party') && e.category === 'nightlife')
-        ) || events[0];
-
-        setWagwanMessages(prev => [
-          ...prev,
-          {
-            sender: 'ai',
-            text: `Turn up! "${eventMatch.title}" at ${eventMatch.location} on ${eventMatch.date}! ${eventMatch.goingCount} people going with verified primary ticketing.`,
-            eventMatch
-          }
-        ]);
-        return;
-      }
-
-      // Default to Spots matching with multi-criteria scoring
-      const spotScores = spots.map(s => {
-        let score = 0;
-        const titleLower = s.title.toLowerCase();
-        const neighLower = s.neighborhood.toLowerCase();
-        const descLower = (s.description || '').toLowerCase();
-        const catLower = s.category.toLowerCase();
-        const tagLower = (s.exactLocationTag || '').toLowerCase();
-
-        if (titleLower.includes(qLower)) score += 10;
-        if (neighLower.includes(qLower)) score += 8;
-        if (tagLower.includes(qLower)) score += 6;
-        if (catLower.includes(qLower)) score += 5;
-        if (descLower.includes(qLower)) score += 3;
-
-        // Keyword heuristics
-        if ((qLower.includes('date') || qLower.includes('romantic')) && (s.category === 'date_spots' || parseFloat(s.rating) >= 4.8)) score += 6;
-        if ((qLower.includes('cocktail') || qLower.includes('drinks')) && s.category === 'nightlife') score += 5;
-        if ((qLower.includes('choma') || qLower.includes('nyama') || qLower.includes('meat')) && titleLower.includes('choma')) score += 8;
-        if ((qLower.includes('coffee') || qLower.includes('cafe') || qLower.includes('work') || qLower.includes('wifi')) && s.category === 'cafes') score += 7;
-        if (qLower.includes('rooftop') && (titleLower.includes('rooftop') || descLower.includes('rooftop'))) score += 7;
-        if (qLower.includes('westlands') && neighLower.includes('westlands')) score += 7;
-        if (qLower.includes('kilimani') && neighLower.includes('kilimani')) score += 7;
-        if (qLower.includes('karen') && neighLower.includes('karen')) score += 7;
-        if (qLower.includes('cbd') && (neighLower.includes('cbd') || s.address.toLowerCase().includes('cbd'))) score += 7;
-        if ((qLower.includes('kiambu') || qLower.includes('thika') || qLower.includes('ruiru')) && (neighLower.includes('kiambu') || neighLower.includes('ruiru') || neighLower.includes('thika'))) score += 8;
-
-        return { spot: s, score };
-      });
-
-      spotScores.sort((a, b) => b.score - a.score);
-      const matched = (spotScores[0]?.score > 0 ? spotScores[0].spot : spots[0]) || spots[0];
-
-      setWagwanMessages(prev => [
-        ...prev,
-        {
-          sender: 'ai',
-          text: `For "${q}", I recommend ${matched.title} in ${matched.neighborhood}! Rating ★${matched.rating} (${matched.price}). Exact spot: ${matched.address}. Vibe: ${matched.description || 'Verified Nairobi hangout.'}`,
-          spotMatch: matched
-        }
-      ]);
-    }, 350);
-  };
 
   // Spot Active Photo Index
   const [activeSpotImgIndex, setActiveSpotImgIndex] = useState(0);
@@ -482,7 +299,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
   const [languageSetting, setLanguageSetting] = useState('English (Kenya)');
 
   // Profile Bio & Relationship Status state (SPEC 6: Rename Profile, strictly Single / Not single)
-  const [profileBio, setProfileBio] = useState(currentUserProfile?.bio || 'Exploring Nairobi hangouts, good music and vibes.');
+  const [profileBio, setProfileBio] = useState(currentUserProfile?.bio || 'Discovering local hangouts, good music and vibes.');
   const [profileAvatar, setProfileAvatar] = useState(currentUserProfile?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop');
   const [profileRelationshipStatus, setProfileRelationshipStatus] = useState<'single' | 'not_single'>(currentUserProfile?.relationshipStatus || 'single');
 
@@ -510,147 +327,16 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
   return (
     <>
-      {/* 1. WAGWAN AI HANGOUT RECOMMENDER MODAL */}
-      {isWagwanOpen && (
-        <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-[#E0533C] to-[#E9C46A] text-white flex items-center justify-center font-bold text-xs shadow-sm">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-black text-sm uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                    Wagwan AI
-                  </h3>
-                  <p className="text-[10px] text-slate-400">Personalized Nairobi Hangout Recommender</p>
-                </div>
-              </div>
-              <button onClick={onCloseWagwan} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="py-4 space-y-4 flex-1 text-xs flex flex-col">
-              <div className="flex-1 space-y-3 overflow-y-auto min-h-[280px] p-3 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl">
-                {wagwanMessages.map((msg, idx) => (
-                  <div key={idx} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] p-3 rounded-2xl text-xs space-y-2 shadow-sm ${
-                      msg.sender === 'user'
-                        ? 'bg-[#E0533C] text-white rounded-tr-none'
-                        : 'bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none'
-                    }`}>
-                      {msg.sender === 'ai' && (
-                        <span className="font-black text-[#E0533C] block">Wagwan AI ✨</span>
-                      )}
-                      <p>{msg.text}</p>
-                      {msg.spotMatch && (
-                        <div className="p-2.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 mt-2">
-                          <div>
-                            <h5 className="font-black text-xs text-[#E0533C]">{msg.spotMatch.title}</h5>
-                            <p className="text-[10px] text-slate-500">{msg.spotMatch.neighborhood} • ★{msg.spotMatch.rating}</p>
-                          </div>
-                          <button
-                            onClick={() => {
-                              onCloseWagwan();
-                              onOpenSpotDetails(msg.spotMatch!);
-                            }}
-                            className="px-2.5 py-1 bg-[#E0533C] text-white font-bold rounded-lg text-[10px] shadow-xs"
-                          >
-                            View Spot
-                          </button>
-                        </div>
-                      )}
-                      {msg.eventMatch && (
-                        <div className="p-2.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 mt-2">
-                          <div>
-                            <h5 className="font-black text-xs text-[#2D6A4F]">{msg.eventMatch.title}</h5>
-                            <p className="text-[10px] text-slate-500">{msg.eventMatch.location} • {msg.eventMatch.date}</p>
-                          </div>
-                          <button
-                            onClick={() => {
-                              onCloseWagwan();
-                              if (onOpenEventDetails) onOpenEventDetails(msg.eventMatch!);
-                            }}
-                            className="px-2.5 py-1 bg-[#2D6A4F] text-white font-bold rounded-lg text-[10px] shadow-xs"
-                          >
-                            View Event
-                          </button>
-                        </div>
-                      )}
-                      {msg.thriftMatch && (
-                        <div className="p-2.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 mt-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <img src={msg.thriftMatch.img} alt={msg.thriftMatch.name} className="w-10 h-10 rounded-lg object-cover shrink-0" />
-                            <div className="min-w-0">
-                              <h5 className="font-black text-xs text-[#2D6A4F] truncate">{msg.thriftMatch.name}</h5>
-                              <p className="text-[10px] text-slate-500 truncate">{msg.thriftMatch.price} • {msg.thriftMatch.seller}</p>
-                            </div>
-                          </div>
-                          <a
-                            href={`https://wa.me/${(msg.thriftMatch.whatsapp || '+254700000000').replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi! I saw "${msg.thriftMatch.name}" on RADA Nairobi. Is it still available?`)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-2.5 py-1 bg-[#2D6A4F] text-white font-bold rounded-lg text-[10px] shadow-xs shrink-0"
-                          >
-                            Inquire Fit
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={wagwanInput}
-                    onChange={(e) => setWagwanInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAskWagwan()}
-                    placeholder="e.g. Sushi in Westlands, romantic dinner in Karen..."
-                    className="flex-1 p-3 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C]"
-                  />
-                  <button
-                    onClick={() => handleAskWagwan()}
-                    className="px-4 py-3 bg-[#E0533C] text-white font-bold rounded-xl hover:bg-orange-700 transition shadow-md"
-                  >
-                    Ask
-                  </button>
-                </div>
-
-                <div className="flex gap-1.5 overflow-x-auto hide-scrollbar text-[11px]">
-                  <button
-                    onClick={() => handleAskWagwan('Romantic date night in Westlands')}
-                    className="px-2.5 py-1 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-full shrink-0 font-medium hover:border-[#E0533C]"
-                  >
-                    ✨ Cozy Date Night
-                  </button>
-                  <button
-                    onClick={() => handleAskWagwan('Amapiano and cocktails party')}
-                    className="px-2.5 py-1 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-full shrink-0 font-medium hover:border-[#E0533C]"
-                  >
-                    🔥 Nightlife & Party
-                  </button>
-                  <button
-                    onClick={() => handleAskWagwan('Quiet cafe for coffee & remote work')}
-                    className="px-2.5 py-1 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-full shrink-0 font-medium hover:border-[#E0533C]"
-                  >
-                    ☕ Coffee & Work
-                  </button>
-                  <button
-                    onClick={() => handleAskWagwan('Choma and beer in Hurlingham')}
-                    className="px-2.5 py-1 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-full shrink-0 font-medium hover:border-[#E0533C]"
-                  >
-                    🍖 Choma & Chill
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 1. WAGWAN AI DYNAMIC CONCIERGE MODAL */}
+      <WagwanAI
+        isOpen={isWagwanOpen}
+        onClose={onCloseWagwan}
+        spots={spots}
+        events={events}
+        thriftItems={thriftItems}
+        onOpenSpotDetails={onOpenSpotDetails}
+        onOpenEventDetails={onOpenEventDetails}
+      />
 
       {/* 2. SPOT DETAILS MODAL (SPEC 1: Multi-photos carousel & reviews photo upload only) */}
       {selectedSpot && (

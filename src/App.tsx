@@ -63,8 +63,8 @@ const GUEST_PROFILE: UserProfile = {
   name: 'Guest Explorer',
   handle: '@guest',
   avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop',
-  bio: 'Exploring Nairobi moves on RADA. Log in or create an account to customize your profile & connect with spots!',
-  loc: 'Westlands, Nairobi',
+  bio: 'Discovering local spots near you on RADA. Log in or create an account to customize your profile & connect with spots!',
+  loc: 'Westlands',
   relationshipStatus: 'single',
   vibes: ['Nightlife', 'Cocktails', 'Amapiano', 'Art', 'Thrifting']
 };
