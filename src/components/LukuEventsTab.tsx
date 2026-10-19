@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Calendar as CalendarIcon, 
   Clock, 
@@ -11,15 +11,18 @@ import {
   Filter,
   Flame,
   CheckCircle2,
-  Users
+  Users,
+  ArrowLeft,
+  Bookmark
 } from 'lucide-react';
-import { EventItem } from '../types.ts';
+import { EventItem, SavedItem } from '../types.ts';
 import { 
   doesEventMatchDay, 
   getCleanDateHeader, 
   getEventPriceDisplay, 
   getCategoryBadgeStyle,
-  isDateToday 
+  isDateToday,
+  parseEventDate
 } from '../utils/calendarUtils.ts';
 import { getCategoryAccent } from '../utils/categoryAccents.ts';
 
@@ -29,6 +32,11 @@ interface LukuEventsTabProps {
   onExploreTrendingEvents?: () => void;
   onCategoryChange?: (category: string) => void;
   showToast?: (msg: string) => void;
+  initialDate?: string | { year: number; month: number; day: number } | null;
+  highlightEventId?: number | string | null;
+  onBackToSpots?: () => void;
+  savedItems?: SavedItem[];
+  onToggleSave?: (item: any, kind: 'spot' | 'event' | 'thrift' | 'offer') => void;
 }
 
 export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
@@ -36,13 +44,39 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
   onOpenEventDetails,
   onExploreTrendingEvents,
   onCategoryChange,
-  showToast
+  showToast,
+  initialDate = null,
+  highlightEventId = null,
+  onBackToSpots,
+  savedItems = [],
+  onToggleSave
 }) => {
-  // Calendar state - default to October 2026, day 24 (or 14 for today)
-  const [selectedYear, setSelectedYear] = useState(2026);
-  const [selectedMonth, setSelectedMonth] = useState(9); // 0-indexed: 9 = October
-  const [selectedDay, setSelectedDay] = useState<number | null>(24);
+  // Parse incoming initialDate if passed
+  const parsedTargetDate = useMemo(() => {
+    if (!initialDate) return null;
+    if (typeof initialDate === 'object') return initialDate;
+    return parseEventDate(initialDate);
+  }, [initialDate]);
+
+  // Calendar state - default to parsed target date, or October 2026, day 24 (or 14 for today)
+  const [selectedYear, setSelectedYear] = useState<number>(() => parsedTargetDate?.year || 2026);
+  const [selectedMonth, setSelectedMonth] = useState<number>(() => (parsedTargetDate?.month !== undefined ? parsedTargetDate.month : 9));
+  const [selectedDay, setSelectedDay] = useState<number | null>(() => (parsedTargetDate?.day !== undefined ? parsedTargetDate.day : 24));
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [focusedEventId, setFocusedEventId] = useState<number | string | null>(highlightEventId);
+
+  // Sync state whenever initialDate changes
+  useEffect(() => {
+    if (parsedTargetDate) {
+      setSelectedYear(parsedTargetDate.year);
+      setSelectedMonth(parsedTargetDate.month);
+      setSelectedDay(parsedTargetDate.day);
+    }
+  }, [parsedTargetDate]);
+
+  useEffect(() => {
+    setFocusedEventId(highlightEventId);
+  }, [highlightEventId]);
 
   React.useEffect(() => {
     onCategoryChange?.(selectedCategory === 'all' ? 'events' : selectedCategory);
@@ -114,8 +148,42 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
+  // Auto-scroll or focus on the matching event card in the calendar schedule
+  useEffect(() => {
+    if (focusedEventId) {
+      const timer = setTimeout(() => {
+        const el = document.getElementById(`calendar-event-${focusedEventId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [focusedEventId, selectedDay, selectedMonth, selectedYear]);
+
+  const isEventSaved = (eventId: number | string) => {
+    return savedItems.some(s => String(s.id) === String(eventId) && s.kind === 'event');
+  };
+
   return (
-    <div className="space-y-5 px-3 sm:px-4 py-3">
+    <div className="space-y-4 px-3 sm:px-4 py-3">
+      {/* Back Navigation Bar to return smoothly to Spots Feed */}
+      {onBackToSpots && (
+        <div className="flex items-center justify-between pb-1">
+          <button
+            type="button"
+            onClick={onBackToSpots}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 hover:text-[#E0533C] transition shadow-xs cursor-pointer group"
+          >
+            <ArrowLeft className="w-4 h-4 text-[#E0533C] group-hover:-translate-x-0.5 transition-transform" />
+            <span>Back to Spots Feed</span>
+          </button>
+          <span className="text-[11px] font-bold text-slate-400">
+            Calendar Schedule
+          </span>
+        </div>
+      )}
+
       {/* Calendar Header Card */}
       <div className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-4 shadow-xl space-y-4">
         {/* Month & Year Navigation */}
@@ -167,7 +235,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
               <button
                 type="button"
                 onClick={() => setSelectedDay(null)}
-                className="px-2.5 py-1 text-[11px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="px-2.5 py-1 text-[11px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
               >
                 Show All
               </button>
@@ -190,6 +258,12 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
             const isSelected = selectedDay === day;
             const hasEvents = daysWithEvents.has(day);
             const isDayToday = isDateToday(selectedYear, selectedMonth, day);
+            const isTargetDay = (
+              parsedTargetDate &&
+              parsedTargetDate.year === selectedYear &&
+              parsedTargetDate.month === selectedMonth &&
+              parsedTargetDate.day === day
+            );
 
             return (
               <button
@@ -201,7 +275,11 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
                 }}
                 className={`py-2 rounded-xl sm:rounded-2xl transition relative flex flex-col items-center justify-center font-bold cursor-pointer select-none ${
                   isSelected
-                    ? 'bg-[#FF5733] text-white font-black shadow-md ring-2 ring-[#FF5733]/40'
+                    ? isTargetDay
+                      ? 'bg-[#E0533C] text-white font-black shadow-lg ring-4 ring-[#E0533C]/60 scale-105'
+                      : 'bg-[#FF5733] text-white font-black shadow-md ring-2 ring-[#FF5733]/40'
+                    : isTargetDay
+                    ? 'bg-orange-500/20 text-[#E0533C] font-black ring-2 ring-[#E0533C] border border-[#E0533C]'
                     : isDayToday
                     ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 font-black border border-amber-300 dark:border-amber-700'
                     : hasEvents
@@ -265,12 +343,20 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
           {dayEvents.map((event) => {
             const accent = getCategoryAccent(event.category, event.title, event.genre);
             const priceDisplay = getEventPriceDisplay(event.tiers);
+            const isMatch = focusedEventId && String(event.id) === String(focusedEventId);
+            const saved = isEventSaved(event.id);
 
             return (
               <div
                 key={event.id}
+                id={`calendar-event-${event.id}`}
+                tabIndex={-1}
                 onClick={() => onOpenEventDetails(event)}
-                className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-3.5 shadow-xl hover:border-white/30 transition-all cursor-pointer group flex flex-col sm:flex-row gap-3.5 text-white"
+                className={`bg-black/60 backdrop-blur-xl rounded-3xl p-3.5 shadow-xl transition-all cursor-pointer group flex flex-col sm:flex-row gap-3.5 text-white ${
+                  isMatch
+                    ? 'border-2 border-[#E0533C] ring-4 ring-[#E0533C]/30 shadow-2xl scale-[1.01]'
+                    : 'border border-white/10 hover:border-white/30'
+                }`}
               >
                 {/* Event Poster / Banner */}
                 <div
@@ -279,10 +365,17 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
                 >
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent sm:hidden" />
                   
-                  {/* Category / Genre Badge with Vibrant Category Accent */}
+                  {/* Category / Genre Badge */}
                   <span className={`absolute top-2.5 left-2.5 text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider backdrop-blur-md ${accent.pillClass}`}>
                     {event.genre || accent.badge}
                   </span>
+
+                  {/* Matching Event Focus Badge */}
+                  {isMatch && (
+                    <span className="absolute bottom-2.5 left-2.5 bg-[#E0533C] text-white text-[9px] font-black px-2 py-0.5 rounded-md shadow-md animate-pulse">
+                      Selected Plan Target
+                    </span>
+                  )}
 
                   {/* Price Tag Overlay on Mobile */}
                   <span className="absolute bottom-2.5 right-2.5 sm:hidden bg-black/80 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-0.5 rounded-full border border-white/20">
@@ -323,24 +416,46 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
                     )}
                   </div>
 
-                  {/* Card Footer: Going Count & View Details CTA */}
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-[#222735] text-xs">
+                  {/* Card Footer: Going Count & Active Bookmark / Plan Action */}
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-[#222735] text-xs gap-2">
                     <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1">
                       <Users className="w-3.5 h-3.5 text-slate-400" />
                       <span>{event.goingCount} going</span>
                     </span>
 
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenEventDetails(event);
-                      }}
-                      className="px-3.5 py-1.5 bg-[#FF5733] hover:bg-[#FF6B4A] text-white rounded-xl text-xs font-black shadow-xs transition flex items-center gap-1 cursor-pointer active:scale-95"
-                    >
-                      <span>Event Details</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      {/* Active Bookmark / In Your Plans button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleSave?.(event, 'event');
+                        }}
+                        className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                          saved
+                            ? 'bg-[#E0533C] text-white shadow-xs'
+                            : 'bg-white/10 hover:bg-white/20 text-slate-200 border border-white/10'
+                        }`}
+                        title={saved ? 'In Your Plans (Tap to remove)' : 'Add to Your Plans'}
+                      >
+                        <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
+                        <span className="text-[11px] font-extrabold whitespace-nowrap">
+                          {saved ? 'In Your Plans' : 'Add to Plan'}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenEventDetails(event);
+                        }}
+                        className="px-3 py-1.5 bg-[#FF5733] hover:bg-[#FF6B4A] text-white rounded-xl text-xs font-black shadow-xs transition flex items-center gap-1 cursor-pointer active:scale-95"
+                      >
+                        <span>Details</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

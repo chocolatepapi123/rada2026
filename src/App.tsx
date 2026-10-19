@@ -18,6 +18,7 @@ import { SpotsTab } from './components/SpotsTab.tsx';
 import { LukuTab } from './components/LukuTab.tsx';
 import { SocialsTab } from './components/SocialsTab.tsx';
 import { VaultTab } from './components/VaultTab.tsx';
+import { LukuEventsTab } from './components/LukuEventsTab.tsx';
 import { Overlays } from './components/Overlays.tsx';
 import { LocationMapModal } from './components/LocationMapModal.tsx';
 import { UserProfileModal } from './components/UserProfileModal.tsx';
@@ -270,6 +271,10 @@ export default function App() {
 
   // Navigation
   const [activeTab, setActiveTab] = useState('home');
+  const [calendarTargetDate, setCalendarTargetDate] = useState<string | null>(null);
+  const [calendarTargetEventId, setCalendarTargetEventId] = useState<number | string | null>(null);
+  const lastSpotsScrollPosRef = useRef<number>(0);
+
 
   // Business Hub State
   const [businesses, setBusinesses] = useState<BusinessAccount[]>(() => {
@@ -542,16 +547,83 @@ export default function App() {
     requireAuth('save items', () => {
       setSavedItems(prev => {
         const exists = prev.some(s => String(s.id) === String(item.id) && s.kind === kind);
+        let updated: SavedItem[];
         if (exists) {
-          showToast('Removed from saved collection.');
-          return prev.filter(s => !(String(s.id) === String(item.id) && s.kind === kind));
+          showToast('Removed from your plans.');
+          updated = prev.filter(s => !(String(s.id) === String(item.id) && s.kind === kind));
         } else {
-          showToast(`Saved "${item.title || item.name}" to your collection!`);
-          return [{ id: item.id, kind, savedAt: new Date().toISOString() }, ...prev];
+          showToast(`Saved "${item.title || item.name}" to your personal plans & Vault!`);
+          updated = [{ id: item.id, kind, savedAt: new Date().toISOString() }, ...prev];
         }
+        if (session?.user?.id) {
+          cloud.syncSavedPlans(session.user.id, updated, savedFolders);
+        }
+        return updated;
       });
     });
   };
+
+  // Restore saved plans from Supabase on session start
+  useEffect(() => {
+    if (session?.user?.id && isSupabaseConfigured) {
+      cloud.fetchSavedPlans(session.user.id).then(res => {
+        if (res.savedItems && res.savedItems.length > 0) {
+          setSavedItems(res.savedItems);
+        }
+        if (res.savedFolders && res.savedFolders.length > 0) {
+          setSavedFolders(res.savedFolders);
+        }
+      }).catch(err => {
+        console.warn('Could not restore saved plans from Supabase:', err);
+      });
+    }
+  }, [session]);
+
+  // Seamless Calendar Routing
+  const handleNavigateToCalendar = (dateStr?: string, eventId?: number | string) => {
+    if (activeTab === 'spots') {
+      lastSpotsScrollPosRef.current = window.scrollY;
+    }
+    setSelectedSpotModal(null);
+    setSelectedEventModal(null);
+    setActiveOverlay(null);
+    setIsSavedModalOpen(false);
+    setCalendarTargetDate(dateStr || null);
+    setCalendarTargetEventId(eventId || null);
+    window.history.pushState({ radaApp: true, tab: 'calendar' }, '');
+    setActiveTab('calendar');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Smooth back navigation to Spots feed without losing scroll position or filters
+  const handleBackToSpots = () => {
+    setActiveTab('spots');
+    const pos = lastSpotsScrollPosRef.current;
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: pos, behavior: 'instant' });
+    });
+  };
+
+  const handleCloseSpotModal = () => {
+    setSelectedSpotModal(null);
+    const pos = lastSpotsScrollPosRef.current;
+    if (pos > 0 && activeTab === 'spots') {
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: pos, behavior: 'instant' });
+      });
+    }
+  };
+
+  const handleCloseEventModal = () => {
+    setSelectedEventModal(null);
+    const pos = lastSpotsScrollPosRef.current;
+    if (pos > 0 && activeTab === 'spots') {
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: pos, behavior: 'instant' });
+      });
+    }
+  };
+
 
 
   const handleRefreshFeed = async () => {
@@ -699,15 +771,25 @@ export default function App() {
           setViewAllTitle(null);
           setViewAllCategory(null);
         }
-        if (selectedSpotModal) setSelectedSpotModal(null);
-        if (selectedEventModal) setSelectedEventModal(null);
+        if (selectedSpotModal) {
+          handleCloseSpotModal();
+        }
+        if (selectedEventModal) {
+          handleCloseEventModal();
+        }
         if (activeOverlay) setActiveOverlay(null);
         if (isBusinessHubOpen) setIsBusinessHubOpen(false);
         if (isLivenessModalOpen) setIsLivenessModalOpen(false);
         return;
       }
 
-      // 2. If user is on an inner tab, navigate back to home feed first
+      // 2. If user navigated to Calendar from Spots, return smoothly to Spots feed
+      if (activeTab === 'calendar') {
+        handleBackToSpots();
+        return;
+      }
+
+      // If user is on an inner tab, navigate back to home feed first
       if (activeTab !== 'home') {
         setActiveTab('home');
         return;
@@ -1710,7 +1792,10 @@ export default function App() {
                 spots={spots}
                 savedItems={savedItems}
                 onToggleSave={handleToggleSave}
-                onOpenSpotFullView={(spot) => setSelectedSpotModal(spot)}
+                onOpenSpotFullView={(spot) => {
+                  lastSpotsScrollPosRef.current = window.scrollY;
+                  setSelectedSpotModal(spot);
+                }}
                 onViewLocation={(spot) => setSelectedLocationMapSpot(spot)}
                 onOpenDedicatedViewAll={(title, cat) => {
                   setViewAllTitle(title);
@@ -1718,6 +1803,7 @@ export default function App() {
                 }}
                 onOpenCreateSpot={() => requireAuth('add a spot or business', () => setIsBusinessHubOpen(true))}
                 onPostReview={handlePostReview}
+                onNavigateToCalendar={handleNavigateToCalendar}
                 showToast={showToast}
               />
             )}
@@ -1796,6 +1882,22 @@ export default function App() {
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
                 onShowQrCode={(title) => setQrPassTitle(title)}
+                showToast={showToast}
+              />
+            )}
+
+            {activeTab === 'calendar' && (
+              <LukuEventsTab
+                events={events}
+                initialDate={calendarTargetDate}
+                highlightEventId={calendarTargetEventId}
+                onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
+                onExploreTrendingEvents={() => {
+                  setActiveTab('spots');
+                }}
+                onBackToSpots={handleBackToSpots}
+                savedItems={savedItems}
+                onToggleSave={handleToggleSave}
                 showToast={showToast}
               />
             )}
@@ -1890,12 +1992,12 @@ export default function App() {
             onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
             onBookCinema={handleBookCinema}
             selectedSpot={selectedSpotModal}
-            onCloseSpotModal={() => setSelectedSpotModal(null)}
+            onCloseSpotModal={handleCloseSpotModal}
             onPlanDateFromSpot={(spot) => requireAuth('send messages', () => handlePlanDateFromSpot(spot))}
             onPostReview={handlePostReview}
             onAddSpotImage={handleAddSpotImage}
             selectedEvent={selectedEventModal}
-            onCloseEventModal={() => setSelectedEventModal(null)}
+            onCloseEventModal={handleCloseEventModal}
             onToggleGoing={handleToggleGoing}
             goingEventIds={goingEventIds}
             onBuyEventTicket={handleBuyEventTicket}
@@ -1939,6 +2041,7 @@ export default function App() {
             savedCount={savedItems.length}
             savedItems={savedItems}
             onToggleSave={handleToggleSave}
+            onNavigateToCalendar={handleNavigateToCalendar}
           />
 
           <UserProfileModal

@@ -19,7 +19,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
     <nav className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-white/90 dark:bg-black/75 backdrop-blur-xl border-t border-slate-200/80 dark:border-white/10 px-2 py-2 flex items-center justify-around z-40 shadow-lg transition-colors duration-500 ease-in-out">
       {tabs.map((tab) => {
         const Icon = tab.icon;
-        const isActive = activeTab === tab.id;
+        const isActive = activeTab === tab.id || (tab.id === 'vault' && activeTab === 'calendar');
         return (
           <button
             key={tab.id}

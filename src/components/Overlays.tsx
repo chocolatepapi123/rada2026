@@ -152,6 +152,7 @@ interface OverlaysProps {
   savedCount?: number;
   savedItems?: SavedItem[];
   onToggleSave?: (item: any, kind: 'spot' | 'event' | 'thrift' | 'offer') => void;
+  onNavigateToCalendar?: (dateStr?: string, eventId?: number | string) => void;
 }
 
 export const Overlays: React.FC<OverlaysProps> = ({
@@ -166,6 +167,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
   thriftItems = [],
   savedItems = [],
   onToggleSave,
+  onNavigateToCalendar,
   onOpenSpotDetails,
   onOpenEventDetails,
   onBookCinema,
@@ -342,19 +344,26 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 Spot Hub & Reviews
               </h3>
               <div className="flex items-center gap-1.5">
+                {(() => {
+                  const isSpotSaved = savedItems.some(s => String(s.id) === String(selectedSpot.id) && s.kind === 'spot');
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => onToggleSave?.(selectedSpot, 'spot')}
+                      className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-bold transition cursor-pointer shadow-xs ${
+                        isSpotSaved
+                          ? 'bg-[#E0533C] text-white ring-2 ring-white/40'
+                          : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-200 hover:text-[#E0533C]'
+                      }`}
+                      title={isSpotSaved ? 'In Your Plans (Tap to remove)' : 'Add to Your Plans'}
+                    >
+                      <Bookmark className={`w-3.5 h-3.5 ${isSpotSaved ? 'fill-white' : ''}`} />
+                      <span>{isSpotSaved ? 'In Your Plans' : 'Add to Plan'}</span>
+                    </button>
+                  );
+                })()}
                 <button
-                  type="button"
-                  onClick={() => onToggleSave?.(selectedSpot, 'spot')}
-                  className={`w-9 h-9 rounded-full flex items-center justify-center transition cursor-pointer ${
-                    savedItems.some(s => String(s.id) === String(selectedSpot.id) && s.kind === 'spot')
-                      ? 'bg-[#E0533C] text-white shadow-xs'
-                      : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-200 hover:text-[#E0533C]'
-                  }`}
-                  title={savedItems.some(s => String(s.id) === String(selectedSpot.id) && s.kind === 'spot') ? 'Remove from saved' : 'Save spot'}
-                >
-                  <Bookmark className={`w-4 h-4 ${savedItems.some(s => String(s.id) === String(selectedSpot.id) && s.kind === 'spot') ? 'fill-white' : ''}`} />
-                </button>
-                <button
+
                   type="button"
                   onClick={() => {
                     shareContent({
@@ -463,7 +472,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
               )}
             </div>
 
-            {/* ACTION BUTTONS REORDERED TO TOP: Uber, Bolt, and Plan a Date */}
+            {/* ACTION BUTTONS: Uber, Bolt, Add to Plan, View on Calendar, and Plan a Date */}
             <div className="space-y-2 pt-1 pb-1">
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -489,6 +498,120 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   <span>Request Bolt</span>
                 </button>
               </div>
+
+              {/* Seamless Plan & Calendar Integration */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const isSpotSaved = savedItems.some(s => String(s.id) === String(selectedSpot.id) && s.kind === 'spot');
+                    if (!isSpotSaved) {
+                      onToggleSave?.(selectedSpot, 'spot');
+                    } else {
+                      showToast(`"${selectedSpot.title}" is in your plans!`);
+                    }
+                    const matchingEvt = events.find(e => 
+                      (selectedSpot.title && e.location?.toLowerCase().includes(selectedSpot.title.toLowerCase())) ||
+                      (e.title && e.title.toLowerCase().includes(selectedSpot.title.toLowerCase())) ||
+                      (selectedSpot.businessId && e.businessId === selectedSpot.businessId)
+                    );
+                    onCloseSpotModal();
+                    onNavigateToCalendar?.(matchingEvt?.date, matchingEvt?.id);
+                  }}
+                  className={`py-3 font-black rounded-2xl shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer text-xs ${
+                    savedItems.some(s => String(s.id) === String(selectedSpot.id) && s.kind === 'spot')
+                      ? 'bg-[#2D6A4F] text-white shadow-md ring-2 ring-emerald-500/40'
+                      : 'bg-white dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 hover:border-[#E0533C]'
+                  }`}
+                >
+                  <Bookmark className={`w-4 h-4 ${savedItems.some(s => String(s.id) === String(selectedSpot.id) && s.kind === 'spot') ? 'fill-white' : ''}`} />
+                  <span>{savedItems.some(s => String(s.id) === String(selectedSpot.id) && s.kind === 'spot') ? 'In Your Plans ✓' : 'Add to Plan'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const matchingEvt = events.find(e => 
+                      (selectedSpot.title && e.location?.toLowerCase().includes(selectedSpot.title.toLowerCase())) ||
+                      (e.title && e.title.toLowerCase().includes(selectedSpot.title.toLowerCase())) ||
+                      (selectedSpot.businessId && e.businessId === selectedSpot.businessId)
+                    );
+                    onCloseSpotModal();
+                    onNavigateToCalendar?.(matchingEvt?.date, matchingEvt?.id);
+                  }}
+                  className="py-3 bg-slate-900 text-white dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 font-black rounded-2xl shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer text-xs"
+                >
+                  <Calendar className="w-4 h-4 text-[#E0533C]" />
+                  <span>View on Calendar</span>
+                </button>
+              </div>
+
+              {/* Upcoming Events at this Spot */}
+              {(() => {
+                const spotEvents = events.filter(e => 
+                  (selectedSpot.title && e.location?.toLowerCase().includes(selectedSpot.title.toLowerCase())) ||
+                  (e.title && e.title.toLowerCase().includes(selectedSpot.title.toLowerCase())) ||
+                  (selectedSpot.businessId && e.businessId === selectedSpot.businessId)
+                );
+                if (spotEvents.length === 0) return null;
+                return (
+                  <div className="p-3 bg-orange-50/60 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/40 rounded-2xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black uppercase tracking-wider text-[#E0533C] flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>Upcoming Events Here ({spotEvents.length})</span>
+                      </span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {spotEvents.map(evt => {
+                        const isEvtSaved = savedItems.some(s => String(s.id) === String(evt.id) && s.kind === 'event');
+                        return (
+                          <div key={evt.id} className="p-2 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between gap-2 shadow-2xs">
+                            <div className="min-w-0">
+                              <h5 className="font-bold text-xs truncate text-slate-900 dark:text-slate-100">{evt.title}</h5>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onCloseSpotModal();
+                                  onNavigateToCalendar?.(evt.date, evt.id);
+                                }}
+                                className="text-[10px] font-bold text-[#E0533C] hover:underline flex items-center gap-1 mt-0.5 cursor-pointer"
+                              >
+                                <Calendar className="w-3 h-3" />
+                                <span>{evt.date} {evt.time ? `• ${evt.time}` : ''}</span>
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => onToggleSave?.(evt, 'event')}
+                                className={`p-1.5 rounded-lg border text-xs transition cursor-pointer ${
+                                  isEvtSaved 
+                                    ? 'bg-[#E0533C] text-white border-[#E0533C]' 
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                                }`}
+                                title={isEvtSaved ? 'In Your Plans' : 'Add to Plan'}
+                              >
+                                <Bookmark className={`w-3.5 h-3.5 ${isEvtSaved ? 'fill-white' : ''}`} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onCloseSpotModal();
+                                  onNavigateToCalendar?.(evt.date, evt.id);
+                                }}
+                                className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-black rounded-lg transition cursor-pointer"
+                              >
+                                View ↗
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
 
               <button
                 type="button"
@@ -1077,18 +1200,24 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => onToggleSave?.(selectedEvent, 'event')}
-                  className={`w-9 h-9 rounded-full flex items-center justify-center transition cursor-pointer ${
-                    savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event')
-                      ? 'bg-[#E0533C] text-white shadow-xs'
-                      : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-200 hover:text-[#E0533C]'
-                  }`}
-                  title={savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event') ? 'Remove from saved' : 'Save event'}
-                >
-                  <Bookmark className={`w-4 h-4 ${savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event') ? 'fill-white' : ''}`} />
-                </button>
+                {(() => {
+                  const isEventSaved = savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event');
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => onToggleSave?.(selectedEvent, 'event')}
+                      className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-bold transition cursor-pointer shadow-xs ${
+                        isEventSaved
+                          ? 'bg-[#E0533C] text-white ring-2 ring-white/40'
+                          : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-200 hover:text-[#E0533C]'
+                      }`}
+                      title={isEventSaved ? 'In Your Plans (Tap to remove)' : 'Add to Your Plans'}
+                    >
+                      <Bookmark className={`w-3.5 h-3.5 ${isEventSaved ? 'fill-white' : ''}`} />
+                      <span>{isEventSaved ? 'In Your Plans' : 'Add to Plan'}</span>
+                    </button>
+                  );
+                })()}
                 <button
                   type="button"
                   onClick={() => {
@@ -1132,10 +1261,24 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 </h2>
                 <BusinessBadge businessId={selectedEvent.businessId} category="event_organizer" size="xs" unclaimedVerified />
               </div>
-              <p className="text-xs text-[#E0533C] font-bold flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5" />
+              
+              {/* Clickable Event Date Tag -> Navigates directly to Calendar with date pre-selected and highlighted */}
+              <button
+                type="button"
+                onClick={() => {
+                  onCloseEventModal();
+                  onNavigateToCalendar?.(selectedEvent.date, selectedEvent.id);
+                }}
+                className="text-xs text-[#E0533C] hover:text-orange-700 font-bold flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/60 transition group cursor-pointer w-fit shadow-2xs mt-1"
+                title="View on Calendar (Pre-selects this date)"
+              >
+                <Calendar className="w-3.5 h-3.5 text-[#E0533C] group-hover:scale-110 transition-transform" />
                 <span>{selectedEvent.date} {selectedEvent.time ? `• ${selectedEvent.time}` : ''}</span>
-              </p>
+                <span className="text-[9px] font-black uppercase tracking-wider bg-[#E0533C] text-white px-1.5 py-0.5 rounded ml-1.5 group-hover:bg-orange-700 transition">
+                  View on Calendar ↗
+                </span>
+              </button>
+
               <p className="text-xs text-slate-500 flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5" />
                 <span>{selectedEvent.location}</span>
@@ -1220,25 +1363,62 @@ export const Overlays: React.FC<OverlaysProps> = ({
               </div>
             )}
 
-            <div className="pt-2 flex gap-2">
-              <button
-                onClick={() => onToggleGoing(selectedEvent)}
-                className={`flex-1 py-3 font-black rounded-2xl flex items-center justify-center gap-1.5 text-xs transition shadow-xs ${
-                  goingEventIds.includes(selectedEvent.id)
-                    ? 'bg-[#2D6A4F] hover:bg-emerald-800 text-white shadow-md'
-                    : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100'
-                }`}
-              >
-                <CheckCircle2 className={`w-4 h-4 ${goingEventIds.includes(selectedEvent.id) ? 'text-white' : 'text-[#2D6A4F]'}`} />
-                <span>{goingEventIds.includes(selectedEvent.id) ? 'Going ✓' : "I'm Going"}</span>
-              </button>
-              <button
-                onClick={() => onBuyEventTicket(selectedEvent)}
-                className="flex-1 py-3 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-2xl shadow-md transition text-xs flex items-center justify-center gap-1.5"
-              >
-                <span>Get Primary Ticket</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </button>
+            <div className="pt-2 flex flex-col gap-2">
+              {/* Seamless Plan & Calendar Integration */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const isEventSaved = savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event');
+                    if (!isEventSaved) {
+                      onToggleSave?.(selectedEvent, 'event');
+                    }
+                    onCloseEventModal();
+                    onNavigateToCalendar?.(selectedEvent.date, selectedEvent.id);
+                  }}
+                  className={`py-3 font-black rounded-2xl flex items-center justify-center gap-1.5 text-xs transition shadow-xs cursor-pointer ${
+                    savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event')
+                      ? 'bg-[#2D6A4F] text-white shadow-md ring-2 ring-emerald-500/40'
+                      : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 hover:border-[#E0533C]'
+                  }`}
+                >
+                  <Bookmark className={`w-4 h-4 ${savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event') ? 'fill-white' : ''}`} />
+                  <span>{savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event') ? 'In Your Plans ✓' : 'Add to Plan'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    onCloseEventModal();
+                    onNavigateToCalendar?.(selectedEvent.date, selectedEvent.id);
+                  }}
+                  className="py-3 bg-slate-900 text-white dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 font-black rounded-2xl shadow-md transition text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Calendar className="w-4 h-4 text-[#E0533C]" />
+                  <span>View on Calendar</span>
+                </button>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => onToggleGoing(selectedEvent)}
+                  className={`flex-1 py-3 font-black rounded-2xl flex items-center justify-center gap-1.5 text-xs transition shadow-xs ${
+                    goingEventIds.includes(selectedEvent.id)
+                      ? 'bg-[#2D6A4F] hover:bg-emerald-800 text-white shadow-md'
+                      : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100'
+                  }`}
+                >
+                  <CheckCircle2 className={`w-4 h-4 ${goingEventIds.includes(selectedEvent.id) ? 'text-white' : 'text-[#2D6A4F]'}`} />
+                  <span>{goingEventIds.includes(selectedEvent.id) ? 'Going ✓' : "I'm Going"}</span>
+                </button>
+                <button
+                  onClick={() => onBuyEventTicket(selectedEvent)}
+                  className="flex-1 py-3 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-2xl shadow-md transition text-xs flex items-center justify-center gap-1.5"
+                >
+                  <span>Get Primary Ticket</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           </div>
         </div>

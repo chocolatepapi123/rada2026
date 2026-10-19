@@ -120,3 +120,61 @@ export const getCategoryBadgeStyle = (category?: string, genre?: string) => {
     border: 'border-orange-200 dark:border-orange-800'
   };
 };
+
+/**
+ * Parses any event or planned date string into year, 0-indexed month, and day number.
+ * Supports strings like "Sun, 25 Oct 2026", "24 Oct", "Oct 14", "2026-10-24", "Today", etc.
+ */
+export const parseEventDate = (
+  dateStr?: string | null
+): { year: number; month: number; day: number } | null => {
+  if (!dateStr) return null;
+  const lower = dateStr.toLowerCase().trim();
+
+  // Try ISO format YYYY-MM-DD
+  const isoMatch = lower.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (isoMatch) {
+    return {
+      year: parseInt(isoMatch[1], 10),
+      month: parseInt(isoMatch[2], 10) - 1,
+      day: parseInt(isoMatch[3], 10)
+    };
+  }
+
+  const monthNames = [
+    'jan', 'feb', 'mar', 'apr', 'may', 'jun',
+    'jul', 'aug', 'sep', 'oct', 'nov', 'dec'
+  ];
+  let monthIndex = 9; // default to October (index 9) for 2026 Nairobi festival season
+  for (let i = 0; i < monthNames.length; i++) {
+    if (lower.includes(monthNames[i])) {
+      monthIndex = i;
+      break;
+    }
+  }
+
+  // Extract 4-digit year if present (2025, 2026, 2027)
+  let year = 2026;
+  const yearMatch = lower.match(/\b(202[4-9])\b/);
+  if (yearMatch) {
+    year = parseInt(yearMatch[1], 10);
+  }
+
+  // Check for "today"
+  if (lower.includes('today') || lower.includes('happening today')) {
+    return { year: 2026, month: 9, day: 14 };
+  }
+
+  // Extract day number (1-31)
+  const dayMatch = lower.match(/(?:^|\D)(0?[1-9]|[12]\d|3[01])(?:st|nd|rd|th)?(?:\D|$)/);
+  if (dayMatch) {
+    return {
+      year,
+      month: monthIndex,
+      day: parseInt(dayMatch[1], 10)
+    };
+  }
+
+  return { year: 2026, month: 9, day: 14 };
+};
+

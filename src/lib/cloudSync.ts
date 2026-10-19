@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import type { BusinessAccount } from '../types';
+import type { BusinessAccount, SavedItem, CollectionFolder } from '../types';
+
 
 export type ListingKind = 'spot' | 'event' | 'thrift' | 'offer';
 
@@ -1090,4 +1091,50 @@ export async function fetchProfileVerification(uid: string): Promise<{
   }
   return null;
 }
+
+// =====================================================================
+// PERSONAL SAVED PLANS & VAULT STATE SYNC (SUPABASE)
+// =====================================================================
+export async function syncSavedPlans(
+  uid: string,
+  savedItems: SavedItem[],
+  savedFolders?: CollectionFolder[]
+): Promise<{ error: string | null }> {
+  if (!isSupabaseConfigured || !uid) return { error: null };
+  try {
+    const bundle: Record<string, any> = {
+      saved_items: savedItems,
+      saved_plans: savedItems
+    };
+    if (savedFolders && savedFolders.length > 0) {
+      bundle.saved_folders = savedFolders;
+    }
+    const res = await saveUserData(uid, bundle);
+    return { error: res.error };
+  } catch (err: any) {
+    console.warn('syncSavedPlans error:', err);
+    return { error: err?.message || String(err) };
+  }
+}
+
+export async function fetchSavedPlans(uid: string): Promise<{
+  savedItems: SavedItem[] | null;
+  savedFolders: CollectionFolder[] | null;
+}> {
+  if (!isSupabaseConfigured || !uid) {
+    return { savedItems: null, savedFolders: null };
+  }
+  try {
+    const data = await fetchUserData(uid);
+    if (data) {
+      const savedItems = (data.saved_plans || data.saved_items || null) as SavedItem[] | null;
+      const savedFolders = (data.saved_folders || null) as CollectionFolder[] | null;
+      return { savedItems, savedFolders };
+    }
+  } catch (err) {
+    console.warn('fetchSavedPlans error:', err);
+  }
+  return { savedItems: null, savedFolders: null };
+}
+
 

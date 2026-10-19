@@ -42,9 +42,19 @@ interface SpotsTabProps {
   onOpenDedicatedViewAll: (title: string, category: string) => void;
   onOpenCreateSpot?: (initialTitle?: string) => void;
   onPostReview?: (spotId: number, review: Review) => void;
+  onNavigateToCalendar?: (dateStr?: string, eventId?: number | string) => void;
   showToast?: (msg: string) => void;
 }
 
+// Persistent filter state across unmounts and calendar/modal navigations
+let cachedSpotsFilters = {
+  searchQuery: '',
+  selectedCategory: 'all',
+  selectedNeighborhood: 'all',
+  selectedPriceTier: 'all'
+};
+
+let cachedSpotsScrollY = 0;
 
 export const SpotsTab: React.FC<SpotsTabProps> = ({
   spots,
@@ -55,14 +65,52 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   onOpenDedicatedViewAll,
   onOpenCreateSpot,
   onPostReview,
+  onNavigateToCalendar,
   showToast
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedNeighborhood, setSelectedNeighborhood] = useState<string>('all');
-  const [selectedPriceTier, setSelectedPriceTier] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState(cachedSpotsFilters.searchQuery);
+  const [selectedCategory, setSelectedCategory] = useState<string>(cachedSpotsFilters.selectedCategory);
+  const [selectedNeighborhood, setSelectedNeighborhood] = useState<string>(cachedSpotsFilters.selectedNeighborhood);
+  const [selectedPriceTier, setSelectedPriceTier] = useState<string>(cachedSpotsFilters.selectedPriceTier);
   const [activeImageIndices, setActiveImageIndices] = useState<Record<number, number>>({});
   const [isListening, setIsListening] = useState(false);
+
+  // Sync back to cache so filters are never lost when viewing details or calendar
+  useEffect(() => {
+    cachedSpotsFilters.searchQuery = searchQuery;
+  }, [searchQuery]);
+
+  useEffect(() => {
+    cachedSpotsFilters.selectedCategory = selectedCategory;
+  }, [selectedCategory]);
+
+  useEffect(() => {
+    cachedSpotsFilters.selectedNeighborhood = selectedNeighborhood;
+  }, [selectedNeighborhood]);
+
+  useEffect(() => {
+    cachedSpotsFilters.selectedPriceTier = selectedPriceTier;
+  }, [selectedPriceTier]);
+
+  // Smooth scroll persistence: restore previous scroll position in Spots feed
+  useEffect(() => {
+    if (cachedSpotsScrollY > 0) {
+      const scrollTimer = setTimeout(() => {
+        window.scrollTo({ top: cachedSpotsScrollY, behavior: 'instant' });
+      }, 20);
+      return () => clearTimeout(scrollTimer);
+    }
+
+    const onScroll = () => {
+      cachedSpotsScrollY = window.scrollY;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      cachedSpotsScrollY = window.scrollY;
+      window.removeEventListener('scroll', onScroll);
+    };
+  }, []);
+
 
   // Quick Review Modal State with 5-photo limit & Deduplication Guard
   const [reviewModalSpot, setReviewModalSpot] = useState<SpotItem | null>(null);
@@ -501,10 +549,15 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     const hasReviews = reviewCount > 0;
     const saved = isSaved(spot.id);
 
+    const handleOpenDetails = () => {
+      cachedSpotsScrollY = window.scrollY;
+      onOpenSpotFullView(spot);
+    };
+
     return (
       <div
         key={spot.id}
-        onClick={() => onOpenSpotFullView(spot)}
+        onClick={handleOpenDetails}
         className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-[#E0533C] transition group"
       >
         <div>
@@ -515,19 +568,26 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               style={{ backgroundImage: `url('${currentImg}')` }}
             />
 
-            {/* Bookmark button */}
+            {/* Active Bookmark / In Your Plans button */}
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleSave?.(spot, 'spot');
               }}
-              className={`absolute top-2.5 left-2.5 z-10 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer backdrop-blur-md shadow-xs ${
-                saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/85'
+              className={`absolute top-2.5 left-2.5 z-10 transition-all cursor-pointer backdrop-blur-md shadow-sm flex items-center gap-1.5 ${
+                saved
+                  ? 'bg-[#E0533C] text-white px-2.5 py-1 rounded-full ring-2 ring-white/50'
+                  : 'w-7 h-7 rounded-full bg-black/60 text-white hover:bg-black/85 justify-center'
               }`}
-              title={saved ? 'Remove bookmark' : 'Bookmark this spot'}
+              title={saved ? 'In Your Plans (Tap to remove)' : 'Add to Your Plans'}
             >
               <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
+              {saved && (
+                <span className="text-[10px] font-black tracking-tight whitespace-nowrap">
+                  In Your Plans
+                </span>
+              )}
             </button>
 
             {/* Price Badge */}
