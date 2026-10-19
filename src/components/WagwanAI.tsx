@@ -414,7 +414,7 @@ export const WagwanAI: React.FC<WagwanAIProps> = ({
 
                                 {/* Location & Landmark */}
                                 <p className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1 truncate font-medium">
-                                  <MapPin className="w-3 h-3 text-[#E0533C] shrink-0" />
+                                  <MapPin className="w-3 h-3 text-[#FF5733] shrink-0" />
                                   <span className="truncate">{spot.neighborhood} • {spot.exactLocationTag || spot.address}</span>
                                 </p>
 
@@ -583,13 +583,13 @@ export const WagwanAI: React.FC<WagwanAIProps> = ({
                 onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleAsk()}
                 placeholder="Ask Wagwan AI: 'quiet café with good Wi-Fi', 'where can we do indoor sports?'..."
                 disabled={isLoading}
-                className="flex-1 p-3.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] disabled:opacity-60 placeholder:text-slate-400 font-medium text-slate-900 dark:text-slate-100"
+                className="flex-1 p-3.5 bg-white dark:bg-[#14171F] border border-slate-200 dark:border-[#222735] rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#FF5733] disabled:opacity-60 placeholder:text-slate-400 font-medium text-slate-900 dark:text-slate-100 shadow-xs"
               />
               <button
                 type="button"
                 onClick={() => handleAsk()}
                 disabled={isLoading || !wagwanInput.trim()}
-                className="px-4 py-3.5 bg-[#E0533C] hover:bg-orange-700 disabled:opacity-50 text-white font-black rounded-2xl transition shadow-md flex items-center gap-1.5 cursor-pointer shrink-0"
+                className="px-4 py-3.5 bg-gradient-to-r from-purple-600 to-[#FF5733] hover:opacity-90 disabled:opacity-50 text-white font-black rounded-2xl transition shadow-md flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95"
               >
                 {isLoading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -608,7 +608,7 @@ export const WagwanAI: React.FC<WagwanAIProps> = ({
                 type="button"
                 onClick={() => handleAsk('Find me a quiet café with good Wi-Fi')}
                 disabled={isLoading}
-                className="px-3 py-1.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-full shrink-0 font-bold hover:border-[#E0533C] transition cursor-pointer text-slate-700 dark:text-slate-200 flex items-center gap-1"
+                className="px-3 py-1.5 bg-white dark:bg-[#14171F] border border-slate-200 dark:border-[#222735] rounded-full shrink-0 font-bold hover:border-[#FF5733] transition cursor-pointer text-slate-700 dark:text-slate-200 flex items-center gap-1"
               >
                 <span>☕</span>
                 <span>Quiet Café with Wi-Fi</span>
@@ -618,7 +618,7 @@ export const WagwanAI: React.FC<WagwanAIProps> = ({
                 type="button"
                 onClick={() => handleAsk('Where can we do indoor sports?')}
                 disabled={isLoading}
-                className="px-3 py-1.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-full shrink-0 font-bold hover:border-[#E0533C] transition cursor-pointer text-slate-700 dark:text-slate-200 flex items-center gap-1"
+                className="px-3 py-1.5 bg-white dark:bg-[#14171F] border border-slate-200 dark:border-[#222735] rounded-full shrink-0 font-bold hover:border-[#FF5733] transition cursor-pointer text-slate-700 dark:text-slate-200 flex items-center gap-1"
               >
                 <span>🎳</span>
                 <span>Indoor Sports & Bowling</span>
@@ -628,7 +628,7 @@ export const WagwanAI: React.FC<WagwanAIProps> = ({
                 type="button"
                 onClick={() => handleAsk('Romantic candlelit date night spot with good wine')}
                 disabled={isLoading}
-                className="px-3 py-1.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-full shrink-0 font-bold hover:border-[#E0533C] transition cursor-pointer text-slate-700 dark:text-slate-200 flex items-center gap-1"
+                className="px-3 py-1.5 bg-white dark:bg-[#14171F] border border-slate-200 dark:border-[#222735] rounded-full shrink-0 font-bold hover:border-[#FF5733] transition cursor-pointer text-slate-700 dark:text-slate-200 flex items-center gap-1"
               >
                 <span>✨</span>
                 <span>Romantic Date Night</span>
@@ -638,7 +638,7 @@ export const WagwanAI: React.FC<WagwanAIProps> = ({
                 type="button"
                 onClick={() => handleAsk('Amapiano rave or party with cocktails this weekend')}
                 disabled={isLoading}
-                className="px-3 py-1.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-full shrink-0 font-bold hover:border-[#E0533C] transition cursor-pointer text-slate-700 dark:text-slate-200 flex items-center gap-1"
+                className="px-3 py-1.5 bg-white dark:bg-[#14171F] border border-slate-200 dark:border-[#222735] rounded-full shrink-0 font-bold hover:border-[#FF5733] transition cursor-pointer text-slate-700 dark:text-slate-200 flex items-center gap-1"
               >
                 <span>🔥</span>
                 <span>Amapiano Raves & Parties</span>
@@ -648,7 +648,7 @@ export const WagwanAI: React.FC<WagwanAIProps> = ({
                 type="button"
                 onClick={() => handleAsk('Nature trails or scenic outdoor waterfall hike')}
                 disabled={isLoading}
-                className="px-3 py-1.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-full shrink-0 font-bold hover:border-[#E0533C] transition cursor-pointer text-slate-700 dark:text-slate-200 flex items-center gap-1"
+                className="px-3 py-1.5 bg-white dark:bg-[#14171F] border border-slate-200 dark:border-[#222735] rounded-full shrink-0 font-bold hover:border-[#FF5733] transition cursor-pointer text-slate-700 dark:text-slate-200 flex items-center gap-1"
               >
                 <span>🌿</span>
                 <span>Nature Trails & Hikes</span>
@@ -658,7 +658,7 @@ export const WagwanAI: React.FC<WagwanAIProps> = ({
                 type="button"
                 onClick={() => handleAsk('Vintage denim jacket or streetwear thrift sellers')}
                 disabled={isLoading}
-                className="px-3 py-1.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-full shrink-0 font-bold hover:border-[#E0533C] transition cursor-pointer text-slate-700 dark:text-slate-200 flex items-center gap-1"
+                className="px-3 py-1.5 bg-white dark:bg-[#14171F] border border-slate-200 dark:border-[#222735] rounded-full shrink-0 font-bold hover:border-[#FF5733] transition cursor-pointer text-slate-700 dark:text-slate-200 flex items-center gap-1"
               >
                 <span>👕</span>
                 <span>Streetwear & Luku Fits</span>

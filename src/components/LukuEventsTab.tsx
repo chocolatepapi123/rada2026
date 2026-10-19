@@ -21,6 +21,7 @@ import {
   getCategoryBadgeStyle,
   isDateToday 
 } from '../utils/calendarUtils.ts';
+import { getCategoryAccent } from '../utils/categoryAccents.ts';
 
 interface LukuEventsTabProps {
   events: EventItem[];
@@ -194,11 +195,11 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
                 }}
                 className={`py-2 rounded-xl sm:rounded-2xl transition relative flex flex-col items-center justify-center font-bold cursor-pointer select-none ${
                   isSelected
-                    ? 'bg-[#E0533C] text-white font-black shadow-md ring-2 ring-[#E0533C]/40'
+                    ? 'bg-[#FF5733] text-white font-black shadow-md ring-2 ring-[#FF5733]/40'
                     : isDayToday
                     ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 font-black border border-amber-300 dark:border-amber-700'
                     : hasEvents
-                    ? 'bg-white dark:bg-[#121113] text-slate-900 dark:text-slate-100 font-extrabold border border-slate-200 dark:border-slate-800 hover:border-[#E0533C]'
+                    ? 'bg-white dark:bg-[#14171F] text-slate-900 dark:text-slate-100 font-extrabold border border-slate-200 dark:border-[#222735] hover:border-[#FF5733]'
                     : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
                 }`}
               >
@@ -207,7 +208,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
                 {hasEvents && (
                   <span
                     className={`w-1.5 h-1.5 rounded-full mt-0.5 ${
-                      isSelected ? 'bg-white' : 'bg-[#E0533C]'
+                      isSelected ? 'bg-white' : 'bg-[#FF5733]'
                     }`}
                   />
                 )}
@@ -219,7 +220,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
         {/* Legend */}
         <div className="flex items-center justify-between text-[10px] pt-2 border-t border-slate-200/60 dark:border-slate-800/80 text-slate-500">
           <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-[#E0533C]" />
+            <span className="w-2 h-2 rounded-full bg-[#FF5733]" />
             <span>Event Scheduled</span>
           </span>
           <span className="flex items-center gap-1.5">
@@ -233,7 +234,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
       <div className="flex items-center justify-between pt-1">
         <div>
           <h3 className="font-black text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <CalendarIcon className="w-4 h-4 text-[#E0533C]" />
+            <CalendarIcon className="w-4 h-4 text-[#FF5733]" />
             <span>{dateHeader}</span>
           </h3>
           <p className="text-[11px] text-slate-400">
@@ -245,7 +246,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
           <button
             type="button"
             onClick={() => setSelectedDay(null)}
-            className="text-xs font-bold text-[#E0533C] hover:underline cursor-pointer"
+            className="text-xs font-bold text-[#FF5733] hover:underline cursor-pointer"
           >
             View All Dates
           </button>
@@ -256,14 +257,14 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
       {dayEvents.length > 0 ? (
         <div className="space-y-3">
           {dayEvents.map((event) => {
-            const badgeStyle = getCategoryBadgeStyle(event.category, event.genre);
+            const accent = getCategoryAccent(event.category, event.title, event.genre);
             const priceDisplay = getEventPriceDisplay(event.tiers);
 
             return (
               <div
                 key={event.id}
                 onClick={() => onOpenEventDetails(event)}
-                className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3.5 shadow-sm hover:border-[#E0533C] transition-all cursor-pointer group flex flex-col sm:flex-row gap-3.5"
+                className="bg-white dark:bg-[#14171F] border border-slate-200/90 dark:border-[#222735] rounded-3xl p-3.5 shadow-sm hover:border-[#FF5733] transition-all cursor-pointer group flex flex-col sm:flex-row gap-3.5"
               >
                 {/* Event Poster / Banner */}
                 <div
@@ -272,9 +273,9 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
                 >
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent sm:hidden" />
                   
-                  {/* Category / Genre Badge */}
-                  <span className={`absolute top-2.5 left-2.5 text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider backdrop-blur-md ${badgeStyle.bg} ${badgeStyle.text} border ${badgeStyle.border}`}>
-                    {event.genre || event.category}
+                  {/* Category / Genre Badge with Vibrant Category Accent */}
+                  <span className={`absolute top-2.5 left-2.5 text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider backdrop-blur-md ${accent.pillClass}`}>
+                    {event.genre || accent.badge}
                   </span>
 
                   {/* Price Tag Overlay on Mobile */}
@@ -287,7 +288,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
                 <div className="flex-1 flex flex-col justify-between space-y-2 min-w-0">
                   <div className="space-y-1">
                     <div className="flex items-start justify-between gap-2">
-                      <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition line-clamp-1">
+                      <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 group-hover:text-[#FF5733] transition line-clamp-1">
                         {event.title}
                       </h4>
                       <span className="hidden sm:inline-block shrink-0 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
@@ -299,12 +300,12 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
                     <div className="space-y-1 text-slate-500 dark:text-slate-400 text-xs">
                       {event.time && (
                         <p className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-300">
-                          <Clock className="w-3.5 h-3.5 text-[#E0533C] shrink-0" />
+                          <Clock className="w-3.5 h-3.5 text-[#FF5733] shrink-0" />
                           <span>{event.time}</span>
                         </p>
                       )}
                       <p className="flex items-center gap-1.5 truncate">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <MapPin className="w-3.5 h-3.5 text-[#FF5733] shrink-0" />
                         <span className="truncate">{event.location}</span>
                       </p>
                     </div>
@@ -317,7 +318,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
                   </div>
 
                   {/* Card Footer: Going Count & View Details CTA */}
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/80 text-xs">
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-[#222735] text-xs">
                     <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1">
                       <Users className="w-3.5 h-3.5 text-slate-400" />
                       <span>{event.goingCount} going</span>
@@ -329,7 +330,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
                         e.stopPropagation();
                         onOpenEventDetails(event);
                       }}
-                      className="px-3.5 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-black shadow-xs transition flex items-center gap-1 cursor-pointer active:scale-95"
+                      className="px-3.5 py-1.5 bg-[#FF5733] hover:bg-[#FF6B4A] text-white rounded-xl text-xs font-black shadow-xs transition flex items-center gap-1 cursor-pointer active:scale-95"
                     >
                       <span>Event Details</span>
                       <ArrowRight className="w-3 h-3" />
@@ -342,8 +343,8 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
         </div>
       ) : (
         /* Sleek Empty State Card */
-        <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-dashed border-slate-300 dark:border-slate-800 rounded-3xl p-6 sm:p-8 text-center space-y-3.5 shadow-2xs">
-          <div className="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] mx-auto flex items-center justify-center shadow-xs">
+        <div className="bg-[#FAFAFC] dark:bg-[#14171F] border border-dashed border-slate-300 dark:border-[#222735] rounded-3xl p-6 sm:p-8 text-center space-y-3.5 shadow-2xs">
+          <div className="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#FF5733] mx-auto flex items-center justify-center shadow-xs">
             <CalendarIcon className="w-6 h-6" />
           </div>
 
@@ -363,7 +364,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
                 setSelectedDay(null);
                 if (onExploreTrendingEvents) onExploreTrendingEvents();
               }}
-              className="px-4 py-2 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2 bg-[#FF5733] hover:bg-[#FF6B4A] text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5 cursor-pointer"
             >
               <Flame className="w-3.5 h-3.5" />
               <span>Explore Trending Events</span>

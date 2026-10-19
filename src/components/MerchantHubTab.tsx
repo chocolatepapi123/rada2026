@@ -99,7 +99,7 @@ export const MAIN_SPOT_CATEGORIES: PrimaryCategoryConfig[] = [
     badge: 'Dining & Kitchens',
     description: 'Fine dining, casual eateries, grills & culinary spots',
     icon: UtensilsCrossed,
-    accentColor: 'border-orange-500 bg-orange-500/10 text-[#E0533C]'
+    accentColor: 'border-[#F59E0B]/40 bg-[#FEF3C7] dark:bg-[#F59E0B20] text-[#B45309] dark:text-[#FCD34D]'
   },
   {
     id: 'nature',
@@ -107,7 +107,7 @@ export const MAIN_SPOT_CATEGORIES: PrimaryCategoryConfig[] = [
     badge: 'Parks & Trails',
     description: 'Parks, hiking trails, nature sanctuaries & outdoor reserves',
     icon: Trees,
-    accentColor: 'border-emerald-500 bg-emerald-500/10 text-emerald-600'
+    accentColor: 'border-[#10B981]/40 bg-[#D1FAE5] dark:bg-[#10B98120] text-[#047857] dark:text-[#6EE7B7]'
   },
   {
     id: 'creative_leisure',
@@ -115,63 +115,63 @@ export const MAIN_SPOT_CATEGORIES: PrimaryCategoryConfig[] = [
     badge: 'Art & Studios',
     description: 'Workshops, art studios, pottery & craft activities',
     icon: Palette,
-    accentColor: 'border-pink-500 bg-pink-500/10 text-pink-600'
+    accentColor: 'border-[#D946EF]/40 bg-[#FAE8FF] dark:bg-[#D946EF20] text-[#A21CAF] dark:text-[#F0ABFC]'
   },
   {
     id: 'tech_gaming',
     label: 'Tech and Gaming',
-    badge: 'Arcades & VR',
+    badge: 'Cyber & Gaming',
     description: 'Arcades, VR hubs, esports lounges & gaming setups',
     icon: Gamepad2,
-    accentColor: 'border-indigo-500 bg-indigo-500/10 text-indigo-600'
+    accentColor: 'border-[#06B6D4]/40 bg-[#CFFAFE] dark:bg-[#06B6D420] text-[#0E7490] dark:text-[#67E8F9]'
   },
   {
     id: 'action_sports',
     label: 'Action and sports',
-    badge: 'Fitness & Action',
+    badge: 'Sports & Adrenaline',
     description: 'Fitness centers, extreme sports, go-karting & climbing',
     icon: Dumbbell,
-    accentColor: 'border-blue-500 bg-blue-500/10 text-blue-600'
+    accentColor: 'border-[#EF4444]/40 bg-[#FEE2E2] dark:bg-[#EF444420] text-[#B91C1C] dark:text-[#FCA5A5]'
   },
   {
     id: 'date_spots',
     label: 'Date spots',
-    badge: 'Romance & Ambience',
+    badge: 'Romance & Dates',
     description: 'Candlelit dining, intimate rooftop lounges & scenic date moves',
     icon: Heart,
-    accentColor: 'border-rose-500 bg-rose-500/10 text-rose-600'
+    accentColor: 'border-[#F43F5E]/40 bg-[#FFE4E6] dark:bg-[#F43F5E20] text-[#BE123C] dark:text-[#FDA4AF]'
   },
   {
     id: 'clubs_lounges',
     label: 'Clubs and lounges',
-    badge: 'Nightlife & Drinks',
+    badge: 'Nightlife & Lounges',
     description: 'Dance clubs, DJ lounges, cocktail bars & VIP bottle service',
     icon: Music,
-    accentColor: 'border-purple-500 bg-purple-500/10 text-purple-600'
+    accentColor: 'border-[#A855F7]/40 bg-[#F3E8FF] dark:bg-[#A855F720] text-[#7E22CE] dark:text-[#D8B4FE]'
   },
   {
     id: 'cafes_bakeries',
     label: 'Cafes and Bakeries',
-    badge: 'Coffee & Pastries',
+    badge: 'Cafés & Pastries',
     description: 'Specialty coffee shops, artisanal bakeries & work-friendly spaces',
     icon: Coffee,
-    accentColor: 'border-amber-500 bg-amber-500/10 text-amber-600'
+    accentColor: 'border-[#D97706]/40 bg-[#FEF3C7] dark:bg-[#D9770620] text-[#92400E] dark:text-[#FDE68A]'
   },
   {
     id: 'hotels_luxury',
     label: 'Hotels and luxury stays',
-    badge: 'Suites & Resorts',
+    badge: 'Stays & Luxury',
     description: 'Boutique luxury hotels, suites, safari lodges & staycations',
     icon: Hotel,
-    accentColor: 'border-yellow-500 bg-yellow-500/10 text-yellow-600'
+    accentColor: 'border-[#EAB308]/40 bg-[#FEF9C3] dark:bg-[#EAB30820] text-[#854D0E] dark:text-[#FEF08A]'
   },
   {
     id: 'vacation_escapes',
     label: 'Vacation spots and escapes',
-    badge: 'Getaways & Retreats',
+    badge: 'Vacation & Getaways',
     description: 'Weekend getaways, country cabins, villas & day-pass resorts',
     icon: Palmtree,
-    accentColor: 'border-teal-500 bg-teal-500/10 text-teal-600'
+    accentColor: 'border-[#3B82F6]/40 bg-[#DBEAFE] dark:bg-[#3B82F620] text-[#1D4ED8] dark:text-[#93C5FD]'
   }
 ];
 

@@ -693,17 +693,17 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search spots, activities, or locations..."
-            className="w-full pl-10 pr-24 py-3 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 shadow-xs"
+            className="w-full pl-10 pr-24 py-3 bg-[#FAFAFC] dark:bg-[#14171F] border border-slate-200 dark:border-[#222735] rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#FF5733] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 shadow-xs"
           />
 
           <div className="absolute right-2.5 flex items-center gap-1.5">
             {/* Listening Waveform Animation */}
             {isListening && (
               <div className="flex items-center gap-0.5 px-2 py-1 bg-red-100 dark:bg-red-950/80 rounded-full">
-                <span className="w-1 h-3 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1 h-4 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1 h-2 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                <span className="text-[9px] font-black text-[#E0533C] ml-1">Listening</span>
+                <span className="w-1 h-3 bg-[#FF5733] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1 h-4 bg-[#FF5733] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1 h-2 bg-[#FF5733] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                <span className="text-[9px] font-black text-[#FF5733] ml-1">Listening</span>
               </div>
             )}
 
@@ -712,10 +712,10 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               type="button"
               onClick={handleToggleVoiceSearch}
               title={isListening ? 'Stop Listening' : 'Voice Search with Web Speech API'}
-              className={`p-2 rounded-xl transition ${
+              className={`p-2 rounded-xl transition cursor-pointer ${
                 isListening 
-                  ? 'bg-[#E0533C] text-white shadow-md' 
-                  : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-[#E0533C] hover:text-white'
+                  ? 'bg-[#FF5733] text-white shadow-md' 
+                  : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-[#FF5733] hover:text-white'
               }`}
             >
               <Mic className="w-3.5 h-3.5" />

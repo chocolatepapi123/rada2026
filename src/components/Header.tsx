@@ -213,7 +213,7 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={() => handleMenuClick('profileOverlay')}
                   className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-3 text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
                 >
-                  <IdCard className="w-4 h-4 text-[#E0533C]" />
+                  <IdCard className="w-4 h-4 text-[#FF5733]" />
                   <span>Profile</span>
                 </button>
 
@@ -222,7 +222,7 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={() => handleMenuClick('settingsOverlay')}
                   className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-3 text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
                 >
-                  <Settings className="w-4 h-4 text-[#2D6A4F]" />
+                  <Settings className="w-4 h-4 text-[#8B5CF6]" />
                   <span>Settings</span>
                 </button>
 
@@ -255,7 +255,7 @@ export const Header: React.FC<HeaderProps> = ({
                   }}
                   className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-3 text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
                 >
-                  <UserCheck className="w-4 h-4 text-[#E9C46A]" />
+                  <UserCheck className="w-4 h-4 text-emerald-500" />
                   <span>Account & Security</span>
                 </button>
 
@@ -264,7 +264,7 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={() => handleMenuClick('sosOverlay')}
                   className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-3 text-red-600 dark:text-red-400 transition"
                 >
-                  <ShieldAlert className="w-4 h-4 text-[#E0533C]" />
+                  <ShieldAlert className="w-4 h-4 text-[#FF5733]" />
                   <span>Emergency & SOS Hub</span>
                 </button>
                 {userRole === 'admin' && onOpenAdmin && (

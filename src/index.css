@@ -21,6 +21,18 @@
   --color-darkMuted: #94A3B8;
   --color-darkBorder: #222735;
 
+  /* 10 Main Category Vibrant Accents */
+  --color-catDining: #F59E0B;
+  --color-catNature: #10B981;
+  --color-catCreative: #D946EF;
+  --color-catTech: #06B6D4;
+  --color-catAction: #EF4444;
+  --color-catDate: #F43F5E;
+  --color-catClubs: #A855F7;
+  --color-catCafes: #D97706;
+  --color-catHotels: #EAB308;
+  --color-catVacation: #3B82F6;
+
   /* Legacy aliases mapped to new brand palette */
   --color-brandTerracotta: #FF5733;
   --color-brandSage: #10B981;

@@ -979,7 +979,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             className={`w-9 h-9 rounded-xl sm:rounded-2xl flex items-center justify-center transition flex-shrink-0 cursor-pointer ${
               isRecordingAudio
                 ? 'bg-red-600 text-white animate-pulse'
-                : 'bg-[#F1F1EE] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 hover:bg-[#E0533C] hover:text-white'
+                : 'bg-slate-100 dark:bg-[#14171F] text-slate-700 dark:text-slate-300 hover:bg-[#FF5733] hover:text-white'
             }`}
           >
             <Mic className="w-4 h-4" />
@@ -989,7 +989,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           <button
             type="button"
             onClick={handleSendMessage}
-            className="w-9 h-9 rounded-xl sm:rounded-2xl bg-[#E0533C] text-white flex items-center justify-center shadow-md hover:bg-orange-700 transition flex-shrink-0 cursor-pointer"
+            className="w-9 h-9 rounded-xl sm:rounded-2xl bg-[#FF5733] text-white flex items-center justify-center shadow-md hover:bg-[#FF6B4A] transition flex-shrink-0 cursor-pointer"
             title="Send Message"
             aria-label="Send Message"
           >
@@ -1003,7 +1003,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   return (
     <section className="px-4 py-4 space-y-4">
       {/* Socials Subtabs Navigation */}
-      <div className="grid grid-cols-4 gap-1 bg-[#F1F1EE] dark:bg-[#1C1A1E] p-1 rounded-2xl text-center shadow-inner text-xs">
+      <div className="grid grid-cols-4 gap-1 bg-slate-100 dark:bg-[#14171F] p-1 rounded-2xl text-center shadow-inner text-xs border border-slate-200/80 dark:border-[#222735]">
         {[
           { id: 'discover', label: 'Discover' },
           { id: 'queue', label: 'Requests' },
@@ -1020,9 +1020,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
               }
               setSubtab(tab.id as any);
             }}
-            className={`py-2 rounded-xl transition ${
+            className={`py-2 rounded-xl transition cursor-pointer ${
               subtab === tab.id
-                ? 'font-black bg-white dark:bg-[#121113] text-slate-900 dark:text-white shadow-sm'
+                ? 'font-black bg-white dark:bg-[#0A0C10] text-[#FF5733] shadow-xs'
                 : 'font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
@@ -1034,7 +1034,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
       {/* DISCOVER TAB: Explanatory Gate Screen if NOT single or NOT verified single */}
       {subtab === 'discover' && (!isUserSingle || !isUserVerifiedSingle) && (
         <div className="space-y-4">
-          <div className="p-6 sm:p-7 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl text-center space-y-4 shadow-sm animate-in fade-in duration-200">
+          <div className="p-6 sm:p-7 bg-white dark:bg-[#14171F] border border-slate-200 dark:border-[#222735] rounded-3xl text-center space-y-4 shadow-sm animate-in fade-in duration-200">
             <div className="w-16 h-16 rounded-3xl bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center justify-center mx-auto shadow-sm">
               <ShieldCheck className="w-8 h-8" />
             </div>
@@ -1052,7 +1052,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
               </p>
             </div>
 
-            <div className="p-3.5 bg-white dark:bg-[#121113] rounded-2xl border border-slate-200 dark:border-slate-800 text-[11px] text-left space-y-2 max-w-sm mx-auto">
+            <div className="p-3.5 bg-slate-50 dark:bg-[#0A0C10] rounded-2xl border border-slate-200 dark:border-[#222735] text-[11px] text-left space-y-2 max-w-sm mx-auto">
               <div className="flex items-center justify-between font-bold">
                 <span className="text-slate-500">Profile Status:</span>
                 <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
@@ -1082,7 +1082,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                   if (onOpenVerificationModal) onOpenVerificationModal();
                   else showToast('Opening verification modal...');
                 }}
-                className="w-full py-3.5 px-4 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3.5 px-4 bg-[#FF5733] hover:bg-[#FF6B4A] text-white font-black rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Camera className="w-4 h-4" />
                 <span>Verify Single Profile (Camera Liveness Check)</span>
@@ -1091,9 +1091,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
               <button
                 type="button"
                 onClick={() => setSubtab('chats')}
-                className="w-full py-2.5 px-4 bg-white dark:bg-[#121113] hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-2.5 px-4 bg-white dark:bg-[#0A0C10] hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-[#222735] text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer"
               >
-                <Users className="w-4 h-4 text-[#E0533C]" />
+                <Users className="w-4 h-4 text-[#FF5733]" />
                 <span>Explore & Join Group Chats</span>
               </button>
             </div>
@@ -1106,7 +1106,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
         <div className="space-y-4">
           {currentProfile ? (
             <div
-              className={`bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-md overflow-hidden relative transition-all duration-300 ${
+              className={`bg-white dark:bg-[#14171F] border border-slate-200/90 dark:border-[#222735] rounded-3xl p-4 shadow-md overflow-hidden relative transition-all duration-300 ${
                 swipeAnimation === 'like' ? 'translate-x-28 rotate-12 opacity-0' : swipeAnimation === 'pass' ? '-translate-x-28 -rotate-12 opacity-0' : ''
               }`}
             >
@@ -1297,7 +1297,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             </h3>
             <button
               onClick={onOpenCreateGroupModal}
-              className="text-[#E0533C] font-bold text-xs hover:underline flex items-center gap-1"
+              className="text-[#FF5733] font-bold text-xs hover:underline flex items-center gap-1 cursor-pointer"
             >
               <Users className="w-3.5 h-3.5" />
               <span>+ New Group</span>
@@ -1309,7 +1309,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
               <div
                 key={conv.id}
                 onClick={() => setActiveChat(conv)}
-                className="p-3 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between gap-3 shadow-xs hover:border-[#E0533C] transition cursor-pointer"
+                className="p-3 bg-white dark:bg-[#14171F] border border-slate-200/90 dark:border-[#222735] rounded-2xl flex items-center justify-between gap-3 shadow-xs hover:border-[#FF5733] transition cursor-pointer"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="relative shrink-0">
@@ -1317,7 +1317,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                       className="w-11 h-11 rounded-full bg-cover bg-center border border-slate-300 dark:border-slate-700"
                       style={{ backgroundImage: `url('${conv.avatar}')` }}
                     />
-                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#1C1A1E]" />
+                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#14171F]" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
@@ -1333,7 +1333,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                 </div>
                 <div className="text-right shrink-0">
                   <span className="text-[9px] text-slate-400 block">Just now</span>
-                  <span className="w-2 h-2 rounded-full bg-[#E0533C] inline-block mt-1" />
+                  <span className="w-2 h-2 rounded-full bg-[#FF5733] inline-block mt-1" />
                 </div>
               </div>
             ))}
@@ -1351,7 +1351,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
               value={userSearchQuery}
               onChange={(e) => setUserSearchQuery(e.target.value)}
               placeholder="Search community members by name, vibe or area..."
-              className="w-full pl-10 pr-4 py-3 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] text-slate-900 dark:text-slate-100"
+              className="w-full pl-10 pr-4 py-3 bg-[#FAFAFC] dark:bg-[#14171F] border border-slate-200 dark:border-[#222735] rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#FF5733] text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
             />
           </div>
 
@@ -1363,17 +1363,6 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                 (p.vibes && p.vibes.some(v => v.toLowerCase().includes(userSearchQuery.toLowerCase())))
               )
               .map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => onViewUserProfile({
-                    name: p.name,
-                    handle: p.handle,
-                    avatar: p.img,
-                    bio: p.bio || 'Exploring Nairobi hangouts, good music and vibes.',
-                    loc: cleanLocation(p.loc),
-                    relationshipStatus: p.relationshipStatus,
-                    vibes: p.vibes
-                  })}
                 <div
                   key={p.id}
                   onClick={() => onViewUserProfile({
