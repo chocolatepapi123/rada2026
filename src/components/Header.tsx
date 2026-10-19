@@ -10,7 +10,8 @@ import {
   Sun,
   Moon,
   Bookmark,
-  LogIn
+  LogIn,
+  RefreshCw
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -32,6 +33,9 @@ interface HeaderProps {
   onOpenSaved?: () => void;
   savedCount?: number;
   onOpenAccountSettings?: () => void;
+  /** Dedicated refresh action (the ONLY way to refresh; pull-to-refresh is removed). Icon renders only when provided. */
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -50,7 +54,9 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
   onOpenSaved,
   savedCount,
-  onOpenAccountSettings
+  onOpenAccountSettings,
+  onRefresh,
+  isRefreshing = false
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -136,6 +142,20 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           )}
 
+          {/* Header Refresh Icon (dedicated; no pull-down-to-refresh) */}
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 flex items-center justify-center rounded-full bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-slate-700 dark:text-slate-200 focus:outline-none disabled:opacity-60 cursor-pointer"
+              aria-label="Refresh"
+              title="Refresh"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </button>
+          )}
+
           {/* 3-Dot Overflow Menu */}
           <div className="relative shrink-0" ref={menuRef}>
             <button
@@ -172,6 +192,15 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                 </button>
 
+                {/* Profile */}
+                <button
+                  onClick={() => handleMenuClick('profileOverlay')}
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-3 text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
+                >
+                  <IdCard className="w-4 h-4 text-[#E0533C]" />
+                  <span>Profile</span>
+                </button>
+
                 {/* Prominent Saved Items */}
                 <button
                   onClick={() => {
@@ -193,15 +222,6 @@ export const Header: React.FC<HeaderProps> = ({
                       {savedCount}
                     </span>
                   )}
-                </button>
-
-                {/* Profile */}
-                <button
-                  onClick={() => handleMenuClick('profileOverlay')}
-                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-3 text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
-                >
-                  <IdCard className="w-4 h-4 text-[#E0533C]" />
-                  <span>Profile</span>
                 </button>
 
                 {/* Settings & Appearance */}
