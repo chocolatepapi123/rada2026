@@ -148,6 +148,9 @@ interface OverlaysProps {
   onToggleTheme: () => void;
 
   showToast: (msg: string) => void;
+  selectedLocation?: string;
+  activeCategory?: string;
+  activeCategories?: string[];
   onOpenSaved?: () => void;
   onOpenAccountSettings?: () => void;
   savedCount?: number;
@@ -160,6 +163,9 @@ export const Overlays: React.FC<OverlaysProps> = ({
   onCloseOverlay,
   isWagwanOpen,
   onCloseWagwan,
+  selectedLocation,
+  activeCategory,
+  activeCategories,
   spots,
   events = [],
   cinemaMovies = [],
@@ -334,6 +340,9 @@ export const Overlays: React.FC<OverlaysProps> = ({
       <WagwanAI
         isOpen={isWagwanOpen}
         onClose={onCloseWagwan}
+        selectedLocation={selectedLocation}
+        activeCategory={activeCategory}
+        activeCategories={activeCategories}
         spots={spots}
         events={events}
         thriftItems={thriftItems}

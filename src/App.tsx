@@ -1875,6 +1875,20 @@ export default function App() {
             onCloseOverlay={() => setActiveOverlay(null)}
             isWagwanOpen={isWagwanOpen}
             onCloseWagwan={() => setIsWagwanOpen(false)}
+            selectedLocation={currentLocation}
+            activeCategory={viewAllCategory || undefined}
+            activeCategories={[
+              'Restaurants & Dining',
+              'Cafés & Bakeries',
+              'Clubs & Lounges',
+              'Date Spots',
+              'Connect with Nature',
+              'Creative Leisure',
+              'Tech & Gaming',
+              'Action & Sports',
+              'Hotels & Luxury',
+              'Vacation Escapes'
+            ]}
             spots={spots}
             events={events}
             cinemaMovies={cinemaMovies}
