@@ -543,16 +543,10 @@ export default function App() {
         const exists = prev.some(s => String(s.id) === String(item.id) && s.kind === kind);
         let updated: SavedItem[];
         if (exists) {
-          showToast('Removed from your plans.');
+          showToast('Removed from Vault');
           updated = prev.filter(s => !(String(s.id) === String(item.id) && s.kind === kind));
         } else {
-          if (kind === 'spot') {
-            showToast('Spot Saved to Vault');
-          } else if (kind === 'event') {
-            showToast('Event Saved to Vault');
-          } else {
-            showToast(`Saved "${item.title || item.name}" to Vault`);
-          }
+          showToast('Saved to Vault');
           updated = [{ id: item.id, kind, savedAt: new Date().toISOString() }, ...prev];
         }
         if (session?.user?.id) {

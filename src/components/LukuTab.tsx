@@ -202,7 +202,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
               className={`px-3 py-1.5 rounded-full text-xs shrink-0 transition-all cursor-pointer backdrop-blur-md ${
                 selectedCategory === cat.id
                   ? 'bg-[#FF5733] text-white font-black shadow-md'
-                  : 'bg-black/60 text-slate-300 font-semibold border border-white/10 hover:border-white/30'
+                  : 'bg-white dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-800 hover:border-slate-300'
               }`}
             >
               {cat.label}
@@ -225,7 +225,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
               className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold shrink-0 transition cursor-pointer backdrop-blur-md ${
                 selectedCondition === c.id
                   ? 'bg-[#FF5733] text-white'
-                  : 'bg-black/60 text-slate-300 border border-white/10 hover:border-white/30'
+                  : 'bg-white dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
               }`}
             >
               {c.label}
@@ -245,7 +245,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
               className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold shrink-0 transition cursor-pointer backdrop-blur-md ${
                 selectedPriceRange === p.id
                   ? 'bg-[#2D6A4F] text-white'
-                  : 'bg-black/60 text-slate-300 border border-white/10 hover:border-white/30'
+                  : 'bg-white dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
               }`}
             >
               {p.label}
@@ -257,10 +257,10 @@ export const LukuTab: React.FC<LukuTabProps> = ({
       {/* Thrift Items Grid (badges removed) */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-slate-500">
+          <span className="text-xs font-black text-slate-900 dark:text-slate-100">
             Catalog ({filteredItems.length})
           </span>
-          <span className="text-[10px] text-slate-400">
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">
             {selectedCategory === 'all' ? 'All categories' : selectedCategory}
           </span>
         </div>
@@ -276,7 +276,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
             return (
               <div
                 key={item.id}
-                className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl p-2.5 shadow-xl flex flex-col justify-between hover:border-white/30 transition group text-white"
+                className="bg-white dark:bg-[#1C1A1E] border border-slate-200/90 dark:border-slate-800 rounded-2xl p-2.5 shadow-sm flex flex-col justify-between hover:border-[#FF5733]/40 transition group text-slate-900 dark:text-slate-100"
               >
                 <div>
                   <div
@@ -349,7 +349,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
                   />
                 </div>
 
-                <p className="text-[10px] text-slate-500 truncate mt-0.5">
+                <p className="text-[10px] text-slate-700 dark:text-slate-300 font-semibold truncate mt-0.5">
                   {item.condition} • {item.seller}
                 </p>
                 <p className="text-[9px] text-[#2D6A4F] font-bold truncate mt-0.5">
@@ -378,7 +378,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
                     };
                     handleViewStore(store);
                   }}
-                  className="w-full py-2 px-2.5 bg-white dark:bg-[#121113] hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs whitespace-nowrap cursor-pointer"
+                  className="w-full py-2 px-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-[#121113] dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs whitespace-nowrap cursor-pointer"
                 >
                   <Store className="w-3.5 h-3.5 text-[#E0533C] shrink-0" />
                   <span>View Store</span>
@@ -403,7 +403,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
                         onError: showToast
                       });
                     }}
-                    className="py-1.5 px-2.5 bg-white dark:bg-[#121113] hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-xl transition flex items-center justify-center shadow-xs shrink-0 cursor-pointer"
+                    className="py-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-[#121113] dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-xl transition flex items-center justify-center shadow-xs shrink-0 cursor-pointer"
                     title="Share Fit"
                   >
                     <Share2 className="w-3.5 h-3.5 text-[#E0533C]" />
@@ -416,7 +416,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
 
           {/* Empty Search Result State */}
           {filteredItems.length === 0 && (
-            <div className="col-span-2 py-8 px-4 text-center text-xs text-slate-400 bg-[#F1F1EE] dark:bg-[#1C1A1E] rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 space-y-3">
+            <div className="col-span-2 py-8 px-4 text-center text-xs text-slate-600 dark:text-slate-400 bg-white dark:bg-[#1C1A1E] rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 space-y-3">
               <p>No fits found matching "{searchQuery || selectedCategory}".</p>
               <button
                 onClick={() => onOpenCreateFit ? onOpenCreateFit(searchQuery) : showToast('Open Business Hub from menu to post fits')}
@@ -433,17 +433,17 @@ export const LukuTab: React.FC<LukuTabProps> = ({
       {/* Stores & Merchants Directory */}
       <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
         <div className="flex items-center justify-between">
-          <h2 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400">
+          <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
             Stores & Vendors Directory
           </h2>
-          <span className="text-[10px] text-slate-400 font-bold">Local Markets & Thrift Stalls</span>
+          <span className="text-[10px] text-slate-600 dark:text-slate-400 font-bold">Local Markets & Thrift Stalls</span>
         </div>
 
         <div className="space-y-2.5">
           {thriftStores.map((store) => (
             <div
               key={store.id}
-              className="bg-white/80 dark:bg-black/40 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-2xl p-3 shadow-lg flex items-center justify-between gap-3"
+              className="bg-white dark:bg-[#1C1A1E] border border-slate-200/90 dark:border-slate-800 rounded-2xl p-3 shadow-sm flex items-center justify-between gap-3 text-slate-900 dark:text-slate-100"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div
@@ -455,7 +455,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
                     <span>{store.name}</span>
                     <CheckCircle2 className="w-3 h-3 text-[#2D6A4F] shrink-0" />
                   </h4>
-                  <p className="text-[10px] text-slate-500 truncate mt-0.5">
+                  <p className="text-[10px] text-slate-700 dark:text-slate-300 font-medium truncate mt-0.5">
                     {store.address} • {store.bio}
                   </p>
                 </div>

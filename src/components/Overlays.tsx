@@ -349,16 +349,18 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   return (
                     <button
                       type="button"
-                      onClick={() => onToggleSave?.(selectedSpot, 'spot')}
-                      className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-bold transition cursor-pointer shadow-xs ${
+                      onClick={() => {
+                        onToggleSave?.(selectedSpot, 'spot');
+                        showToast(isSpotSaved ? 'Removed from Vault' : 'Saved to Vault');
+                      }}
+                      className={`w-9 h-9 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs ${
                         isSpotSaved
-                          ? 'bg-[#E0533C] text-white ring-2 ring-white/40'
-                          : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-200 hover:text-[#E0533C]'
+                          ? 'bg-[#E0533C] text-white ring-2 ring-orange-400/40'
+                          : 'bg-[#F8F8F6] hover:bg-slate-200 dark:bg-[#1C1A1E] dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 hover:text-[#E0533C]'
                       }`}
-                      title={isSpotSaved ? 'In Your Plans (Tap to remove)' : 'Add to Your Plans'}
+                      title={isSpotSaved ? 'Saved to Vault (Tap to remove)' : 'Save to Vault'}
                     >
-                      <Bookmark className={`w-3.5 h-3.5 ${isSpotSaved ? 'fill-white' : ''}`} />
-                      <span>{isSpotSaved ? 'In Your Plans' : 'Add to Plan'}</span>
+                      <Bookmark className={`w-4 h-4 ${isSpotSaved ? 'fill-white' : ''}`} />
                     </button>
                   );
                 })()}
@@ -391,6 +393,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 : [selectedSpot.img];
               const safeIndex = activeSpotImgIndex % allImages.length;
               const currentHeroImg = allImages[safeIndex] || selectedSpot.img;
+              const isSpotSaved = savedItems.some(s => String(s.id) === String(selectedSpot.id) && s.kind === 'spot');
 
               return (
                 <div className="space-y-2">
@@ -398,6 +401,24 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     className="h-64 rounded-3xl bg-cover bg-center relative shadow-md transition-all duration-300"
                     style={{ backgroundImage: `url('${currentHeroImg}')` }}
                   >
+                    {/* Top Save Icon on Spot Image */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleSave?.(selectedSpot, 'spot');
+                        showToast(isSpotSaved ? 'Removed from Vault' : 'Saved to Vault');
+                      }}
+                      className={`absolute top-3 left-3 z-10 w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-md transition shadow-md cursor-pointer ${
+                        isSpotSaved
+                          ? 'bg-[#E0533C] text-white ring-2 ring-white/50'
+                          : 'bg-black/60 hover:bg-black/85 text-white'
+                      }`}
+                      title={isSpotSaved ? 'Saved to Vault (Tap to remove)' : 'Save to Vault'}
+                    >
+                      <Bookmark className={`w-4 h-4 ${isSpotSaved ? 'fill-white' : ''}`} />
+                    </button>
+
                     <span className="absolute top-3 right-3 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
                       {selectedSpot.price}
                     </span>
@@ -414,7 +435,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       );
                     })()}
                     {allImages.length > 1 && (
-                      <span className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-md">
+                      <span className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-md">
                         {safeIndex + 1} / {allImages.length} photos
                       </span>
                     )}
@@ -496,53 +517,6 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 >
                   <Car className="w-4 h-4" />
                   <span>Request Bolt</span>
-                </button>
-              </div>
-
-              {/* Seamless Plan & Calendar Integration */}
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const isSpotSaved = savedItems.some(s => String(s.id) === String(selectedSpot.id) && s.kind === 'spot');
-                    if (!isSpotSaved) {
-                      onToggleSave?.(selectedSpot, 'spot');
-                    } else {
-                      showToast('Spot Saved to Vault');
-                    }
-                    const matchingEvt = events.find(e => 
-                      (selectedSpot.title && e.location?.toLowerCase().includes(selectedSpot.title.toLowerCase())) ||
-                      (e.title && e.title.toLowerCase().includes(selectedSpot.title.toLowerCase())) ||
-                      (selectedSpot.businessId && e.businessId === selectedSpot.businessId)
-                    );
-                    onCloseSpotModal();
-                    onNavigateToCalendar?.(matchingEvt?.date, matchingEvt?.id);
-                  }}
-                  className={`py-3 font-black rounded-2xl shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer text-xs ${
-                    savedItems.some(s => String(s.id) === String(selectedSpot.id) && s.kind === 'spot')
-                      ? 'bg-[#2D6A4F] text-white shadow-md ring-2 ring-emerald-500/40'
-                      : 'bg-white dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 hover:border-[#E0533C]'
-                  }`}
-                >
-                  <Bookmark className={`w-4 h-4 ${savedItems.some(s => String(s.id) === String(selectedSpot.id) && s.kind === 'spot') ? 'fill-white' : ''}`} />
-                  <span>{savedItems.some(s => String(s.id) === String(selectedSpot.id) && s.kind === 'spot') ? 'In Your Plans ✓' : 'Add to Plan'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    const matchingEvt = events.find(e => 
-                      (selectedSpot.title && e.location?.toLowerCase().includes(selectedSpot.title.toLowerCase())) ||
-                      (e.title && e.title.toLowerCase().includes(selectedSpot.title.toLowerCase())) ||
-                      (selectedSpot.businessId && e.businessId === selectedSpot.businessId)
-                    );
-                    onCloseSpotModal();
-                    onNavigateToCalendar?.(matchingEvt?.date, matchingEvt?.id);
-                  }}
-                  className="py-3 bg-slate-900 text-white dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 font-black rounded-2xl shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer text-xs"
-                >
-                  <Calendar className="w-4 h-4 text-[#E0533C]" />
-                  <span>View on Calendar</span>
                 </button>
               </div>
 
@@ -1205,16 +1179,18 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   return (
                     <button
                       type="button"
-                      onClick={() => onToggleSave?.(selectedEvent, 'event')}
-                      className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-bold transition cursor-pointer shadow-xs ${
+                      onClick={() => {
+                        onToggleSave?.(selectedEvent, 'event');
+                        showToast(isEventSaved ? 'Removed from Vault' : 'Saved to Vault');
+                      }}
+                      className={`w-9 h-9 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs ${
                         isEventSaved
-                          ? 'bg-[#E0533C] text-white ring-2 ring-white/40'
-                          : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-200 hover:text-[#E0533C]'
+                          ? 'bg-[#E0533C] text-white ring-2 ring-orange-400/40'
+                          : 'bg-[#F8F8F6] hover:bg-slate-200 dark:bg-[#1C1A1E] dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 hover:text-[#E0533C]'
                       }`}
-                      title={isEventSaved ? 'In Your Plans (Tap to remove)' : 'Add to Your Plans'}
+                      title={isEventSaved ? 'Saved to Vault (Tap to remove)' : 'Save to Vault'}
                     >
-                      <Bookmark className={`w-3.5 h-3.5 ${isEventSaved ? 'fill-white' : ''}`} />
-                      <span>{isEventSaved ? 'In Your Plans' : 'Add to Plan'}</span>
+                      <Bookmark className={`w-4 h-4 ${isEventSaved ? 'fill-white' : ''}`} />
                     </button>
                   );
                 })()}
@@ -1243,6 +1219,25 @@ export const Overlays: React.FC<OverlaysProps> = ({
               className="h-60 rounded-3xl bg-cover bg-center relative shadow-md"
               style={{ backgroundImage: `url('${selectedEvent.img}')` }}
             >
+              {/* Top Save Icon on Event Image */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const isEventSaved = savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event');
+                  onToggleSave?.(selectedEvent, 'event');
+                  showToast(isEventSaved ? 'Removed from Vault' : 'Saved to Vault');
+                }}
+                className={`absolute top-3 left-3 z-10 w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-md transition shadow-md cursor-pointer ${
+                  savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event')
+                    ? 'bg-[#E0533C] text-white ring-2 ring-white/50'
+                    : 'bg-black/60 hover:bg-black/85 text-white'
+                }`}
+                title={savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event') ? 'Saved to Vault (Tap to remove)' : 'Save to Vault'}
+              >
+                <Bookmark className={`w-4 h-4 ${savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event') ? 'fill-white' : ''}`} />
+              </button>
+
               <div className="absolute top-3 right-3 bg-black/75 backdrop-blur-md text-white text-[11px] font-black px-3 py-1.5 rounded-full flex items-center gap-1.5">
                 <Users className="w-3.5 h-3.5 text-[#E0533C]" />
                 <span>{selectedEvent.goingCount} people going</span>
@@ -1364,41 +1359,6 @@ export const Overlays: React.FC<OverlaysProps> = ({
             )}
 
             <div className="pt-2 flex flex-col gap-2">
-              {/* Seamless Plan & Calendar Integration */}
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const isEventSaved = savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event');
-                    if (!isEventSaved) {
-                      onToggleSave?.(selectedEvent, 'event');
-                    }
-                    onCloseEventModal();
-                    onNavigateToCalendar?.(selectedEvent.date, selectedEvent.id);
-                  }}
-                  className={`py-3 font-black rounded-2xl flex items-center justify-center gap-1.5 text-xs transition shadow-xs cursor-pointer ${
-                    savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event')
-                      ? 'bg-[#2D6A4F] text-white shadow-md ring-2 ring-emerald-500/40'
-                      : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 hover:border-[#E0533C]'
-                  }`}
-                >
-                  <Bookmark className={`w-4 h-4 ${savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event') ? 'fill-white' : ''}`} />
-                  <span>{savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event') ? 'In Your Plans ✓' : 'Add to Plan'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    onCloseEventModal();
-                    onNavigateToCalendar?.(selectedEvent.date, selectedEvent.id);
-                  }}
-                  className="py-3 bg-slate-900 text-white dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 font-black rounded-2xl shadow-md transition text-xs flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <Calendar className="w-4 h-4 text-[#E0533C]" />
-                  <span>View on Calendar</span>
-                </button>
-              </div>
-
               <div className="flex gap-2">
                 <button
                   onClick={() => onToggleGoing(selectedEvent)}
