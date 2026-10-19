@@ -1,6 +1,8 @@
 import React from 'react';
 import { X, Heart, MessageSquare, MapPin, Sparkles, Shield, User, CheckCircle2, Lock, Bookmark, ChevronRight } from 'lucide-react';
 import { UserProfile } from '../types.ts';
+import { VerifiedBadge } from './VerifiedBadge';
+import { ProfessionalStatus, loadProfessionalAccount } from '../utils/professionalAccount';
 
 interface UserProfileModalProps {
   user: UserProfile | null;
@@ -26,6 +28,15 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   if (!user) return null;
 
   const isSingle = user.relationshipStatus === 'single';
+
+  // Professional account info: prefer fields on the profile, fall back to the locally stored record
+  const localPro = loadProfessionalAccount(user.handle);
+  const proStatus: ProfessionalStatus =
+    ((user as any).professionalStatus as ProfessionalStatus) || localPro.status;
+  const proKind: string = (user as any).professionalKind || localPro.kind;
+  const proCategory: string = (user as any).professionalCategory || localPro.category;
+  const proWebsite: string = (user as any).professionalWebsite || localPro.website;
+  const isApprovedPro = proStatus === 'approved';
 
   const handleMatchClick = () => {
     if (!isSingle) {
@@ -93,7 +104,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           {/* Bottom Photo Overlay Badge */}
           <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
             <div className="text-white drop-shadow-md">
-              <h3 className="text-xl font-black">{user.name}</h3>
+              <h3 className="text-xl font-black flex items-center gap-1.5">
+                <span>{user.name}</span>
+                <VerifiedBadge status={isApprovedPro ? 'approved' : 'none'} size="md" />
+              </h3>
               <p className="text-xs font-bold text-orange-300">{user.handle}</p>
             </div>
 
@@ -115,6 +129,28 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             <MapPin className="w-3.5 h-3.5 text-[#E0533C] shrink-0" />
             <span>{user.loc ? user.loc.replace(/^nearby\s+/i, '').replace(/\bnearby\b/gi, '').replace(/[\d.]+\s*km\s*away\s*(in\s*)?/i, '').trim() : 'Kenya'}</span>
           </p>
+
+          {/* Professional account details */}
+          {isApprovedPro && (
+            <div className="p-3 rounded-2xl bg-[#1D9BF0]/10 border border-[#1D9BF0]/20 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-wider text-[#1D9BF0]">
+                  {proKind === 'creator' ? 'Verified creator' : 'Verified personal brand'}
+                </p>
+                {proCategory && <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">{proCategory}</p>}
+              </div>
+              {proWebsite && (
+                <a
+                  href={proWebsite.startsWith('http') ? proWebsite : `https://${proWebsite}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[11px] font-black text-[#1D9BF0] shrink-0"
+                >
+                  Website
+                </a>
+              )}
+            </div>
+          )}
 
           {/* Bio Section */}
           <div className="p-3.5 bg-[#F8F8F6] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl space-y-1">
@@ -189,6 +225,20 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 </div>
               </div>
               <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition" />
+            </button>
+          )}
+
+          {onOpenAccountSettings && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenAccountSettings();
+              }}
+              className="w-full p-3 rounded-2xl bg-[#F8F8F6] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 hover:border-[#E0533C]/50 text-left flex items-center justify-between transition cursor-pointer"
+            >
+              <span className="text-xs font-black text-slate-900 dark:text-slate-100">Account & Security</span>
+              <ChevronRight className="w-4 h-4 text-slate-400" />
             </button>
           )}
 
