@@ -19,10 +19,218 @@ import {
   Building2,
   CalendarPlus,
   ArrowRight,
-  ShieldCheck
+  ShieldCheck,
+  ChevronDown,
+  RotateCcw
 } from 'lucide-react';
 import { OutingPlan, OutingAttendee, SpotItem, UserProfile } from '../types.ts';
 import { shareContent } from '../utils/shareUtils.ts';
+
+export const NAIROBI_KEY_LOCATIONS = [
+  'All Locations',
+  'Westlands',
+  'Kilimani',
+  'Karen',
+  'Nairobi CBD',
+  'Kiambu Road',
+  'Lavington',
+  'Lang\'ata',
+  'Parklands',
+  'Ngong Road',
+  'Ruiru / Thika Road'
+] as const;
+
+export const RADA_10_CATEGORIES = [
+  { id: 'all', label: 'All Categories' },
+  { id: 'restaurants_dining', label: 'Restaurants / Dining' },
+  { id: 'tech_gaming', label: 'Tech / Gaming' },
+  { id: 'clubs_lounges', label: 'Clubs / Lounges' },
+  { id: 'nature', label: 'Nature' },
+  { id: 'action_sports', label: 'Action / Sports' },
+  { id: 'cafes_bakeries', label: 'Cafes / Bakeries' },
+  { id: 'date_spots', label: 'Date Spots' },
+  { id: 'creative_leisure', label: 'Creative / Leisure' },
+  { id: 'hotels_luxury', label: 'Hotels & Luxury' },
+  { id: 'vacation_escapes', label: 'Vacation Escapes' }
+] as const;
+
+function matchOutingCategory(plan: OutingPlan, categoryId: string, spot?: SpotItem): boolean {
+  if (categoryId === 'all') return true;
+
+  const planCat = (plan.spotCategory || '').toLowerCase();
+  const spotCat = (spot?.category || '').toLowerCase();
+  const spotTitle = (spot?.title || plan.spotTitle || '').toLowerCase();
+
+  switch (categoryId) {
+    case 'restaurants_dining':
+      return (
+        planCat.includes('restaurant') ||
+        planCat.includes('dining') ||
+        spotCat.includes('restaurant') ||
+        spotCat.includes('dining') ||
+        spotCat.includes('food') ||
+        spotTitle.includes('kitchen') ||
+        spotTitle.includes('grill')
+      );
+    case 'tech_gaming':
+      return (
+        planCat.includes('tech') ||
+        planCat.includes('gaming') ||
+        spotCat.includes('tech') ||
+        spotCat.includes('gaming') ||
+        spotCat.includes('arcade') ||
+        spotCat.includes('vr') ||
+        spotTitle.includes('vr') ||
+        spotTitle.includes('gaming')
+      );
+    case 'clubs_lounges':
+      return (
+        planCat.includes('club') ||
+        planCat.includes('lounge') ||
+        planCat.includes('nightlife') ||
+        spotCat.includes('club') ||
+        spotCat.includes('lounge') ||
+        spotCat.includes('nightlife') ||
+        spotCat.includes('bar') ||
+        spotTitle.includes('bar') ||
+        spotTitle.includes('alchemist')
+      );
+    case 'nature':
+      return (
+        planCat.includes('nature') ||
+        planCat.includes('outdoor') ||
+        spotCat.includes('nature') ||
+        spotCat.includes('outdoor') ||
+        spotCat.includes('connect_with_nature') ||
+        spotTitle.includes('forest') ||
+        spotTitle.includes('trail') ||
+        spotTitle.includes('karura') ||
+        spotTitle.includes('hike') ||
+        spotTitle.includes('arboretum')
+      );
+    case 'action_sports':
+      return (
+        planCat.includes('action') ||
+        planCat.includes('sport') ||
+        planCat.includes('fitness') ||
+        spotCat.includes('action') ||
+        spotCat.includes('sport') ||
+        spotCat.includes('fitness') ||
+        spotTitle.includes('bowling') ||
+        spotTitle.includes('kart') ||
+        spotTitle.includes('paintball')
+      );
+    case 'cafes_bakeries':
+      return (
+        planCat.includes('cafe') ||
+        planCat.includes('café') ||
+        planCat.includes('bakery') ||
+        spotCat.includes('cafe') ||
+        spotCat.includes('café') ||
+        spotCat.includes('bakery') ||
+        spotCat.includes('coffee') ||
+        spotTitle.includes('cafe') ||
+        spotTitle.includes('coffee')
+      );
+    case 'date_spots':
+      return (
+        planCat.includes('date') ||
+        spotCat.includes('date') ||
+        spotTitle.includes('unseen') ||
+        (plan.tags?.some(t => t.toLowerCase().includes('date')) ?? false)
+      );
+    case 'creative_leisure':
+      return (
+        planCat.includes('creative') ||
+        planCat.includes('leisure') ||
+        planCat.includes('art') ||
+        spotCat.includes('creative') ||
+        spotCat.includes('leisure') ||
+        spotCat.includes('art') ||
+        spotCat.includes('social') ||
+        spotTitle.includes('pottery') ||
+        spotTitle.includes('paint')
+      );
+    case 'hotels_luxury':
+      return (
+        planCat.includes('hotel') ||
+        planCat.includes('luxury') ||
+        spotCat.includes('hotel') ||
+        spotCat.includes('luxury') ||
+        spotCat.includes('stay')
+      );
+    case 'vacation_escapes':
+      return (
+        planCat.includes('vacation') ||
+        planCat.includes('escape') ||
+        spotCat.includes('vacation') ||
+        spotCat.includes('escape') ||
+        spotCat.includes('resort')
+      );
+    default:
+      return planCat.includes(categoryId.toLowerCase()) || spotCat.includes(categoryId.toLowerCase());
+  }
+}
+
+function matchOutingLocation(plan: OutingPlan, selectedLocation: string, spot?: SpotItem): boolean {
+  if (!selectedLocation || selectedLocation === 'All Locations') return true;
+
+  const loc = selectedLocation.toLowerCase();
+  const address = (plan.spotAddress || '').toLowerCase();
+  const spotAddress = (spot?.address || '').toLowerCase();
+  const spotNeigh = (spot?.neighborhood || '').toLowerCase();
+  const spotTag = (spot?.exactLocationTag || '').toLowerCase();
+  const spotTitle = (spot?.title || plan.spotTitle || '').toLowerCase();
+
+  if (loc === 'nairobi cbd') {
+    return (
+      address.includes('cbd') ||
+      address.includes('central business') ||
+      address.includes('tom mboya') ||
+      address.includes('moi ave') ||
+      spotNeigh.includes('cbd') ||
+      spotAddress.includes('cbd') ||
+      spotTag.includes('cbd')
+    );
+  }
+
+  if (loc === 'kiambu road') {
+    return (
+      address.includes('kiambu') ||
+      spotNeigh.includes('kiambu') ||
+      spotAddress.includes('kiambu') ||
+      spotTag.includes('kiambu')
+    );
+  }
+
+  if (loc === 'ruiru / thika road') {
+    return (
+      address.includes('ruiru') ||
+      address.includes('thika') ||
+      spotNeigh.includes('ruiru') ||
+      spotNeigh.includes('thika') ||
+      spotNeigh.includes('roysambu') ||
+      spotNeigh.includes('kasarani')
+    );
+  }
+
+  return (
+    address.includes(loc) ||
+    spotNeigh.includes(loc) ||
+    spotAddress.includes(loc) ||
+    spotTag.includes(loc) ||
+    spotTitle.includes(loc)
+  );
+}
+
+function matchOutingAccessType(plan: OutingPlan, accessType: 'All Plans' | 'Open Plans' | 'Singles Only'): boolean {
+  if (accessType === 'All Plans') return true;
+  if (accessType === 'Open Plans') return plan.accessType === 'open';
+  if (accessType === 'Singles Only') {
+    return plan.accessType === 'singles_only' || (plan.tags?.includes('Singles Only') ?? false);
+  }
+  return true;
+}
 
 interface OutingsTabProps {
   outings: OutingPlan[];
@@ -49,7 +257,9 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   onOpenSpotDetails,
   showToast
 }) => {
-  const [activeFilter, setActiveFilter] = useState<'All Plans' | 'Singles Only' | 'Group Hangouts' | 'Weekend'>('All Plans');
+  const [selectedLocation, setSelectedLocation] = useState<string>('All Locations');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [accessTypeFilter, setAccessTypeFilter] = useState<'All Plans' | 'Open Plans' | 'Singles Only'>('All Plans');
   const [searchQuery, setSearchQuery] = useState('');
   const [isHostModalOpen, setIsHostModalOpen] = useState(false);
   const [selectedOutingDetail, setSelectedOutingDetail] = useState<OutingPlan | null>(null);
@@ -65,32 +275,37 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   const [selectedTags, setSelectedTags] = useState<string[]>(['All Plans', 'Group Hangouts']);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Filter Outings
+  // Real-Time Feed Filtering
   const filteredOutings = useMemo(() => {
     return outings.filter(plan => {
-      // Filter tag
-      if (activeFilter === 'Singles Only') {
-        if (plan.accessType !== 'singles_only' && !plan.tags?.includes('Singles Only')) return false;
-      } else if (activeFilter === 'Group Hangouts') {
-        if (!plan.tags?.includes('Group Hangouts') && plan.accessType === 'singles_only') return false;
-      } else if (activeFilter === 'Weekend') {
-        if (!plan.tags?.includes('Weekend') && !['Friday', 'Saturday', 'Sunday'].some(day => plan.date?.includes(day))) {
-          // Check if date is on a weekend
-          try {
-            const parsed = new Date(plan.date);
-            const dayOfWeek = parsed.getDay();
-            if (dayOfWeek !== 0 && dayOfWeek !== 5 && dayOfWeek !== 6) return false;
-          } catch {
-            return false;
-          }
-        }
+      const spot = spots.find(s => s.id === plan.spotId);
+
+      // Access Type Filter ("All Plans", "Open Plans", "Singles Only")
+      if (!matchOutingAccessType(plan, accessTypeFilter)) {
+        return false;
       }
 
-      // Search query
+      // Location Filter (e.g. "All Locations", "Westlands", "Kilimani", "Karen", "Nairobi CBD", "Kiambu Road")
+      if (!matchOutingLocation(plan, selectedLocation, spot)) {
+        return false;
+      }
+
+      // Category Filter (10 RADA Categories)
+      if (!matchOutingCategory(plan, selectedCategory, spot)) {
+        return false;
+      }
+
+      // Real-time venue/host/vibe search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchesSpot = plan.spotTitle.toLowerCase().includes(q) || (plan.spotAddress && plan.spotAddress.toLowerCase().includes(q));
-        const matchesHost = plan.hostName.toLowerCase().includes(q) || (plan.hostHandle && plan.hostHandle.toLowerCase().includes(q));
+        const matchesSpot = 
+          plan.spotTitle.toLowerCase().includes(q) || 
+          (plan.spotAddress && plan.spotAddress.toLowerCase().includes(q)) ||
+          (spot?.title && spot.title.toLowerCase().includes(q)) ||
+          (spot?.neighborhood && spot.neighborhood.toLowerCase().includes(q));
+        const matchesHost = 
+          plan.hostName.toLowerCase().includes(q) || 
+          (plan.hostHandle && plan.hostHandle.toLowerCase().includes(q));
         const matchesDesc = plan.description.toLowerCase().includes(q);
         const matchesTags = plan.tags?.some(t => t.toLowerCase().includes(q));
         if (!matchesSpot && !matchesHost && !matchesDesc && !matchesTags) return false;
@@ -98,7 +313,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
 
       return true;
     });
-  }, [outings, activeFilter, searchQuery]);
+  }, [outings, spots, selectedLocation, selectedCategory, accessTypeFilter, searchQuery]);
 
   // Spots search inside Host modal
   const filteredSpotsForHosting = useMemo(() => {
@@ -304,25 +519,74 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
           )}
         </div>
 
-        {/* Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pt-0.5">
-          {(['All Plans', 'Singles Only', 'Group Hangouts', 'Weekend'] as const).map((filter) => {
-            const isActive = activeFilter === filter;
+        {/* Dropdown Filters (Location & Category) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
+          {/* Location Filter Dropdown */}
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
+            </div>
+            <select
+              aria-label="Filter by Nairobi Location"
+              value={selectedLocation}
+              onChange={(e) => setSelectedLocation(e.target.value)}
+              className="w-full pl-9 pr-8 py-2.5 bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#E0533C] appearance-none cursor-pointer"
+            >
+              {NAIROBI_KEY_LOCATIONS.map((loc) => (
+                <option key={loc} value={loc} className="bg-white dark:bg-[#1C1A1E] text-slate-900 dark:text-slate-100">
+                  {loc}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          </div>
+
+          {/* Category Filter Dropdown (10 RADA Categories) */}
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <Filter className="w-3.5 h-3.5 text-[#E0533C]" />
+            </div>
+            <select
+              aria-label="Filter by RADA Category"
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="w-full pl-9 pr-8 py-2.5 bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#E0533C] appearance-none cursor-pointer"
+            >
+              {RADA_10_CATEGORIES.map((cat) => (
+                <option key={cat.id} value={cat.id} className="bg-white dark:bg-[#1C1A1E] text-slate-900 dark:text-slate-100">
+                  {cat.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          </div>
+        </div>
+
+        {/* Access Type Toggle: "All Plans", "Open Plans", "Singles Only" */}
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100/90 dark:bg-black/40 rounded-2xl border border-slate-200/80 dark:border-slate-800/80">
+          {(['All Plans', 'Open Plans', 'Singles Only'] as const).map((type) => {
+            const isActive = accessTypeFilter === type;
             return (
               <button
-                key={filter}
+                key={type}
                 type="button"
-                onClick={() => setActiveFilter(filter)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                onClick={() => setAccessTypeFilter(type)}
+                className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer ${
                   isActive
-                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
-                    : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                    ? 'bg-white dark:bg-[#1C1A1E] text-slate-900 dark:text-slate-100 shadow-xs border border-slate-200/80 dark:border-slate-700'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
               >
-                {filter === 'Singles Only' && <Heart className="w-3 h-3 inline-block mr-1 text-rose-500 fill-rose-500" />}
-                {filter === 'Group Hangouts' && <Users className="w-3 h-3 inline-block mr-1 text-indigo-500" />}
-                {filter === 'Weekend' && <Calendar className="w-3 h-3 inline-block mr-1 text-[#E0533C]" />}
-                <span>{filter}</span>
+                {type === 'Singles Only' && (
+                  <Heart className={`w-3 h-3 ${isActive ? 'fill-rose-500 text-rose-500' : 'text-rose-500'}`} />
+                )}
+                {type === 'Open Plans' && (
+                  <Users className={`w-3 h-3 ${isActive ? 'text-indigo-500' : 'text-slate-400'}`} />
+                )}
+                {type === 'All Plans' && (
+                  <Compass className={`w-3 h-3 ${isActive ? 'text-[#E0533C]' : 'text-slate-400'}`} />
+                )}
+                <span className="truncate">{type}</span>
               </button>
             );
           })}
@@ -335,9 +599,28 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
           <Compass className="w-3.5 h-3.5 text-[#E0533C]" />
           <span>Active Plans ({filteredOutings.length})</span>
         </span>
-        <span className="text-[11px] text-slate-400 font-medium">
-          Showing: {activeFilter}
-        </span>
+        <div className="flex items-center gap-2">
+          {(selectedLocation !== 'All Locations' || selectedCategory !== 'all' || accessTypeFilter !== 'All Plans' || searchQuery.trim() !== '') && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedLocation('All Locations');
+                setSelectedCategory('all');
+                setAccessTypeFilter('All Plans');
+                setSearchQuery('');
+              }}
+              className="text-[11px] text-[#E0533C] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset</span>
+            </button>
+          )}
+          <span className="text-[11px] text-slate-400 font-medium truncate max-w-[200px]">
+            {accessTypeFilter}
+            {selectedLocation !== 'All Locations' ? ` • ${selectedLocation}` : ''}
+            {selectedCategory !== 'all' ? ` • ${RADA_10_CATEGORIES.find(c => c.id === selectedCategory)?.label}` : ''}
+          </span>
+        </div>
       </div>
 
       {/* Outings Feed Cards */}
@@ -521,20 +804,37 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
           </div>
           <div className="space-y-1">
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
-              No outings found for "{activeFilter}"
+              No outings match these filters. Be the first to host one!
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto leading-relaxed">
-              Be the first to host a public hangout at your favorite Nairobi spot!
+              Try adjusting your location, category, or access type filters, or create a brand new public hangout.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsHostModalOpen(true)}
-            className="px-4 py-2 bg-[#E0533C] hover:bg-orange-700 text-white font-bold rounded-xl text-xs shadow-sm transition inline-flex items-center gap-1.5 cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5 stroke-[3]" />
-            <span>Host a Plan</span>
-          </button>
+          <div className="flex items-center justify-center gap-2 pt-1 flex-wrap">
+            {(selectedLocation !== 'All Locations' || selectedCategory !== 'all' || accessTypeFilter !== 'All Plans' || searchQuery.trim() !== '') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedLocation('All Locations');
+                  setSelectedCategory('all');
+                  setAccessTypeFilter('All Plans');
+                  setSearchQuery('');
+                }}
+                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs transition inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset Filters</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setIsHostModalOpen(true)}
+              className="px-4 py-2 bg-[#E0533C] hover:bg-orange-700 text-white font-bold rounded-xl text-xs shadow-sm transition inline-flex items-center gap-1.5 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[3]" />
+              <span>Host a Plan</span>
+            </button>
+          </div>
         </div>
       )}
 
