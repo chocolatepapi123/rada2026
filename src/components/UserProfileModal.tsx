@@ -1,8 +1,9 @@
-import React from 'react';
-import { X, Heart, MessageSquare, MapPin, Sparkles, Shield, User, CheckCircle2, Lock, Bookmark, ChevronRight } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { X, Heart, MessageSquare, MapPin, Sparkles, Shield, User, CheckCircle2, Lock, Bookmark, ChevronRight, Camera, Loader2 } from 'lucide-react';
 import { UserProfile } from '../types.ts';
 import { VerifiedBadge } from './VerifiedBadge';
 import { ProfessionalStatus, loadProfessionalAccount } from '../utils/professionalAccount';
+import { toHandle, uploadAvatar } from '../lib/cloudSync';
 
 interface UserProfileModalProps {
   user: UserProfile | null;
@@ -13,6 +14,12 @@ interface UserProfileModalProps {
   showToast: (msg: string) => void;
   onOpenSavedItems?: () => void;
   onOpenAccountSettings?: () => void;
+  /** True when this modal shows the signed-in user's own profile (enables the photo edit button). */
+  isOwnProfile?: boolean;
+  /** Signed-in user's id, needed to upload their avatar. */
+  currentUserId?: string;
+  /** Called after a new avatar is saved so the app can update the profile in real time. */
+  onProfileChange?: (patch: Partial<UserProfile>) => void;
 }
 
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({
@@ -23,14 +30,46 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onSendMessage,
   showToast,
   onOpenSavedItems,
-  onOpenAccountSettings
+  onOpenAccountSettings,
+  isOwnProfile = false,
+  currentUserId,
+  onProfileChange,
 }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  // Show the new photo immediately, even before the parent re-renders with it
+  const [avatarOverride, setAvatarOverride] = useState<string | null>(null);
+
   if (!user) return null;
+
+  // Public identity is the @username only; real names are never displayed here
+  const handle = toHandle(user.handle);
+  const avatarSrc = avatarOverride || user.avatar;
+
+  const handleAvatarPicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!currentUserId) {
+      showToast('Please sign in to change your photo.');
+      return;
+    }
+    setIsUploadingAvatar(true);
+    const res = await uploadAvatar(currentUserId, file);
+    setIsUploadingAvatar(false);
+    if (res.error || !res.url) {
+      showToast(res.error || 'Could not upload photo.');
+      return;
+    }
+    setAvatarOverride(res.url);
+    onProfileChange?.({ avatar: res.url });
+    showToast('Profile photo updated.');
+  };
 
   const isSingle = user.relationshipStatus === 'single';
 
   // Professional account info: prefer fields on the profile, fall back to the locally stored record
-  const localPro = loadProfessionalAccount(user.handle);
+  const localPro = loadProfessionalAccount(handle);
   const proStatus: ProfessionalStatus =
     ((user as any).professionalStatus as ProfessionalStatus) || localPro.status;
   const proKind: string = (user as any).professionalKind || localPro.kind;
@@ -40,13 +79,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   const handleMatchClick = () => {
     if (!isSingle) {
-      showToast(`${user.name} is Not Single. Matching requests are disabled for this profile.`);
+      showToast(`${handle} is Not Single. Matching requests are disabled for this profile.`);
       return;
     }
     if (onSendMatchRequest) {
       onSendMatchRequest(user);
     } else {
-      showToast(`Hangout & Match request sent to ${user.name}!`);
+      showToast(`Hangout & Match request sent to ${handle}!`);
     }
   };
 
@@ -58,7 +97,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     if (onSendMessage) {
       onSendMessage(user);
     } else {
-      showToast(`Chat conversation opened with ${user.name}!`);
+      showToast(`Chat conversation opened with ${handle}!`);
     }
     onClose();
   };
@@ -74,14 +113,14 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           {/* Blurred ambient fill eliminates solid colored blank spots */}
           <div 
             className="absolute inset-0 bg-cover bg-center filter blur-2xl scale-125 opacity-50 dark:opacity-40"
-            style={{ backgroundImage: `url('${user.avatar}')` }}
+            style={{ backgroundImage: `url('${avatarSrc}')` }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40 z-10 pointer-events-none" />
           
           {/* Complete uncropped photo */}
           <img 
-            src={user.avatar} 
-            alt={user.name} 
+            src={avatarSrc} 
+            alt={handle} 
             className="relative z-10 max-h-full max-w-full object-contain drop-shadow-2xl"
           />
 
@@ -101,14 +140,36 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </button>
           </div>
 
+          {/* Edit profile photo (own profile only) */}
+          {isOwnProfile && (
+            <>
+              <button
+                type="button"
+                onClick={() => (currentUserId ? fileInputRef.current?.click() : showToast('Please sign in to change your photo.'))}
+                disabled={isUploadingAvatar}
+                className="absolute bottom-16 right-3 z-20 w-10 h-10 rounded-full bg-[#E0533C] hover:bg-orange-700 text-white flex items-center justify-center shadow-lg border-2 border-white/80 cursor-pointer disabled:opacity-60"
+                aria-label="Change profile photo"
+                title="Change profile photo"
+              >
+                {isUploadingAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarPicked}
+              />
+            </>
+          )}
+
           {/* Bottom Photo Overlay Badge */}
           <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
             <div className="text-white drop-shadow-md">
               <h3 className="text-xl font-black flex items-center gap-1.5">
-                <span>{user.name}</span>
+                <span>{handle}</span>
                 <VerifiedBadge status={isApprovedPro ? 'approved' : 'none'} size="md" />
               </h3>
-              <p className="text-xs font-bold text-orange-300">{user.handle}</p>
             </div>
 
             <span className={`text-[10px] font-black px-3 py-1 rounded-full backdrop-blur-md shadow-md flex items-center gap-1 ${
@@ -187,7 +248,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             {isMutualMatch ? (
               <p className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-semibold">
                 <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-                <span>You and <strong>{user.name}</strong> are mutual matches. Direct messaging is unlocked!</span>
+                <span>You and <strong>{handle}</strong> are mutual matches. Direct messaging is unlocked!</span>
               </p>
             ) : isSingle ? (
               <p className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
@@ -276,7 +337,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             ) : (
               <button
                 type="button"
-                onClick={() => showToast(`${user.name} is Not Single. Matching requests are disabled.`)}
+                onClick={() => showToast(`${handle} is Not Single. Matching requests are disabled.`)}
                 className="w-full py-3 bg-slate-200 dark:bg-slate-800 text-slate-400 font-bold rounded-2xl text-xs cursor-not-allowed flex items-center justify-center gap-2"
               >
                 <Heart className="w-4 h-4 opacity-40" />
