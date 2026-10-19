@@ -1465,7 +1465,7 @@ export default function App() {
       isLivenessVerified: true,
       is_liveness_verified: true,
       relationshipStatus: 'single',
-      relationship_status: 'single',
+      relationship_status: 'Single',
     };
     setCurrentUserProfile(updated);
     localStorage.setItem('rada_current_user', JSON.stringify(updated));
@@ -1474,7 +1474,7 @@ export default function App() {
     if (uid && isSupabaseConfigured) {
       await cloud.updateProfileVerification(
         uid,
-        'single',
+        'Single',
         true,
         verified.avatar
       );
@@ -1486,7 +1486,7 @@ export default function App() {
     }
 
     setIsLivenessModalOpen(false);
-    showToast('Verified Single status! Discover is now unlocked.');
+    showToast('Profile Verified Successfully!');
   };
 
   const handleBuyEventTicket = (event: EventItem) => {
@@ -2007,6 +2007,7 @@ export default function App() {
             isOpen={isLivenessModalOpen}
             onClose={() => setIsLivenessModalOpen(false)}
             currentUserProfile={currentUserProfile}
+            userId={session?.user?.id}
             onVerificationSuccess={handleVerificationSuccess}
             showToast={showToast}
           />

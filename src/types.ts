@@ -294,6 +294,7 @@ export interface DatingProfile {
 }
 
 export interface UserProfile {
+  id?: string;
   name: string;
   handle: string;
   avatar: string;

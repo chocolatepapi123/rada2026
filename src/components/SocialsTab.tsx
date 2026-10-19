@@ -61,8 +61,8 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   onOpenVerificationModal,
   showToast
 }) => {
-  const isUserSingle = currentUserProfile?.relationshipStatus === 'single';
-  const isUserVerifiedSingle = isUserSingle && Boolean(currentUserProfile?.isLivenessVerified);
+  const isUserSingle = currentUserProfile?.relationshipStatus === 'single' || currentUserProfile?.relationship_status?.toLowerCase() === 'single';
+  const isUserVerifiedSingle = isUserSingle && Boolean(currentUserProfile?.isLivenessVerified || currentUserProfile?.is_liveness_verified);
   const [subtab, setSubtab] = useState<'discover' | 'queue' | 'chats' | 'search'>('discover');
   const [showGateModal, setShowGateModal] = useState(false);
   const [profileIndex, setProfileIndex] = useState(0);
