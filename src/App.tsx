@@ -378,11 +378,11 @@ export default function App() {
   const [viewAllTitle, setViewAllTitle] = useState<string | null>(null);
   const [viewAllCategory, setViewAllCategory] = useState<string | null>(null);
 
-  // Dynamic Header Location: Automatically detects and defaults to user's physical location (locked/fixed)
+  // Dynamic Header Location: Detected physical location; if unavailable or null, no default fallback is set
   const [currentLocation, setCurrentLocation] = useState<string>(() => {
-    return localStorage.getItem('rada_current_location') || 'Westlands, Nairobi';
+    return localStorage.getItem('rada_current_location') || '';
   });
-  const [isGpsActive, setIsGpsActive] = useState<boolean>(true);
+  const [isGpsActive, setIsGpsActive] = useState<boolean>(false);
 
   // Auto-detect physical location on startup
   useEffect(() => {
@@ -390,32 +390,33 @@ export default function App() {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const { latitude, longitude } = pos.coords;
-          let detected = 'Westlands, Nairobi';
+          let detected = 'Westlands';
           // Approximate Nairobi / Kiambu geographic clustering
           if (latitude > -1.22 && latitude < -1.0) {
-            detected = 'Kiambu / Thika';
+            detected = 'Kiambu';
           } else if (latitude >= -1.28 && latitude <= -1.24 && longitude >= 36.78 && longitude <= 36.83) {
-            detected = 'Westlands, Nairobi';
+            detected = 'Westlands';
           } else if (latitude >= -1.31 && latitude <= -1.28 && longitude >= 36.76 && longitude <= 36.81) {
-            detected = 'Kilimani, Nairobi';
+            detected = 'Kilimani';
           } else if (latitude >= -1.30 && latitude <= -1.27 && longitude >= 36.81 && longitude <= 36.84) {
             detected = 'Nairobi CBD';
           } else if (latitude >= -1.36 && latitude <= -1.31) {
-            detected = 'Karen, Nairobi';
+            detected = 'Karen';
           } else {
-            detected = 'Westlands, Nairobi';
+            detected = 'Westlands';
           }
           setCurrentLocation(detected);
           localStorage.setItem('rada_current_location', detected);
           setIsGpsActive(true);
         },
         () => {
-          // Fallback to Westlands, Nairobi
-          setCurrentLocation('Westlands, Nairobi');
-          setIsGpsActive(true);
+          // If geolocation is denied or unavailable, do not force a fallback default like "Westlands"
+          setIsGpsActive(false);
         },
         { enableHighAccuracy: true, timeout: 5000 }
       );
+    } else {
+      setIsGpsActive(false);
     }
   }, []);
 

@@ -73,20 +73,29 @@ export interface Review {
   images?: string[];
 }
 
+export type MainSpotCategory = 
+  | 'restaurants_dining'
+  | 'nature'
+  | 'creative_leisure'
+  | 'tech_gaming'
+  | 'action_sports'
+  | 'date_spots'
+  | 'clubs_lounges'
+  | 'cafes_bakeries'
+  | 'hotels_luxury'
+  | 'vacation_escapes';
+
 export type SpotCategory = 
+  | MainSpotCategory
   | 'restaurants' 
   | 'nightlife' 
   | 'cafes' 
   | 'vacation' 
   | 'hotels' 
-  | 'date_spots' 
   | 'activities' 
   | 'outdoors' 
   | 'social_activities'
   | 'connect_with_nature'
-  | 'creative_leisure'
-  | 'tech_gaming'
-  | 'action_sports'
   | 'outdoor_fitness'
   | 'creative_arts'
   | 'spa_wellness'
@@ -105,6 +114,7 @@ export interface SpotItem {
   id: number;
   title: string;
   category: SpotCategory;
+  subcategory?: string;
   neighborhood: string;
   exactLocationTag?: string;
   landmark?: string;
@@ -127,20 +137,48 @@ export interface SpotItem {
   phone?: string;
   openingHours?: string;
   // Dynamic Category-Specific Metadata
-  // 1. Food & Drink / Restaurants / Lounges
+  // 1. Restaurants and dining
+  diningTypes?: string;
   cuisineTypes?: string[];
   featuredDishes?: string[];
   menuUploadUrl?: string;
-  // 2. Outdoor / Fitness / Sports
+  // 2. Nature & Outdoors
+  equipmentToCarry?: string;
   equipmentNeeded?: string;
   equipmentProvided?: string;
   skillLevel?: 'All Levels' | 'Beginner' | 'Intermediate' | 'Advanced' | string;
   whatToBring?: string;
-  // 3. Event Spaces / Venues
+  // 3. Creative and leisure
+  craftActivities?: string;
+  workshopDetails?: string;
+  // 4. Tech and Gaming
+  pricePerHour?: string;
+  timeSlots?: string;
+  availableGames?: string[] | string;
+  gameConsoles?: string;
+  activitySchedule?: string;
+  // 5. Action and sports
+  sportTypes?: string;
+  // 6. Date spots
+  atmosphereTags?: string[];
+  bookingOptions?: string;
+  // 7. Clubs and lounges
+  nightlifeOptions?: string;
+  bottleServiceOptions?: string;
+  // 8. Cafes and Bakeries
+  coffeePastryMenu?: string;
+  workFriendlyTags?: string[];
+  // 9. Hotels and luxury stays
+  roomTypes?: string;
+  amenitiesList?: string[];
+  // 10. Vacation spots and escapes
+  weekendGetawayDetails?: string;
+  dayPassDetails?: string;
+  // Venues & general
   capacity?: string | number;
   amenitiesAV?: string[];
   bookingPolicies?: string;
-  // 4. Social Links & Web
+  // Social Links & Web
   website?: string;
   instagram?: string;
   socialLinks?: {
@@ -156,12 +194,6 @@ export interface SpotItem {
   difficulty?: 'Easy' | 'Moderate' | 'Challenging' | 'Expert' | string;
   distanceDuration?: string;
   meetingPoint?: string;
-  // 5. Gaming / Entertainment & Activity Scheduling
-  pricePerHour?: string;
-  timeSlots?: string;
-  availableGames?: string[] | string;
-  gameConsoles?: string;
-  activitySchedule?: string;
 }
 
 export interface Artist {

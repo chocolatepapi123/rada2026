@@ -23,7 +23,8 @@ import {
   Camera,
   Image as ImageIcon,
   Building2,
-  X
+  X,
+  Dumbbell
 } from 'lucide-react';
 
 import { SpotItem, MenuItem, SavedItem, Review } from '../types.ts';
@@ -344,6 +345,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   }, [spots, dbSpots, liveReviews]);
 
   const isNatureSpot = (s: SpotItem) =>
+    s.category === 'nature' ||
     s.category === 'connect_with_nature' ||
     s.category === 'outdoors' ||
     (s.category === 'activities' && (s.title.toLowerCase().includes('forest') || s.title.toLowerCase().includes('arboretum') || s.title.toLowerCase().includes('trail') || s.title.toLowerCase().includes('nature') || s.title.toLowerCase().includes('biking') || s.title.toLowerCase().includes('hike') || s.title.toLowerCase().includes('waterfall') || s.title.toLowerCase().includes('mountain') || s.title.toLowerCase().includes('hills')));
@@ -351,6 +353,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   const isCreativeSpot = (s: SpotItem): boolean =>
     Boolean(
       s.category === 'creative_leisure' ||
+      s.category === 'creative_arts' ||
       s.category === 'social_activities' ||
       s.title.toLowerCase().includes('paint') ||
       s.title.toLowerCase().includes('pottery') ||
@@ -375,6 +378,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   const isActionSportsSpot = (s: SpotItem): boolean =>
     Boolean(
       s.category === 'action_sports' ||
+      s.category === 'outdoor_fitness' ||
       s.title.toLowerCase().includes('kart') ||
       s.title.toLowerCase().includes('paintball') ||
       s.title.toLowerCase().includes('bowling') ||
@@ -388,16 +392,32 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   // e.g. "Sushi in Westlands" parses "sushi" and "westlands"
   const filteredSpots = displaySpots.filter(s => {
 
-    // Category filter
-    let matchesCategory = selectedCategory === 'all' || s.category === selectedCategory;
-    if (selectedCategory === 'connect_with_nature' || selectedCategory === 'outdoors') {
+    // Category filter matching strictly against the 10 main categories
+    let matchesCategory = false;
+    if (selectedCategory === 'all') {
+      matchesCategory = true;
+    } else if (selectedCategory === 'restaurants_dining') {
+      matchesCategory = s.category === 'restaurants_dining' || s.category === 'restaurants';
+    } else if (selectedCategory === 'nature') {
       matchesCategory = isNatureSpot(s);
-    } else if (selectedCategory === 'creative_leisure' || selectedCategory === 'social_activities') {
+    } else if (selectedCategory === 'creative_leisure') {
       matchesCategory = isCreativeSpot(s);
     } else if (selectedCategory === 'tech_gaming') {
       matchesCategory = isTechGamingSpot(s);
     } else if (selectedCategory === 'action_sports') {
       matchesCategory = isActionSportsSpot(s);
+    } else if (selectedCategory === 'date_spots') {
+      matchesCategory = s.category === 'date_spots';
+    } else if (selectedCategory === 'clubs_lounges') {
+      matchesCategory = s.category === 'clubs_lounges' || s.category === 'nightlife';
+    } else if (selectedCategory === 'cafes_bakeries') {
+      matchesCategory = s.category === 'cafes_bakeries' || s.category === 'cafes';
+    } else if (selectedCategory === 'hotels_luxury') {
+      matchesCategory = s.category === 'hotels_luxury' || s.category === 'hotels';
+    } else if (selectedCategory === 'vacation_escapes') {
+      matchesCategory = s.category === 'vacation_escapes' || s.category === 'vacation';
+    } else {
+      matchesCategory = s.category === selectedCategory;
     }
 
     // Neighborhood filter
@@ -456,16 +476,16 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     return allWordsMatch;
   });
 
-  const restaurants = filteredSpots.filter(s => s.category === 'restaurants');
-  const nightlife = filteredSpots.filter(s => s.category === 'nightlife');
-  const cafes = filteredSpots.filter(s => s.category === 'cafes');
-  const dateSpots = filteredSpots.filter(s => s.category === 'date_spots');
-  const hotels = filteredSpots.filter(s => s.category === 'hotels');
-  const vacation = filteredSpots.filter(s => s.category === 'vacation');
+  const restaurants = filteredSpots.filter(s => s.category === 'restaurants' || s.category === 'restaurants_dining');
   const natureSpots = filteredSpots.filter(isNatureSpot);
   const creativeSpots = filteredSpots.filter(isCreativeSpot);
   const techGamingSpots = filteredSpots.filter(isTechGamingSpot);
   const actionSportsSpots = filteredSpots.filter(isActionSportsSpot);
+  const dateSpots = filteredSpots.filter(s => s.category === 'date_spots');
+  const clubsLounges = filteredSpots.filter(s => s.category === 'clubs_lounges' || s.category === 'nightlife');
+  const cafesBakeries = filteredSpots.filter(s => s.category === 'cafes_bakeries' || s.category === 'cafes');
+  const hotelsLuxury = filteredSpots.filter(s => s.category === 'hotels_luxury' || s.category === 'hotels');
+  const vacationEscapes = filteredSpots.filter(s => s.category === 'vacation_escapes' || s.category === 'vacation');
 
 
   const isSaved = (id: number | string) => {
@@ -693,23 +713,20 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           </div>
         </div>
 
-        {/* Category Filter Pills */}
+        {/* Category Filter Pills: Strictly 10 Overhauled Categories */}
         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
           {[
             { id: 'all', label: 'All Categories', icon: Compass },
-            { id: 'restaurants', label: 'Restaurants & Dining', icon: UtensilsCrossed },
-            { id: 'nightlife', label: 'Nightlife & Clubs', icon: Music },
-            { id: 'outdoors', label: 'Outdoor & Fitness', icon: Compass },
-            { id: 'event_space', label: 'Event Spaces & Venues', icon: Building2 },
-            { id: 'spa_wellness', label: 'Spa & Wellness', icon: Heart },
-            { id: 'connect_with_nature', label: 'Connect with Nature', icon: Trees },
-            { id: 'creative_leisure', label: 'Creative & Leisure', icon: Palette },
-            { id: 'tech_gaming', label: 'Tech & Gaming', icon: Gamepad2 },
-            { id: 'action_sports', label: 'Action & Sports', icon: Sparkles },
-            { id: 'cafes', label: 'Cafes', icon: Coffee },
-            { id: 'date_spots', label: 'Date Spots', icon: Heart },
-            { id: 'hotels', label: 'Hotels', icon: Hotel },
-            { id: 'vacation', label: 'Vacation Spots', icon: Palmtree }
+            { id: 'restaurants_dining', label: 'Restaurants and dining', icon: UtensilsCrossed },
+            { id: 'nature', label: 'Nature', icon: Trees },
+            { id: 'creative_leisure', label: 'Creative and leisure', icon: Palette },
+            { id: 'tech_gaming', label: 'Tech and Gaming', icon: Gamepad2 },
+            { id: 'action_sports', label: 'Action and sports', icon: Dumbbell },
+            { id: 'date_spots', label: 'Date spots', icon: Heart },
+            { id: 'clubs_lounges', label: 'Clubs and lounges', icon: Music },
+            { id: 'cafes_bakeries', label: 'Cafes and Bakeries', icon: Coffee },
+            { id: 'hotels_luxury', label: 'Hotels and luxury stays', icon: Hotel },
+            { id: 'vacation_escapes', label: 'Vacation spots and escapes', icon: Palmtree }
           ].map((cat) => {
             const Icon = cat.icon;
             const isSelected = selectedCategory === cat.id;
@@ -792,16 +809,16 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
 
       {/* Categorized Spot Carousels */}
       <div className="space-y-6">
-        {/* Restaurants & Dining */}
-        {(selectedCategory === 'all' || selectedCategory === 'restaurants') && restaurants.length > 0 && (
+        {/* 1. Restaurants and dining */}
+        {(selectedCategory === 'all' || selectedCategory === 'restaurants_dining') && restaurants.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                 <UtensilsCrossed className="w-3.5 h-3.5 text-[#E0533C]" />
-                <span>Restaurants & Dining</span>
+                <span>Restaurants and dining</span>
               </h3>
               <button
-                onClick={() => onOpenDedicatedViewAll('Restaurants Catalog', 'restaurants')}
+                onClick={() => onOpenDedicatedViewAll('Restaurants and dining', 'restaurants_dining')}
                 className="text-[11px] font-bold text-[#E0533C] hover:underline"
               >
                 View All ({restaurants.length})
@@ -814,16 +831,16 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           </div>
         )}
 
-        {/* Connect with Nature */}
-        {(selectedCategory === 'all' || selectedCategory === 'connect_with_nature' || selectedCategory === 'outdoors') && natureSpots.length > 0 && (
+        {/* 2. Nature */}
+        {(selectedCategory === 'all' || selectedCategory === 'nature') && natureSpots.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                 <Trees className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Connect with Nature</span>
+                <span>Nature</span>
               </h3>
               <button
-                onClick={() => onOpenDedicatedViewAll('Connect with Nature', 'connect_with_nature')}
+                onClick={() => onOpenDedicatedViewAll('Nature', 'nature')}
                 className="text-[11px] font-bold text-[#E0533C] hover:underline"
               >
                 View All ({natureSpots.length})
@@ -836,16 +853,16 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           </div>
         )}
 
-        {/* Creative & Leisure */}
-        {(selectedCategory === 'all' || selectedCategory === 'creative_leisure' || selectedCategory === 'social_activities') && creativeSpots.length > 0 && (
+        {/* 3. Creative and leisure */}
+        {(selectedCategory === 'all' || selectedCategory === 'creative_leisure') && creativeSpots.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                 <Palette className="w-3.5 h-3.5 text-[#2D6A4F]" />
-                <span>Creative & Leisure</span>
+                <span>Creative and leisure</span>
               </h3>
               <button
-                onClick={() => onOpenDedicatedViewAll('Creative & Leisure', 'creative_leisure')}
+                onClick={() => onOpenDedicatedViewAll('Creative and leisure', 'creative_leisure')}
                 className="text-[11px] font-bold text-[#E0533C] hover:underline"
               >
                 View All ({creativeSpots.length})
@@ -858,16 +875,16 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           </div>
         )}
 
-        {/* Tech & Gaming */}
+        {/* 4. Tech and Gaming */}
         {(selectedCategory === 'all' || selectedCategory === 'tech_gaming') && techGamingSpots.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                 <Gamepad2 className="w-3.5 h-3.5 text-blue-500" />
-                <span>Tech & Gaming</span>
+                <span>Tech and Gaming</span>
               </h3>
               <button
-                onClick={() => onOpenDedicatedViewAll('Tech & Gaming', 'tech_gaming')}
+                onClick={() => onOpenDedicatedViewAll('Tech and Gaming', 'tech_gaming')}
                 className="text-[11px] font-bold text-[#E0533C] hover:underline"
               >
                 View All ({techGamingSpots.length})
@@ -880,16 +897,16 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           </div>
         )}
 
-        {/* Action & Sports */}
+        {/* 5. Action and sports */}
         {(selectedCategory === 'all' || selectedCategory === 'action_sports') && actionSportsSpots.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                <span>Action & Sports</span>
+                <Dumbbell className="w-3.5 h-3.5 text-blue-600" />
+                <span>Action and sports</span>
               </h3>
               <button
-                onClick={() => onOpenDedicatedViewAll('Action & Sports', 'action_sports')}
+                onClick={() => onOpenDedicatedViewAll('Action and sports', 'action_sports')}
                 className="text-[11px] font-bold text-[#E0533C] hover:underline"
               >
                 View All ({actionSportsSpots.length})
@@ -902,17 +919,16 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           </div>
         )}
 
-
-        {/* Date Spots */}
+        {/* 6. Date spots */}
         {(selectedCategory === 'all' || selectedCategory === 'date_spots') && dateSpots.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                 <Heart className="w-3.5 h-3.5 text-[#E0533C]" />
-                <span>Romantic Date Spots</span>
+                <span>Date spots</span>
               </h3>
               <button
-                onClick={() => onOpenDedicatedViewAll('Romantic Date Spots', 'date_spots')}
+                onClick={() => onOpenDedicatedViewAll('Date spots', 'date_spots')}
                 className="text-[11px] font-bold text-[#E0533C] hover:underline"
               >
                 View All ({dateSpots.length})
@@ -925,90 +941,90 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           </div>
         )}
 
-        {/* Nightlife & Clubs */}
-        {(selectedCategory === 'all' || selectedCategory === 'nightlife') && nightlife.length > 0 && (
+        {/* 7. Clubs and lounges */}
+        {(selectedCategory === 'all' || selectedCategory === 'clubs_lounges') && clubsLounges.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <Music className="w-3.5 h-3.5 text-[#2D6A4F]" />
-                <span>Nightlife, Clubs & Lounges</span>
+                <Music className="w-3.5 h-3.5 text-purple-600" />
+                <span>Clubs and lounges</span>
               </h3>
               <button
-                onClick={() => onOpenDedicatedViewAll('Nightlife & Clubs', 'nightlife')}
+                onClick={() => onOpenDedicatedViewAll('Clubs and lounges', 'clubs_lounges')}
                 className="text-[11px] font-bold text-[#E0533C] hover:underline"
               >
-                View All ({nightlife.length})
+                View All ({clubsLounges.length})
               </button>
             </div>
 
             <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {nightlife.map(renderSpotCard)}
+              {clubsLounges.map(renderSpotCard)}
             </div>
           </div>
         )}
 
-        {/* Cafes & Bakeries */}
-        {(selectedCategory === 'all' || selectedCategory === 'cafes') && cafes.length > 0 && (
+        {/* 8. Cafes and Bakeries */}
+        {(selectedCategory === 'all' || selectedCategory === 'cafes_bakeries') && cafesBakeries.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                 <Coffee className="w-3.5 h-3.5 text-[#E9C46A]" />
-                <span>Cafes & Bakeries</span>
+                <span>Cafes and Bakeries</span>
               </h3>
               <button
-                onClick={() => onOpenDedicatedViewAll('Cafes & Bakeries', 'cafes')}
+                onClick={() => onOpenDedicatedViewAll('Cafes and Bakeries', 'cafes_bakeries')}
                 className="text-[11px] font-bold text-[#E0533C] hover:underline"
               >
-                View All ({cafes.length})
+                View All ({cafesBakeries.length})
               </button>
             </div>
 
             <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {cafes.map(renderSpotCard)}
+              {cafesBakeries.map(renderSpotCard)}
             </div>
           </div>
         )}
 
-        {/* Hotels & Luxury Stays */}
-        {(selectedCategory === 'all' || selectedCategory === 'hotels') && hotels.length > 0 && (
+        {/* 9. Hotels and luxury stays */}
+        {(selectedCategory === 'all' || selectedCategory === 'hotels_luxury') && hotelsLuxury.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                 <Hotel className="w-3.5 h-3.5 text-[#2D6A4F]" />
-                <span>Hotels & Luxury Stays</span>
+                <span>Hotels and luxury stays</span>
               </h3>
               <button
-                onClick={() => onOpenDedicatedViewAll('Hotels Catalog', 'hotels')}
+                onClick={() => onOpenDedicatedViewAll('Hotels and luxury stays', 'hotels_luxury')}
                 className="text-[11px] font-bold text-[#E0533C] hover:underline"
               >
-                View All ({hotels.length})
+                View All ({hotelsLuxury.length})
               </button>
             </div>
 
             <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {hotels.map(renderSpotCard)}
+              {hotelsLuxury.map(renderSpotCard)}
             </div>
           </div>
         )}
 
-        {/* Vacation Getaways */}
-        {(selectedCategory === 'all' || selectedCategory === 'vacation') && vacation.length > 0 && (
+        {/* 10. Vacation spots and escapes */}
+        {(selectedCategory === 'all' || selectedCategory === 'vacation_escapes') && vacationEscapes.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                 <Palmtree className="w-3.5 h-3.5 text-[#E9C46A]" />
-                <span>Vacation Spots & Escapes</span>
+                <span>Vacation spots and escapes</span>
               </h3>
               <button
-                onClick={() => onOpenDedicatedViewAll('Vacation Spots', 'vacation')}
+                onClick={() => onOpenDedicatedViewAll('Vacation spots and escapes', 'vacation_escapes')}
                 className="text-[11px] font-bold text-[#E0533C] hover:underline"
               >
-                View All ({vacation.length})
+                View All ({vacationEscapes.length})
               </button>
             </div>
 
             <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {vacation.map(renderSpotCard)}
+              {vacationEscapes.map(renderSpotCard)}
             </div>
           </div>
         )}

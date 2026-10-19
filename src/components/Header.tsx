@@ -73,6 +73,14 @@ export const Header: React.FC<HeaderProps> = ({
     onOpenOverlay(overlayId);
   };
 
+  const singleLocality = React.useMemo(() => {
+    if (!currentLocation || typeof currentLocation !== 'string') return '';
+    const trimmed = currentLocation.trim();
+    if (!trimmed) return '';
+    const area = trimmed.split(',')[0]?.trim();
+    return area || '';
+  }, [currentLocation]);
+
   return (
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-[#121113]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-xs transition-colors duration-200">
       <div className="max-w-lg mx-auto w-full px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-2 flex-nowrap">
@@ -96,14 +104,16 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </button>
 
-          {/* Dynamic Detected Current Location (Gracefully shrinks and truncates without collision) */}
-          <div 
-            className="min-w-0 shrink text-xs bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 font-semibold px-2 sm:px-2.5 py-1 rounded-full flex items-center gap-1 sm:gap-1.5 border border-slate-200 dark:border-slate-800 select-none max-w-[100px] xs:max-w-[130px] sm:max-w-[180px] cursor-default shadow-2xs overflow-hidden"
-            title={`Location: ${currentLocation}`}
-          >
-            <MapPin className="w-3.5 h-3.5 shrink-0 text-[#E05328]" />
-            <span className="truncate text-[10px] sm:text-[11px] font-bold min-w-0">{currentLocation}</span>
-          </div>
+          {/* Dynamic Detected Current Location: ONLY single locality name, hidden if unavailable or null */}
+          {singleLocality && (
+            <div 
+              className="min-w-0 shrink text-xs bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 font-semibold px-2 sm:px-2.5 py-1 rounded-full flex items-center gap-1 sm:gap-1.5 border border-slate-200 dark:border-slate-800 select-none max-w-[100px] xs:max-w-[130px] sm:max-w-[180px] cursor-default shadow-2xs overflow-hidden"
+              title={`Location: ${singleLocality}`}
+            >
+              <MapPin className="w-3.5 h-3.5 shrink-0 text-[#E05328]" />
+              <span className="truncate text-[10px] sm:text-[11px] font-bold min-w-0">{singleLocality}</span>
+            </div>
+          )}
         </div>
 
         {/* Right Side: Sign In Button (Guest Mode) + Wagwan AI + 3-Dot Overflow Menu */}
