@@ -25,12 +25,11 @@ import {
   SavedItem, 
   SpotItem, 
   EventItem, 
-  ThriftItem, 
   BusinessOffer,
   CollectionFolder
 } from '../types.ts';
 
-export type SavedCategoryFilter = 'all' | 'places' | 'experiences' | 'events' | 'luku' | 'deals';
+export type SavedCategoryFilter = 'all' | 'places' | 'experiences' | 'events' | 'deals';
 
 interface SavedPlacesModalProps {
   isOpen: boolean;
@@ -39,12 +38,10 @@ interface SavedPlacesModalProps {
   savedFolders?: CollectionFolder[];
   spots: SpotItem[];
   events: EventItem[];
-  thriftItems: ThriftItem[];
   offers?: BusinessOffer[];
-  onToggleSave: (item: any, kind: 'spot' | 'event' | 'thrift' | 'offer') => void;
+  onToggleSave: (item: any, kind: 'spot' | 'event' | 'offer') => void;
   onOpenSpot: (spot: SpotItem) => void;
   onOpenEvent: (event: EventItem) => void;
-  onOpenThrift?: (item: ThriftItem) => void;
   onOpenOffer?: (offer: BusinessOffer) => void;
   onCreateFolder?: (name: string, emoji?: string) => void;
   onDeleteFolder?: (folderId: string) => void;
@@ -61,12 +58,10 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
   savedFolders = [],
   spots,
   events,
-  thriftItems,
   offers = [],
   onToggleSave,
   onOpenSpot,
   onOpenEvent,
-  onOpenThrift,
   onOpenOffer,
   onCreateFolder,
   onDeleteFolder,
@@ -89,7 +84,7 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
   const hydratedItems = useMemo(() => {
     return savedItems.map(saved => {
       let data: any = null;
-      let calculatedCategory: 'places' | 'experiences' | 'events' | 'luku' | 'deals' = 'places';
+      let calculatedCategory: 'places' | 'experiences' | 'events' | 'deals' = 'places';
 
       if (saved.kind === 'spot') {
         const spot = spots.find(s => String(s.id) === String(saved.id));
@@ -104,9 +99,6 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
       } else if (saved.kind === 'event') {
         data = events.find(e => String(e.id) === String(saved.id));
         calculatedCategory = 'events';
-      } else if (saved.kind === 'thrift') {
-        data = thriftItems.find(t => String(t.id) === String(saved.id));
-        calculatedCategory = 'luku';
       } else if (saved.kind === 'offer') {
         data = offers.find(o => String(o.id) === String(saved.id));
         calculatedCategory = 'deals';
@@ -121,13 +113,13 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
         assignedFolder
       };
     }).filter(item => item.data !== null);
-  }, [savedItems, savedFolders, spots, events, thriftItems, offers]);
+  }, [savedItems, savedFolders, spots, events, offers]);
 
   // Filtered items by category, folder, and search query
   const filteredItems = useMemo(() => {
     let result = hydratedItems;
 
-    // Filter by Tab: [All, Places, Experiences, Events, Luku, Deals]
+    // Filter by Tab: [All, Places, Experiences, Events, Deals]
     if (activeTab !== 'all') {
       result = result.filter(item => item.calculatedCategory === activeTab);
     }
@@ -155,7 +147,6 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
     places: hydratedItems.filter(i => i.calculatedCategory === 'places').length,
     experiences: hydratedItems.filter(i => i.calculatedCategory === 'experiences').length,
     events: hydratedItems.filter(i => i.calculatedCategory === 'events').length,
-    luku: hydratedItems.filter(i => i.calculatedCategory === 'luku').length,
     deals: hydratedItems.filter(i => i.calculatedCategory === 'deals').length,
   };
 
@@ -166,13 +157,6 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
     } else if (item.kind === 'event') {
       onOpenEvent(item.data);
       onClose();
-    } else if (item.kind === 'thrift') {
-      if (onOpenThrift) {
-        onOpenThrift(item.data);
-        onClose();
-      } else {
-        showToast(`Opening LUKU: "${item.data.name}"`);
-      }
     } else if (item.kind === 'offer') {
       if (onOpenOffer) {
         onOpenOffer(item.data);
@@ -248,14 +232,13 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
             />
           </div>
 
-          {/* Categorized Filter Tabs: [All, Places, Experiences, Events, Luku, Deals] */}
+          {/* Categorized Filter Tabs: [All, Places, Experiences, Events, Deals] */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 hide-scrollbar">
             {[
               { id: 'all', label: 'All', count: counts.all },
               { id: 'places', label: 'Places', count: counts.places },
               { id: 'experiences', label: 'Experiences', count: counts.experiences },
               { id: 'events', label: 'Events', count: counts.events },
-              { id: 'luku', label: 'Luku', count: counts.luku },
               { id: 'deals', label: 'Deals', count: counts.deals },
             ].map(tab => (
               <button
@@ -386,7 +369,7 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
                     : 'No items saved in this category yet'}
               </h4>
               <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                Tap the bookmark icon on any Nairobi spot, outdoor activity, concert pass, thrift outfit, or promo deal to save it.
+                Tap the bookmark icon on any Nairobi spot, outdoor activity, concert pass, or promo deal to save it.
               </p>
             </div>
           ) : (
@@ -394,8 +377,8 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
               const d = item.data;
               const title = d.title || d.name || 'Untitled Item';
               const img = d.image || d.imageUrl || d.images?.[0] || d.coverImage || d.posterUrl || d.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400';
-              const locationStr = d.neighborhood || d.location || d.address || d.seller || 'Nairobi';
-              const tagStr = d.category || (item.kind === 'event' ? 'Concert / Rave' : item.kind === 'thrift' ? 'Streetwear' : 'Promotion');
+              const locationStr = d.neighborhood || d.location || d.address || 'Nairobi';
+              const tagStr = d.category || (item.kind === 'event' ? 'Concert / Rave' : 'Promotion');
               const itemKey = `${item.kind}-${item.id}`;
               const isMenuOpen = activeFolderMenuForItemId === itemKey;
 
@@ -421,9 +404,7 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
                               ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                               : item.calculatedCategory === 'events'
                                 ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
-                                : item.calculatedCategory === 'luku'
-                                  ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                         }`}>
                           {item.calculatedCategory}
                         </span>
