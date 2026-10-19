@@ -16,7 +16,6 @@ import { PublicBusinessProfileModal } from './components/PublicBusinessProfileMo
 import { HomeTab } from './components/HomeTab.tsx';
 import { SpotsTab } from './components/SpotsTab.tsx';
 import { OutingsTab } from './components/OutingsTab.tsx';
-import { LukuTab } from './components/LukuTab.tsx';
 import { SocialsTab } from './components/SocialsTab.tsx';
 import { VaultTab } from './components/VaultTab.tsx';
 import { LukuEventsTab } from './components/LukuEventsTab.tsx';
@@ -29,13 +28,19 @@ import { SavedPlacesModal } from './components/SavedPlacesModal.tsx';
 import { LivenessVerificationModal } from './components/LivenessVerificationModal.tsx';
 import { ToastProvider, showToast as triggerToast } from './components/Toast.tsx';
 import { getTimeOfDayGreeting } from './utils/greetingUtils';
+import {
+  cleanStatuses,
+  addStatusReplacingOwn,
+  mergeRemoteStatuses,
+  findOwnStatus,
+  isOwnStatus
+} from './utils/statusLifecycle';
 
 import {
   initialBusinesses,
   initialOffers,
   initialSpots,
   initialEvents,
-  initialThriftItems,
   cinemaMovies,
   initialStatuses,
   discoveryProfiles,
@@ -50,7 +55,6 @@ import {
   BusinessOffer,
   SpotItem,
   EventItem,
-  ThriftItem,
   CinemaMovie,
   StatusPost,
   StatusReply,
@@ -91,6 +95,20 @@ const DEFAULT_PROFILE: UserProfile = {
   is_liveness_verified: false,
   vibes: ['Nightlife', 'Cocktails', 'Amapiano', 'Art', 'Thrifting']
 };
+
+// Deep links: /?tab=outings&outing=ID opens the Outings tab (OutingsTab then opens that plan)
+const readDeepLinkTab = (): string => {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab === 'outings' || (!tab && params.get('outing'))) return 'outings';
+  } catch (_) {}
+  return 'home';
+};
+
+// Old saved lists may still hold Luku/thrift items; drop them
+const stripLegacyThrift = (items: SavedItem[]): SavedItem[] =>
+  items.filter(i => (i.kind as string) !== 'thrift');
 
 export default function App() {
   const [session, setSession] = useState<any>(null);
@@ -275,7 +293,7 @@ export default function App() {
   };
 
   // Navigation
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, setActiveTab] = useState<string>(readDeepLinkTab);
   const [calendarTargetDate, setCalendarTargetDate] = useState<string | null>(null);
   const [calendarTargetEventId, setCalendarTargetEventId] = useState<number | string | null>(null);
   const lastSpotsScrollPosRef = useRef<number>(0);
@@ -342,20 +360,17 @@ export default function App() {
     return initialEvents;
   });
 
-  const [thriftItems, setThriftItems] = useState<ThriftItem[]>(() => {
-    const saved = localStorage.getItem('rada_thrift');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length >= 10) return parsed;
-      } catch (e) {}
-    }
-    return initialThriftItems;
-  });
-
   const [statuses, setStatuses] = useState<StatusPost[]>(() => {
-    const saved = localStorage.getItem('rada_statuses');
-    return saved ? JSON.parse(saved) : initialStatuses;
+    let base: StatusPost[] = initialStatuses;
+    try {
+      const saved = localStorage.getItem('rada_statuses');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) base = parsed;
+      }
+    } catch (e) {}
+    // Drop anything older than 12 hours and keep one status per person
+    return cleanStatuses(base);
   });
 
   const [conversations, setConversations] = useState<ChatConversation[]>(() => {
@@ -499,7 +514,7 @@ export default function App() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) return stripLegacyThrift(parsed);
       } catch (e) {}
     }
     return [
@@ -556,7 +571,7 @@ export default function App() {
     }));
   };
 
-  const handleToggleSave = (item: any, kind: 'spot' | 'event' | 'thrift' | 'offer') => {
+  const handleToggleSave = (item: any, kind: 'spot' | 'event' | 'offer') => {
     requireAuth('save items', () => {
       setSavedItems(prev => {
         const exists = prev.some(s => String(s.id) === String(item.id) && s.kind === kind);
@@ -581,7 +596,7 @@ export default function App() {
     if (session?.user?.id && isSupabaseConfigured) {
       cloud.fetchSavedPlans(session.user.id).then(res => {
         if (res.savedItems && res.savedItems.length > 0) {
-          setSavedItems(res.savedItems);
+          setSavedItems(stripLegacyThrift(res.savedItems));
         }
         if (res.savedFolders && res.savedFolders.length > 0) {
           setSavedFolders(res.savedFolders);
@@ -732,21 +747,31 @@ export default function App() {
 
   const handleRefreshFeed = async () => {
     try {
-      const [remoteSpots, remoteEvents, remoteThrift, remoteOffers, remoteStatuses] = await Promise.all([
+      const [remoteSpots, remoteEvents, remoteOffers, remoteStatuses] = await Promise.all([
         cloud.fetchSpots(),
         cloud.fetchEvents(),
-        cloud.fetchThrift(),
         cloud.fetchOffers(),
         cloud.fetchStatuses()
       ]);
       if (remoteSpots && remoteSpots.length > 0) setSpots(remoteSpots);
       if (remoteEvents && remoteEvents.length > 0) setEvents(remoteEvents);
-      if (remoteThrift && remoteThrift.length > 0) setThriftItems(remoteThrift);
       if (remoteOffers && remoteOffers.length > 0) setOffers(remoteOffers);
-      if (remoteStatuses && remoteStatuses.length > 0) setStatuses(remoteStatuses);
+      if (remoteStatuses) {
+        setStatuses(prev => cleanStatuses(mergeRemoteStatuses(remoteStatuses, prev, initialStatuses)));
+      }
     } catch (e) {
       console.warn('Feed refresh completed with cached data');
     }
+  };
+
+  // Explicit refresh (header refresh icon). No pull-down gesture anywhere in the app.
+  const handleHeaderRefresh = () => {
+    showToast('Refreshing…');
+    setStatuses(prev => cleanStatuses(prev));
+    syncRef.current?.();
+    cloud.fetchOutings().then(res => {
+      if (res && res.length > 0) setOutings(res);
+    }).catch(() => {});
   };
 
   // Modals state for Account Settings and Saved Items
@@ -766,13 +791,29 @@ export default function App() {
     localStorage.setItem('rada_events', JSON.stringify(events));
   }, [events]);
 
+  // The old Luku/thrift cache is no longer used
   useEffect(() => {
-    localStorage.setItem('rada_thrift', JSON.stringify(thriftItems));
-  }, [thriftItems]);
+    localStorage.removeItem('rada_thrift');
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('rada_statuses', JSON.stringify(statuses));
   }, [statuses]);
+
+  // Status lifecycle: every minute, and when the app comes back to the foreground,
+  // remove statuses older than 12 hours and refresh the "x ago" labels
+  useEffect(() => {
+    const tick = () => setStatuses(prev => cleanStatuses(prev));
+    const id = window.setInterval(tick, 60_000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') tick();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('rada_tickets', JSON.stringify(tickets));
@@ -841,6 +882,10 @@ export default function App() {
     // Anchor base history state on app startup
     if (!window.history.state || !window.history.state.radaApp) {
       window.history.replaceState({ radaApp: true, tab: 'home' }, '');
+      // Opened from a shared link (?tab=outings&outing=ID): add an entry so Back returns to Home
+      if (readDeepLinkTab() === 'outings') {
+        window.history.pushState({ radaApp: true, tab: 'outings' }, '');
+      }
     }
 
     const handlePopState = (e: PopStateEvent) => {
@@ -941,6 +986,23 @@ export default function App() {
     showToast
   ]);
 
+  // Once the user leaves the Outings tab, clear the shared-link parameters from the address bar
+  useEffect(() => {
+    if (activeTab === 'outings') return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (!params.has('tab') && !params.has('outing')) return;
+      params.delete('tab');
+      params.delete('outing');
+      const qs = params.toString();
+      window.history.replaceState(
+        window.history.state,
+        '',
+        window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash
+      );
+    } catch (_) {}
+  }, [activeTab]);
+
   // When any modal opens, push a history entry.
   // When closed through its UI (not by back), call history.back() once so entries don't pile up.
   useEffect(() => {
@@ -978,7 +1040,7 @@ export default function App() {
     : [];
   const currentBusiness = userOwnedBusinesses.find(b => b.id === activeBusinessId) || userOwnedBusinesses[0] || null;
   const latestRef = useRef<any>(null);
-  latestRef.current = { businesses, spots, events, thriftItems, offers };
+  latestRef.current = { businesses, spots, events, offers };
   const mutationRef = useRef(0);   // bumps on every local change
   const pendingRef = useRef(0);    // cloud writes still in flight
 
@@ -1110,7 +1172,6 @@ export default function App() {
             return { ...base, goingCount: baseCount + (remoteGoing.counts[String(ev.id)] || 0) };
           })
         : mergedEventsRaw;
-      const mergedThrift = await mergeKind('thrift', initialThriftItems, L.thriftItems, safeListings.thrift);
       const mergedOffers = await mergeKind('offer', initialOffers, L.offers, safeListings.offer);
 
       // If the user changed something while we were syncing, don't overwrite it
@@ -1119,13 +1180,9 @@ export default function App() {
       setBusinesses(mergedBiz);
       setSpots(mergedSpots);
       setEvents(mergedEvents);
-      setThriftItems(mergedThrift);
       setOffers(mergedOffers);
       if (remoteStatuses) {
-        setStatuses([
-          ...remoteStatuses,
-          ...initialStatuses.filter(sd => !remoteStatuses.some((r: any) => r.id === sd.id)),
-        ]);
+        setStatuses(prev => cleanStatuses(mergeRemoteStatuses(remoteStatuses, prev, initialStatuses)));
       }
       if (remoteGoing && uid) setGoingEventIds(remoteGoing.mine);
       setActiveBusinessId(prev =>
@@ -1441,29 +1498,16 @@ export default function App() {
     });
   };
 
-  const handleAddThriftItem = (item: ThriftItem) => {
-    requireAuth('add a thrift listing', () => {
-      setThriftItems(prev => prev.some(t => t.id === item.id)
-        ? prev.map(t => t.id === item.id ? item : t)
-        : [item, ...prev]);
-      const ownerId = session?.user?.id || currentUserId;
-      if (ownerId) cloudWrite(() => cloud.upsertListing('thrift', item, item.businessId, ownerId));
-    });
-  };
-
-  const handleDeleteListing = (type: 'spot' | 'event' | 'thrift', id: number) => {
+  const handleDeleteListing = (type: 'spot' | 'event', id: number) => {
     requireAuth('delete a listing', () => {
       const ownerId = session?.user?.id || currentUserId;
       if (ownerId) cloudWrite(() => cloud.deleteListing(type, id));
       if (type === 'spot') {
         setSpots(prev => prev.filter(s => s.id !== id));
         showToast('Spot listing removed.');
-      } else if (type === 'event') {
+      } else {
         setEvents(prev => prev.filter(e => e.id !== id));
         showToast('Event listing removed.');
-      } else {
-        setThriftItems(prev => prev.filter(t => t.id !== id));
-        showToast('Thrift item removed.');
       }
     });
   };
@@ -1538,10 +1582,20 @@ export default function App() {
   };
 
   // Status Posting with clean location (e.g. Westlands, Nairobi - no GPS coordinates)
+  // Removes a status online too, if lib/cloudSync.ts provides deleteStatus(id)
+  const deleteStatusInCloud = (statusId: string) => {
+    const del = (cloud as any).deleteStatus as ((id: string) => Promise<string | null>) | undefined;
+    if (typeof del === 'function' && session?.user?.id) {
+      cloudWrite(() => del(statusId));
+    }
+  };
+
   const handlePostStatus = (text: string, mediaUrl?: string, locationName?: string) => {
     requireAuth('send messages', () => {
       const newPost: StatusPost = {
         id: `s-${Date.now()}`,
+        userId: session?.user?.id || undefined,
+        createdAt: new Date().toISOString(),
         author: currentUserProfile.name,
         handle: currentUserProfile.handle,
         avatar: currentUserProfile.avatar,
@@ -1552,11 +1606,36 @@ export default function App() {
         locationName: locationName || 'Westlands, Nairobi',
         replies: []
       };
-      setStatuses(prev => [newPost, ...prev]);
+      // One active status per person: the new post replaces the previous one
+      const { next, replaced } = addStatusReplacingOwn(statuses, newPost, {
+        userId: session?.user?.id,
+        handle: currentUserProfile.handle
+      });
+      setStatuses(next);
+      replaced.forEach(old => deleteStatusInCloud(old.id));
       if (currentUserId) cloudWrite(() => cloud.insertStatus(newPost, currentUserId));
-      showToast('Status posted live!');
+      showToast(
+        replaced.length > 0
+          ? 'Status updated. Your previous one was replaced.'
+          : 'Status posted live! It disappears after 12 hours.'
+      );
     });
   };
+
+  // Manual delete: only the owner can delete their own status, anytime
+  const handleDeleteStatus = (statusId: string) => {
+    requireAuth('delete your status', () => {
+      const target = statuses.find(s => s.id === statusId);
+      if (!target || !isOwnStatus(target, { userId: session?.user?.id, handle: currentUserProfile.handle })) return;
+      setStatuses(prev => prev.filter(s => s.id !== statusId));
+      deleteStatusInCloud(statusId);
+      showToast('Status deleted.');
+    });
+  };
+
+  const myStatusId = session?.user?.id
+    ? findOwnStatus(statuses, { userId: session.user.id, handle: currentUserProfile.handle })?.id
+    : undefined;
 
   // Reply to someone's status
   const handleReplyStatus = (statusId: string, text: string) => {
@@ -1853,6 +1932,7 @@ export default function App() {
             onOpenSaved={() => requireAuth('view saved collections', () => setIsSavedModalOpen(true))}
             savedCount={savedItems.length}
             onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
+            onRefresh={handleHeaderRefresh}
           />
 
           {/* Main Content Viewports */}
@@ -1872,6 +1952,8 @@ export default function App() {
                 onBookCinema={handleBookCinema}
                 onPostStatus={handlePostStatus}
                 onReplyStatus={handleReplyStatus}
+                onDeleteStatus={handleDeleteStatus}
+                myStatusId={myStatusId}
                 onViewUserProfile={(profile) => setViewingProfile(profile)}
                 onOpenDedicatedViewAll={(title, cat) => {
                   setViewAllTitle(title);
@@ -1904,7 +1986,7 @@ export default function App() {
               />
             )}
 
-            {(activeTab === 'outings' || activeTab === 'plans' || activeTab === 'luku') && (
+            {(activeTab === 'outings' || activeTab === 'plans') && (
               <OutingsTab
                 outings={outings}
                 spots={spots}
@@ -1940,8 +2022,6 @@ export default function App() {
                 onDeleteListing={handleDeleteListing}
                 events={events}
                 onAddEvent={handleAddEvent}
-                thriftItems={thriftItems}
-                onAddThriftItem={handleAddThriftItem}
                 offers={offers}
                 onCreateOffer={handleCreateOffer}
                 onUpdateOffer={handleUpdateOffer}
@@ -2043,8 +2123,6 @@ export default function App() {
                 onDeleteListing={handleDeleteListing}
                 events={events}
                 onAddEvent={handleAddEvent}
-                thriftItems={thriftItems}
-                onAddThriftItem={handleAddThriftItem}
                 offers={offers}
                 onCreateOffer={handleCreateOffer}
                 onUpdateOffer={handleUpdateOffer}
@@ -2086,7 +2164,6 @@ export default function App() {
             spots={spots}
             events={events}
             cinemaMovies={cinemaMovies}
-            thriftItems={thriftItems}
             onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
             onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
             onBookCinema={handleBookCinema}
@@ -2171,7 +2248,6 @@ export default function App() {
             offers={offers}
             spots={spots}
             events={events}
-            thriftItems={thriftItems}
             onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
             onOpenEventDetails={(event) => setSelectedEventModal(event)}
             showToast={showToast}
@@ -2197,7 +2273,6 @@ export default function App() {
             onAssignItemFolder={handleAssignItemFolder}
             spots={spots}
             events={events}
-            thriftItems={thriftItems}
             offers={offers}
             onToggleSave={handleToggleSave}
             onOpenSpot={(spot) => setSelectedSpotModal(spot)}

@@ -1,4 +1,4 @@
-export type BusinessCategory = 'hospitality' | 'event_organizer' | 'thrift_store';
+export type BusinessCategory = 'hospitality' | 'event_organizer';
 
 export type OfferCategory = 'Tickets' | 'Food' | 'Drinks' | 'Apparel' | 'Special Deals';
 
@@ -229,23 +229,6 @@ export interface EventItem {
   businessId?: string;
 }
 
-export interface ThriftItem {
-  id: number;
-  name: string;
-  price: string;
-  seller: string;
-  storeLocation: string;
-  stallNumber?: string;
-  category: string;
-  condition: string;
-  size: string;
-  img: string;
-  images?: string[];
-  verified: boolean;
-  businessId?: string;
-  whatsapp?: string;
-}
-
 export interface CinemaMovie {
   id: number;
   title: string;
@@ -270,6 +253,9 @@ export interface StatusReply {
 
 export interface StatusPost {
   id: string;
+  userId?: string;
+  /** ISO time the status was posted. Drives the 12-hour expiry; demo posts without it never expire. */
+  createdAt?: string;
   author: string;
   handle: string;
   avatar: string;
@@ -366,7 +352,6 @@ export interface EmergencyContact {
 export interface RadaStore {
   spots: SpotItem[];
   events: EventItem[];
-  thrift: ThriftItem[];
 }
 
 export interface CollectionFolder {
@@ -379,7 +364,7 @@ export interface CollectionFolder {
 
 export interface SavedItem {
   id: string | number;
-  kind: 'spot' | 'event' | 'thrift' | 'offer';
+  kind: 'spot' | 'event' | 'offer';
   savedAt: string;
   folderId?: string;
 }
