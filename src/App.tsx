@@ -1237,29 +1237,30 @@ export default function App() {
     (async () => {
       const remote = await cloud.fetchUserData(uid);
       if (cancelled) return;
+      // Brand-new account: no hardcoded username/bio. The username stays empty until the user picks one.
+      const freshProfile = (): UserProfile => ({
+        ...DEFAULT_PROFILE,
+        name: '',
+        handle: '@explorer',
+        username: undefined,
+        bio: '',
+      });
+      let base: UserProfile = remote?.profile ? remote.profile : freshProfile();
       if (remote) {
         if (remote.tickets) setTickets(remote.tickets);
         if (remote.contacts) setEmergencyContacts(remote.contacts);
-        if (remote.profile) {
-          setCurrentUserProfile(remote.profile);
-        } else {
-          const name = session?.user?.user_metadata?.full_name || session?.user?.email?.split('@')[0] || 'RADA Member';
-          const handle = `@${session?.user?.email?.split('@')[0] || 'member'}`;
-          setCurrentUserProfile({
-            ...DEFAULT_PROFILE,
-            name,
-            handle
-          });
-        }
-      } else {
-        const name = session?.user?.user_metadata?.full_name || session?.user?.email?.split('@')[0] || 'RADA Member';
-        const handle = `@${session?.user?.email?.split('@')[0] || 'member'}`;
-        setCurrentUserProfile({
-          ...DEFAULT_PROFILE,
-          name,
-          handle
-        });
       }
+      // The `profiles` table holds the real username/name/bio/avatar. It always wins over the
+      // older copy stored inside rada_user_data, which is what used to bring the old username back.
+      try {
+        const patch = await cloud.fetchOwnProfilePatch(uid);
+        if (cancelled) return;
+        base = { ...base, ...patch };
+        if (patch.username) base.handle = cloud.toHandle(patch.username);
+      } catch (e) {
+        console.warn('Profile identity load failed:', e);
+      }
+      setCurrentUserProfile(base);
       userDataUidRef.current = uid;
       setUserDataReady(true);
     })().catch(e => console.warn('User data load failed:', e));
@@ -1690,6 +1691,17 @@ export default function App() {
       setTickets(prev => [newPass, ...prev]);
       showToast(`You're going to ${event.title}! Synced to Vault.`);
     }
+  };
+
+  // Applies identity changes (username, display name, bio, avatar, status, pro flag) coming from the
+  // account/profile screens. Keeps `handle` ("@username") in sync and caches the result locally.
+  const handleOwnProfileChange = (patch: Partial<UserProfile>) => {
+    setCurrentUserProfile(prev => {
+      const merged: UserProfile = { ...prev, ...patch };
+      if (patch.username !== undefined) merged.handle = cloud.toHandle(patch.username);
+      if (patch.relationshipStatus) merged.relationship_status = patch.relationshipStatus;
+      return merged;
+    });
   };
 
   // Update current user profile
@@ -2259,6 +2271,7 @@ export default function App() {
             showToast={showToast}
             onOpenAuth={() => setIsAuthModalOpen(true)}
             onSignOut={handleSignOut}
+            onProfileChange={handleOwnProfileChange}
           />
 
           <SavedPlacesModal
