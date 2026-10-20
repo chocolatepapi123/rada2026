@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import type { BusinessAccount, SavedItem, CollectionFolder, OutingPlan, OutingAttendee, ChatConversation, HostAnalytics, HostControls, UserProfile } from '../types';
+import type { BusinessAccount, SavedItem, CollectionFolder, OutingPlan, OutingAttendee, ChatConversation, HostAnalytics, HostControls, UserProfile, AdminUserRecord, PlatformStats, UnclaimedSpotInput, SpotItem, SubscriptionStatus } from '../types';
+import { isPlatformAdmin } from '../types';
 import { STATUS_TTL_MS } from '../utils/statusLifecycle';
 
 
@@ -168,6 +169,11 @@ function rowToBusiness(row: any): BusinessAccount {
     verifiedAt: row.verified_at || d.verifiedAt,
     verifiedBy: row.verified_by || d.verifiedBy,
     instagram: row.instagram || d.instagram || '',
+    subscriptionStatus: (row.subscription_status || d.subscriptionStatus || 'none') as SubscriptionStatus,
+    subscriptionPlan: row.subscription_plan || d.subscriptionPlan,
+    subscriptionAmount: Number(row.subscription_amount ?? d.subscriptionAmount ?? 0) || undefined,
+    subscriptionRenewsAt: row.subscription_renews_at || d.subscriptionRenewsAt,
+    isSuspended: row.is_suspended === true || d.isSuspended === true,
     createdDate: row.created_at ? new Date(row.created_at).toISOString().split('T')[0] : (d.createdDate || new Date().toISOString().split('T')[0]),
     discography: d.discography || [`${name} Showcase 2026`],
     pinnedImages: d.pinnedImages || [coverImage],
@@ -478,6 +484,8 @@ export async function fetchListings(): Promise<CloudListings | null> {
           businessId: row.business_id || row.businessId || d.businessId,
           merchantId: row.merchant_id || row.merchantId || row.owner_id || row.ownerId || d.merchantId,
           isUserUploaded: row.is_user_uploaded ?? row.isUserUploaded ?? d.isUserUploaded ?? false,
+          // Only an explicit false means "unclaimed"; every pre-existing spot stays owned.
+          is_claimed: row.is_claimed ?? d.is_claimed,
           menuItems: row.menu_items || row.menuItems || d.menuItems || [],
           reviews: row.reviews || d.reviews || [],
           // Category-specific metadata
@@ -665,6 +673,10 @@ export async function upsertListing(
         menu_items: payload.menuItems || item.menuItems || [],
         updated_at: new Date().toISOString(),
       };
+
+      if (typeof payload.is_claimed === 'boolean') {
+        spotRow.is_claimed = payload.is_claimed;
+      }
 
       if (typeof item.id === 'number') {
         spotRow.id = item.id;
@@ -2256,3 +2268,380 @@ export function createOrUnlockOutingGroupChat(
 }
 
 
+
+
+// =====================================================================
+// ADMIN CONTROL HUB
+// =====================================================================
+// NOTE: requireAdmin() is a client-side guard so the UI fails fast. It is NOT a security
+// boundary. Enforce admin-only writes with Supabase RLS / RPCs (see admin_migration.sql).
+async function requireAdmin(): Promise<{ uid: string | null; error: string | null }> {
+  if (!isSupabaseConfigured) return { uid: null, error: 'Supabase is not configured.' };
+  try {
+    const { data } = await supabase.auth.getUser();
+    const u: any = data?.user;
+    if (!u) return { uid: null, error: 'You must be signed in.' };
+    const role = u.app_metadata?.role || u.user_metadata?.role;
+    if (!isPlatformAdmin({ email: u.email, role })) {
+      return { uid: null, error: 'Admin access required.' };
+    }
+    return { uid: u.id as string, error: null };
+  } catch (e) {
+    return { uid: null, error: errMsg(e) };
+  }
+}
+
+/** Upserts profile fields, degrading through the attempts when columns do not exist yet. */
+async function upsertProfileFields(uid: string, attempts: Record<string, any>[]): Promise<string | null> {
+  const now = new Date().toISOString();
+  let lastError: string | null = null;
+  for (const fields of attempts) {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({ id: uid, ...fields, updated_at: now }, { onConflict: 'id' });
+      if (!error) return null;
+      lastError = error.message;
+      if (!isColumnError(error.message)) break;
+    } catch (e) {
+      lastError = errMsg(e);
+      break;
+    }
+  }
+  return lastError
+    ? (isColumnError(lastError) ? `${lastError} (run admin_migration.sql to add the missing columns)` : lastError)
+    : 'Update failed.';
+}
+
+// ---------- Platform metrics ----------
+export async function fetchPlatformStats(): Promise<PlatformStats> {
+  const out: PlatformStats = {
+    totalUsers: null,
+    totalSpots: null,
+    totalEvents: null,
+    totalBusinesses: null,
+    professionalHosts: null,
+    unclaimedSpots: null,
+  };
+  if (!isSupabaseConfigured) return out;
+
+  const count = async (build: () => any): Promise<number | null> => {
+    try {
+      const { count: c, error } = await build();
+      return error ? null : (c ?? 0);
+    } catch {
+      return null;
+    }
+  };
+
+  const [users, hosts, businesses, listings] = await Promise.all([
+    count(() => supabase.from('profiles').select('*', { count: 'exact', head: true })),
+    count(() =>
+      supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .or('is_creator.eq.true,account_type.eq.professional')
+    ),
+    count(() => supabase.from('rada_businesses').select('*', { count: 'exact', head: true })),
+    fetchListings(),
+  ]);
+
+  out.totalUsers = users;
+  out.professionalHosts = hosts;
+  out.totalBusinesses = businesses;
+  if (listings) {
+    out.totalSpots = listings.spot.length;
+    out.totalEvents = listings.event.length;
+    out.unclaimedSpots = listings.spot.filter((s: any) => s.is_claimed === false).length;
+  }
+  return out;
+}
+
+// ---------- Users ----------
+/** Lists platform accounts for moderation. Pass businesses so merchants can be flagged. */
+export async function fetchAdminUsers(businesses: BusinessAccount[] = []): Promise<AdminUserRecord[] | null> {
+  const guard = await requireAdmin();
+  if (guard.error) return null;
+
+  let res: any = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+  if (res.error) res = await supabase.from('profiles').select('*');
+  if (res.error || !res.data) return null;
+
+  const bizByOwner = new Map<string, string[]>();
+  for (const b of businesses) {
+    if (!b.ownerId) continue;
+    bizByOwner.set(b.ownerId, [...(bizByOwner.get(b.ownerId) || []), b.id]);
+  }
+
+  return (res.data as any[]).map((row): AdminUserRecord => {
+    const id = String(row.id);
+    const businessIds = bizByOwner.get(id) || [];
+    const email = row.email ? String(row.email) : undefined;
+    const isAdmin = isPlatformAdmin({ email, role: row.role });
+    return {
+      id,
+      name: cleanDisplayName(row.display_name || row.full_name || row.name || ''),
+      username: row.username ? normalizeUsername(String(row.username)) : undefined,
+      email,
+      avatar: row.avatar_url || undefined,
+      role: isAdmin ? 'admin' : businessIds.length > 0 || row.role === 'merchant' ? 'merchant' : 'user',
+      isCreator: row.is_creator === true || row.account_type === 'professional',
+      isMerchant: businessIds.length > 0,
+      businessIds,
+      isSuspended: row.is_suspended === true,
+      suspendedReason: row.suspended_reason || undefined,
+      suspendedAt: row.suspended_at || undefined,
+      createdAt: row.created_at || undefined,
+    };
+  });
+}
+
+/** Block / unblock an account. Enforce it in the app by calling fetchSuspensionState() after sign-in. */
+export async function setUserSuspension(
+  uid: string,
+  suspended: boolean,
+  reason?: string
+): Promise<string | null> {
+  const guard = await requireAdmin();
+  if (guard.error) return guard.error;
+  if (guard.uid === uid) return 'You cannot suspend your own admin account.';
+  const now = new Date().toISOString();
+  return upsertProfileFields(uid, [
+    {
+      is_suspended: suspended,
+      suspended_reason: suspended ? (reason || null) : null,
+      suspended_at: suspended ? now : null,
+    },
+    { is_suspended: suspended },
+  ]);
+}
+
+/** Call after login / on app load so blocked accounts are signed out. */
+export async function fetchSuspensionState(uid: string): Promise<{ suspended: boolean; reason?: string }> {
+  if (!isSupabaseConfigured || !uid) return { suspended: false };
+  try {
+    const { data } = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle();
+    return data?.is_suspended === true
+      ? { suspended: true, reason: data.suspended_reason || undefined }
+      : { suspended: false };
+  } catch {
+    return { suspended: false };
+  }
+}
+
+/** Removes professional (creator/host) status from another user. Does not touch the admin's own auth metadata. */
+export async function revokeCreatorStatus(uid: string): Promise<string | null> {
+  const guard = await requireAdmin();
+  if (guard.error) return guard.error;
+  return upsertProfileFields(uid, [
+    { is_creator: false, account_type: 'personal', professional_since: null },
+    { is_creator: false, account_type: 'personal' },
+    { is_creator: false },
+  ]);
+}
+
+/** Removes a merchant's verified status (sets the business back to rejected with a note). */
+export async function revokeBusinessStatus(businessId: string, note?: string): Promise<string | null> {
+  const guard = await requireAdmin();
+  if (guard.error) return guard.error;
+  return reviewBusiness(businessId, {
+    verified: false,
+    verificationStatus: 'rejected',
+    verificationNote: note || 'Business status revoked by admin.',
+    verifiedBy: 'admin',
+  });
+}
+
+/**
+ * Deletes an account's platform data (listings, businesses, saved data, profile). Removing the
+ * auth.users record itself needs the service role, so it goes through the admin_delete_user RPC.
+ */
+export async function deleteAccountAdmin(
+  uid: string
+): Promise<{ error: string | null; authDeleted: boolean; warnings: string[] }> {
+  const guard = await requireAdmin();
+  if (guard.error) return { error: guard.error, authDeleted: false, warnings: [] };
+  if (guard.uid === uid) return { error: 'You cannot delete your own admin account.', authDeleted: false, warnings: [] };
+
+  const warnings: string[] = [];
+  const step = async (label: string, run: () => PromiseLike<{ error: { message: string } | null }>) => {
+    try {
+      const { error } = await run();
+      if (error) warnings.push(`${label}: ${error.message}`);
+    } catch (e) {
+      warnings.push(`${label}: ${errMsg(e)}`);
+    }
+  };
+
+  await step('rada_listings', () => supabase.from('rada_listings').delete().eq('owner_id', uid));
+  await step('spots', () => supabase.from('spots').delete().eq('merchant_id', uid));
+  await step('rada_businesses', () => supabase.from('rada_businesses').delete().eq('owner_id', uid));
+  await step('businesses', () => supabase.from('businesses').delete().eq('owner_id', uid));
+  await step('rada_user_data', () => supabase.from('rada_user_data').delete().eq('user_id', uid));
+  await step('profiles', () => supabase.from('profiles').delete().eq('id', uid));
+
+  let authDeleted = false;
+  try {
+    const { error } = await supabase.rpc('admin_delete_user', { target_id: uid });
+    if (error) warnings.push(`auth user: ${error.message}`);
+    else authDeleted = true;
+  } catch (e) {
+    warnings.push(`auth user: ${errMsg(e)}`);
+  }
+
+  const profileFailed = warnings.some(w => w.startsWith('profiles:'));
+  return {
+    error: profileFailed && !authDeleted ? 'Could not delete the account. Check admin RLS policies.' : null,
+    authDeleted,
+    warnings,
+  };
+}
+
+// ---------- Subscriptions ----------
+export async function setBusinessSubscription(
+  businessId: string,
+  sub: { status: SubscriptionStatus; plan?: string; amount?: number; renewsAt?: string }
+): Promise<string | null> {
+  const guard = await requireAdmin();
+  if (guard.error) return guard.error;
+
+  const patch = {
+    subscriptionStatus: sub.status,
+    subscriptionPlan: sub.plan,
+    subscriptionAmount: sub.amount,
+    subscriptionRenewsAt: sub.renewsAt,
+  };
+  try {
+    const { data: row } = await supabase.from('rada_businesses').select('data').eq('id', businessId).maybeSingle();
+    const merged = { ...(row?.data || {}), ...patch };
+    let { error } = await supabase
+      .from('rada_businesses')
+      .update({
+        data: merged,
+        subscription_status: sub.status,
+        subscription_plan: sub.plan ?? null,
+        subscription_amount: sub.amount ?? null,
+        subscription_renews_at: sub.renewsAt ?? null,
+      })
+      .eq('id', businessId);
+    if (error && isColumnError(error.message)) {
+      // Columns not migrated yet: keep the state inside the data blob so nothing is lost
+      error = (await supabase.from('rada_businesses').update({ data: merged }).eq('id', businessId)).error;
+    }
+    return error ? error.message : null;
+  } catch (e) {
+    return errMsg(e);
+  }
+}
+
+// ---------- Unclaimed spots ----------
+/** Publishes a spot straight from the admin account, with is_claimed = false so a business can claim it later. */
+export async function publishUnclaimedSpot(
+  input: UnclaimedSpotInput
+): Promise<{ error: string | null; spot?: SpotItem }> {
+  const guard = await requireAdmin();
+  if (guard.error || !guard.uid) return { error: guard.error || 'Admin access required.' };
+
+  const title = input.title.trim();
+  if (!title) return { error: 'Spot name is required.' };
+  if (!input.neighborhood.trim()) return { error: 'Neighborhood is required.' };
+
+  const img =
+    input.img?.trim() ||
+    'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop';
+
+  const spot: SpotItem = {
+    id: Date.now(),
+    title,
+    category: input.category,
+    neighborhood: input.neighborhood.trim(),
+    address: input.address.trim() || `${input.neighborhood.trim()}, Nairobi`,
+    exactLocationTag: input.address.trim(),
+    lat: input.lat ?? -1.2675,
+    lng: input.lng ?? 36.8115,
+    rating: 'New',
+    reviewCount: 0,
+    price: input.price?.trim() || 'KES $$',
+    img,
+    images: [img],
+    description: input.description?.trim() || '',
+    phone: input.phone?.trim() || '',
+    openingHours: input.openingHours?.trim() || '',
+    website: input.website?.trim() || undefined,
+    instagram: input.instagram?.trim() || undefined,
+    // Ownership: none until claimed. isUserUploaded stays false so canEditSpot() does not open it to everyone.
+    is_claimed: false,
+    isAdminPublished: true,
+    isUserUploaded: false,
+    reviews: [],
+  };
+
+  const error = await upsertListing('spot', spot, null, guard.uid);
+  return error ? { error } : { error: null, spot };
+}
+
+/** Spots still waiting for a merchant. Used by the admin list and by the merchant "Claim" search. */
+export async function fetchUnclaimedSpots(query = ''): Promise<any[] | null> {
+  const listings = await fetchListings();
+  if (!listings) return null;
+  const q = query.trim().toLowerCase();
+  return listings.spot.filter((s: any) => {
+    if (s.is_claimed !== false) return false;
+    if (!q) return true;
+    return [s.title, s.neighborhood, s.address, s.category]
+      .some(v => String(v || '').toLowerCase().includes(q));
+  });
+}
+
+/** A merchant claims an unclaimed spot for one of their businesses. */
+export async function claimUnclaimedSpot(
+  spotId: number | string,
+  businessId: string,
+  ownerId: string
+): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
+  if (!isValidUuid(ownerId)) return 'you must be signed in to claim a spot';
+
+  const rowId = listingUuid('spot', spotId);
+  const now = new Date().toISOString();
+  const safeBiz = isValidUuid(businessId) ? businessId : null;
+
+  const { data: row, error: readErr } = await supabase
+    .from('rada_listings')
+    .select('data')
+    .eq('id', rowId)
+    .maybeSingle();
+  if (readErr) return readErr.message;
+  if (!row?.data) return 'spot not found';
+  if (row.data.is_claimed !== false) return 'this spot has already been claimed';
+
+  const claimed = {
+    ...row.data,
+    is_claimed: true,
+    businessId,
+    merchantId: ownerId,
+    claimedByBusinessId: businessId,
+    claimedAt: now,
+  };
+
+  const { error } = await supabase
+    .from('rada_listings')
+    .update({ data: claimed, owner_id: ownerId, business_id: safeBiz, updated_at: now })
+    .eq('id', rowId);
+  if (error) return error.message;
+
+  if (typeof spotId === 'number') {
+    try {
+      let { error: sErr } = await supabase
+        .from('spots')
+        .update({ is_claimed: true, business_id: safeBiz, merchant_id: ownerId, updated_at: now })
+        .eq('id', spotId);
+      if (sErr && isColumnError(sErr.message)) {
+        await supabase.from('spots').update({ business_id: safeBiz, merchant_id: ownerId, updated_at: now }).eq('id', spotId);
+      }
+    } catch (e) {
+      console.warn('claimUnclaimedSpot spots update warning:', e);
+    }
+  }
+  return null;
+}
