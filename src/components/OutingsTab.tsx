@@ -914,10 +914,12 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                       e.stopPropagation();
                       onViewHostProfile?.({
                         name: plan.hostName,
-                        handle: plan.hostHandle,
+                        handle: plan.hostHandle || '@host',
                         avatar: plan.hostAvatar,
                         bio: `Outing host & curator on RADA Nairobi. Hosting group hangouts at ${plan.spotTitle} and local gems.`,
                         loc: plan.spotAddress || 'Nairobi',
+                        relationshipStatus: 'single',
+                        relationship_status: 'single',
                         is_creator: true,
                         is_liveness_verified: plan.isHostVerified,
                         isLivenessVerified: plan.isHostVerified,
@@ -1643,10 +1645,12 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                   setSelectedOutingDetail(null);
                   onViewHostProfile?.({
                     name: selectedOutingDetail.hostName,
-                    handle: selectedOutingDetail.hostHandle,
+                    handle: selectedOutingDetail.hostHandle || '@host',
                     avatar: selectedOutingDetail.hostAvatar,
                     bio: `Outing host & curator on RADA Nairobi. Hosting group hangouts at ${selectedOutingDetail.spotTitle} and local gems.`,
                     loc: selectedOutingDetail.spotAddress || 'Nairobi',
+                    relationshipStatus: 'single',
+                    relationship_status: 'single',
                     is_creator: true,
                     is_liveness_verified: selectedOutingDetail.isHostVerified,
                     isLivenessVerified: selectedOutingDetail.isHostVerified,

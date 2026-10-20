@@ -415,7 +415,12 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                             <span className="text-xs font-black text-slate-900 dark:text-slate-100 block truncate group-hover:text-[#E0533C] transition">
                               {link.title}
                             </span>
-                            <span className="text-[10px] text-slate-400 block truncate">
+                            {link.description && (
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate">
+                                {link.description}
+                              </span>
+                            )}
+                            <span className="text-[9px] text-slate-400 block truncate font-mono">
                               {link.url.replace(/^https?:\/\//, '')}
                             </span>
                           </div>
@@ -449,7 +454,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       >
                         <div className="h-28 w-full relative overflow-hidden bg-slate-900">
                           <img
-                            src={hl.imageUrl}
+                            src={hl.imageUrl || hl.image}
                             alt={hl.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
                           />
@@ -636,7 +641,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="h-56 w-full relative bg-slate-900">
-              <img src={selectedHighlight.imageUrl} alt={selectedHighlight.title} className="w-full h-full object-cover" />
+              <img src={selectedHighlight.imageUrl || selectedHighlight.image} alt={selectedHighlight.title} className="w-full h-full object-cover" />
               <button
                 type="button"
                 onClick={() => setSelectedHighlight(null)}

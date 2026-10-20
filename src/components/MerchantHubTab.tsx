@@ -78,6 +78,7 @@ import { DynamicLocationSelector } from './DynamicLocationSelector.tsx';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 import { PersonalizationKitModal } from './PersonalizationKitModal.tsx';
+import { toValidUuid, fetchUnclaimedSpots, submitSpotClaim } from '../lib/cloudSync';
 
 export type MainCategoryKey = 
   | 'restaurants_dining'

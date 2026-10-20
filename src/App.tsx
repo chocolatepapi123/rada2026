@@ -1630,12 +1630,6 @@ export default function App() {
     }));
   };
 
-  const handleOpenBusinessProfile = (bizId: string) => {
-    const biz = businesses.find(b => b.id === bizId);
-    if (biz) {
-      setSelectedPublicBusiness(biz);
-    }
-  };
 
   const handleAddOrUpdateSpot = (spot: SpotItem) => {
     requireAuth('add a spot or business', () => {
@@ -2149,8 +2143,12 @@ export default function App() {
             userRole={userRole}
             onLogout={handleSignOut}
             onOpenSaved={() => requireAuth('view saved collections', () => setIsSavedModalOpen(true))}
-            savedCount={savedItems.length}
             onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
+            onViewProfile={() => setViewingProfile(currentUserProfile)}
+            currentUserAvatar={currentUserProfile?.avatar}
+            currentUserName={currentUserProfile?.name}
+            currentUserHandle={currentUserProfile?.handle}
+            isCreator={Boolean(currentUserProfile?.is_creator)}
             onRefresh={handleHeaderRefresh}
           />
 

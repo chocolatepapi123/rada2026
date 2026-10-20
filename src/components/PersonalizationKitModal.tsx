@@ -115,6 +115,7 @@ export const PersonalizationKitModal: React.FC<PersonalizationKitModalProps> = (
   // New Link form state
   const [newLinkTitle, setNewLinkTitle] = useState('');
   const [newLinkUrl, setNewLinkUrl] = useState('');
+  const [newLinkDesc, setNewLinkDesc] = useState('');
   const [newLinkPlatform, setNewLinkPlatform] = useState<string>('website');
 
   // New Highlight form state
@@ -138,11 +139,13 @@ export const PersonalizationKitModal: React.FC<PersonalizationKitModalProps> = (
       id: `lnk-${Date.now()}`,
       title: newLinkTitle.trim(),
       url,
-      platform: newLinkPlatform
+      platform: newLinkPlatform,
+      description: newLinkDesc.trim() || undefined
     };
     setCustomLinks(prev => [...prev, newLink]);
     setNewLinkTitle('');
     setNewLinkUrl('');
+    setNewLinkDesc('');
     setNewLinkPlatform('website');
     showToast(`Added link "${newLink.title}"!`);
   };
@@ -162,6 +165,7 @@ export const PersonalizationKitModal: React.FC<PersonalizationKitModalProps> = (
       id: `hl-${Date.now()}`,
       title: newHighlightTitle.trim(),
       imageUrl: img,
+      image: img,
       description: newHighlightDesc.trim() || undefined,
       linkUrl: newHighlightLink.trim() || undefined
     };
@@ -521,6 +525,19 @@ export const PersonalizationKitModal: React.FC<PersonalizationKitModalProps> = (
                   />
                 </div>
 
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                    Subtitle / Description (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={newLinkDesc}
+                    onChange={(e) => setNewLinkDesc(e.target.value)}
+                    placeholder="e.g. Reserve VIP Table, Weekly outfit drops, Drink menu"
+                    className="w-full px-3 py-2 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none"
+                  />
+                </div>
+
                 <button
                   type="button"
                   onClick={handleAddLink}
@@ -556,7 +573,12 @@ export const PersonalizationKitModal: React.FC<PersonalizationKitModalProps> = (
                           <h5 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">
                             {link.title}
                           </h5>
-                          <p className="text-[10px] text-slate-400 truncate">
+                          {link.description && (
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                              {link.description}
+                            </p>
+                          )}
+                          <p className="text-[10px] text-slate-400 truncate font-mono">
                             {link.url}
                           </p>
                         </div>

@@ -35,6 +35,11 @@ interface HeaderProps {
   onOpenSaved?: () => void;
   savedCount?: number;
   onOpenAccountSettings?: () => void;
+  onViewProfile?: () => void;
+  currentUserAvatar?: string;
+  currentUserName?: string;
+  currentUserHandle?: string;
+  isCreator?: boolean;
   /** @deprecated The header no longer renders a refresh button. Accepted so existing callers still compile. */
   onRefresh?: () => void;
   /** @deprecated See onRefresh. */
@@ -58,7 +63,12 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
   onOpenSaved,
   savedCount,
-  onOpenAccountSettings
+  onOpenAccountSettings,
+  onViewProfile,
+  currentUserAvatar,
+  currentUserName,
+  currentUserHandle,
+  isCreator,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -156,6 +166,23 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           )}
 
+          {/* Direct Profile Card Button (When logged in) */}
+          {onViewProfile && currentUserAvatar && !isGuestMode && (
+            <button
+              type="button"
+              onClick={onViewProfile}
+              className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-full overflow-hidden border-2 border-slate-200 dark:border-slate-700 hover:border-[#E0533C] active:scale-95 transition-all shadow-xs cursor-pointer focus:outline-none"
+              title="View your public profile card & Personalization Kit"
+              aria-label="View Profile Card"
+            >
+              <img
+                src={currentUserAvatar}
+                alt={currentUserName || 'Profile'}
+                className="w-full h-full object-cover"
+              />
+            </button>
+          )}
+
           {/* 3-Dot Overflow Menu */}
           <div className="relative shrink-0" ref={menuRef}>
             <button
@@ -169,6 +196,39 @@ export const Header: React.FC<HeaderProps> = ({
 
             {menuOpen && (
               <div className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-2rem)] bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                {/* My Public Profile Card */}
+                {onViewProfile && !isGuestMode && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onViewProfile();
+                    }}
+                    className="w-full text-left px-4 py-3 text-xs font-bold hover:bg-orange-50/70 dark:hover:bg-orange-950/30 flex items-start gap-3 text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800/80 group transition cursor-pointer"
+                  >
+                    <div className="w-7 h-7 rounded-lg overflow-hidden shrink-0 shadow-sm border border-slate-200 dark:border-slate-700">
+                      <img 
+                        src={currentUserAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop'} 
+                        alt="Avatar" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold text-slate-900 dark:text-slate-100 truncate">
+                          {currentUserName || currentUserHandle || 'My Profile Card'}
+                        </span>
+                        <span className="text-[9px] bg-orange-100 dark:bg-orange-950/80 text-[#E0533C] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider">
+                          {isCreator ? 'Creator' : 'Profile'}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 font-normal mt-0.5 truncate">
+                        Full-screen card, accent colors & links
+                      </p>
+                    </div>
+                  </button>
+                )}
+
                 {/* ADMIN ONLY: Admin Control Hub (top of the menu) */}
                 {isAdmin && (
                   <button

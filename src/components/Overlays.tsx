@@ -65,7 +65,8 @@ import {
   EmergencyContact,
   Review,
   UserProfile,
-  SavedItem
+  SavedItem,
+  BusinessAccount
 } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { shareContent } from '../utils/shareUtils.ts';
@@ -510,12 +511,13 @@ export const Overlays: React.FC<OverlaysProps> = ({
             {(() => {
               const matchingBiz = businesses?.find(b => b.id === selectedSpot.businessId || (selectedSpot.title && b.name.toLowerCase() === selectedSpot.title.toLowerCase()));
               if (!matchingBiz && !onOpenPublicProfile) return null;
-              const targetBiz = matchingBiz || {
+              const targetBiz: BusinessAccount = matchingBiz || {
                 id: `biz-spot-${selectedSpot.id}`,
                 name: selectedSpot.title,
                 category: 'hospitality',
                 email: '',
                 phone: selectedSpot.phone || '',
+                whatsapp: selectedSpot.phone || '',
                 neighborhood: selectedSpot.neighborhood,
                 address: selectedSpot.address,
                 bio: selectedSpot.description || '',
@@ -525,7 +527,8 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 verificationStatus: 'approved' as const,
                 createdDate: '2026-01-01',
                 businessTypeLabel: selectedSpot.category ? selectedSpot.category.replace(/_/g, ' ').toUpperCase() : 'VENUE & HOSPITALITY',
-                accentColor: '#E0533C'
+                accentColor: '#E0533C',
+                tagline: selectedSpot.neighborhood ? `${selectedSpot.neighborhood} • Hangout Venue` : undefined
               };
               return (
                 <div 
@@ -1356,12 +1359,13 @@ export const Overlays: React.FC<OverlaysProps> = ({
             {(() => {
               const matchingOrganizer = businesses?.find(b => b.id === selectedEvent.businessId || (selectedEvent.organizer && b.name.toLowerCase() === selectedEvent.organizer.toLowerCase()));
               if (!matchingOrganizer && !onOpenPublicProfile) return null;
-              const targetBiz = matchingOrganizer || {
+              const targetBiz: BusinessAccount = matchingOrganizer || {
                 id: `biz-evt-${selectedEvent.id}`,
                 name: selectedEvent.organizer || 'Official Event Promoter',
                 category: 'event_organizer',
                 email: '',
                 phone: '',
+                whatsapp: '',
                 neighborhood: 'Nairobi',
                 address: selectedEvent.location,
                 bio: selectedEvent.description || '',
@@ -1371,7 +1375,8 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 verificationStatus: 'approved' as const,
                 createdDate: '2026-01-01',
                 businessTypeLabel: 'CONCERT & FESTIVAL ORGANIZER',
-                accentColor: '#8B5CF6'
+                accentColor: '#8B5CF6',
+                tagline: 'Primary Ticketing Verified • Official Promoter'
               };
               return (
                 <div 

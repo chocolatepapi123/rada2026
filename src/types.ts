@@ -46,7 +46,7 @@ export interface BusinessAccount {
   category: BusinessCategory;
   email: string;
   phone: string;
-  whatsapp: string;
+  whatsapp?: string;
   neighborhood: string;
   address: string;
   bio: string;
@@ -84,14 +84,17 @@ export interface CustomLink {
   title: string;
   url: string;
   platform?: 'website' | 'instagram' | 'tiktok' | 'twitter' | 'youtube' | 'spotify' | 'whatsapp' | 'menu' | 'booking' | 'other' | string;
+  description?: string;
 }
 
 export interface PinnedHighlight {
   id: string;
   title: string;
+  image?: string;
   imageUrl?: string;
   description?: string;
   linkUrl?: string;
+  date?: string;
 }
 
 export interface MenuItem {
@@ -287,6 +290,7 @@ export interface EventItem {
   tiers: TicketTier[];
   description?: string;
   businessId?: string;
+  organizer?: string;
 }
 
 export interface CinemaMovie {
