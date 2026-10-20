@@ -1192,6 +1192,15 @@ export async function updateUsername(uid: string, raw: string): Promise<{ error:
 }
 
 export const NAME_MAX = 40;
+
+/**
+ * Older signups and DB defaults used "Explorer" as a stand-in name. A display name is optional and
+ * starts blank, so that placeholder is always treated as "no name".
+ */
+export function cleanDisplayName(value?: unknown): string {
+  const n = typeof value === 'string' ? value.trim() : '';
+  return /^explorer$/i.test(n) ? '' : n;
+}
 const IDENTITY_CACHE_PREFIX = 'rada_profile_identity_';
 
 export interface ProfileIdentity {
@@ -1225,32 +1234,48 @@ export function cacheIdentity(uid: string, patch: ProfileIdentity): void {
  */
 export async function fetchProfileIdentity(uid: string): Promise<ProfileIdentity | null> {
   if (!uid) return null;
-  if (!isSupabaseConfigured) return readCachedIdentity(uid);
+  if (!isSupabaseConfigured) {
+    const c = readCachedIdentity(uid);
+    return c ? { ...c, ...(c.name !== undefined ? { name: cleanDisplayName(c.name) } : {}) } : null;
+  }
 
-  const out: ProfileIdentity = {};
+  // Precedence: profiles row (server truth) > local cache (last save) > auth metadata (gap filler only).
+  // Metadata used to win over the cache, so a stale signup value reverted a name you had just saved.
+  const row: ProfileIdentity = {};
+  let rowHasName = false;
   try {
     const { data } = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle();
     if (data) {
-      const n = data.display_name || data.full_name || data.name;
-      if (n) out.name = String(n);
-      if (data.username) out.username = normalizeUsername(String(data.username));
-      if (data.avatar_url) out.avatarUrl = String(data.avatar_url);
-      if (typeof data.bio === 'string') out.bio = data.bio;
-      if (data.is_creator === true || data.account_type === 'professional') out.isCreator = true;
-      else if (data.is_creator === false) out.isCreator = false;
+      if (typeof data.display_name === 'string') {
+        row.name = cleanDisplayName(data.display_name); // '' is a real, saved "no name"
+        rowHasName = true;
+      } else {
+        const legacy = data.full_name || data.name;
+        if (legacy) {
+          row.name = cleanDisplayName(legacy);
+          rowHasName = true;
+        }
+      }
+      if (data.username) row.username = normalizeUsername(String(data.username));
+      if (data.avatar_url) row.avatarUrl = String(data.avatar_url);
+      if (typeof data.bio === 'string') row.bio = data.bio;
+      if (data.is_creator === true || data.account_type === 'professional') row.isCreator = true;
+      else if (data.is_creator === false) row.isCreator = false;
     }
   } catch {}
 
-  if (!out.name || !out.username) {
+  const meta: ProfileIdentity = {};
+  if (!rowHasName || !row.username) {
     try {
       const { data: auth } = await supabase.auth.getUser();
-      const meta: any = auth?.user?.user_metadata || {};
-      if (!out.name && (meta.display_name || meta.full_name)) out.name = String(meta.display_name || meta.full_name);
-      if (!out.username && meta.username) out.username = normalizeUsername(String(meta.username));
+      const m: any = auth?.user?.user_metadata || {};
+      if (!rowHasName && (m.display_name || m.full_name)) meta.name = cleanDisplayName(m.display_name || m.full_name);
+      if (!row.username && m.username) meta.username = normalizeUsername(String(m.username));
     } catch {}
   }
 
-  const merged: ProfileIdentity = { ...(readCachedIdentity(uid) || {}), ...out };
+  const merged: ProfileIdentity = { ...meta, ...(readCachedIdentity(uid) || {}), ...row };
+  if (merged.name !== undefined) merged.name = cleanDisplayName(merged.name);
   if (Object.keys(merged).length === 0) return null;
   cacheIdentity(uid, merged);
   return merged;
@@ -1268,7 +1293,6 @@ export async function saveProfileDetails(
 ): Promise<{ error: string | null }> {
   const name = fields.name === undefined ? undefined : fields.name.trim();
   if (name !== undefined) {
-    if (!name) return { error: 'Enter a display name.' };
     if (name.length > NAME_MAX) return { error: `Display name must be ${NAME_MAX} characters or fewer.` };
   }
   if (fields.username !== undefined) {
@@ -1333,8 +1357,8 @@ export async function saveUnifiedProfile(
   uid: string,
   fields: { name: string; username: string; bio?: string }
 ): Promise<{ error: string | null; name?: string; username?: string; bio?: string; bioSaved?: boolean }> {
-  const name = (fields.name || '').trim();
-  if (!name) return { error: 'Enter a display name.' };
+  // Display name is optional: blank is a valid, saved value (never auto-filled with "Explorer").
+  const name = cleanDisplayName(fields.name);
   if (name.length > NAME_MAX) return { error: `Display name must be ${NAME_MAX} characters or fewer.` };
   const formatError = validateUsernameFormat(fields.username);
   if (formatError) return { error: formatError };
@@ -1355,10 +1379,14 @@ export async function saveUnifiedProfile(
 
   // Update-first: a plain UPDATE is what the profiles RLS policy normally allows. Only fall back to
   // an upsert when no row exists yet.
-  const upd = await supabase.from('profiles').update(payload).eq('id', uid).select('id');
+  const cols = 'id, username, display_name';
+  const upd = await supabase.from('profiles').update(payload).eq('id', uid).select(cols);
   let error: { message?: string; code?: string } | null = upd.error;
-  if (!error && (!upd.data || upd.data.length === 0)) {
-    error = (await supabase.from('profiles').upsert({ id: uid, ...payload }, { onConflict: 'id' })).error;
+  let savedRow: any = upd.data && upd.data.length > 0 ? upd.data[0] : null;
+  if (!error && !savedRow) {
+    const up = await supabase.from('profiles').upsert({ id: uid, ...payload }, { onConflict: 'id' }).select(cols);
+    error = up.error;
+    savedRow = up.data && up.data.length > 0 ? up.data[0] : null;
   }
 
   if (error) {
@@ -1398,8 +1426,12 @@ export async function saveUnifiedProfile(
     if (bioErr) console.warn('saveUnifiedProfile bio warning:', bioErr.message);
   }
 
-  cacheIdentity(uid, { name, username, ...(bio !== undefined && bioSaved ? { bio } : {}) });
-  return { error: null, name, username, bio, bioSaved };
+  // Hand back what Supabase actually stored so the caller can dispatch it straight to the app store
+  const storedName = savedRow && typeof savedRow.display_name === 'string' ? cleanDisplayName(savedRow.display_name) : name;
+  const storedUsername = savedRow?.username ? normalizeUsername(String(savedRow.username)) : username;
+
+  cacheIdentity(uid, { name: storedName, username: storedUsername, ...(bio !== undefined && bioSaved ? { bio } : {}) });
+  return { error: null, name: storedName, username: storedUsername, bio, bioSaved };
 }
 
 function fileToDataUrl(file: File): Promise<string> {
