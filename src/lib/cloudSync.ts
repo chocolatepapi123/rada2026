@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import type { BusinessAccount, SavedItem, CollectionFolder, OutingPlan, OutingAttendee, ChatConversation, HostAnalytics, HostControls } from '../types';
+import type { BusinessAccount, SavedItem, CollectionFolder, OutingPlan, OutingAttendee, ChatConversation, HostAnalytics, HostControls, UserProfile } from '../types';
 import { STATUS_TTL_MS } from '../utils/statusLifecycle';
 
 
@@ -1351,9 +1351,15 @@ export async function saveUnifiedProfile(
   if (!check.available) return { error: 'Username taken' };
 
   const now = new Date().toISOString();
-  const { error } = await supabase
-    .from('profiles')
-    .upsert({ id: uid, username, display_name: name, updated_at: now }, { onConflict: 'id' });
+  const payload = { username, display_name: name, updated_at: now };
+
+  // Update-first: a plain UPDATE is what the profiles RLS policy normally allows. Only fall back to
+  // an upsert when no row exists yet.
+  const upd = await supabase.from('profiles').update(payload).eq('id', uid).select('id');
+  let error: { message?: string; code?: string } | null = upd.error;
+  if (!error && (!upd.data || upd.data.length === 0)) {
+    error = (await supabase.from('profiles').upsert({ id: uid, ...payload }, { onConflict: 'id' })).error;
+  }
 
   if (error) {
     if ((error as any).code === '23505' || /duplicate|unique/i.test(error.message || '')) {
@@ -1364,12 +1370,25 @@ export async function saveUnifiedProfile(
       const legacy = await saveProfileDetails(uid, { name, username });
       if (legacy.error) return { error: legacy.error };
     } else {
-      return { error: error.message };
+      return { error: error.message || 'Could not save profile.' };
     }
   }
 
+  // Read it back. An RLS-blocked UPDATE reports success with 0 rows, which looks saved but reverts on
+  // the next launch. Fail loudly instead.
   try {
-    await supabase.auth.updateUser({ data: { username, display_name: name, full_name: name } });
+    const { data: stored } = await supabase.from('profiles').select('username').eq('id', uid).maybeSingle();
+    if (stored && normalizeUsername(String(stored.username || '')) !== username) {
+      return {
+        error:
+          'Your username did not save to the server. Check that the profiles table allows users to update their own row.',
+      };
+    }
+  } catch {}
+
+  try {
+    const { error: metaErr } = await supabase.auth.updateUser({ data: { username, display_name: name, full_name: name } });
+    if (metaErr) console.warn('saveUnifiedProfile auth metadata warning:', metaErr.message);
   } catch {}
 
   let bioSaved: boolean | undefined;
@@ -1463,6 +1482,81 @@ export async function uploadAvatar(uid: string, file: File): Promise<{ url?: str
   return { url, error: null };
 }
 
+const COVER_MAX_BYTES = 12 * 1024 * 1024;
+const COVER_MAX_EDGE = 1600;
+
+/** Resize (keep aspect ratio, no crop) to a web-friendly JPEG. */
+async function coverBlobFromFile(file: File): Promise<Blob> {
+  const img = await loadImage(await fileToDataUrl(file));
+  const scale = Math.min(1, COVER_MAX_EDGE / Math.max(img.width, img.height));
+  const w = Math.max(1, Math.round(img.width * scale));
+  const h = Math.max(1, Math.round(img.height * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('no canvas');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(img, 0, 0, w, h);
+  const blob: Blob | null = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.85));
+  if (!blob) throw new Error('could not process image');
+  return blob;
+}
+
+/**
+ * Uploads an outing/spot cover photo straight to Supabase Storage and returns its public URL.
+ * Stored in the existing public `avatars` bucket under `<uid>/covers/` so no new bucket or policy
+ * is needed (the avatar policy already allows writes to your own `<uid>/` folder).
+ */
+export async function uploadCoverImage(uid: string, file: File): Promise<{ url?: string; error: string | null }> {
+  if (!file.type.startsWith('image/')) return { error: 'Please choose an image file.' };
+  if (file.size > COVER_MAX_BYTES) return { error: 'Image is too large (max 12 MB).' };
+
+  let blob: Blob;
+  try {
+    blob = await coverBlobFromFile(file);
+  } catch (e) {
+    return { error: errMsg(e) };
+  }
+
+  // Offline / not configured: keep it local so the preview still works
+  if (!isSupabaseConfigured || !uid) {
+    return { url: await fileToDataUrl(new File([blob], 'cover.jpg', { type: 'image/jpeg' })), error: null };
+  }
+
+  const path = `${uid}/covers/outing-${Date.now()}.jpg`;
+  const { error: upErr } = await supabase.storage.from(AVATAR_BUCKET).upload(path, blob, {
+    contentType: 'image/jpeg',
+    cacheControl: '31536000',
+    upsert: false,
+  });
+  if (upErr) return { error: `Upload failed: ${upErr.message}` };
+  return { url: supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path).data.publicUrl, error: null };
+}
+
+/** Updates ONLY relationship_status so it can never overwrite the liveness flag. */
+export async function saveRelationshipStatus(
+  uid: string,
+  status: 'single' | 'not_single'
+): Promise<{ error: string | null }> {
+  if (!isSupabaseConfigured || !uid) return { error: null };
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ relationship_status: status, updated_at: now })
+    .eq('id', uid)
+    .select('id');
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) {
+    const { error: upErr } = await supabase
+      .from('profiles')
+      .upsert({ id: uid, relationship_status: status, updated_at: now }, { onConflict: 'id' });
+    if (upErr) return { error: upErr.message };
+  }
+  return { error: null };
+}
+
 // =====================================================================
 // PROFILE VERIFICATION (Supabase 'profiles' table)
 // =====================================================================
@@ -1526,6 +1620,30 @@ export async function fetchProfileVerification(uid: string): Promise<{
     console.warn('fetchProfileVerification failed:', e);
   }
   return null;
+}
+
+/**
+ * Call this once when a user signs in / the app launches, and pass the result to your App's
+ * profile setter. It returns the saved name, username, avatar, bio and professional flag from
+ * Supabase, so a username you changed last session is restored instead of an app default.
+ */
+export async function fetchOwnProfilePatch(uid: string): Promise<Partial<UserProfile>> {
+  const patch: Partial<UserProfile> = {};
+  if (!uid) return patch;
+  const [idn, pro] = await Promise.all([fetchProfileIdentity(uid), fetchProfessionalState(uid)]);
+  if (idn?.name) patch.name = idn.name;
+  if (idn?.username) {
+    patch.username = idn.username;
+    patch.handle = toHandle(idn.username);
+  }
+  if (idn?.avatarUrl) patch.avatar = idn.avatarUrl;
+  if (typeof idn?.bio === 'string' && idn.bio) patch.bio = idn.bio;
+  if (pro) {
+    patch.is_creator = pro.isCreator;
+    patch.account_type = pro.isCreator ? 'professional' : 'personal';
+    if (pro.since) patch.professional_since = pro.since;
+  }
+  return patch;
 }
 
 // =====================================================================
