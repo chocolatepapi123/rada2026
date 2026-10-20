@@ -12,14 +12,18 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
+  MoreHorizontal,
+  Check,
+  Briefcase,
+  UserCog,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { UserProfile } from '../types';
 import {
   AvatarHero,
   IdentityFields,
-  ProfessionalHub,
-  ProfessionalSwitchCard,
+  ProfessionalDashboard,
+  RelationshipStatusField,
   Section,
   useOwnProfile,
 } from './ProfileSettingsKit';
@@ -40,7 +44,7 @@ interface AccountSettingsModalProps {
   professionalStats?: { profileViews?: number; outingsHosted?: number; joinRequests?: number };
 }
 
-type Screen = 'main' | 'password';
+type Screen = 'main' | 'password' | 'professional';
 
 const Row: React.FC<{
   icon: React.ReactNode;
@@ -83,6 +87,7 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
   professionalStats,
 }) => {
   const [screen, setScreen] = useState<Screen>('main');
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Password
   const [newPassword, setNewPassword] = useState('');
@@ -112,7 +117,10 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
   const handle = own.handle;
 
   useEffect(() => {
-    if (isOpen) setScreen('main');
+    if (isOpen) {
+      setScreen('main');
+      setMenuOpen(false);
+    }
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -152,22 +160,23 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
   };
 
   const inputCls =
-    'w-full px-3.5 py-2.5 text-[13px] bg-slate-50 dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-[#E0533C] text-slate-900 dark:text-slate-100 placeholder:text-slate-400';
+    'w-full px-3.5 py-2.5 text-[13px] bg-slate-100 dark:bg-[#121113] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E0533C]/40 text-slate-900 dark:text-slate-100 placeholder:text-slate-400';
   const labelCls = 'block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1';
 
   const titles: Record<Screen, string> = {
     main: 'Account & Security',
     password: 'Password',
+    professional: 'Host Dashboard',
   };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
       <div
-        className="bg-[#F8F8F6] dark:bg-[#121113] text-slate-900 dark:text-slate-100 sm:rounded-3xl max-w-lg w-full h-full sm:h-auto overflow-hidden shadow-2xl border-0 sm:border border-slate-200 dark:border-slate-800 flex flex-col sm:max-h-[92vh]"
+        className="bg-[#F8F8F6] dark:bg-[#121113] text-slate-900 dark:text-slate-100 sm:rounded-3xl max-w-lg w-full h-full sm:h-auto overflow-hidden shadow-2xl flex flex-col sm:max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top bar */}
-        <div className="px-3 py-3 bg-white dark:bg-[#1C1A1E] border-b border-slate-200 dark:border-slate-800 flex items-center gap-2">
+        <div className="relative z-20 px-3 py-3 bg-white dark:bg-[#1C1A1E] shadow-sm flex items-center gap-1">
           {screen !== 'main' ? (
             <button
               onClick={() => setScreen('main')}
@@ -180,6 +189,60 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
             <span className="w-9" />
           )}
           <h3 className="flex-1 text-center text-[15px] font-black tracking-tight">{titles[screen]}</h3>
+
+          {/* 3-dot menu */}
+          <div className="relative">
+            <button
+              onClick={() => setMenuOpen((o) => !o)}
+              className="w-9 h-9 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center cursor-pointer"
+              aria-label="More options"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+            >
+              <MoreHorizontal className="w-5 h-5" />
+            </button>
+            {menuOpen && (
+              <>
+                <button
+                  type="button"
+                  aria-label="Close menu"
+                  className="fixed inset-0 z-10 cursor-default"
+                  onClick={() => setMenuOpen(false)}
+                />
+                <div
+                  role="menu"
+                  className="absolute right-0 top-full mt-1 z-20 w-64 bg-white dark:bg-[#252228] rounded-2xl shadow-xl p-1.5"
+                >
+                  {(
+                    [
+                      ['main', 'Account & Security', 'Profile, email and password', <UserCog key="a" className="w-4 h-4" />],
+                      ['professional', 'Professional / Host Dashboard', 'Badge, analytics and host controls', <Briefcase key="p" className="w-4 h-4" />],
+                    ] as [Screen, string, string, React.ReactNode][]
+                  ).map(([target, label, hint, icon]) => (
+                    <button
+                      key={target}
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setScreen(target);
+                      }}
+                      className="w-full px-3 py-2.5 rounded-xl flex items-center gap-3 text-left hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                    >
+                      <span className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300">
+                        {icon}
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-[13px] font-semibold">{label}</span>
+                        <span className="block text-[11px] text-slate-500 dark:text-slate-400 truncate">{hint}</span>
+                      </span>
+                      {screen === target && <Check className="w-4 h-4 text-[#E0533C] shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
           <button
             onClick={onClose}
             className="w-9 h-9 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center cursor-pointer"
@@ -196,7 +259,7 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
               <AvatarHero p={own} subtitle={<p className="mt-1 text-[11px] text-slate-400">Only your @username is shown to others</p>} />
 
               {!isLoggedIn && (
-                <div className="mx-3 mt-4 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-3">
+                <div className="mx-3 mt-4 p-3.5 rounded-2xl bg-amber-500/10 flex items-start gap-3">
                   <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
                   <div className="flex-1">
                     <p className="text-xs font-black text-amber-800 dark:text-amber-300">You&apos;re browsing as a guest</p>
@@ -218,16 +281,12 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
                 </div>
               )}
 
-              <Section title="Profile" description="Saved to your account and updated everywhere right away.">
-                <IdentityFields p={own} showSave saveLabel="Save changes" />
+              <Section title="Identity & bio" description="Your public @username, private display name and bio. Updated everywhere when you save.">
+                <IdentityFields p={own} />
               </Section>
 
-              <Section
-                title="Professional account"
-                description="Host outings with a verified badge and see how they perform."
-              >
-                <ProfessionalSwitchCard p={own} />
-                {own.isPro && <ProfessionalHub p={own} />}
+              <Section title="Relationship status" description="Controls who can send you hangout and match requests.">
+                <RelationshipStatusField p={own} />
               </Section>
 
               <Section title="Account">
@@ -280,7 +339,7 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
                       onSignOut();
                       showToast('You have been logged out.');
                     }}
-                    className="w-full py-3 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 dark:text-red-400 font-black rounded-2xl text-[13px] transition flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full py-3 bg-white dark:bg-[#1C1A1E] shadow-sm hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 dark:text-red-400 font-black rounded-2xl text-[13px] transition flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <LogOut className="w-4 h-4" />
                     <span>Log out</span>
@@ -288,6 +347,18 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
                 </div>
               )}
             </>
+          )}
+
+          {/* ===================== PROFESSIONAL / HOST DASHBOARD ===================== */}
+          {screen === 'professional' && (
+            <div className="pt-1">
+              {!isLoggedIn && (
+                <p className="mx-4 mt-4 text-[12px] text-slate-500 dark:text-slate-400">
+                  Log in to switch to a professional account.
+                </p>
+              )}
+              <ProfessionalDashboard p={own} />
+            </div>
           )}
 
           {/* ===================== PASSWORD ===================== */}
@@ -298,7 +369,7 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
               </p>
 
               {passwordError && (
-                <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-[11px] font-medium">
+                <div className="p-2.5 rounded-xl bg-red-500/10 text-red-500 text-[11px] font-medium">
                   {passwordError}
                 </div>
               )}
@@ -358,6 +429,20 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
             </form>
           )}
         </div>
+
+        {/* Save bar (profile fields live on the main screen) */}
+        {screen === 'main' && (
+          <div className="px-3 py-3 bg-white dark:bg-[#1C1A1E] shadow-[0_-1px_6px_rgba(0,0,0,0.06)]">
+            <button
+              type="button"
+              onClick={own.save}
+              disabled={!own.dirty || own.saving}
+              className="w-full py-3 bg-[#E0533C] hover:bg-orange-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black rounded-xl text-[13px] transition flex items-center justify-center gap-2 cursor-pointer"
+            >
+              {own.saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Save changes</span>}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

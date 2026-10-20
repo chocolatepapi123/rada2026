@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  BadgeCheck,
   BarChart3,
   Bookmark,
   Camera,
@@ -24,6 +23,7 @@ import {
   fetchProfileIdentity,
   normalizeUsername,
   saveHostControls,
+  saveRelationshipStatus,
   saveUnifiedProfile,
   setProfessionalMode,
   toHandle,
@@ -71,14 +71,17 @@ export function useOwnProfile({
   const currentName = profile.name || '';
   const currentBio = profile.bio || '';
   const profileIsPro = profile.is_creator === true || profile.account_type === 'professional';
+  const currentStatus: 'single' | 'not_single' = profile.relationshipStatus === 'single' ? 'single' : 'not_single';
 
   // ---- drafts (reset whenever the parent value changes, e.g. after a save in the other modal)
   const [name, setName] = useState(currentName);
   const [username, setUsername] = useState(currentUsername);
   const [bio, setBio] = useState(currentBio);
+  const [status, setStatus] = useState<'single' | 'not_single'>(currentStatus);
   useEffect(() => setName(currentName), [currentName, userId]);
   useEffect(() => setUsername(currentUsername), [currentUsername, userId]);
   useEffect(() => setBio(currentBio), [currentBio, userId]);
+  useEffect(() => setStatus(currentStatus), [currentStatus, userId]);
 
   // ---- hydrate the parent from Supabase once per open so both modals show the same thing
   useEffect(() => {
@@ -133,7 +136,8 @@ export function useOwnProfile({
   const dirty =
     name.trim() !== currentName.trim() ||
     normalizeUsername(username) !== currentUsername ||
-    bio.trim() !== currentBio.trim();
+    bio.trim() !== currentBio.trim() ||
+    status !== currentStatus;
 
   // ---- save identity (writes username + display_name, then updates parent immediately)
   const [saving, setSaving] = useState(false);
@@ -147,25 +151,42 @@ export function useOwnProfile({
       return false;
     }
     setSaving(true);
+    const patch: Partial<UserProfile> = {};
     const bioChanged = bio.trim() !== currentBio.trim();
-    const res = await saveUnifiedProfile(userId, { name, username, ...(bioChanged ? { bio } : {}) });
-    setSaving(false);
-    if (res.error || !res.username || !res.name) {
-      showToast(res.error || 'Could not save profile.');
-      return false;
+    const identityChanged =
+      name.trim() !== currentName.trim() || normalizeUsername(username) !== currentUsername || bioChanged;
+    let bioFailed = false;
+
+    if (identityChanged) {
+      const res = await saveUnifiedProfile(userId, { name, username, ...(bioChanged ? { bio } : {}) });
+      if (res.error || !res.username || !res.name) {
+        setSaving(false);
+        showToast(res.error || 'Could not save profile.');
+        return false;
+      }
+      patch.name = res.name;
+      patch.username = res.username;
+      patch.handle = toHandle(res.username);
+      if (bioChanged) {
+        if (res.bioSaved === false) bioFailed = true;
+        else patch.bio = res.bio;
+      }
     }
-    const patch: Partial<UserProfile> = {
-      name: res.name,
-      username: res.username,
-      handle: toHandle(res.username),
-    };
-    if (bioChanged && res.bioSaved !== false) patch.bio = res.bio;
-    onProfileChange?.(patch);
-    showToast(
-      bioChanged && res.bioSaved === false
-        ? 'Name and username saved. Your bio could not be stored yet.'
-        : 'Profile saved.'
-    );
+
+    if (status !== currentStatus) {
+      const r = await saveRelationshipStatus(userId, status);
+      if (r.error) {
+        setSaving(false);
+        if (Object.keys(patch).length) onProfileChange?.(patch);
+        showToast(`Relationship status could not be saved: ${r.error}`);
+        return false;
+      }
+      patch.relationshipStatus = status;
+    }
+
+    setSaving(false);
+    if (Object.keys(patch).length) onProfileChange?.(patch);
+    showToast(bioFailed ? 'Saved, but your bio could not be stored yet.' : 'Profile saved.');
     return true;
   };
 
@@ -260,6 +281,8 @@ export function useOwnProfile({
     name, setName,
     username, setUsername,
     bio, setBio,
+    status, setStatus,
+    currentStatus,
     usernameState,
     dirty,
     saving,
@@ -285,7 +308,7 @@ export type OwnProfile = ReturnType<typeof useOwnProfile>;
 /* ------------------------------------------------------------------ */
 
 const inputCls =
-  'w-full px-3.5 py-2.5 text-[13px] bg-slate-50 dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-[#E0533C] text-slate-900 dark:text-slate-100 placeholder:text-slate-400';
+  'w-full px-3.5 py-2.5 text-[13px] bg-slate-100 dark:bg-[#121113] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E0533C]/40 text-slate-900 dark:text-slate-100 placeholder:text-slate-400';
 const labelCls = 'block text-[12px] font-semibold text-slate-600 dark:text-slate-300 mb-1';
 
 export const Section: React.FC<{ title: string; description?: string; children: React.ReactNode }> = ({
@@ -298,7 +321,7 @@ export const Section: React.FC<{ title: string; description?: string; children: 
       <h4 className="text-[14px] font-black text-slate-900 dark:text-slate-100">{title}</h4>
       {description && <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{description}</p>}
     </div>
-    <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+    <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-2xl overflow-hidden">
       {children}
     </div>
   </section>
@@ -317,8 +340,8 @@ export const Toggle: React.FC<{
     aria-label={label}
     disabled={busy}
     onClick={onChange}
-    className={`relative w-11 h-6 rounded-full shrink-0 cursor-pointer transition-colors motion-reduce:transition-none disabled:cursor-wait focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9BF0] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#1C1A1E] ${
-      checked ? 'bg-[#1D9BF0]' : 'bg-slate-300 dark:bg-slate-700'
+    className={`relative w-11 h-6 rounded-full shrink-0 cursor-pointer transition-colors motion-reduce:transition-none disabled:cursor-wait focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E0533C] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#1C1A1E] ${
+      checked ? 'bg-[#E0533C]' : 'bg-slate-300 dark:bg-slate-700'
     }`}
   >
     <span
@@ -332,7 +355,11 @@ export const Toggle: React.FC<{
 );
 
 /** Hero avatar with camera upload, public @username and the private display name. */
-export const AvatarHero: React.FC<{ p: OwnProfile; subtitle?: React.ReactNode }> = ({ p, subtitle }) => {
+export const AvatarHero: React.FC<{ p: OwnProfile; subtitle?: React.ReactNode; editable?: boolean }> = ({
+  p,
+  subtitle,
+  editable = true,
+}) => {
   const fileRef = useRef<HTMLInputElement>(null);
   return (
     <div className="flex flex-col items-center text-center px-4 pt-6 pb-5">
@@ -342,11 +369,11 @@ export const AvatarHero: React.FC<{ p: OwnProfile; subtitle?: React.ReactNode }>
             src={p.avatar}
             alt={p.handle}
             className={`w-24 h-24 rounded-full object-cover shadow-md ${
-              p.isPro ? 'ring-4 ring-[#1D9BF0]/40' : 'ring-4 ring-slate-200 dark:ring-slate-800'
+              p.isPro ? 'ring-2 ring-[#E0533C]/60 ring-offset-2 ring-offset-white dark:ring-offset-[#1C1A1E]' : ''
             }`}
           />
         ) : (
-          <div className="w-24 h-24 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center ring-4 ring-slate-200 dark:ring-slate-800">
+          <div className="w-24 h-24 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center shadow-md">
             <UserIcon className="w-9 h-9 text-slate-400" />
           </div>
         )}
@@ -355,11 +382,13 @@ export const AvatarHero: React.FC<{ p: OwnProfile; subtitle?: React.ReactNode }>
             <Loader2 className="w-6 h-6 text-white animate-spin" />
           </div>
         )}
+        {editable && (
+          <>
         <button
           type="button"
           onClick={() => (p.userId ? fileRef.current?.click() : p.requireLogin())}
           disabled={p.uploading}
-          className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#E0533C] hover:bg-orange-700 text-white flex items-center justify-center shadow-md border-2 border-white dark:border-[#1C1A1E] cursor-pointer disabled:opacity-60"
+          className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#E0533C] hover:bg-orange-700 text-white flex items-center justify-center shadow-lg cursor-pointer disabled:opacity-60"
           aria-label="Change profile photo"
           title="Change profile photo"
         >
@@ -376,6 +405,8 @@ export const AvatarHero: React.FC<{ p: OwnProfile; subtitle?: React.ReactNode }>
             if (f) p.pickAvatar(f);
           }}
         />
+          </>
+        )}
       </div>
 
       <div className="mt-3 flex items-center gap-1.5 max-w-full">
@@ -494,9 +525,9 @@ export const IdentityFields: React.FC<{ p: OwnProfile; showSave?: boolean; saveL
 
 /** The prominent instant switch. */
 export const ProfessionalSwitchCard: React.FC<{ p: OwnProfile }> = ({ p }) => (
-  <div className={`p-4 flex items-center gap-3.5 ${p.isPro ? 'bg-[#1D9BF0]/10' : ''}`}>
-    <span className="w-11 h-11 rounded-full bg-[#1D9BF0] text-white flex items-center justify-center shrink-0">
-      <BadgeCheck className="w-6 h-6" />
+  <div className={`p-4 flex items-center gap-3.5 ${p.isPro ? 'bg-[#E0533C]/10' : ''}`}>
+    <span className="w-11 h-11 rounded-full bg-[#E0533C]/10 flex items-center justify-center shrink-0">
+      <VerifiedBadge status="approved" size="lg" />
     </span>
     <div className="flex-1 min-w-0">
       <p className="text-[14px] font-black leading-tight">
@@ -504,8 +535,8 @@ export const ProfessionalSwitchCard: React.FC<{ p: OwnProfile }> = ({ p }) => (
       </p>
       <p className="text-[12px] text-slate-600 dark:text-slate-300 mt-0.5">
         {p.isPro
-          ? 'Active. Your blue host badge is live.'
-          : 'Get a blue host badge, analytics and priority listing. It switches on instantly, no approval needed.'}
+          ? 'Active. Your RADA host badge is live.'
+          : 'Get the RADA host badge, analytics and priority listing. It switches on instantly, no approval needed.'}
       </p>
     </div>
     <Toggle
@@ -514,6 +545,40 @@ export const ProfessionalSwitchCard: React.FC<{ p: OwnProfile }> = ({ p }) => (
       busy={p.switching}
       label="Switch to professional account"
     />
+  </div>
+);
+
+/** Relationship status, edited here and saved with the rest of the profile. */
+export const RelationshipStatusField: React.FC<{ p: OwnProfile }> = ({ p }) => (
+  <div className="p-4">
+    <div role="radiogroup" aria-label="Relationship status" className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-slate-100 dark:bg-[#121113]">
+      {(
+        [
+          ['single', 'Single'],
+          ['not_single', 'Not single'],
+        ] as const
+      ).map(([value, label]) => (
+        <button
+          key={value}
+          type="button"
+          role="radio"
+          aria-checked={p.status === value}
+          onClick={() => p.setStatus(value)}
+          className={`py-2 rounded-lg text-[13px] font-bold transition cursor-pointer motion-reduce:transition-none ${
+            p.status === value
+              ? 'bg-white dark:bg-[#1C1A1E] shadow-sm text-[#E0533C]'
+              : 'text-slate-500 dark:text-slate-400'
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+    <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+      {p.status === 'single'
+        ? 'People can send you hangout and match requests.'
+        : 'Match requests are turned off for your profile.'}
+    </p>
   </div>
 );
 
@@ -539,18 +604,18 @@ export const ProfessionalHub: React.FC<{ p: OwnProfile }> = ({ p }) => {
       {/* Host benefits & badges */}
       <div className="px-4 pt-3">
         <p className="text-[12px] font-semibold text-slate-600 dark:text-slate-300 mb-2">Host benefits & badges</p>
-        <div className="rounded-xl border border-[#1D9BF0]/25 bg-[#1D9BF0]/5 p-3 space-y-2">
+        <div className="rounded-xl bg-[#E0533C]/10 p-3 space-y-2">
           <div className="flex items-center gap-2">
-            <VerifiedBadge status="approved" size="md" />
+            <VerifiedBadge status="approved" size="lg" />
             <span className="text-[13px] font-bold">Verified host</span>
           </div>
           {[
-            'Blue verified badge on your profile and every outing you host',
+            'RADA host badge on your profile and every outing you host',
             'Outing analytics in this hub',
             'Featured spots and priority listing controls',
           ].map((t) => (
             <p key={t} className="text-[12px] text-slate-700 dark:text-slate-200 flex items-start gap-2">
-              <Check className="w-3.5 h-3.5 text-[#1D9BF0] mt-0.5 shrink-0" />
+              <Check className="w-3.5 h-3.5 text-[#E0533C] mt-0.5 shrink-0" />
               <span>{t}</span>
             </p>
           ))}
@@ -564,9 +629,9 @@ export const ProfessionalHub: React.FC<{ p: OwnProfile }> = ({ p }) => {
           {statCards.map(([label, n, icon]) => (
             <div
               key={label}
-              className="rounded-xl bg-slate-50 dark:bg-[#121113] border border-slate-200 dark:border-slate-800 p-3"
+              className="rounded-xl bg-slate-100 dark:bg-[#121113] p-3"
             >
-              <div className="flex items-center gap-1.5 text-[#1D9BF0]">{icon}</div>
+              <div className="flex items-center gap-1.5 text-[#E0533C]">{icon}</div>
               {p.hubLoading ? (
                 <div className="mt-2 h-6 w-12 rounded bg-slate-200 dark:bg-slate-800 animate-pulse motion-reduce:animate-none" />
               ) : (
@@ -594,7 +659,7 @@ export const ProfessionalHub: React.FC<{ p: OwnProfile }> = ({ p }) => {
             ] as [keyof HostControls, string, string, React.ReactNode][]
           ).map(([key, title, desc, icon]) => (
             <div key={key} className="py-3 flex items-center gap-3">
-              <span className="w-8 h-8 rounded-full bg-[#1D9BF0]/10 text-[#1D9BF0] flex items-center justify-center shrink-0">
+              <span className="w-8 h-8 rounded-full bg-[#E0533C]/10 text-[#E0533C] flex items-center justify-center shrink-0">
                 {icon}
               </span>
               <div className="flex-1 min-w-0">
@@ -614,3 +679,29 @@ export const ProfessionalHub: React.FC<{ p: OwnProfile }> = ({ p }) => {
     </div>
   );
 };
+
+/** Everything for the Professional / Host dashboard view. */
+export const ProfessionalDashboard: React.FC<{ p: OwnProfile }> = ({ p }) => (
+  <>
+    <Section title="Professional account" description="Switch on instantly. No approval needed.">
+      <ProfessionalSwitchCard p={p} />
+      {p.isPro ? (
+        <ProfessionalHub p={p} />
+      ) : (
+        <div className="px-4 pb-4 pt-1 space-y-2">
+          <p className="text-[12px] font-semibold text-slate-600 dark:text-slate-300">What you unlock</p>
+          {[
+            'RADA host badge on your profile and outings',
+            'Outing analytics: impressions, saves, views and RSVPs',
+            'Featured outing spots and priority event listing',
+          ].map((t) => (
+            <p key={t} className="text-[12px] text-slate-600 dark:text-slate-300 flex items-start gap-2">
+              <Lock className="w-3.5 h-3.5 mt-0.5 shrink-0 text-slate-400" />
+              <span>{t}</span>
+            </p>
+          ))}
+        </div>
+      )}
+    </Section>
+  </>
+);

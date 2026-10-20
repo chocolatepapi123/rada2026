@@ -482,10 +482,10 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
   // -------------------------------------------------------------------------
   if (!data.isLoading && data.spotsCount === 0) {
     return (
-      <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4">
+      <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-6 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] flex items-center justify-center text-white shadow-xs">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] flex items-center justify-center text-white shadow-sm">
               <BarChart3 className="w-5 h-5" />
             </div>
             <div>
@@ -502,7 +502,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
 
         {/* Clean Empty State Visual Card */}
         <div className="text-center py-8 px-4 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800/80 bg-slate-50/50 dark:bg-[#121113]/50">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-3 shadow-xs">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-3 shadow-sm">
             <TrendingUp className="w-6 h-6" />
           </div>
           <h4 className="text-sm font-black text-slate-900 dark:text-slate-100">
@@ -527,11 +527,11 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
   // POPULATED ANALYTICS DASHBOARD
   // -------------------------------------------------------------------------
   return (
-    <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xs space-y-6">
+    <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-5 shadow-sm space-y-6">
       {/* Header with Title and Live Sync Indicator */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] flex items-center justify-center text-white shadow-xs">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] flex items-center justify-center text-white shadow-sm">
             <BarChart3 className="w-5 h-5" />
           </div>
           <div>
@@ -564,7 +564,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
       {/* 1. DYNAMIC METRICS OVERVIEW (4 HIGH-LEVEL METRIC CARDS) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         {/* Metric 1: Total Spot Impressions/Views */}
-        <div className="bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200/90 dark:border-slate-800 rounded-2xl p-3.5 relative overflow-hidden group">
+        <div className="bg-slate-50 dark:bg-[#121113] rounded-2xl p-3.5 relative overflow-hidden group">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
               Impressions
@@ -583,7 +583,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
         </div>
 
         {/* Metric 2: Total Saves / Vault Bookmarks */}
-        <div className="bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200/90 dark:border-slate-800 rounded-2xl p-3.5 relative overflow-hidden group">
+        <div className="bg-slate-50 dark:bg-[#121113] rounded-2xl p-3.5 relative overflow-hidden group">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
               Vault Saves
@@ -601,7 +601,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
         </div>
 
         {/* Metric 3: Average Star Rating */}
-        <div className="bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200/90 dark:border-slate-800 rounded-2xl p-3.5 relative overflow-hidden group">
+        <div className="bg-slate-50 dark:bg-[#121113] rounded-2xl p-3.5 relative overflow-hidden group">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
               Avg. Rating
@@ -619,7 +619,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
         </div>
 
         {/* Metric 4: Total Reviews */}
-        <div className="bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200/90 dark:border-slate-800 rounded-2xl p-3.5 relative overflow-hidden group">
+        <div className="bg-slate-50 dark:bg-[#121113] rounded-2xl p-3.5 relative overflow-hidden group">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
               Reviews
@@ -638,7 +638,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
       </div>
 
       {/* 2. PEAK ACTIVITY DAYS VISUAL BARS */}
-      <div className="bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 space-y-3">
+      <div className="bg-slate-50 dark:bg-[#121113] rounded-2xl p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-[#E0533C]" />
@@ -665,7 +665,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
                     style={{ height: `${barHeight}%` }}
                     className={`w-full rounded-md transition-all duration-500 ${
                       day.isPeak
-                        ? 'bg-gradient-to-t from-[#E0533C] to-[#E9C46A] shadow-xs shadow-orange-500/40'
+                        ? 'bg-gradient-to-t from-[#E0533C] to-[#E9C46A] shadow-sm shadow-orange-500/40'
                         : day.percentage >= 20
                         ? 'bg-amber-500/80 dark:bg-amber-500/70'
                         : 'bg-slate-400/60 dark:bg-slate-700'
@@ -701,14 +701,14 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
             {data.topSpots.slice(0, 3).map((spot, index) => (
               <div
                 key={spot.spotId}
-                className="p-3 rounded-2xl bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200/90 dark:border-slate-800 flex items-center justify-between gap-3 group hover:border-[#E0533C]/40 transition"
+                className="p-3 rounded-2xl bg-slate-50 dark:bg-[#121113] flex items-center justify-between gap-3 group hover:shadow-md transition"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="relative shrink-0">
                     <img
                       src={spot.img}
                       alt={spot.title}
-                      className="w-12 h-12 rounded-xl object-cover border border-slate-200 dark:border-slate-700"
+                      className="w-12 h-12 rounded-xl object-cover"
                     />
                     <span className={`absolute -top-1 -left-1 w-4 h-4 rounded-full text-[9px] font-black flex items-center justify-center text-white ${
                       index === 0 ? 'bg-amber-500' : index === 1 ? 'bg-slate-400' : 'bg-orange-700'
@@ -766,7 +766,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
         </div>
 
         {data.recentReviews.length === 0 ? (
-          <div className="p-4 rounded-2xl bg-[#FBFBF9] dark:bg-[#121113] border border-dashed border-slate-200 dark:border-slate-800 text-center">
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#121113] text-center">
             <p className="text-xs font-bold text-slate-600 dark:text-slate-400">
               No customer reviews logged yet
             </p>
@@ -779,7 +779,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
             {data.recentReviews.map((rev) => (
               <div
                 key={rev.id}
-                className="p-3.5 rounded-2xl bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200/90 dark:border-slate-800 space-y-2"
+                className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#121113] space-y-2"
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
@@ -787,7 +787,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
                       <img
                         src={rev.userAvatar}
                         alt={rev.userName}
-                        className="w-7 h-7 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0"
+                        className="w-7 h-7 rounded-full object-cover shrink-0"
                       />
                     ) : (
                       <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] text-white text-[10px] font-black flex items-center justify-center shrink-0">

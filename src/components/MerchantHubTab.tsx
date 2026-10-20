@@ -1301,7 +1301,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
               {ownedBusinesses.length > 0 && (
                 <button 
                   onClick={() => setIsOnboardingOpen(false)}
-                  className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 bg-white dark:bg-[#1C1A1E] px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 flex items-center gap-1 cursor-pointer"
+                  className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 bg-white dark:bg-[#1C1A1E] px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1 cursor-pointer"
                 >
                   <span>Dashboard</span>
                 </button>
@@ -1309,7 +1309,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
               {onClose && (
                 <button 
                   onClick={onClose}
-                  className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 bg-white dark:bg-[#1C1A1E] px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 flex items-center gap-1 cursor-pointer"
+                  className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 bg-white dark:bg-[#1C1A1E] px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1 cursor-pointer"
                   title="Close Merchant Hub"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -1328,7 +1328,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
           {/* STEP 1: MASTER BUSINESS PROFILE CREATION */}
           {onboardingStep === 1 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-200">
-              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
+              <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-6 shadow-sm">
                 <div className="flex items-center gap-2 text-[#E0533C] font-extrabold text-xs uppercase tracking-wider mb-2">
                   <Building2 className="w-4 h-4" />
                   <span>Step 1: Master Business Identity</span>
@@ -1349,7 +1349,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                       placeholder="e.g. Ink & Drink Lounge, Nairobi Waves, 90s Vintage"
                       value={onboardName}
                       onChange={(e) => setOnboardName(e.target.value)}
-                      className="w-full text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3 focus:outline-none focus:border-[#E0533C]"
+                      className="w-full text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl px-4 py-3 focus:outline-none focus:border-[#E0533C]"
                     />
                   </div>
 
@@ -1363,7 +1363,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                       placeholder="Tell Nairobi what makes your venue, rave, or streetwear drop extraordinary..."
                       value={onboardBio}
                       onChange={(e) => setOnboardBio(e.target.value)}
-                      className="w-full text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-4 focus:outline-none focus:border-[#E0533C]"
+                      className="w-full text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-4 focus:outline-none focus:border-[#E0533C]"
                     />
                   </div>
 
@@ -1376,7 +1376,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                       <img 
                         src={onboardLogo || presetLogos[0]} 
                         alt="Logo Preview" 
-                        className="w-14 h-14 rounded-2xl object-cover border border-slate-200 dark:border-slate-700 shadow-xs shrink-0" 
+                        className="w-14 h-14 rounded-2xl object-cover shadow-xs shrink-0" 
                       />
                       <div className="flex-1 space-y-2">
                         <div className="flex items-center gap-2">
@@ -1447,7 +1447,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                         placeholder="e.g. Mpaka Rd, 2nd Floor / Gikomba Stall 4B"
                         value={onboardAddress}
                         onChange={(e) => setOnboardAddress(e.target.value)}
-                        className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3 font-medium focus:outline-none focus:border-[#E0533C]"
+                        className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl px-4 py-3 font-medium focus:outline-none focus:border-[#E0533C]"
                       />
                     </div>
                   </div>
@@ -1463,7 +1463,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                         placeholder="+254 700 000 000"
                         value={onboardPhone}
                         onChange={(e) => setOnboardPhone(e.target.value)}
-                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl px-3 py-2.5 focus:outline-none focus:border-[#E0533C]"
+                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl px-3 py-2.5 focus:outline-none focus:border-[#E0533C]"
                       />
                     </div>
                     <div>
@@ -1475,7 +1475,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                         placeholder="+254 700 000 000"
                         value={onboardWhatsapp}
                         onChange={(e) => setOnboardWhatsapp(e.target.value)}
-                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl px-3 py-2.5 focus:outline-none focus:border-[#E0533C]"
+                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl px-3 py-2.5 focus:outline-none focus:border-[#E0533C]"
                       />
                     </div>
                   </div>
@@ -1502,7 +1502,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
           {/* STEP 2: VERTICAL SELECTION */}
           {onboardingStep === 2 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-3 duration-200">
-              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
+              <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-6 shadow-sm">
                 <div className="flex items-center gap-2 text-[#E0533C] font-extrabold text-xs uppercase tracking-wider mb-2">
                   <Sparkles className="w-4 h-4" />
                   <span>Step 2: Choose Merchant Vertical</span>
@@ -1643,28 +1643,28 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   return (
     <div className="min-h-screen bg-[#FBFBF9] dark:bg-[#121113] text-slate-900 dark:text-slate-100 pb-28">
       {/* Top Merchant Workspace Banner */}
-      <div className="bg-white dark:bg-[#1C1A1E] border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30 shadow-xs">
-        <div className="max-w-lg mx-auto px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
+      <div className="bg-white dark:bg-[#1C1A1E] sticky top-0 z-40 shadow-sm">
+        <div className="max-w-lg mx-auto px-4 pt-4 pb-3.5 overflow-visible">
+          <div className="flex items-start justify-between gap-3">
             {/* Merchant Identity & Account Switcher */}
-            <div className="relative flex-1 min-w-0">
+            <div className="relative flex-1 min-w-0 z-10">
               <button 
                 onClick={() => setIsSwitcherOpen(!isSwitcherOpen)}
-                className="flex items-center gap-2.5 text-left group w-full truncate"
+                className="flex items-start gap-3 text-left group w-full"
               >
                 <img 
                   src={currentBiz.logo} 
                   alt={currentBiz.name} 
-                  className="w-10 h-10 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shrink-0" 
+                  className="relative z-10 w-12 h-12 rounded-2xl object-cover shadow-md bg-slate-100 dark:bg-slate-800 shrink-0" 
                 />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 truncate">
-                    <h2 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-[#E0533C] transition">
+                <div className="min-w-0 flex-1 pt-0.5">
+                  <div className="flex items-start gap-1.5">
+                    <h2 className="font-black text-[15px] leading-snug text-slate-900 dark:text-slate-100 break-words line-clamp-2 group-hover:text-[#E0533C] transition">
                       {currentBiz.name}
                     </h2>
-                    <span className="text-[10px] text-slate-400">▼</span>
+                    <span className="text-[10px] text-slate-400 mt-1 shrink-0">▼</span>
                   </div>
-                  <div className="flex items-center gap-1.5 mt-0.5">
+                  <div className="flex items-center gap-1.5 mt-1">
                     <BusinessBadge businessId={currentBiz.id} category={currentBiz.category} size="xs" />
                   </div>
                 </div>
@@ -1672,7 +1672,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
 
               {/* Business Switcher Dropdown */}
               {isSwitcherOpen && (
-                <div className="absolute top-full left-0 mt-2 w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div className="absolute top-full left-0 mt-2 w-72 max-w-[calc(100vw-2rem)] bg-white dark:bg-[#1C1A1E] rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
                   <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                     Your Merchant Accounts ({ownedBusinesses.length})
                   </div>
@@ -1692,7 +1692,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                         }`}
                       >
                         <div className="flex items-center gap-2 min-w-0">
-                          <img src={biz.logo} alt={biz.name} className="w-6 h-6 rounded-lg object-cover" />
+                          <img src={biz.logo} alt={biz.name} className="w-6 h-6 rounded-lg object-cover shrink-0" />
                           <span className="truncate">{biz.name}</span>
                         </div>
                         <BusinessBadge businessId={biz.id} category={biz.category} size="xs" />
@@ -1882,7 +1882,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
 })()}
             {/* Quick Metrics Bar */}
             <div className="grid grid-cols-3 gap-3">
-              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-center shadow-xs">
+              <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-2xl p-3 text-center shadow-xs">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Managed</span>
                 <span className="text-xl font-black text-slate-900 dark:text-slate-100 mt-0.5 block">
                   {currentBiz.category === 'hospitality' 
@@ -1894,7 +1894,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                 <span className="text-[10px] text-[#E0533C] font-semibold">Active Listings</span>
               </div>
 
-              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-center shadow-xs">
+              <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-2xl p-3 text-center shadow-xs">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Promotions</span>
                 <span className="text-xl font-black text-slate-900 dark:text-slate-100 mt-0.5 block">
                   {myOffers.length}
@@ -1902,7 +1902,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                 <span className="text-[10px] text-emerald-600 font-semibold">Live on Feed</span>
               </div>
 
-              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-center shadow-xs">
+              <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-2xl p-3 text-center shadow-xs">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Trust Score</span>
                 <div className="flex items-center justify-center gap-1 mt-0.5">
                   <ShieldCheck className="w-5 h-5 text-emerald-500" />
@@ -1922,7 +1922,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
             />
 
             {/* Operational Hub Action Cards */}
-            <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xs space-y-4">
+            <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-5 shadow-xs space-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Quick Operations</h3>
@@ -1998,7 +1998,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
             </div>
 
             {/* Running Offers Spotlight */}
-            <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xs space-y-3">
+            <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-5 shadow-xs space-y-3">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -2032,7 +2032,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                   {myOffers.map(offer => (
                     <div 
                       key={offer.id}
-                      className="p-3 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between gap-3"
+                      className="p-3 bg-slate-100 dark:bg-[#121113] rounded-2xl flex items-center justify-between gap-3"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         {offer.posterUrl && (
@@ -2126,7 +2126,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                     {myClaimedSpots.map(spot => (
                       <div 
                         key={spot.id}
-                        className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-xs space-y-3"
+                        className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-4 shadow-xs space-y-3"
                       >
                         <div className="flex items-start gap-3">
                           <img src={spot.img} alt={spot.title} className="w-16 h-16 rounded-2xl object-cover shrink-0" />
@@ -2241,7 +2241,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                     {myEvents.map(evt => (
                       <div 
                         key={evt.id}
-                        className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-xs space-y-3"
+                        className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-4 shadow-xs space-y-3"
                       >
                         <div className="flex items-start gap-3">
                           <img src={evt.img} alt={evt.title} className="w-16 h-16 rounded-2xl object-cover shrink-0" />
@@ -2372,7 +2372,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
               </div>
 
               {claimableCommunitySpots.length === 0 ? (
-                <div className="text-center py-8 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-6">
+                <div className="text-center py-8 bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-6">
                   <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
                   <p className="text-xs font-bold">No unclaimed spots matching "{claimSearchQuery}"</p>
                   <p className="text-[10px] text-slate-400 mt-0.5">All matching listings are already claimed or verified.</p>
@@ -2381,7 +2381,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                 claimableCommunitySpots.map(spot => (
                   <div 
                     key={spot.id}
-                    className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-xs flex items-center justify-between gap-3 hover:border-amber-400/50 transition"
+                    className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-4 shadow-xs flex items-center justify-between gap-3 hover:border-amber-400/50 transition"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <img src={spot.img} alt={spot.title} className="w-14 h-14 rounded-2xl object-cover shrink-0" />
@@ -2458,7 +2458,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                 {myOffers.map(offer => (
                   <div 
                     key={offer.id}
-                    className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-xs hover:border-slate-300 transition"
+                    className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl overflow-hidden shadow-xs hover:border-slate-300 transition"
                   >
                     {/* Offer Banner */}
                     <div className="relative h-36 w-full bg-slate-900">
@@ -2488,7 +2488,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                     <div className="p-4 space-y-3">
                       <p className="text-xs text-slate-600 dark:text-slate-300">{offer.description}</p>
                       
-                      <div className="flex items-center justify-between bg-[#FBFBF9] dark:bg-[#121113] p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center justify-between bg-[#FBFBF9] dark:bg-[#121113] p-2.5 rounded-xl">
                         <div className="flex items-center gap-2">
                           <Tag className="w-3.5 h-3.5 text-[#E0533C]" />
                           <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200">{offer.claimCode || 'RADADEAL'}</span>
@@ -2556,7 +2556,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsSpotFormOpen(false)}
-                  className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121113] transition cursor-pointer"
+                  className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 px-3 py-1.5 rounded-full shadow-sm bg-white dark:bg-[#121113] transition cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -2569,7 +2569,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
             <form onSubmit={handleSaveSpot} className="space-y-6">
               
               {/* 1. Basic Spot Identity & Primary Category Selection */}
-              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-5">
+              <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-5 sm:p-6 shadow-xs space-y-5">
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
                     Basic Spot Info & Category
@@ -2586,7 +2586,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                     value={spotTitle} 
                     onChange={(e) => setSpotTitle(e.target.value)} 
                     placeholder="e.g. Ink & Drink Lounge, Karura Forest Foresters, The Foundry"
-                    className="w-full text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C] font-semibold"
+                    className="w-full text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C] font-semibold"
                     required 
                   />
                 </div>
@@ -2665,7 +2665,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                     <select
                       value={spotSubcategory}
                       onChange={(e) => setSpotSubcategory(e.target.value)}
-                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 font-semibold focus:outline-none focus:border-[#E0533C]"
+                      className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 font-semibold focus:outline-none focus:border-[#E0533C]"
                     >
                       {(SUBCATEGORIES_BY_CATEGORY[spotPrimaryGroup] || []).map((subName) => (
                         <option key={subName} value={subName}>
@@ -2684,7 +2684,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                     <select 
                       value={spotPrice} 
                       onChange={(e) => setSpotPrice(e.target.value)}
-                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 font-semibold focus:outline-none focus:border-[#E0533C]"
+                      className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 font-semibold focus:outline-none focus:border-[#E0533C]"
                     >
                       <option value="KES">KES</option>
                       <option value="KES KES">KES KES</option>
@@ -2701,7 +2701,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                       value={spotOpeningHours} 
                       onChange={(e) => setSpotOpeningHours(e.target.value)} 
                       placeholder="e.g. 11:00 AM - Midnight"
-                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C]"
+                      className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C]"
                     />
                   </div>
                 </div>
@@ -2715,7 +2715,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                     value={spotDescription} 
                     onChange={(e) => setSpotDescription(e.target.value)} 
                     placeholder="Tell Nairobi explorers what makes your hangout, cocktails, ambiance, scenic views, or activities unique..."
-                    className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C]"
+                    className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C]"
                     required
                   />
                 </div>
@@ -2824,7 +2824,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                           }
                         }}
                         placeholder="e.g. Signature Dawa Honey Spritz, Smoked Mbuzi Ribs, Truffle Parmesan Fries..."
-                        className="text-xs flex-1 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 focus:outline-none focus:border-[#E0533C]"
+                        className="text-xs flex-1 bg-slate-100 dark:bg-[#121113] rounded-xl p-2.5 focus:outline-none focus:border-[#E0533C]"
                       />
                       <button
                         type="button"
@@ -2862,12 +2862,12 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                     </div>
 
                     {spotMenuUploadUrl ? (
-                      <div className="p-3.5 rounded-2xl bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+                      <div className="p-3.5 rounded-2xl bg-slate-100 dark:bg-[#121113] flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0">
                           <img 
                             src={spotMenuUploadUrl} 
                             alt="Uploaded Menu Preview" 
-                            className="w-14 h-14 rounded-xl object-cover shrink-0 border border-slate-200 dark:border-slate-700" 
+                            className="w-14 h-14 rounded-xl object-cover shrink-0" 
                           />
                           <div className="min-w-0">
                             <span className="text-xs font-bold block truncate text-slate-900 dark:text-slate-100">
@@ -2949,7 +2949,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                     {spotMenuItems.length > 0 && (
                       <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                         {spotMenuItems.map((item, idx) => (
-                          <div key={item.id || idx} className="p-3 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between text-xs">
+                          <div key={item.id || idx} className="p-3 bg-slate-100 dark:bg-[#121113] rounded-2xl flex items-center justify-between text-xs">
                             <div className="min-w-0 flex-1 pr-3">
                               <div className="flex items-center gap-2">
                                 <span className="font-extrabold text-slate-900 dark:text-slate-100 truncate">{item.name}</span>
@@ -2975,7 +2975,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                       </div>
                     )}
 
-                    <div className="bg-[#FBFBF9] dark:bg-[#121113] p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
+                    <div className="bg-[#FBFBF9] dark:bg-[#121113] p-4 rounded-2xl shadow-sm space-y-3">
                       <h4 className="text-xs font-black text-slate-800 dark:text-slate-200">
                         Add New Item to Digital Menu
                       </h4>
@@ -2985,19 +2985,19 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                           placeholder="Dish Name (e.g. Nyama Choma Platter)"
                           value={newMenuName}
                           onChange={(e) => setNewMenuName(e.target.value)}
-                          className="text-xs bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
+                          className="text-xs bg-white dark:bg-[#1C1A1E] shadow-sm rounded-xl p-3 focus:outline-none"
                         />
                         <input 
                           type="text"
                           placeholder="Price (e.g. KES 1,500)"
                           value={newMenuPrice}
                           onChange={(e) => setNewMenuPrice(e.target.value)}
-                          className="text-xs bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
+                          className="text-xs bg-white dark:bg-[#1C1A1E] shadow-sm rounded-xl p-3 focus:outline-none"
                         />
                         <select
                           value={newMenuCategory}
                           onChange={(e) => setNewMenuCategory(e.target.value)}
-                          className="text-xs bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
+                          className="text-xs bg-white dark:bg-[#1C1A1E] shadow-sm rounded-xl p-3 focus:outline-none"
                         >
                           <option value="Mains">Mains</option>
                           <option value="Starters">Starters & Tapas</option>
@@ -3011,7 +3011,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                         placeholder="Description (e.g. Slow-roasted prime goat served with kachumbari & ugali)"
                         value={newMenuDesc}
                         onChange={(e) => setNewMenuDesc(e.target.value)}
-                        className="w-full text-xs bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
+                        className="w-full text-xs bg-white dark:bg-[#1C1A1E] shadow-sm rounded-xl p-3 focus:outline-none"
                       />
                       <button 
                         type="button"
@@ -3101,7 +3101,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                           }
                         }}
                         placeholder="Add custom gear to carry (e.g. Walking stick, Bug spray, Binoculars)..."
-                        className="text-xs flex-1 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 focus:outline-none focus:border-emerald-500"
+                        className="text-xs flex-1 bg-slate-100 dark:bg-[#121113] rounded-xl p-2.5 focus:outline-none focus:border-emerald-500"
                       />
                       <button
                         type="button"
@@ -3129,7 +3129,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                         value={spotEquipmentProvided}
                         onChange={(e) => setSpotEquipmentProvided(e.target.value)}
                         placeholder="e.g. 5km & 10km marked forest loops • Scenic river valley"
-                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none focus:border-emerald-500"
+                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-emerald-500"
                       />
                     </div>
 
@@ -3140,7 +3140,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                       <select
                         value={spotSkillLevel}
                         onChange={(e) => setSpotSkillLevel(e.target.value)}
-                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none focus:border-emerald-500 font-semibold"
+                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-emerald-500 font-semibold"
                       >
                         <option value="All Levels Welcome">All Levels Welcome (Leisurely)</option>
                         <option value="Beginner Friendly">Beginner Friendly (Flat ground)</option>
@@ -3186,7 +3186,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                         value={spotEquipmentProvided}
                         onChange={(e) => setSpotEquipmentProvided(e.target.value)}
                         placeholder="e.g. Canvases, acrylic paints, pottery wheels, sculpting clay, brushes, and protective aprons provided on-site..."
-                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none focus:border-pink-500"
+                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-pink-500"
                       />
                     </div>
 
@@ -3199,7 +3199,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                         value={spotEquipmentNeeded}
                         onChange={(e) => setSpotEquipmentNeeded(e.target.value)}
                         placeholder="e.g. Wear comfortable clothes you don't mind getting paint or clay on; bring flash drive for digital studio files..."
-                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none focus:border-pink-500"
+                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-pink-500"
                       />
                     </div>
                   </div>
@@ -3213,7 +3213,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                       value={spotActivitySchedule}
                       onChange={(e) => setSpotActivitySchedule(e.target.value)}
                       placeholder="e.g. 2-hour guided painting sessions • Sat & Sun at 11:00 AM & 3:00 PM • Advance booking required"
-                      className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none focus:border-pink-500 font-semibold"
+                      className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-pink-500 font-semibold"
                     />
                   </div>
                 </div>
@@ -3254,7 +3254,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                         value={spotPricePerHour}
                         onChange={(e) => setSpotPricePerHour(e.target.value)}
                         placeholder="e.g. KES 500 / hr or KES 1,200 for 2-hour VR pass"
-                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none focus:border-indigo-500 font-semibold"
+                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-indigo-500 font-semibold"
                       />
                     </div>
 
@@ -3267,7 +3267,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                         value={spotTimeSlots}
                         onChange={(e) => setSpotTimeSlots(e.target.value)}
                         placeholder="e.g. 60-min standard slots • Walk-in or online reservation"
-                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none focus:border-indigo-500 font-semibold"
+                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-indigo-500 font-semibold"
                       />
                     </div>
                   </div>
@@ -3283,7 +3283,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                         value={spotGameConsoles}
                         onChange={(e) => setSpotGameConsoles(e.target.value)}
                         placeholder="e.g. PlayStation 5, Xbox Series X, High-End RTX 4080 Gaming PCs, Meta Quest 3 VR, Logitech Racing Cockpits..."
-                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none focus:border-indigo-500"
+                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-indigo-500"
                       />
                     </div>
 
@@ -3296,7 +3296,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                         value={spotAvailableGames}
                         onChange={(e) => setSpotAvailableGames(e.target.value)}
                         placeholder="e.g. EA FC 25, Call of Duty, Tekken 8, Mortal Kombat 1, Gran Turismo 7, VR Beat Saber, Catan, Pool / Billiards..."
-                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none focus:border-indigo-500"
+                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-indigo-500"
                       />
                     </div>
                   </div>
@@ -3337,7 +3337,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                         value={spotEquipmentProvided}
                         onChange={(e) => setSpotEquipmentProvided(e.target.value)}
                         placeholder="e.g. Safety helmets, climbing harnesses, tennis rackets, boxing gloves, life jackets provided at no extra cost..."
-                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none focus:border-blue-500"
+                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-blue-500"
                       />
                     </div>
 
@@ -3350,7 +3350,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                         value={spotEquipmentNeeded}
                         onChange={(e) => setSpotEquipmentNeeded(e.target.value)}
                         placeholder="e.g. Bring own training sneakers, workout apparel, gym towel, reusable hydration bottle..."
-                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none focus:border-blue-500"
+                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-blue-500"
                       />
                     </div>
                   </div>
@@ -3362,7 +3362,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                     <select
                       value={spotSkillLevel}
                       onChange={(e) => setSpotSkillLevel(e.target.value)}
-                      className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none focus:border-blue-500 font-semibold"
+                      className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-blue-500 font-semibold"
                     >
                       <option value="All Levels Welcome">All Levels Welcome (Inclusive & Beginner Friendly)</option>
                       <option value="Intermediate">Intermediate Training</option>
@@ -3443,7 +3443,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                       value={spotBookingOptions}
                       onChange={(e) => setSpotBookingOptions(e.target.value)}
                       placeholder="e.g. Candlelit booth reservation required for weekends • Walk-ins welcome at bar • Minimum spend KES 3,000 per couple"
-                      className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none focus:border-rose-500"
+                      className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-rose-500"
                     />
                   </div>
                 </div>
@@ -3483,7 +3483,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                         value={spotNightlifeOptions}
                         onChange={(e) => setSpotNightlifeOptions(e.target.value)}
                         placeholder="e.g. Afrobeats, Amapiano & Hip-Hop • Resident DJs from 10:00 PM • Dress Code: Smart Casual • Age: 21+ only"
-                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none focus:border-purple-500"
+                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-purple-500"
                       />
                     </div>
 
@@ -3496,7 +3496,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                         value={spotBottleServiceOptions}
                         onChange={(e) => setSpotBottleServiceOptions(e.target.value)}
                         placeholder="e.g. VIP Booth reservations with Moët champagne packages from KES 15,000 • Dedicated bottle host & sparklers"
-                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none focus:border-purple-500"
+                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-purple-500"
                       />
                     </div>
                   </div>
@@ -3537,7 +3537,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                       value={spotCoffeePastryMenu}
                       onChange={(e) => setSpotCoffeePastryMenu(e.target.value)}
                       placeholder="e.g. Single-origin Kenyan AA espresso, pour-over V60, almond croissants, artisanal sourdough toast..."
-                      className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none focus:border-amber-500"
+                      className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-amber-500"
                     />
                   </div>
 
@@ -3614,7 +3614,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                       value={spotRoomTypes}
                       onChange={(e) => setSpotRoomTypes(e.target.value)}
                       placeholder="e.g. Deluxe King City View, Executive Penthouse Suite with Terrace, 2-Bedroom Family Garden Villa..."
-                      className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none focus:border-yellow-500"
+                      className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-yellow-500"
                     />
                   </div>
 
@@ -3691,7 +3691,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                         value={spotWeekendGetaways}
                         onChange={(e) => setSpotWeekendGetaways(e.target.value)}
                         placeholder="e.g. Lakefront cabins in Naivasha, Mount Kenya glamping domes, private Diani beachfront villa..."
-                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none focus:border-teal-500"
+                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-teal-500"
                       />
                     </div>
 
@@ -3704,7 +3704,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                         value={spotDayPassDetails}
                         onChange={(e) => setSpotDayPassDetails(e.target.value)}
                         placeholder="e.g. Day Pass KES 2,500 includes pool access & lunch voucher • Overnight booking requires 50% deposit • Free cancellation up to 48 hrs"
-                        className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none focus:border-teal-500"
+                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-teal-500"
                       />
                     </div>
                   </div>
@@ -3714,7 +3714,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
               {/* =========================================================================
                   GENERAL / DEFAULT SECTION: LOCATION, TRANSIT & SOCIAL LINKS
                   ========================================================================= */}
-              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+              <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
                     Location, Transit Directions & Social Links
@@ -3745,7 +3745,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                       value={spotExactLocationTag} 
                       onChange={(e) => setSpotExactLocationTag(e.target.value)} 
                       placeholder="e.g. Mpaka Road, Westlands, Opposite PrideInn Hotel"
-                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C]"
+                      className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C]"
                     />
                   </div>
 
@@ -3758,7 +3758,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                       value={spotLandmark} 
                       onChange={(e) => setSpotLandmark(e.target.value)} 
                       placeholder="e.g. Westlands Stage / Sarit Roundabout"
-                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C]"
+                      className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C]"
                     />
                   </div>
                 </div>
@@ -3775,7 +3775,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                       value={spotPhone} 
                       onChange={(e) => setSpotPhone(e.target.value)} 
                       placeholder="e.g. +254 722 123 456"
-                      className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none"
+                      className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none"
                     />
                   </div>
 
@@ -3789,7 +3789,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                       value={spotWebsite} 
                       onChange={(e) => setSpotWebsite(e.target.value)} 
                       placeholder="e.g. https://yourspot.co.ke"
-                      className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none"
+                      className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none"
                     />
                   </div>
 
@@ -3803,14 +3803,14 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                       value={spotInstagram} 
                       onChange={(e) => setSpotInstagram(e.target.value)} 
                       placeholder="e.g. @yourspotnairobi"
-                      className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 focus:outline-none"
+                      className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none"
                     />
                   </div>
                 </div>
               </div>
 
               {/* NATIVE FILE UPLOADS: COVER IMAGE & GALLERY PHOTOS */}
-              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-6">
+              <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-5 sm:p-6 shadow-xs space-y-6">
                 <div>
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
                     Spot Media & Visuals
@@ -3942,7 +3942,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                       {spotGalleryImgs.map((imgUrl, idx) => (
                         <div 
                           key={idx} 
-                          className="relative group rounded-2xl overflow-hidden aspect-square border border-slate-200 dark:border-slate-800 bg-slate-900 shadow-xs"
+                          className="relative group rounded-2xl overflow-hidden aspect-square shadow-sm bg-slate-900 shadow-xs"
                         >
                           <img 
                             src={imgUrl} 
@@ -4123,7 +4123,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
             <form onSubmit={handleSaveEvent} className="space-y-6">
               
               {/* Event Core Identity Card */}
-              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+              <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                     <CalendarDays className="w-3.5 h-3.5 text-purple-600" />
@@ -4143,7 +4143,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                     value={eventTitle} 
                     onChange={(e) => setEventTitle(e.target.value)} 
                     placeholder="e.g. Sunset Amapiano Jam Vol. 4 • Nairobi Edition"
-                    className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-purple-600"
+                    className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none focus:border-purple-600"
                     required
                   />
                 </div>
@@ -4156,7 +4156,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                     <select 
                       value={eventCategory} 
                       onChange={(e) => setEventCategory(e.target.value as any)}
-                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none"
+                      className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none"
                     >
                       <option value="concerts">Concerts & Live Festivals</option>
                       <option value="nightlife">Nightlife Club Rave</option>
@@ -4174,7 +4174,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                       value={eventGenre}
                       onChange={(e) => setEventGenre(e.target.value)}
                       placeholder="e.g. Amapiano & Afro-Tech / Hip-Hop"
-                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none"
+                      className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -4188,13 +4188,13 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                     onChange={(e) => setEventDescription(e.target.value)}
                     rows={3}
                     placeholder="Describe the sound system, headliners, outdoor stages, food vendors, and party atmosphere..."
-                    className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none"
+                    className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none"
                   />
                 </div>
               </div>
 
               {/* Schedule: Date & Time Card */}
-              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+              <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                     <Clock className="w-3.5 h-3.5 text-purple-600" />
@@ -4212,7 +4212,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                       value={eventDate} 
                       onChange={(e) => setEventDate(e.target.value)} 
                       placeholder="e.g. Sat, 28 Nov 2026"
-                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none"
+                      className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none"
                       required
                     />
                   </div>
@@ -4226,7 +4226,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                       value={eventTime} 
                       onChange={(e) => setEventTime(e.target.value)} 
                       placeholder="e.g. 07:00 PM - 04:00 AM"
-                      className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none"
+                      className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none"
                       required
                     />
                   </div>
@@ -4234,7 +4234,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
               </div>
 
               {/* Venue Location & Dynamic Auto-Search Card */}
-              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+              <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5 text-purple-600" />
@@ -4260,7 +4260,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                     value={eventExactLocationTag} 
                     onChange={(e) => setEventExactLocationTag(e.target.value)} 
                     placeholder="e.g. The Courtyard Main Stage, Gate 2, Village Market"
-                    className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-purple-600"
+                    className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none focus:border-purple-600"
                   />
                   <p className="text-[10px] text-slate-400 mt-1">
                     Helps partygoers navigate bus drops, Uber drop-offs, and venue security gates.
@@ -4269,7 +4269,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
               </div>
 
               {/* NATIVE FILE UPLOADS: EVENT POSTER & MULTI-IMAGE GALLERY */}
-              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-5">
+              <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-5 sm:p-6 shadow-xs space-y-5">
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                   <div>
                     <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
@@ -4294,7 +4294,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                   </div>
 
                   {eventImg ? (
-                    <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-900 group">
+                    <div className="relative rounded-2xl overflow-hidden shadow-sm bg-slate-900 group">
                       <div className="h-64 sm:h-72 w-full relative">
                         <img 
                           src={eventImg} 
@@ -4406,7 +4406,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                       {eventGalleryImgs.map((imgUrl, idx) => (
                         <div 
                           key={idx} 
-                          className="relative group rounded-2xl overflow-hidden aspect-square border border-slate-200 dark:border-slate-800 bg-slate-900 shadow-xs"
+                          className="relative group rounded-2xl overflow-hidden aspect-square shadow-sm bg-slate-900 shadow-xs"
                         >
                           <img 
                             src={imgUrl} 
@@ -4510,7 +4510,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
               </div>
 
               {/* Ticketing Portal & Multi-Tier Passes */}
-              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+              <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                     <Ticket className="w-3.5 h-3.5 text-purple-600" />
@@ -4527,7 +4527,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                     value={eventUrl} 
                     onChange={(e) => setEventUrl(e.target.value)} 
                     placeholder="e.g. https://hustlesasa.com/your-event OR https://kenyabuzz.com/events"
-                    className="w-full text-xs sm:text-sm bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 focus:outline-none focus:border-purple-600"
+                    className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none focus:border-purple-600"
                     required
                   />
                   <p className="text-[10px] text-slate-400 mt-1">
@@ -4542,7 +4542,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                   </label>
                   <div className="space-y-2">
                     {eventTiers.map((tier, idx) => (
-                      <div key={idx} className="p-3 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between text-xs">
+                      <div key={idx} className="p-3 bg-slate-100 dark:bg-[#121113] rounded-2xl flex items-center justify-between text-xs">
                         <div>
                           <span className="font-extrabold text-slate-900 dark:text-slate-100">{tier.name}</span>
                           <span className="text-[11px] text-purple-600 font-black ml-2">{tier.price}</span>
@@ -4560,7 +4560,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                   </div>
 
                   {/* Add Tier Mini-Form */}
-                  <div className="p-3 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2">
+                  <div className="p-3 bg-slate-100 dark:bg-[#121113] rounded-2xl space-y-2">
                     <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block">Add Pass Tier</span>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <input 
@@ -4568,21 +4568,21 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                         placeholder="Tier (e.g. VIP Pass)"
                         value={newTierName}
                         onChange={(e) => setNewTierName(e.target.value)}
-                        className="text-xs bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 focus:outline-none"
+                        className="text-xs bg-white dark:bg-[#1C1A1E] shadow-sm rounded-xl p-2.5 focus:outline-none"
                       />
                       <input 
                         type="text"
                         placeholder="Price (e.g. KES 3,500)"
                         value={newTierPrice}
                         onChange={(e) => setNewTierPrice(e.target.value)}
-                        className="text-xs bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 focus:outline-none"
+                        className="text-xs bg-white dark:bg-[#1C1A1E] shadow-sm rounded-xl p-2.5 focus:outline-none"
                       />
                       <input 
                         type="text"
                         placeholder="Perks (e.g. Welcome cocktail)"
                         value={newTierPerks}
                         onChange={(e) => setNewTierPerks(e.target.value)}
-                        className="text-xs bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 focus:outline-none"
+                        className="text-xs bg-white dark:bg-[#1C1A1E] shadow-sm rounded-xl p-2.5 focus:outline-none"
                       />
                     </div>
                     <button
@@ -4606,7 +4606,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
               </div>
 
               {/* Headliner Lineup Card */}
-              <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+              <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                     <Users className="w-3.5 h-3.5 text-purple-600" />
@@ -4616,7 +4616,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
 
                 <div className="flex gap-2 overflow-x-auto py-1">
                   {eventArtists.map((a, idx) => (
-                    <div key={idx} className="bg-[#FBFBF9] dark:bg-[#121113] p-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shrink-0 flex items-center gap-2.5">
+                    <div key={idx} className="bg-[#FBFBF9] dark:bg-[#121113] p-2.5 rounded-2xl shadow-sm shrink-0 flex items-center gap-2.5">
                       <img src={a.img} alt={a.name} className="w-9 h-9 rounded-xl object-cover" />
                       <div>
                         <span className="font-extrabold text-xs block">{a.name}</span>
@@ -4639,14 +4639,14 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                     value={newArtistName}
                     onChange={(e) => setNewArtistName(e.target.value)}
                     placeholder="Artist / Headliner DJ Name" 
-                    className="flex-1 p-3 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none"
+                    className="flex-1 p-3 bg-slate-100 dark:bg-[#121113] rounded-xl text-xs focus:outline-none"
                   />
                   <input 
                     type="text" 
                     value={newArtistRole}
                     onChange={(e) => setNewArtistRole(e.target.value)}
                     placeholder="Role (e.g. Special Guest DJ)" 
-                    className="sm:w-48 p-3 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none"
+                    className="sm:w-48 p-3 bg-slate-100 dark:bg-[#121113] rounded-xl text-xs focus:outline-none"
                   />
                   <button 
                     type="button" 
@@ -4696,7 +4696,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
           ========================================================================= */}
       {isOfferFormOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-[#1C1A1E] w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 animate-in slide-in-from-bottom duration-200">
+          <div className="bg-white dark:bg-[#1C1A1E] w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[90vh] flex flex-col shadow-2xl shadow-sm animate-in slide-in-from-bottom duration-200">
             <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <div>
                 <h3 className="font-black text-base">
@@ -4717,7 +4717,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                   value={offerTitle} 
                   onChange={(e) => setOfferTitle(e.target.value)} 
                   placeholder="e.g. Happy Hour 2-for-1 Cocktails, 20% Off Gate Pass"
-                  className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none focus:border-[#E0533C]"
+                  className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-[#E0533C]"
                   required
                 />
               </div>
@@ -4728,7 +4728,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                   <select 
                     value={offerCategory} 
                     onChange={(e) => setOfferCategory(e.target.value as OfferCategory)}
-                    className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
+                    className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none"
                   >
                     <option value="Drinks">Drinks</option>
                     <option value="Food">Food</option>
@@ -4745,7 +4745,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                     value={offerDiscount} 
                     onChange={(e) => setOfferDiscount(e.target.value)} 
                     placeholder="e.g. BUY 1 GET 1, 20% OFF, KES 500 OFF"
-                    className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none"
+                    className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none"
                   />
                 </div>
               </div>
@@ -4757,7 +4757,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                   value={offerDesc} 
                   onChange={(e) => setOfferDesc(e.target.value)} 
                   placeholder="Describe what customers get and how to redeem it..."
-                  className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-3 focus:outline-none focus:border-[#E0533C]"
+                  className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-[#E0533C]"
                 />
               </div>
 
@@ -4766,7 +4766,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                   Promotional Poster Image *
                 </label>
                 {offerPosterUrl ? (
-                  <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 group h-36 bg-slate-900">
+                  <div className="relative rounded-2xl overflow-hidden shadow-sm group h-36 bg-slate-900">
                     <img 
                       src={offerPosterUrl} 
                       alt="Offer Poster Preview" 
@@ -4832,7 +4832,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                     value={offerValidUntil} 
                     onChange={(e) => setOfferValidUntil(e.target.value)} 
                     placeholder="e.g. Every Friday 5PM-8PM"
-                    className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 focus:outline-none"
+                    className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-2.5 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -4842,7 +4842,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                     value={offerClaimCode} 
                     onChange={(e) => setOfferClaimCode(e.target.value)} 
                     placeholder="e.g. RADA-HAPPY"
-                    className="w-full text-xs bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 focus:outline-none"
+                    className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-2.5 focus:outline-none"
                   />
                 </div>
               </div>

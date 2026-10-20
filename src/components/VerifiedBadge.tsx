@@ -1,32 +1,78 @@
 import React from 'react';
-import { BadgeCheck, Clock } from 'lucide-react';
-import { ProfessionalStatus } from '../utils/professionalAccount';
+
+/**
+ * RADA verified host badge: a brand-orange shield with a spark star.
+ * Replaces the generic blue/green checkmark everywhere a host is verified.
+ *
+ * status: only 'approved' (or 'verified') renders. Anything else renders nothing, so existing
+ * call sites like <VerifiedBadge status={isPro ? 'approved' : 'none'} /> keep working.
+ */
+export type VerifiedBadgeStatus = 'approved' | 'verified' | 'pending' | 'none' | 'rejected' | string | undefined | null;
 
 interface VerifiedBadgeProps {
-  status: ProfessionalStatus;
-  size?: 'xs' | 'sm' | 'md';
+  status?: VerifiedBadgeStatus;
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   showLabel?: boolean;
+  label?: string;
+  className?: string;
 }
 
-const SIZES = { xs: 'w-3.5 h-3.5', sm: 'w-4 h-4', md: 'w-5 h-5' } as const;
+const PX: Record<NonNullable<VerifiedBadgeProps['size']>, number> = { xs: 14, sm: 16, md: 20, lg: 30 };
 
-/** Blue check = approved professional account. Amber clock = application under review. */
-export const VerifiedBadge: React.FC<VerifiedBadgeProps> = ({ status, size = 'sm', showLabel = false }) => {
-  if (status === 'approved') {
-    return (
-      <span className="inline-flex items-center gap-1 shrink-0" title="Verified professional account">
-        <BadgeCheck className={`${SIZES[size]} text-white fill-[#1D9BF0]`} aria-label="Verified" />
-        {showLabel && <span className="text-[10px] font-black text-[#1D9BF0]">Verified</span>}
-      </span>
-    );
+// 5-point star centred in the shield
+const STAR = (() => {
+  const cx = 12, cy = 11.4, outer = 5.4, inner = 2.3;
+  const pts: string[] = [];
+  for (let i = 0; i < 10; i++) {
+    const r = i % 2 === 0 ? outer : inner;
+    const a = (-90 + i * 36) * (Math.PI / 180);
+    pts.push(`${(cx + r * Math.cos(a)).toFixed(2)},${(cy + r * Math.sin(a)).toFixed(2)}`);
   }
-  if (status === 'pending') {
-    return (
-      <span className="inline-flex items-center gap-1 shrink-0" title="Professional account under review">
-        <Clock className={`${SIZES[size]} text-amber-500`} aria-label="Under review" />
-        {showLabel && <span className="text-[10px] font-black text-amber-600 dark:text-amber-400">Under review</span>}
-      </span>
-    );
-  }
-  return null;
+  return pts.join(' ');
+})();
+
+export const VerifiedBadge: React.FC<VerifiedBadgeProps> = ({
+  status = 'approved',
+  size = 'sm',
+  showLabel = false,
+  label = 'Verified host',
+  className = '',
+}) => {
+  if (status !== 'approved' && status !== 'verified') return null;
+  const px = PX[size] ?? PX.sm;
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 shrink-0 align-middle ${className}`}
+      title="Verified RADA host"
+    >
+      <svg
+        width={px}
+        height={px}
+        viewBox="0 0 24 24"
+        role="img"
+        aria-label="Verified RADA host"
+        className="shrink-0 drop-shadow-sm"
+      >
+        {/* shield */}
+        <path
+          d="M12 1.6 20.6 4.7v6.6c0 5.2-3.6 9.2-8.6 11.3-5-2.1-8.6-6.1-8.6-11.3V4.7L12 1.6Z"
+          fill="#E0533C"
+        />
+        {/* soft light half for depth */}
+        <path
+          d="M12 1.6 3.4 4.7v6.6c0 5.2 3.6 9.2 8.6 11.3V1.6Z"
+          fill="#FFFFFF"
+          opacity="0.14"
+        />
+        {/* amber rim accent along the top edge */}
+        <path d="M12 1.6 20.6 4.7v1.4L12 3 3.4 6.1V4.7L12 1.6Z" fill="#F4A261" />
+        {/* star */}
+        <polygon points={STAR} fill="#FFF7E8" />
+      </svg>
+      {showLabel && <span className="text-[11px] font-black text-[#E0533C]">{label}</span>}
+    </span>
+  );
 };
+
+export default VerifiedBadge;

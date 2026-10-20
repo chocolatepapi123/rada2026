@@ -10,17 +10,13 @@ import {
   Lock,
   Bookmark,
   ChevronRight,
-  KeyRound,
-  Loader2,
+  UserCog,
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { VerifiedBadge } from './VerifiedBadge';
 import { toHandle } from '../lib/cloudSync';
 import {
   AvatarHero,
-  IdentityFields,
-  ProfessionalHub,
-  ProfessionalSwitchCard,
   Section,
   useOwnProfile,
 } from './ProfileSettingsKit';
@@ -123,15 +119,15 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const handle = toHandle(user.handle);
   const isSingle = user.relationshipStatus === 'single';
 
-  // ===================== YOUR PROFILE =====================
+  // ===================== YOUR PROFILE (read-only preview; all editing lives in Account & Security) =====================
   if (isOwnProfile) {
     return (
       <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
         <div
-          className="bg-[#F8F8F6] dark:bg-[#121113] text-slate-900 dark:text-slate-100 sm:rounded-3xl max-w-md w-full h-full sm:h-auto overflow-hidden shadow-2xl border-0 sm:border border-slate-200 dark:border-slate-800 flex flex-col sm:max-h-[92vh]"
+          className="bg-[#F8F8F6] dark:bg-[#121113] text-slate-900 dark:text-slate-100 sm:rounded-3xl max-w-md w-full h-full sm:h-auto overflow-hidden shadow-2xl flex flex-col sm:max-h-[92vh]"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="px-3 py-3 bg-white dark:bg-[#1C1A1E] border-b border-slate-200 dark:border-slate-800 flex items-center gap-2">
+          <div className="px-3 py-3 bg-white dark:bg-[#1C1A1E] shadow-sm flex items-center gap-2">
             <span className="w-9" />
             <h3 className="flex-1 text-center text-[15px] font-black tracking-tight">Your profile</h3>
             <button
@@ -146,6 +142,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           <div className="flex-1 overflow-y-auto pb-6">
             <AvatarHero
               p={own}
+              editable={false}
               subtitle={
                 <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
                   <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
@@ -166,47 +163,19 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               }
             />
 
-            <Section title="Identity & bio" description="Your public @username and your private display name.">
-              <IdentityFields p={own} />
+            <Section title="About">
+              <p className="p-4 text-[13px] leading-relaxed text-slate-700 dark:text-slate-200">
+                {user.bio || 'No bio yet. Add one in Account & Security.'}
+              </p>
             </Section>
 
-            <Section
-              title="Professional & creator suite"
-              description="Host outings with a verified badge and see how they perform."
-            >
-              <ProfessionalSwitchCard p={own} />
-              {own.isPro && <ProfessionalHub p={own} />}
-            </Section>
-
-            <Section title="Relationship status" description="Controls who can send you hangout and match requests.">
-              <div className="p-4 flex items-center gap-3">
-                <span
-                  className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
-                    isSingle ? 'bg-emerald-500/10 text-emerald-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                  }`}
-                >
-                  {isSingle ? <CheckCircle2 className="w-5 h-5" /> : <Shield className="w-5 h-5" />}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold">{isSingle ? 'Single' : 'Not single'}</p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    {isSingle
-                      ? user.isLivenessVerified
-                        ? 'Liveness verified. People can send you match requests.'
-                        : 'People can send you match requests.'
-                      : 'Matching requests are turned off for your profile.'}
-                  </p>
-                </div>
-              </div>
-            </Section>
-
-            <Section title="Security & account">
+            <Section title="Manage">
               <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
                 {onOpenAccountSettings && (
                   <NavRow
-                    icon={<KeyRound className="w-4 h-4" />}
-                    title="Account & security"
-                    subtitle="Email, password and sign-in method"
+                    icon={<UserCog className="w-4 h-4" />}
+                    title="Edit profile"
+                    subtitle="Username, display name, bio, relationship status"
                     onClick={() => {
                       onClose();
                       onOpenAccountSettings();
@@ -226,19 +195,29 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 )}
               </div>
             </Section>
+
+            {own.isPro && (
+              <p className="mx-4 mt-4 text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                <VerifiedBadge status="approved" size="sm" />
+                <span>Professional account. Open the ••• menu in Account & Security for your host dashboard.</span>
+              </p>
+            )}
           </div>
 
-          {/* Save bar */}
-          <div className="px-3 py-3 bg-white dark:bg-[#1C1A1E] border-t border-slate-200 dark:border-slate-800">
-            <button
-              type="button"
-              onClick={own.save}
-              disabled={!own.dirty || own.saving}
-              className="w-full py-3 bg-[#E0533C] hover:bg-orange-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black rounded-xl text-[13px] transition flex items-center justify-center gap-2 cursor-pointer"
-            >
-              {own.saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Save changes</span>}
-            </button>
-          </div>
+          {onOpenAccountSettings && (
+            <div className="px-3 py-3 bg-white dark:bg-[#1C1A1E] shadow-[0_-1px_6px_rgba(0,0,0,0.06)]">
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenAccountSettings();
+                }}
+                className="w-full py-3 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-[13px] transition cursor-pointer"
+              >
+                Edit profile
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -280,7 +259,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
       <div
-        className="bg-white dark:bg-[#1C1A1E] text-slate-900 dark:text-slate-100 rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[92vh]"
+        className="bg-white dark:bg-[#1C1A1E] text-slate-900 dark:text-slate-100 rounded-3xl max-w-md w-full overflow-hidden shadow-2xl flex flex-col max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Full uncropped photo with ambient fill */}
@@ -334,9 +313,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           </p>
 
           {isVerifiedPro && (
-            <div className="p-3 rounded-2xl bg-[#1D9BF0]/10 border border-[#1D9BF0]/20 flex items-center justify-between gap-3">
+            <div className="p-3 rounded-2xl bg-[#E0533C]/10 flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[12px] font-black text-[#1D9BF0]">Verified host</p>
+                <p className="text-[12px] font-black text-[#E0533C]">Verified host</p>
                 {proCategory && <p className="text-xs font-bold truncate">{proCategory}</p>}
               </div>
               {proWebsite && (
@@ -344,7 +323,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   href={proWebsite.startsWith('http') ? proWebsite : `https://${proWebsite}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-[11px] font-black text-[#1D9BF0] shrink-0"
+                  className="text-[11px] font-black text-[#E0533C] shrink-0"
                 >
                   Website
                 </a>
@@ -352,7 +331,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </div>
           )}
 
-          <div className="p-3.5 bg-[#F8F8F6] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl space-y-1">
+          <div className="p-3.5 bg-[#F8F8F6] dark:bg-[#121113] rounded-2xl space-y-1">
             <h4 className="text-[12px] font-black text-slate-500">Bio & vibe</h4>
             <p className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed">
               {user.bio || 'Exploring Kenyan hangouts, good music, food, and culture.'}
@@ -366,7 +345,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 {user.vibes.map((v, idx) => (
                   <span
                     key={idx}
-                    className="text-[11px] font-bold px-3 py-1 rounded-xl bg-[#F8F8F6] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300"
+                    className="text-[11px] font-bold px-3 py-1 rounded-xl bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300"
                   >
                     #{v}
                   </span>
@@ -375,7 +354,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </div>
           )}
 
-          <div className="p-3 rounded-2xl text-[11px] bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400">
+          <div className="p-3 rounded-2xl text-[11px] bg-slate-50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400">
             {isMutualMatch ? (
               <p className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-semibold">
                 <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
@@ -421,7 +400,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 <button
                   type="button"
                   onClick={handleMessageClick}
-                  className="py-3 px-3.5 bg-[#F8F8F6] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 hover:border-slate-300 text-slate-600 dark:text-slate-300 font-bold rounded-2xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="py-3 px-3.5 bg-[#F8F8F6] dark:bg-[#121113] text-slate-600 dark:text-slate-300 font-bold rounded-2xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
                   title="Direct message"
                 >
                   <Lock className="w-3.5 h-3.5 text-slate-400" />

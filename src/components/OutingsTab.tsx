@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Users, 
   Calendar, 
@@ -24,10 +24,14 @@ import {
   ChevronDown,
   RotateCcw,
   UserCheck,
-  MessageSquare
+  MessageSquare,
+  ImagePlus,
+  Loader2
 } from 'lucide-react';
 import { OutingPlan, OutingAttendee, SpotItem, UserProfile } from '../types.ts';
 import { shareContent } from '../utils/shareUtils.ts';
+import { uploadCoverImage } from '../lib/cloudSync.ts';
+import { VerifiedBadge } from './VerifiedBadge.tsx';
 
 export const NAIROBI_KEY_LOCATIONS = [
   'All Locations',
@@ -393,6 +397,26 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   const [customSpotAddress, setCustomSpotAddress] = useState('');
   const [customSpotCategory, setCustomSpotCategory] = useState('restaurants_dining');
   const [customSpotImage, setCustomSpotImage] = useState('');
+  const [coverUploading, setCoverUploading] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+
+  // Direct cover upload: picks a photo, uploads to Supabase Storage, stores the public URL
+  const handleCoverPicked = async (file: File) => {
+    if (!isUserSignedIn || !currentUserId) {
+      showToast('Please sign in to upload a cover image');
+      onOpenAuth();
+      return;
+    }
+    setCoverUploading(true);
+    const res = await uploadCoverImage(currentUserId, file);
+    setCoverUploading(false);
+    if (res.error || !res.url) {
+      showToast(res.error || 'Could not upload cover image');
+      return;
+    }
+    setCustomSpotImage(res.url);
+    showToast('Cover image uploaded');
+  };
 
   const [planDate, setPlanDate] = useState('2026-10-24');
   const [planTime, setPlanTime] = useState('18:00');
@@ -579,6 +603,11 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       return;
     }
 
+    if (coverUploading) {
+      showToast('Cover image is still uploading, one moment...');
+      return;
+    }
+
     const isCustom = venueMode === 'custom';
 
     if (isCustom) {
@@ -613,7 +642,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
         hostName: currentUserProfile.name || 'Wayne Waweru',
         hostAvatar: currentUserProfile.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop',
         hostHandle: currentUserProfile.handle || '@host',
-        isHostVerified: currentUserProfile.isLivenessVerified ?? true,
+        isHostVerified: currentUserProfile.is_creator === true,
         spotId: isCustom ? undefined : selectedSpot.id,
         spotTitle,
         spotAddress,
@@ -888,11 +917,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                         <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">
                           {plan.hostName}
                         </span>
-                        {plan.isHostVerified && (
-                          <span title="Verified Host">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 fill-emerald-100 dark:fill-emerald-950 shrink-0" />
-                          </span>
-                        )}
+                        <VerifiedBadge status={plan.isHostVerified ? 'approved' : 'none'} size="sm" />
                         <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] uppercase tracking-wider shrink-0 ml-1">
                           Host
                         </span>
@@ -1325,19 +1350,71 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                       </select>
                     </div>
 
-                    {/* Optional Image URL */}
+                    {/* Cover photo upload */}
                     <div className="space-y-1">
                       <label className="text-[11px] font-extrabold text-slate-800 dark:text-slate-200 flex items-center justify-between">
-                        <span>Cover Photo URL (optional)</span>
+                        <span>Cover photo (optional)</span>
                         <span className="text-[10px] text-slate-400 font-normal">Auto-assigned if left empty</span>
                       </label>
                       <input
-                        type="url"
-                        value={customSpotImage}
-                        onChange={(e) => setCustomSpotImage(e.target.value)}
-                        placeholder="https://images.unsplash.com/... (optional)"
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:ring-2 focus:ring-[#E0533C] focus:outline-none"
+                        ref={coverInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          e.target.value = '';
+                          if (f) handleCoverPicked(f);
+                        }}
                       />
+                      {customSpotImage ? (
+                        <div className="relative h-36 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900">
+                          <img src={customSpotImage} alt="Cover preview" className="w-full h-full object-cover" />
+                          <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => coverInputRef.current?.click()}
+                              disabled={coverUploading}
+                              className="px-2.5 py-1.5 rounded-full bg-black/60 hover:bg-black/80 text-white text-[10px] font-bold backdrop-blur-md cursor-pointer disabled:opacity-60"
+                            >
+                              Change
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setCustomSpotImage('')}
+                              aria-label="Remove cover image"
+                              className="w-7 h-7 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md cursor-pointer"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          {coverUploading && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                              <Loader2 className="w-5 h-5 text-white animate-spin" />
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => coverInputRef.current?.click()}
+                          disabled={coverUploading}
+                          className="w-full h-28 rounded-xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200/70 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 flex flex-col items-center justify-center gap-1.5 transition cursor-pointer disabled:cursor-wait"
+                        >
+                          {coverUploading ? (
+                            <>
+                              <Loader2 className="w-5 h-5 animate-spin text-[#E0533C]" />
+                              <span className="text-xs font-bold">Uploading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <ImagePlus className="w-5 h-5 text-[#E0533C]" />
+                              <span className="text-xs font-extrabold">Upload Cover Image</span>
+                              <span className="text-[10px] text-slate-400">Pick a photo from your device</span>
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1548,9 +1625,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                   <div>
                     <div className="flex items-center gap-1">
                       <span className="font-extrabold text-xs">{selectedOutingDetail.hostName}</span>
-                      {selectedOutingDetail.isHostVerified && (
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 fill-emerald-100" />
-                      )}
+                      <VerifiedBadge status={selectedOutingDetail.isHostVerified ? 'approved' : 'none'} size="sm" />
                     </div>
                     <span className="text-[10px] text-slate-400">Host • {selectedOutingDetail.hostHandle}</span>
                   </div>
@@ -1595,6 +1670,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                       <img src={selectedOutingDetail.hostAvatar} alt="Host" className="w-7 h-7 rounded-full object-cover" />
                       <div>
                         <span className="font-bold text-xs">{selectedOutingDetail.hostName}</span>
+                        <VerifiedBadge status={selectedOutingDetail.isHostVerified ? 'approved' : 'none'} size="xs" className="ml-1" />
                         <span className="text-[9px] text-[#E0533C] font-black ml-1.5 uppercase">Host</span>
                       </div>
                     </div>
@@ -1936,7 +2012,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                           <div>
                             <div className="flex items-center gap-1">
                               <span className="font-extrabold text-xs">{activeManagingOuting.hostName}</span>
-                              <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                              <VerifiedBadge status={activeManagingOuting.isHostVerified ? 'approved' : 'none'} size="xs" />
                             </div>
                             <span className="text-[9px] text-[#E0533C] font-black uppercase">Host & Organizer</span>
                           </div>
