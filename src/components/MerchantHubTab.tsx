@@ -75,7 +75,7 @@ import {
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { DynamicLocationSelector } from './DynamicLocationSelector.tsx';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { toValidUuid, claimUnclaimedSpot } from '../lib/cloudSync.ts';
+import { toValidUuid } from '../lib/cloudSync.ts';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 
 export type MainCategoryKey = 
@@ -4828,26 +4828,13 @@ isSpotFormOpen && (
                     </div>
 
                     <button
-                      onClick={async () => {
-                        if (spot.is_claimed === false) {
-                          if (ownedBusinesses.length === 0) {
-                            showToast('Create your business account first, then claim this spot.');
-                            return;
-                          }
-                          const err = await claimUnclaimedSpot(spot.id, currentBiz.id, effectiveUserId);
-                          if (err) { showToast(err); return; }
-                          // Updates local state and re-saves with is_claimed: true
-                          onAddOrUpdateSpot({
-                            ...spot,
-                            is_claimed: true,
-                            businessId: currentBiz.id,
-                            merchantId: effectiveUserId,
-                            claimedByBusinessId: currentBiz.id,
-                            claimedAt: new Date().toISOString(),
-                          });
-                        } else {
-                          onClaimSpot(spot.id, currentBiz.id);
+                      onClick={() => {
+                        if (ownedBusinesses.length === 0) {
+                          showToast('Create your business account first, then claim this spot.');
+                          return;
                         }
+                        // App.handleClaimSpot saves the claim (is_claimed -> true) and updates local state
+                        onClaimSpot(spot.id, currentBiz.id);
                         showToast(`Ownership claimed! "${spot.title}" now managed by ${currentBiz.name}.`);
                       }}
                       className="bg-gradient-to-r from-amber-500 to-[#E0533C] hover:opacity-90 text-white font-black text-xs px-3.5 py-2 rounded-xl shadow-md shadow-orange-500/20 shrink-0 cursor-pointer transition active:scale-95"
