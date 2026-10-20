@@ -9,8 +9,10 @@ import {
   Sun,
   Moon,
   Bookmark,
-  LogIn
+  LogIn,
+  Crown
 } from 'lucide-react';
+import { isPlatformAdmin } from '../types';
 
 interface HeaderProps {
   onOpenOverlay: (overlayId: string) => void;
@@ -27,6 +29,8 @@ interface HeaderProps {
 
   onOpenAdmin?: () => void;
   userRole?: 'user' | 'merchant' | 'admin';
+  /** Signed-in user's email. Together with userRole it decides whether the Admin Control Hub shows. */
+  userEmail?: string | null;
   onLogout?: () => void;
   onOpenSaved?: () => void;
   savedCount?: number;
@@ -50,6 +54,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAuth,
   onOpenAdmin,
   userRole,
+  userEmail,
   onLogout,
   onOpenSaved,
   savedCount,
@@ -57,6 +62,15 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // hello.rada.app@gmail.com OR role === 'admin'. Guests never qualify.
+  const isAdmin = !isGuestMode && isPlatformAdmin({ email: userEmail, role: userRole });
+
+  const openAdminHub = () => {
+    setMenuOpen(false);
+    if (onOpenAdmin) onOpenAdmin();
+    else onOpenOverlay('adminDashboard');
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -155,6 +169,30 @@ export const Header: React.FC<HeaderProps> = ({
 
             {menuOpen && (
               <div className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-2rem)] bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                {/* ADMIN ONLY: Admin Control Hub (top of the menu) */}
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={openAdminHub}
+                    className="w-full text-left px-4 py-3 text-xs font-bold bg-gradient-to-r from-purple-50 to-amber-50 dark:from-purple-950/40 dark:to-amber-950/20 hover:from-purple-100 hover:to-amber-100 dark:hover:from-purple-950/60 dark:hover:to-amber-950/30 flex items-start gap-3 border-b border-purple-200/70 dark:border-purple-900/60 transition cursor-pointer"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-600 to-fuchsia-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+                      <Crown className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-extrabold text-purple-700 dark:text-purple-300">👑 Admin Control Hub</span>
+                        <span className="text-[9px] bg-purple-600 text-white font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider">
+                          Admin
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 font-normal mt-0.5">
+                        Spots, verification, users & revenue
+                      </p>
+                    </div>
+                  </button>
+                )}
+
                 {/* PRIMARY PROMINENT OPTION: Business & Merchant Hub */}
                 <button
                   onClick={() => handleMenuClick('businessHub')}
@@ -252,18 +290,6 @@ export const Header: React.FC<HeaderProps> = ({
                   <ShieldAlert className="w-4 h-4 text-[#E0533C]" />
                   <span>Emergency & SOS Hub</span>
                 </button>
-                {userRole === 'admin' && onOpenAdmin && (
-                  <button
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onOpenAdmin();
-                    }}
-                    className="w-full text-left px-4 py-2.5 text-xs font-bold hover:bg-purple-50 dark:hover:bg-purple-950/30 flex items-center gap-3 text-purple-700 dark:text-purple-300 border-t border-slate-100 dark:border-slate-800/80 transition"
-                  >
-                    <ShieldAlert className="w-4 h-4 text-purple-600" />
-                    <span>Admin Dashboard</span>
-                  </button>
-                )}
                 {isGuestMode && onOpenAuth ? (
                   <button
                     onClick={() => {
