@@ -63,6 +63,7 @@ interface HomeTabProps {
   onViewUserProfile: (profile: UserProfile) => void;
   onOpenDedicatedViewAll: (title: string, category: string) => void;
   onOpenCreateEvent?: (initialTitle?: string) => void;
+  onOpenSuggestSpot?: () => void;
   onOpenBusinessProfile?: (businessId: string) => void;
   showToast: (msg: string) => void;
 }
@@ -86,6 +87,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   onViewUserProfile,
   onOpenDedicatedViewAll,
   onOpenCreateEvent,
+  onOpenSuggestSpot,
   onOpenBusinessProfile,
   showToast
 }) => {
@@ -473,6 +475,20 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-[#E0533C]' : ''}`} />
           </button>
+
+          {/* Suggest a Spot Button for Regular Users */}
+          {onOpenSuggestSpot && (
+            <button
+              type="button"
+              onClick={onOpenSuggestSpot}
+              className="px-3.5 py-3 bg-[#E0533C] hover:bg-orange-700 active:scale-95 text-white rounded-2xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer shrink-0"
+              title="Suggest a new hangout spot or venue"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Suggest a Spot</span>
+              <span className="sm:hidden">Suggest</span>
+            </button>
+          )}
         </div>
 
         {/* Active Filter Indicators */}

@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import type { BusinessAccount, SavedItem, CollectionFolder, OutingPlan, OutingAttendee, ChatConversation, HostAnalytics, HostControls, UserProfile, AdminUserRecord, PlatformStats, SpotItem, SubscriptionStatus, UnclaimedSpotInput, SpotClaimRequest } from '../types';
+import type { BusinessAccount, SavedItem, CollectionFolder, OutingPlan, OutingAttendee, ChatConversation, HostAnalytics, HostControls, UserProfile, AdminUserRecord, PlatformStats, SpotItem, SubscriptionStatus, UnclaimedSpotInput, SpotClaimRequest, CommunitySpotInput } from '../types';
 import { isPlatformAdmin } from '../types';
 import { STATUS_TTL_MS } from '../utils/statusLifecycle';
 
@@ -458,9 +458,12 @@ export async function fetchListings(): Promise<CloudListings | null> {
 
     if (!sErr && spotRows && spotRows.length > 0) {
       for (const row of spotRows) {
+        const d = row.data && typeof row.data === 'object' ? row.data : {};
+        if (row.status === 'pending_approval' || row.status === 'rejected' || d.status === 'pending_approval' || d.status === 'rejected') {
+          continue;
+        }
         const sid = String(row.id);
         seenSpotIds.add(sid);
-        const d = row.data && typeof row.data === 'object' ? row.data : {};
         out.spot.push({
           id: row.id,
           title: row.title || d.title || 'Untitled Spot',
@@ -525,6 +528,9 @@ export async function fetchListings(): Promise<CloudListings | null> {
       for (const row of data) {
         if (row.kind in out && row.data) {
           if (row.kind === 'spot') {
+            if (row.data?.status === 'pending_approval' || row.data?.status === 'rejected' || row.status === 'pending_approval' || row.status === 'rejected') {
+              continue;
+            }
             const sid = String(row.id);
             const appSpotId = String(row.data?.id || '');
             const existing = out.spot.find(s => String(s.id) === sid || (appSpotId && String(s.id) === appSpotId));
@@ -2806,4 +2812,422 @@ export async function reviewSpotClaim(
 
   return null;
 }
+
+// =====================================================================
+// COMMUNITY SPOT SUBMISSION & APPROVAL WORKFLOW
+// =====================================================================
+
+/**
+ * Uploads a spot photo file to Supabase storage.
+ * Tries 'spot-photos', then 'public', then 'rada-media'.
+ * Falls back to base64 Data URL if storage bucket fails or offline.
+ */
+async function uploadSpotPhotoFile(file: File, uid: string): Promise<string> {
+  const safeUid = uid || 'community';
+  const fileExt = file.name.split('.').pop() || 'jpg';
+  const fileName = `${safeUid}/${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${fileExt}`;
+
+  if (isSupabaseConfigured && supabase?.storage) {
+    // Attempt 'spot-photos' bucket first as requested, then 'public', then 'rada-media'
+    const targetBuckets = ['spot-photos', 'public', MEDIA_BUCKET];
+    for (const bucket of targetBuckets) {
+      try {
+        const { data, error } = await supabase.storage.from(bucket).upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: true,
+          contentType: file.type || 'image/jpeg',
+        });
+        if (!error && data?.path) {
+          const { data: pubData } = supabase.storage.from(bucket).getPublicUrl(fileName);
+          if (pubData?.publicUrl) {
+            return pubData.publicUrl;
+          }
+        }
+      } catch {
+        // Try next bucket
+      }
+    }
+  }
+
+  // Resilient fallback: convert to base64 Data URL so photo is never lost
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => resolve('');
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * User Spot Submission:
+ * - Uploads multiple image files to Supabase storage bucket ('spot-photos' or 'public')
+ * - Extracts public image URLs and saves them as an array in the `photos` column
+ * - Inserts listing with:
+ *     status: 'pending_approval'
+ *     is_claimed: false
+ *     submitted_by_user_id: user.id
+ */
+export async function submitCommunitySpot(
+  spotData: Partial<SpotItem>,
+  imageFiles: File[] = []
+): Promise<{ spot: SpotItem | null; error: string | null }> {
+  try {
+    let userId = spotData.submitted_by_user_id || '';
+    let userEmail = spotData.submitted_by_email || '';
+    let userName = spotData.submitted_by_name || '';
+
+    if (isSupabaseConfigured && supabase?.auth) {
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData?.user) {
+          userId = userData.user.id;
+          userEmail = userData.user.email || userEmail;
+          userName = userData.user.user_metadata?.name || userData.user.user_metadata?.full_name || userName;
+        }
+      } catch {}
+    }
+
+    if (!userId) {
+      userId = toValidUuid('user-' + Date.now());
+    }
+
+    // 1. Upload all photo files in parallel
+    const uploadedUrls: string[] = [];
+    if (imageFiles && imageFiles.length > 0) {
+      for (const file of imageFiles) {
+        const url = await uploadSpotPhotoFile(file, userId);
+        if (url) uploadedUrls.push(url);
+      }
+    }
+
+    // Include existing photos / data URLs if passed in spotData
+    const combinedPhotos = Array.from(new Set([
+      ...uploadedUrls,
+      ...(spotData.photos || []),
+      ...(spotData.images || []),
+      ...(spotData.img ? [spotData.img] : [])
+    ])).filter(Boolean);
+
+    const primaryImg = combinedPhotos[0] || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop';
+    const spotId = typeof spotData.id === 'number' ? spotData.id : Date.now();
+    const now = new Date().toISOString();
+
+    const newSpot: SpotItem = {
+      id: spotId,
+      title: spotData.title || 'Untitled Community Spot',
+      category: spotData.category || 'restaurants_dining',
+      neighborhood: spotData.neighborhood || 'Nairobi',
+      address: spotData.address || `${spotData.neighborhood || 'Nairobi'}, Nairobi`,
+      description: spotData.description || '',
+      price: spotData.price || 'KES 1,000 - 2,500',
+      tags: spotData.tags || [],
+      photos: combinedPhotos,
+      images: combinedPhotos.length > 0 ? combinedPhotos : [primaryImg],
+      img: primaryImg,
+      lat: spotData.lat ?? -1.2921,
+      lng: spotData.lng ?? 36.8219,
+      rating: 'New',
+      reviewCount: 0,
+      reviews: [],
+      status: 'pending_approval',
+      is_claimed: false,
+      isUserUploaded: true,
+      isAdminPublished: false,
+      submitted_by_user_id: userId,
+      submitted_by_name: userName || 'Community Explorer',
+      submitted_by_email: userEmail || undefined,
+      submittedAt: now,
+    };
+
+    // 2. Save locally so it's always accessible immediately
+    try {
+      const raw = localStorage.getItem('rada_community_spots');
+      const existing: SpotItem[] = raw ? JSON.parse(raw) : [];
+      const updated = [newSpot, ...existing.filter(s => String(s.id) !== String(newSpot.id))];
+      localStorage.setItem('rada_community_spots', JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Local community spot storage error:', e);
+    }
+
+    // 3. Insert into Supabase if configured
+    if (isSupabaseConfigured && supabase) {
+      const rowId = listingUuid('spot', newSpot.id);
+      const safeOwnerId = isValidUuid(userId) ? userId : toValidUuid(userId);
+
+      // Insert into rada_listings with kind 'spot' and status 'pending_approval'
+      try {
+        await supabase.from('rada_listings').upsert({
+          id: rowId,
+          kind: 'spot',
+          owner_id: safeOwnerId,
+          data: newSpot,
+          created_at: now,
+          updated_at: now,
+        });
+      } catch (err) {
+        console.warn('rada_listings community spot insert error:', err);
+      }
+
+      // Try inserting into spots table
+      try {
+        await supabase.from('spots').insert({
+          id: newSpot.id,
+          title: newSpot.title,
+          category: newSpot.category,
+          neighborhood: newSpot.neighborhood,
+          address: newSpot.address,
+          description: newSpot.description,
+          price: newSpot.price,
+          img: newSpot.img,
+          images: newSpot.images,
+          photos: newSpot.photos,
+          status: 'pending_approval',
+          is_claimed: false,
+          is_user_uploaded: true,
+          submitted_by_user_id: isValidUuid(userId) ? userId : null,
+          data: newSpot,
+          created_at: now,
+        });
+      } catch (err) {
+        console.warn('spots table community insert error:', err);
+      }
+    }
+
+    return { spot: newSpot, error: null };
+  } catch (err: any) {
+    console.error('submitCommunitySpot error:', err);
+    return { spot: null, error: err?.message || 'Failed to submit community spot' };
+  }
+}
+
+/**
+ * Fetch all pending user-submitted spots for Admin review.
+ */
+export async function fetchPendingUserSpots(): Promise<SpotItem[]> {
+  const pendingMap = new Map<string, SpotItem>();
+
+  // 1. Check local storage
+  try {
+    const raw = localStorage.getItem('rada_community_spots');
+    if (raw) {
+      const list: SpotItem[] = JSON.parse(raw);
+      list.filter(s => s.status === 'pending_approval').forEach(s => pendingMap.set(String(s.id), s));
+    }
+  } catch {}
+
+  // 2. Query Supabase
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data: listingsData } = await supabase
+        .from('rada_listings')
+        .select('*')
+        .eq('kind', 'spot')
+        .order('created_at', { ascending: false });
+
+      if (listingsData) {
+        for (const row of listingsData) {
+          const d = row.data as SpotItem;
+          if (d && (d.status === 'pending_approval' || (row as any).status === 'pending_approval')) {
+            pendingMap.set(String(d.id || row.id), {
+              ...d,
+              id: d.id || row.id,
+              status: 'pending_approval',
+              photos: d.photos || d.images || (d.img ? [d.img] : []),
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('fetchPendingUserSpots rada_listings error:', err);
+    }
+
+    try {
+      const { data: spotRows } = await supabase
+        .from('spots')
+        .select('*')
+        .eq('status', 'pending_approval')
+        .order('created_at', { ascending: false });
+
+      if (spotRows) {
+        for (const row of spotRows) {
+          const d = (row.data && typeof row.data === 'object' ? row.data : {}) as Partial<SpotItem>;
+          const sid = String(row.id);
+          const existing = pendingMap.get(sid);
+          const spot: SpotItem = {
+            id: row.id,
+            title: row.title || d.title || 'Untitled Community Spot',
+            category: row.category || d.category || 'restaurants_dining',
+            neighborhood: row.neighborhood || d.neighborhood || 'Nairobi',
+            address: row.address || d.address || '',
+            description: row.description || d.description || '',
+            price: row.price || d.price || 'KES $$',
+            img: row.img || d.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
+            images: Array.isArray(row.images) ? row.images : (d.images || [row.img || d.img]),
+            photos: Array.isArray(row.photos) ? row.photos : (d.photos || row.images || [row.img]),
+            tags: row.tags || d.tags || [],
+            status: 'pending_approval',
+            is_claimed: false,
+            isUserUploaded: true,
+            submitted_by_user_id: row.submitted_by_user_id || d.submitted_by_user_id,
+            submitted_by_name: d.submitted_by_name || 'Community Explorer',
+            submitted_by_email: d.submitted_by_email,
+            submittedAt: row.created_at || d.submittedAt,
+            lat: row.lat ?? d.lat ?? -1.2921,
+            lng: row.lng ?? d.lng ?? 36.8219,
+            rating: 'New',
+            reviewCount: 0,
+            reviews: [],
+            ...existing,
+            ...d,
+          };
+          pendingMap.set(sid, spot);
+        }
+      }
+    } catch (err) {
+      console.warn('fetchPendingUserSpots spots error:', err);
+    }
+  }
+
+  return Array.from(pendingMap.values());
+}
+
+/**
+ * Approve a user-submitted community spot:
+ * - Sets status: 'approved'
+ * - Makes it live on RADA
+ */
+export async function approveCommunitySpot(
+  spotId: number | string
+): Promise<{ spot: SpotItem | null; error: string | null }> {
+  const now = new Date().toISOString();
+  let approvedSpot: SpotItem | null = null;
+
+  // 1. Update in local storage
+  try {
+    const raw = localStorage.getItem('rada_community_spots');
+    if (raw) {
+      const list: SpotItem[] = JSON.parse(raw);
+      const updated = list.map(s => {
+        if (String(s.id) === String(spotId)) {
+          approvedSpot = {
+            ...s,
+            status: 'approved',
+            is_claimed: false,
+          };
+          return approvedSpot;
+        }
+        return s;
+      });
+      localStorage.setItem('rada_community_spots', JSON.stringify(updated));
+    }
+
+    // Also add to rada_spots so it's live
+    if (approvedSpot) {
+      const rawSpots = localStorage.getItem('rada_spots');
+      const curSpots: SpotItem[] = rawSpots ? JSON.parse(rawSpots) : [];
+      const updatedLive = [approvedSpot, ...curSpots.filter(s => String(s.id) !== String(spotId))];
+      localStorage.setItem('rada_spots', JSON.stringify(updatedLive));
+    }
+  } catch (err) {
+    console.warn('approveCommunitySpot local error:', err);
+  }
+
+  // 2. Update in Supabase
+  if (isSupabaseConfigured && supabase) {
+    const rowId = listingUuid('spot', spotId);
+    try {
+      const { data: row } = await supabase.from('rada_listings').select('data').eq('id', rowId).maybeSingle();
+      if (row?.data) {
+        approvedSpot = {
+          ...row.data,
+          status: 'approved',
+          is_claimed: false,
+        };
+        await supabase.from('rada_listings').update({
+          data: approvedSpot,
+          updated_at: now,
+        }).eq('id', rowId);
+      }
+    } catch (err) {
+      console.warn('approveCommunitySpot rada_listings error:', err);
+    }
+
+    try {
+      await supabase.from('spots').update({
+        status: 'approved',
+        is_claimed: false,
+        updated_at: now,
+      }).eq('id', spotId);
+    } catch (err) {
+      console.warn('approveCommunitySpot spots table error:', err);
+    }
+  }
+
+  return { spot: approvedSpot, error: null };
+}
+
+/**
+ * Reject a user-submitted community spot:
+ * - Deletes or sets status: 'rejected'
+ */
+export async function rejectCommunitySpot(
+  spotId: number | string,
+  reason?: string
+): Promise<{ success: boolean; error: string | null }> {
+  const now = new Date().toISOString();
+
+  // 1. Update local storage
+  try {
+    const raw = localStorage.getItem('rada_community_spots');
+    if (raw) {
+      const list: SpotItem[] = JSON.parse(raw);
+      const updated = list.map(s => {
+        if (String(s.id) === String(spotId)) {
+          return {
+            ...s,
+            status: 'rejected',
+            rejectionReason: reason || 'Not approved for publication',
+          };
+        }
+        return s;
+      });
+      localStorage.setItem('rada_community_spots', JSON.stringify(updated));
+    }
+  } catch (err) {
+    console.warn('rejectCommunitySpot local error:', err);
+  }
+
+  // 2. Update Supabase
+  if (isSupabaseConfigured && supabase) {
+    const rowId = listingUuid('spot', spotId);
+    try {
+      const { data: row } = await supabase.from('rada_listings').select('data').eq('id', rowId).maybeSingle();
+      if (row?.data) {
+        const rejected = {
+          ...row.data,
+          status: 'rejected',
+          rejectionReason: reason || 'Not approved for publication',
+        };
+        await supabase.from('rada_listings').update({
+          data: rejected,
+          updated_at: now,
+        }).eq('id', rowId);
+      }
+    } catch (err) {
+      console.warn('rejectCommunitySpot rada_listings error:', err);
+    }
+
+    try {
+      await supabase.from('spots').update({
+        status: 'rejected',
+        updated_at: now,
+      }).eq('id', spotId);
+    } catch (err) {
+      console.warn('rejectCommunitySpot spots table error:', err);
+    }
+  }
+
+  return { success: true, error: null };
+}
+
 

@@ -146,6 +146,7 @@ export interface SpotItem {
   address: string;
   img: string;
   images?: string[];
+  photos?: string[];
   reviews?: Review[];
   description?: string;
   menuImages?: string[];
@@ -154,6 +155,12 @@ export interface SpotItem {
   businessId?: string;
   merchantId?: string;
   isUserUploaded?: boolean;
+  status?: 'pending_approval' | 'approved' | 'rejected' | string;
+  submitted_by_user_id?: string;
+  submitted_by_name?: string;
+  submitted_by_email?: string;
+  submittedAt?: string;
+  tags?: string[];
   /**
    * false = published by an admin on behalf of a venue; no merchant owns it yet and any verified
    * business may claim it. undefined/true = owned (all pre-existing spots).
@@ -513,6 +520,22 @@ export interface UnclaimedSpotInput {
   lng?: number;
   website?: string;
   instagram?: string;
+}
+
+export interface CommunitySpotInput {
+  title: string;
+  category: SpotCategory;
+  neighborhood: string;
+  address?: string;
+  description: string;
+  price: string;
+  tags?: string[];
+  photos?: string[];
+  lat?: number;
+  lng?: number;
+  submitted_by_user_id?: string;
+  submitted_by_name?: string;
+  submitted_by_email?: string;
 }
 
 export interface SpotClaimRequest {

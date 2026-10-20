@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   X, Search, ShieldCheck, Clock, XCircle, RefreshCw, LayoutDashboard, MapPinPlus, Users,
   BadgeCheck, Crown, Trash2, Ban, UserX, Store, Sparkles, ImagePlus, CircleDollarSign,
-  ExternalLink, FileText, CheckCircle2, AlertCircle, MapPin, Phone, Mail, Globe,
+  ExternalLink, FileText, CheckCircle2, AlertCircle, MapPin, Phone, Mail, Globe, Image as ImageIcon,
 } from 'lucide-react';
 import type {
   BusinessAccount, SpotCategory, SpotItem, AdminUserRecord, PlatformStats,
@@ -12,10 +12,11 @@ import {
   fetchPlatformStats, fetchAdminUsers, setUserSuspension, revokeCreatorStatus,
   revokeBusinessStatus, deleteAccountAdmin, setBusinessSubscription, publishUnclaimedSpot,
   fetchUnclaimedSpots, deleteListing, reviewBusiness, fetchSpotClaims, reviewSpotClaim,
+  fetchPendingUserSpots, approveCommunitySpot, rejectCommunitySpot,
 } from '../lib/cloudSync';
 
 type VerificationStatus = 'pending' | 'approved' | 'rejected';
-type TabId = 'overview' | 'claims' | 'verification' | 'spots' | 'users';
+type TabId = 'overview' | 'pending_spots' | 'claims' | 'verification' | 'spots' | 'users';
 
 export interface AdminDashboardProps {
   businesses: BusinessAccount[];
@@ -88,6 +89,13 @@ export function AdminDashboardModal({
   const [claimRejectNote, setClaimRejectNote] = useState('');
   const [previewDocUrl, setPreviewDocUrl] = useState<string | null>(null);
 
+  // ---- Pending user-submitted spots state ----
+  const [pendingSpots, setPendingSpots] = useState<SpotItem[]>([]);
+  const [pendingSpotSearch, setPendingSpotSearch] = useState('');
+  const [activeRejectingSpotId, setActiveRejectingSpotId] = useState<number | string | null>(null);
+  const [rejectSpotReason, setRejectSpotReason] = useState<Record<string | number, string>>({});
+  const [previewSpotPhoto, setPreviewSpotPhoto] = useState<string | null>(null);
+
   useEffect(() => {
     if (spotClaims && spotClaims.length > 0) {
       setLiveClaims(spotClaims);
@@ -95,16 +103,18 @@ export function AdminDashboardModal({
   }, [spotClaims]);
 
   const loadAll = useCallback(async () => {
-    const [s, u, sp, cl] = await Promise.all([
+    const [s, u, sp, cl, ps] = await Promise.all([
       fetchPlatformStats(),
       fetchAdminUsers(businesses),
       fetchUnclaimedSpots(),
       fetchSpotClaims(),
+      fetchPendingUserSpots(),
     ]);
     setStats(s);
     setUsers(u);
     setUsersError(u === null);
     setUnclaimed(sp || []);
+    setPendingSpots(ps || []);
     if (cl && cl.length > 0) {
       setLiveClaims(cl);
     } else if (spotClaims && spotClaims.length > 0) {
@@ -151,6 +161,51 @@ export function AdminDashboardModal({
     toast(`Claim for "${claim.spotTitle}" rejected.`);
     onRefresh?.();
   };
+
+  // =====================================================================
+  // PENDING COMMUNITY SPOTS APPROVAL PIPELINE
+  // =====================================================================
+  const handleApproveCommunitySpot = async (spot: SpotItem) => {
+    const { spot: approved, error } = await approveCommunitySpot(spot.id);
+    if (error || !approved) {
+      toast(error || 'Failed to approve spot');
+      return;
+    }
+    setPendingSpots(prev => prev.filter(s => String(s.id) !== String(spot.id)));
+    onSpotPublished?.(approved);
+    toast(`"${spot.title}" approved & published to RADA!`);
+    onRefresh?.();
+  };
+
+  const handleRejectCommunitySpot = async (spot: SpotItem) => {
+    const reason = rejectSpotReason[spot.id]?.trim() || 'Did not meet listing standards or quality guidelines';
+    const { error } = await rejectCommunitySpot(spot.id, reason);
+    if (error) {
+      toast(error || 'Failed to reject spot');
+      return;
+    }
+    setPendingSpots(prev => prev.filter(s => String(s.id) !== String(spot.id)));
+    setActiveRejectingSpotId(null);
+    toast(`"${spot.title}" rejected.`);
+    onRefresh?.();
+  };
+
+  const filteredPendingSpots = useMemo(() => {
+    const q = pendingSpotSearch.trim().toLowerCase();
+    if (!q) return pendingSpots;
+    return pendingSpots.filter(s =>
+      [
+        s.title,
+        s.neighborhood,
+        s.category,
+        s.address,
+        s.description,
+        s.submitted_by_name,
+        s.submitted_by_email,
+        s.submitted_by_user_id
+      ].some(val => String(val || '').toLowerCase().includes(q))
+    );
+  }, [pendingSpots, pendingSpotSearch]);
 
   // =====================================================================
   // VERIFICATION
@@ -377,6 +432,7 @@ export function AdminDashboardModal({
 
   const tabs: { id: TabId; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="w-4 h-4" /> },
+    { id: 'pending_spots', label: 'Pending Spots', icon: <MapPin className="w-4 h-4" />, badge: pendingSpots.length },
     { id: 'claims', label: 'Spot Claims', icon: <ShieldCheck className="w-4 h-4" />, badge: pendingClaimsCount },
     { id: 'verification', label: 'Businesses', icon: <BadgeCheck className="w-4 h-4" />, badge: counts.pending },
     { id: 'spots', label: 'Add Unclaimed Spot', icon: <MapPinPlus className="w-4 h-4" /> },
@@ -453,15 +509,40 @@ export function AdminDashboardModal({
               <div className="p-4 space-y-5">
                 <div>
                   <h2 className="text-sm font-black mb-2">Platform</h2>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
                     <StatCard label="Total users" value={num(stats?.totalUsers)} icon={<Users className="w-5 h-5" />} />
                     <StatCard label="Total spots" value={num(stats?.totalSpots, spotsCount)} icon={<MapPinPlus className="w-5 h-5" />} />
+                    <StatCard label="Pending spots" value={pendingSpots.length} icon={<MapPin className="w-5 h-5 text-orange-500" />} />
                     <StatCard label="Total events" value={num(stats?.totalEvents, eventsCount)} icon={<Sparkles className="w-5 h-5" />} />
                     <StatCard label="Businesses" value={num(stats?.totalBusinesses, businesses.length)} icon={<Store className="w-5 h-5" />} />
                     <StatCard label="Pro hosts" value={num(stats?.professionalHosts)} icon={<Crown className="w-5 h-5" />} />
                     <StatCard label="Spot Claims" value={liveClaims.length} icon={<ShieldCheck className="w-5 h-5" />} />
                   </div>
                 </div>
+
+                {pendingSpots.length > 0 && (
+                  <div className="rounded-2xl border border-orange-300 bg-orange-50 dark:bg-orange-950/30 dark:border-orange-800 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-orange-500/20 text-orange-700 dark:text-orange-300 flex items-center justify-center shrink-0">
+                        <MapPin className="w-5 h-5 animate-bounce" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-orange-900 dark:text-orange-200">
+                          {pendingSpots.length} User Spot{pendingSpots.length > 1 ? 's' : ''} Awaiting Review & Approval
+                        </p>
+                        <p className="text-xs text-orange-800/80 dark:text-orange-300/80">
+                          Community suggestions submitted with photo galleries. Review details & approve for publication.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setTab('pending_spots')}
+                      className="px-4 py-2 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-black shrink-0 transition cursor-pointer self-start sm:self-auto"
+                    >
+                      Review Pending Spots ({pendingSpots.length}) ↗
+                    </button>
+                  </div>
+                )}
 
                 {pendingClaimsCount > 0 && (
                   <div className="rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -543,6 +624,231 @@ export function AdminDashboardModal({
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* ================= PENDING SPOTS ================= */}
+            {tab === 'pending_spots' && (
+              <div className="p-4 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-[#E0533C]" />
+                      <span>Pending User-Submitted Spots ({pendingSpots.length})</span>
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Review community-submitted spots, inspect photo galleries, and publish or reject them.
+                    </p>
+                  </div>
+                  <div className="relative w-full sm:w-64">
+                    <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                    <input
+                      type="text"
+                      value={pendingSpotSearch}
+                      onChange={(e) => setPendingSpotSearch(e.target.value)}
+                      placeholder="Search pending spots..."
+                      className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#E0533C]"
+                    />
+                  </div>
+                </div>
+
+                {filteredPendingSpots.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 p-10 text-center space-y-2">
+                    <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 mx-auto flex items-center justify-center">
+                      <CheckCircle2 className="w-6 h-6" />
+                    </div>
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                      No pending user spots
+                    </p>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                      All community submissions have been reviewed! When regular users suggest new spots, they will appear here.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {filteredPendingSpots.map((spot) => {
+                      const photos = (spot.photos && spot.photos.length > 0)
+                        ? spot.photos
+                        : (spot.images && spot.images.length > 0 ? spot.images : (spot.img ? [spot.img] : []));
+                      const isRejecting = activeRejectingSpotId === spot.id;
+
+                      return (
+                        <div
+                          key={spot.id}
+                          className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 p-4 sm:p-5 shadow-xs space-y-4"
+                        >
+                          {/* Top Row: Title, Category, Location, Price, Status Chip */}
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-slate-100 dark:border-slate-800/80 pb-3">
+                            <div className="space-y-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h3 className="text-base font-black text-slate-900 dark:text-slate-100">
+                                  {spot.title}
+                                </h3>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-orange-100 text-orange-800 dark:bg-orange-950/80 dark:text-orange-300 border border-orange-200 dark:border-orange-800">
+                                  {spot.category.replace(/_/g, ' ')}
+                                </span>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-200 dark:border-amber-800 flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  <span>Pending Approval</span>
+                                </span>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                                <span className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
+                                  <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
+                                  {spot.neighborhood} {spot.address ? `• ${spot.address}` : ''}
+                                </span>
+                                <span>•</span>
+                                <span className="font-bold text-slate-700 dark:text-slate-300">
+                                  {spot.price || 'KES $$'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Submitter Details Tag */}
+                            <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 rounded-xl px-3 py-2 border border-slate-200/60 dark:border-slate-700/60 shrink-0">
+                              <p className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                <Users className="w-3.5 h-3.5 text-purple-500" />
+                                <span>Submitted by: {spot.submitted_by_name || 'Community Member'}</span>
+                              </p>
+                              {spot.submitted_by_email && (
+                                <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                                  {spot.submitted_by_email}
+                                </p>
+                              )}
+                              <p className="text-[10px] text-slate-400 mt-0.5">
+                                {spot.submittedAt ? new Date(spot.submittedAt).toLocaleString() : 'Recently'}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Description */}
+                          {spot.description && (
+                            <div className="space-y-1">
+                              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                                Description & Atmosphere
+                              </p>
+                              <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed bg-slate-50/50 dark:bg-slate-950/40 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                                {spot.description}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Tags */}
+                          {spot.tags && spot.tags.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-[11px] font-bold text-slate-400 mr-1">Tags:</span>
+                              {spot.tags.map((tag, tIdx) => (
+                                <span
+                                  key={tIdx}
+                                  className="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                                >
+                                  #{tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Full Photo Gallery */}
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                                <ImageIcon className="w-3.5 h-3.5 text-slate-500" />
+                                <span>Uploaded Photo Gallery ({photos.length})</span>
+                              </p>
+                              <span className="text-[10px] text-slate-400">Click photo to view full size</span>
+                            </div>
+
+                            {photos.length === 0 ? (
+                              <p className="text-xs text-slate-400 italic">No photos uploaded for this spot.</p>
+                            ) : (
+                              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                                {photos.map((photoUrl, pIdx) => (
+                                  <div
+                                    key={pIdx}
+                                    onClick={() => setPreviewSpotPhoto(photoUrl)}
+                                    className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer group hover:scale-[1.02] transition"
+                                  >
+                                    <img
+                                      src={photoUrl}
+                                      alt={`Spot photo ${pIdx + 1}`}
+                                      className="w-full h-full object-cover"
+                                    />
+                                    <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[10px] font-bold">
+                                      View
+                                    </div>
+                                    {pIdx === 0 && (
+                                      <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-slate-950/70 text-[9px] font-bold text-white">
+                                        Cover
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Action Controls: Approve & Publish or Reject */}
+                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            {!isRejecting ? (
+                              <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                                <button
+                                  type="button"
+                                  onClick={() => handleApproveCommunitySpot(spot)}
+                                  className="flex-1 sm:flex-initial px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                                >
+                                  <CheckCircle2 className="w-4 h-4" />
+                                  <span>Approve & Publish</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveRejectingSpotId(spot.id)}
+                                  className="flex-1 sm:flex-initial px-4 py-2 border border-red-200 dark:border-red-900/60 hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                  <span>Reject</span>
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="w-full space-y-2 bg-red-50/60 dark:bg-red-950/30 p-3 rounded-xl border border-red-200 dark:border-red-900/60">
+                                <p className="text-xs font-bold text-red-800 dark:text-red-300">
+                                  Provide a reason for rejecting "{spot.title}":
+                                </p>
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                  <input
+                                    type="text"
+                                    value={rejectSpotReason[spot.id] || ''}
+                                    onChange={(e) =>
+                                      setRejectSpotReason(prev => ({ ...prev, [spot.id]: e.target.value }))
+                                    }
+                                    placeholder="e.g. Duplicate listing, invalid photos, closed venue..."
+                                    className="flex-1 px-3 py-1.5 text-xs bg-white dark:bg-slate-900 border border-red-200 dark:border-red-800 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none"
+                                  />
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRejectCommunitySpot(spot)}
+                                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition cursor-pointer"
+                                    >
+                                      Confirm Rejection
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setActiveRejectingSpotId(null)}
+                                      className="px-3 py-1.5 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-lg transition cursor-pointer"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1343,6 +1649,33 @@ export function AdminDashboardModal({
                 {busy ? 'Working…' : 'Confirm'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Photo Preview Lightbox Modal */}
+      {previewSpotPhoto && (
+        <div
+          onClick={() => setPreviewSpotPhoto(null)}
+          className="fixed inset-0 z-[120] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-w-4xl max-h-[90vh] bg-slate-900 rounded-2xl overflow-hidden shadow-2xl border border-slate-700 flex flex-col"
+          >
+            <button
+              type="button"
+              onClick={() => setPreviewSpotPhoto(null)}
+              className="absolute top-3 right-3 p-2 rounded-full bg-slate-950/80 text-white hover:bg-red-600 transition z-10 cursor-pointer"
+              aria-label="Close photo preview"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <img
+              src={previewSpotPhoto}
+              alt="Community Spot Photo"
+              className="max-h-[82vh] w-auto object-contain mx-auto"
+            />
           </div>
         </div>
       )}

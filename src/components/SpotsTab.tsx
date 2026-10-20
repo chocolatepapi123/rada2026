@@ -41,6 +41,7 @@ interface SpotsTabProps {
   onViewLocation: (spot: SpotItem) => void;
   onOpenDedicatedViewAll: (title: string, category: string) => void;
   onOpenCreateSpot?: (initialTitle?: string) => void;
+  onOpenSuggestSpot?: () => void;
   onPostReview?: (spotId: number, review: Review) => void;
   onNavigateToCalendar?: (dateStr?: string, eventId?: number | string) => void;
   showToast?: (msg: string) => void;
@@ -64,6 +65,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   onViewLocation,
   onOpenDedicatedViewAll,
   onOpenCreateSpot,
+  onOpenSuggestSpot,
   onPostReview,
   onNavigateToCalendar,
   showToast
@@ -737,12 +739,26 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
       {/* Search Header */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
-            Hangouts & Experiences
-          </h2>
-          <span className="text-[10px] text-[#475569] dark:text-slate-300 font-bold">
-            {filteredSpots.length} venues found
-          </span>
+          <div>
+            <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
+              Hangouts & Experiences
+            </h2>
+            <span className="text-[10px] text-[#475569] dark:text-slate-300 font-bold">
+              {filteredSpots.length} venues found
+            </span>
+          </div>
+
+          {onOpenSuggestSpot && (
+            <button
+              type="button"
+              onClick={onOpenSuggestSpot}
+              className="px-3 py-1.5 bg-[#E0533C] hover:bg-orange-700 active:scale-95 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+              title="Suggest a new venue or hangout spot"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Suggest a Spot</span>
+            </button>
+          )}
         </div>
 
         {/* Smart Search Bar with Web Speech API & Waveform Animation */}

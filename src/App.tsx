@@ -26,6 +26,7 @@ import { SplashScreen } from './components/SplashScreen.tsx';
 import { AccountSettingsModal } from './components/AccountSettingsModal.tsx';
 import { SavedPlacesModal } from './components/SavedPlacesModal.tsx';
 import { LivenessVerificationModal } from './components/LivenessVerificationModal.tsx';
+import { SuggestSpotModal } from './components/SuggestSpotModal.tsx';
 import { ToastProvider, showToast as triggerToast } from './components/Toast.tsx';
 import { getTimeOfDayGreeting } from './utils/greetingUtils';
 import {
@@ -122,6 +123,7 @@ export default function App() {
   const [userRole, setUserRole] = useState<'user' | 'merchant' | 'admin'>('user');
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isLivenessModalOpen, setIsLivenessModalOpen] = useState(false);
+  const [isSuggestSpotModalOpen, setIsSuggestSpotModalOpen] = useState(false);
   const [suspensionReason, setSuspensionReason] = useState<string | null>(null);
   const syncRef = useRef<(() => void) | null>(null);
 
@@ -2157,6 +2159,7 @@ export default function App() {
                   setViewAllCategory(cat);
                 }}
                 onOpenCreateEvent={() => requireAuth('add a spot or business', () => setIsBusinessHubOpen(true))}
+                onOpenSuggestSpot={() => setIsSuggestSpotModalOpen(true)}
                 onOpenBusinessProfile={handleOpenBusinessProfile}
                 showToast={showToast}
               />
@@ -2177,6 +2180,7 @@ export default function App() {
                   setViewAllCategory(cat);
                 }}
                 onOpenCreateSpot={() => requireAuth('add a spot or business', () => setIsBusinessHubOpen(true))}
+                onOpenSuggestSpot={() => setIsSuggestSpotModalOpen(true)}
                 onPostReview={handlePostReview}
                 onNavigateToCalendar={handleNavigateToCalendar}
                 showToast={showToast}
@@ -2491,6 +2495,19 @@ export default function App() {
             showToast={showToast}
           />
 
+          <SuggestSpotModal
+            isOpen={isSuggestSpotModalOpen}
+            onClose={() => setIsSuggestSpotModalOpen(false)}
+            onSubmitSuccess={(spot) => {
+              if (spot.status === 'approved') {
+                setSpots(prev => [spot, ...prev.filter(s => String(s.id) !== String(spot.id))]);
+              }
+            }}
+            showToast={showToast}
+            currentUserId={session?.user?.id}
+            currentUserProfile={currentUserProfile}
+          />
+
           {isAuthModalOpen && (
             <AuthModal
               isOpen={isAuthModalOpen}
@@ -2501,30 +2518,36 @@ export default function App() {
             />
           )}
           {isAdminOpen && userRole === 'admin' && (
-<AdminDashboard
-  businesses={businesses}
-  onClose={() => setIsAdminOpen(false)}
-  onRefresh={() => syncRef.current?.()}
-  showToast={showToast}
-  spotClaims={spotClaims}
-  onApproveClaim={handleApproveClaim}
-  onRejectClaim={handleRejectClaim}
-  spotsCount={spots.length}
-  onUpdateBusiness={(businessId, updates) => {
-    const business = businesses.find(b => b.id === businessId);
+            <AdminDashboard
+              businesses={businesses}
+              onClose={() => setIsAdminOpen(false)}
+              onRefresh={() => syncRef.current?.()}
+              showToast={showToast}
+              spotClaims={spotClaims}
+              onApproveClaim={handleApproveClaim}
+              onRejectClaim={handleRejectClaim}
+              spotsCount={spots.length}
+              onSpotPublished={(spot) => {
+                setSpots(prev => [spot, ...prev.filter(s => String(s.id) !== String(spot.id))]);
+              }}
+              onSpotDeleted={(spotId) => {
+                setSpots(prev => prev.filter(s => String(s.id) !== String(spotId)));
+              }}
+              onUpdateBusiness={(businessId, updates) => {
+                const business = businesses.find(b => b.id === businessId);
 
-    if (!business) return;
+                if (!business) return;
 
-    // update on screen right away
-    setBusinesses(prev => prev.map(b => b.id === businessId ? ({ ...b, ...updates } as BusinessAccount) : b));
+                // update on screen right away
+                setBusinesses(prev => prev.map(b => b.id === businessId ? ({ ...b, ...updates } as BusinessAccount) : b));
 
-    // save online: only the verification fields are changed
-    if (currentUserId && !initialBusinesses.some(b => b.id === businessId)) {
-      cloudWrite(() => cloud.reviewBusiness(businessId, updates as Partial<BusinessAccount>));
-    }
-  }}
-/>
-)}
+                // save online: only the verification fields are changed
+                if (currentUserId && !initialBusinesses.some(b => b.id === businessId)) {
+                  cloudWrite(() => cloud.reviewBusiness(businessId, updates as Partial<BusinessAccount>));
+                }
+              }}
+            />
+          )}
 
           {/* Account Suspended Modal */}
           {suspensionReason && (
