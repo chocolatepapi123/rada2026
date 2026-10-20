@@ -46,7 +46,7 @@ export interface BusinessAccount {
   category: BusinessCategory;
   email: string;
   phone: string;
-  whatsapp?: string;
+  whatsapp: string;
   neighborhood: string;
   address: string;
   bio: string;
@@ -71,30 +71,6 @@ isSuspended?: boolean;
   discography?: string[];
   pinnedImages?: string[];
   specialOffers?: SpecialOffer[];
-  /** Full Personalization Kit fields */
-  accentColor?: string;
-  tagline?: string;
-  businessTypeLabel?: string;
-  customLinks?: CustomLink[];
-  pinnedHighlights?: PinnedHighlight[];
-}
-
-export interface CustomLink {
-  id: string;
-  title: string;
-  url: string;
-  platform?: 'website' | 'instagram' | 'tiktok' | 'twitter' | 'youtube' | 'spotify' | 'whatsapp' | 'menu' | 'booking' | 'other' | string;
-  description?: string;
-}
-
-export interface PinnedHighlight {
-  id: string;
-  title: string;
-  image?: string;
-  imageUrl?: string;
-  description?: string;
-  linkUrl?: string;
-  date?: string;
 }
 
 export interface MenuItem {
@@ -290,7 +266,6 @@ export interface EventItem {
   tiers: TicketTier[];
   description?: string;
   businessId?: string;
-  organizer?: string;
 }
 
 export interface CinemaMovie {
@@ -341,13 +316,6 @@ export interface DatingProfile {
   relationshipStatus: 'single' | 'not_single';
   vibes?: string[];
   isLivenessVerified?: boolean;
-  is_creator?: boolean;
-  professionalTitle?: string;
-  professionalCategory?: string;
-  accentColor?: string;
-  tagline?: string;
-  customLinks?: CustomLink[];
-  pinnedHighlights?: PinnedHighlight[];
 }
 
 export interface UserProfile {
@@ -378,14 +346,6 @@ export interface UserProfile {
   email?: string;
   role?: UserRole;
   is_suspended?: boolean;
-  /** Professional Personalization Kit fields */
-  professionalTitle?: string;
-  professionalCategory?: string;
-  professionalWebsite?: string;
-  accentColor?: string;
-  tagline?: string;
-  customLinks?: CustomLink[];
-  pinnedHighlights?: PinnedHighlight[];
 }
 
 export type AccountType = 'personal' | 'professional';

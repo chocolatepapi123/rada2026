@@ -76,9 +76,8 @@ import {
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { DynamicLocationSelector } from './DynamicLocationSelector.tsx';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { toValidUuid, fetchUnclaimedSpots, claimUnclaimedSpot, submitSpotClaim } from '../lib/cloudSync.ts';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
-import { PersonalizationKitModal } from './PersonalizationKitModal.tsx';
-import { toValidUuid, fetchUnclaimedSpots, submitSpotClaim } from '../lib/cloudSync';
 
 export type MainCategoryKey = 
   | 'restaurants_dining'
@@ -1324,8 +1323,6 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
 
   // Business Switcher Dropdown
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
-  // Full Personalization Kit Modal
-  const [isPersonalizationKitOpen, setIsPersonalizationKitOpen] = useState(false);
 
   // ----------------------------------------------------
   // ONBOARDING FORM STATE
@@ -4301,20 +4298,9 @@ isSpotFormOpen && (
             {/* Quick Actions */}
             <div className="flex items-center gap-1.5 shrink-0">
               <button 
-                type="button"
-                onClick={() => setIsPersonalizationKitOpen(true)}
-                className="text-[11px] font-bold px-2.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                title="Full Personalization Kit: Custom accent colors, pinned highlights, unlimited links"
-              >
-                <Palette className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-                <span className="hidden sm:inline">Customize</span>
-                <span>Kit</span>
-              </button>
-
-              <button 
                 onClick={() => onOpenPublicProfile(currentBiz)}
                 className="text-[11px] font-bold px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 transition flex items-center gap-1 cursor-pointer"
-                title="View your public merchant storefront in full screen"
+                title="View your public merchant storefront"
               >
                 <Share2 className="w-3.5 h-3.5" />
                 <span>Storefront</span>
@@ -4589,31 +4575,7 @@ isSpotFormOpen && (
                 >
                   <Share2 className="w-5 h-5 text-slate-600 dark:text-slate-300 mb-2 group-hover:scale-110 transition" />
                   <span className="font-extrabold text-xs block">View Storefront</span>
-                  <span className="text-[10px] text-slate-500">Full-screen card view</span>
-                </button>
-
-                {/* Full Personalization Kit Button */}
-                <button
-                  type="button"
-                  onClick={() => setIsPersonalizationKitOpen(true)}
-                  className="col-span-2 p-3.5 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-orange-500/10 hover:from-purple-500/20 hover:to-orange-500/20 border border-purple-500/30 rounded-2xl text-left transition group cursor-pointer flex items-center justify-between shadow-2xs"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
-                      <Palette className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <span className="font-black text-xs text-slate-900 dark:text-slate-100 block">
-                        Full Personalization Kit
-                      </span>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                        Custom accent colors • Pinned highlights • Unlimited links
-                      </span>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg bg-purple-600 text-white shadow-2xs shrink-0">
-                    Edit Kit ↗
-                  </span>
+                  <span className="text-[10px] text-slate-500">Public customer view</span>
                 </button>
               </div>
             </div>
@@ -6328,22 +6290,6 @@ isSpotFormOpen && (
             </button>
           </div>
         </div>
-      )}
-
-      {/* FULL PERSONALIZATION KIT MODAL FOR BUSINESS OWNER */}
-      {isPersonalizationKitOpen && (
-        <PersonalizationKitModal
-          isOpen={isPersonalizationKitOpen}
-          onClose={() => setIsPersonalizationKitOpen(false)}
-          mode="business"
-          business={currentBiz}
-          onSaveBusiness={(updatedBiz) => {
-            onUpdateBusiness(updatedBiz);
-            setIsPersonalizationKitOpen(false);
-            showToast(`Saved personalized profile kit for "${updatedBiz.name}"!`);
-          }}
-          showToast={showToast}
-        />
       )}
 
     </div>

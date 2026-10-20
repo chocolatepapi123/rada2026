@@ -280,7 +280,6 @@ interface OutingsTabProps {
   onUpdateAttendeeStatus?: (outingId: string, attendeeId: string, status: 'approved' | 'declined') => Promise<void>;
   onOpenOutingChat?: (outing: OutingPlan) => void;
   onOpenSpotDetails?: (spot: SpotItem) => void;
-  onViewHostProfile?: (host: UserProfile) => void;
   showToast: (msg: string) => void;
 }
 
@@ -296,7 +295,6 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   onUpdateAttendeeStatus,
   onOpenOutingChat,
   onOpenSpotDetails,
-  onViewHostProfile,
   showToast
 }) => {
   const [selectedLocation, setSelectedLocation] = useState<string>('');
@@ -909,36 +907,14 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
               >
                 {/* Host Profile Header */}
                 <div className="flex items-center justify-between gap-3">
-                  <div 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onViewHostProfile?.({
-                        name: plan.hostName,
-                        handle: plan.hostHandle || '@host',
-                        avatar: plan.hostAvatar,
-                        bio: `Outing host & curator on RADA Nairobi. Hosting group hangouts at ${plan.spotTitle} and local gems.`,
-                        loc: plan.spotAddress || 'Nairobi',
-                        relationshipStatus: 'single',
-                        relationship_status: 'single',
-                        is_creator: true,
-                        is_liveness_verified: plan.isHostVerified,
-                        isLivenessVerified: plan.isHostVerified,
-                        role: 'user',
-                        professionalTitle: 'Outing Host & Community Curator',
-                        professionalCategory: 'Lifestyle & Hangouts',
-                        accentColor: '#E0533C',
-                        tagline: 'Curating unforgettable Nairobi group outings'
-                      });
-                    }}
-                    className="flex items-center gap-2.5 min-w-0 hover:opacity-85 transition cursor-pointer group/host"
-                  >
+                  <div className="flex items-center gap-2.5 min-w-0">
                     <div
-                      className="w-10 h-10 rounded-full bg-cover bg-center shrink-0 border-2 border-slate-200 dark:border-slate-700 shadow-2xs group-hover/host:ring-2 group-hover/host:ring-[#E0533C] transition"
+                      className="w-10 h-10 rounded-full bg-cover bg-center shrink-0 border-2 border-slate-200 dark:border-slate-700 shadow-2xs"
                       style={{ backgroundImage: `url('${plan.hostAvatar}')` }}
                     />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1">
-                        <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate group-hover/host:text-[#E0533C] transition">
+                        <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">
                           {plan.hostName}
                         </span>
                         <VerifiedBadge status={plan.isHostVerified ? 'approved' : 'none'} size="sm" />
@@ -947,7 +923,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                         </span>
                       </div>
                       <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-                        {plan.hostHandle || '@host'} • View Card ↗
+                        {plan.hostHandle || '@host'} • Nairobi
                       </p>
                     </div>
                   </div>
@@ -1640,40 +1616,18 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
             {/* Modal Body */}
             <div className="p-4 overflow-y-auto space-y-4 text-xs">
               {/* Host Bar */}
-              <div 
-                onClick={() => {
-                  setSelectedOutingDetail(null);
-                  onViewHostProfile?.({
-                    name: selectedOutingDetail.hostName,
-                    handle: selectedOutingDetail.hostHandle || '@host',
-                    avatar: selectedOutingDetail.hostAvatar,
-                    bio: `Outing host & curator on RADA Nairobi. Hosting group hangouts at ${selectedOutingDetail.spotTitle} and local gems.`,
-                    loc: selectedOutingDetail.spotAddress || 'Nairobi',
-                    relationshipStatus: 'single',
-                    relationship_status: 'single',
-                    is_creator: true,
-                    is_liveness_verified: selectedOutingDetail.isHostVerified,
-                    isLivenessVerified: selectedOutingDetail.isHostVerified,
-                    role: 'user',
-                    professionalTitle: 'Outing Host & Community Curator',
-                    professionalCategory: 'Lifestyle & Hangouts',
-                    accentColor: '#E0533C',
-                    tagline: 'Curating unforgettable Nairobi group outings'
-                  });
-                }}
-                className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 hover:border-orange-500/50 transition cursor-pointer group/detailhost"
-              >
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">
                 <div className="flex items-center gap-2.5">
                   <div
-                    className="w-10 h-10 rounded-full bg-cover bg-center border shadow-xs group-hover/detailhost:ring-2 group-hover/detailhost:ring-[#E0533C] transition"
+                    className="w-10 h-10 rounded-full bg-cover bg-center border"
                     style={{ backgroundImage: `url('${selectedOutingDetail.hostAvatar}')` }}
                   />
                   <div>
                     <div className="flex items-center gap-1">
-                      <span className="font-extrabold text-xs group-hover/detailhost:text-[#E0533C] transition">{selectedOutingDetail.hostName}</span>
+                      <span className="font-extrabold text-xs">{selectedOutingDetail.hostName}</span>
                       <VerifiedBadge status={selectedOutingDetail.isHostVerified ? 'approved' : 'none'} size="sm" />
                     </div>
-                    <span className="text-[10px] text-slate-400">Host • {selectedOutingDetail.hostHandle} • View Profile ↗</span>
+                    <span className="text-[10px] text-slate-400">Host • {selectedOutingDetail.hostHandle}</span>
                   </div>
                 </div>
 

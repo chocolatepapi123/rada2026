@@ -44,8 +44,6 @@ interface SpotsTabProps {
   onOpenSuggestSpot?: () => void;
   onPostReview?: (spotId: number, review: Review) => void;
   onNavigateToCalendar?: (dateStr?: string, eventId?: number | string) => void;
-  businesses?: import('../types.ts').BusinessAccount[];
-  onOpenPublicProfile?: (biz: import('../types.ts').BusinessAccount) => void;
   showToast?: (msg: string) => void;
 }
 
@@ -70,8 +68,6 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   onOpenSuggestSpot,
   onPostReview,
   onNavigateToCalendar,
-  businesses = [],
-  onOpenPublicProfile,
   showToast
 }) => {
   const [searchQuery, setSearchQuery] = useState(cachedSpotsFilters.searchQuery);
@@ -650,18 +646,12 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                 <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] truncate transition">
                   {spot.title}
                 </h4>
-                {(() => {
-                  const matchingBiz = businesses.find(b => b.id === spot.businessId || (spot.title && b.name.toLowerCase() === spot.title.toLowerCase()));
-                  return (
-                    <BusinessBadge
-                      businessId={spot.businessId || matchingBiz?.id}
-                      category="hospitality"
-                      size="xs"
-                      unclaimedVerified={!spot.isUserUploaded && spot.is_claimed !== false}
-                      onClick={matchingBiz && onOpenPublicProfile ? () => onOpenPublicProfile(matchingBiz) : undefined}
-                    />
-                  );
-                })()}
+                <BusinessBadge
+                  businessId={spot.businessId}
+                  category="hospitality"
+                  size="xs"
+                  unclaimedVerified={!spot.isUserUploaded && spot.is_claimed !== false}
+                />
                 {spot.hasPendingClaim && (
                   <span className="text-[9px] bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded font-black shrink-0">
                     Proof Under Review
