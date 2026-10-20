@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import type { BusinessAccount, SavedItem, CollectionFolder, OutingPlan, OutingAttendee, ChatConversation, HostAnalytics, HostControls, UserProfile, AdminUserRecord, PlatformStats, UnclaimedSpotInput, SpotItem, SubscriptionStatus } from '../types';
+import type { BusinessAccount, SavedItem, CollectionFolder, OutingPlan, OutingAttendee, ChatConversation, HostAnalytics, HostControls, UserProfile, AdminUserRecord, PlatformStats, SpotItem, SubscriptionStatus } from '../types';
 import { isPlatformAdmin } from '../types';
 import { STATUS_TTL_MS } from '../utils/statusLifecycle';
 
@@ -2535,51 +2535,6 @@ export async function setBusinessSubscription(
 }
 
 // ---------- Unclaimed spots ----------
-/** Publishes a spot straight from the admin account, with is_claimed = false so a business can claim it later. */
-export async function publishUnclaimedSpot(
-  input: UnclaimedSpotInput
-): Promise<{ error: string | null; spot?: SpotItem }> {
-  const guard = await requireAdmin();
-  if (guard.error || !guard.uid) return { error: guard.error || 'Admin access required.' };
-
-  const title = input.title.trim();
-  if (!title) return { error: 'Spot name is required.' };
-  if (!input.neighborhood.trim()) return { error: 'Neighborhood is required.' };
-
-  const img =
-    input.img?.trim() ||
-    'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop';
-
-  const spot: SpotItem = {
-    id: Date.now(),
-    title,
-    category: input.category,
-    neighborhood: input.neighborhood.trim(),
-    address: input.address.trim() || `${input.neighborhood.trim()}, Nairobi`,
-    exactLocationTag: input.address.trim(),
-    lat: input.lat ?? -1.2675,
-    lng: input.lng ?? 36.8115,
-    rating: 'New',
-    reviewCount: 0,
-    price: input.price?.trim() || 'KES $$',
-    img,
-    images: [img],
-    description: input.description?.trim() || '',
-    phone: input.phone?.trim() || '',
-    openingHours: input.openingHours?.trim() || '',
-    website: input.website?.trim() || undefined,
-    instagram: input.instagram?.trim() || undefined,
-    // Ownership: none until claimed. isUserUploaded stays false so canEditSpot() does not open it to everyone.
-    is_claimed: false,
-    isAdminPublished: true,
-    isUserUploaded: false,
-    reviews: [],
-  };
-
-  const error = await upsertListing('spot', spot, null, guard.uid);
-  return error ? { error } : { error: null, spot };
-}
-
 /**
  * Publishes a fully built SpotItem (from the merchant-style spot form) as an admin listing:
  * no business, is_claimed = false, so a verified business can claim it later.
