@@ -147,8 +147,22 @@ export const initialBusinesses: BusinessAccount[] = [
     logo: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=200&auto=format&fit=crop',
     coverImage: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
     verified: true,
+    verificationStatus: 'approved',
     instagram: '@inkanddrinkke',
     createdDate: '2026-08-10',
+    accentColor: '#E0533C',
+    tagline: 'Craft Cocktails • Live DJs • Westlands Sundowners',
+    businessTypeLabel: 'Boutique Cocktail Lounge & Tapas Bar',
+    customLinks: [
+      { id: 'l-1', title: 'Weekend Table Reservation', url: 'https://wa.me/254722123456', platform: 'whatsapp', description: 'Reserve VIP Booth or Patio Seating' },
+      { id: 'l-2', title: 'Official Instagram Feed', url: 'https://instagram.com/inkanddrinkke', platform: 'instagram', description: 'Weekly DJ lineups & photo galleries' },
+      { id: 'l-3', title: 'Live Afro-House Mixtapes', url: 'https://spotify.com', platform: 'music', description: 'Resident DJs Weekend Live Sets' }
+    ],
+    pinnedHighlights: [
+      { id: 'h-1', title: 'Signature Dawas', image: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=600&auto=format&fit=crop', description: 'Authentic pure Kenyan honey & fresh limes with premium vodka', date: 'Fri & Sat' },
+      { id: 'h-2', title: 'Rooftop Sundowner', image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&auto=format&fit=crop', description: 'Golden hour views across Westlands skyline', date: '5PM - 8PM' },
+      { id: 'h-3', title: 'Vinyl DJ Sessions', image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop', description: 'Deep soulful Amapiano & Afro-Tech all night', date: 'Every Saturday' }
+    ],
     discography: [
       'Sunset Sessions Vol. 4 (Live Afro-House Set)',
       'Mpaka Nights: Amapiano Lounge Edition',
@@ -176,8 +190,20 @@ export const initialBusinesses: BusinessAccount[] = [
     logo: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=200&auto=format&fit=crop',
     coverImage: 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=800&auto=format&fit=crop',
     verified: true,
+    verificationStatus: 'approved',
     instagram: '@mamarocksburgers',
     createdDate: '2026-06-15',
+    accentColor: '#D97706',
+    tagline: 'African-Inspired Gourmet Burgers & Craft Shakes',
+    businessTypeLabel: 'Gourmet Burger Kitchen & Rooftop Eatery',
+    customLinks: [
+      { id: 'l-4', title: 'Order Direct Delivery', url: 'https://glovoapp.com', platform: 'website', description: 'Fast delivery across Nairobi' },
+      { id: 'l-5', title: 'Follow on Instagram', url: 'https://instagram.com/mamarocksburgers', platform: 'instagram', description: 'Weekly secret menu drops' }
+    ],
+    pinnedHighlights: [
+      { id: 'h-4', title: 'The Djolof Burger', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=600&auto=format&fit=crop', description: 'Aged beef patty topped with smoked pepper jollof reduction & plantain', date: 'House Special' },
+      { id: 'h-5', title: 'Suya Loaded Fries', image: 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=600&auto=format&fit=crop', description: 'Crispy skin-on fries spiced with authentic northern Nigerian yaji seasoning', date: 'Best Seller' }
+    ],
     discography: [
       'Flavor Chronicles: Suya & Plantain Fusion',
       'Mama Rocks Sounds: Beats & Bites Podcast'
@@ -200,8 +226,21 @@ export const initialBusinesses: BusinessAccount[] = [
     logo: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=200&auto=format&fit=crop',
     coverImage: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop',
     verified: true,
+    verificationStatus: 'approved',
     instagram: '@vibecraft_ke',
-    createdDate: '2026-07-20'
+    createdDate: '2026-07-20',
+    accentColor: '#9333EA',
+    tagline: 'Concerts • Underground Raves • Cultural Festivals',
+    businessTypeLabel: 'Live Music & Festival Production House',
+    customLinks: [
+      { id: 'l-6', title: 'Official Ticketing Pass Portal', url: 'https://tikiti.co.ke', platform: 'tickets', description: 'Direct checkout with M-Pesa & Card' },
+      { id: 'l-7', title: 'VibeCraft WhatsApp Community', url: 'https://chat.whatsapp.com', platform: 'whatsapp', description: 'Exclusive early bird discount codes' },
+      { id: 'l-8', title: 'Spotify Festival Playlists', url: 'https://spotify.com', platform: 'music', description: 'Curated headliner tracks' }
+    ],
+    pinnedHighlights: [
+      { id: 'h-6', title: 'Sunburst Festival', image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop', description: '12,000 festival-goers celebrating live sound', date: 'Ngong Waterfront' },
+      { id: 'h-7', title: 'Secret Warehouse Rave', image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop', description: 'Industrial warehouse all-night electronic party', date: 'Mombasa Rd' }
+    ]
   },
   {
     id: 'biz-5',
@@ -216,8 +255,20 @@ export const initialBusinesses: BusinessAccount[] = [
     logo: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=200&auto=format&fit=crop',
     coverImage: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
     verified: true,
+    verificationStatus: 'approved',
     instagram: '@talisman_nairobi',
-    createdDate: '2026-05-10'
+    createdDate: '2026-05-10',
+    accentColor: '#059669',
+    tagline: 'Lush Karen Gardens • Fine Dining • Artisanal Cocktails',
+    businessTypeLabel: 'Garden Fine Dining Oasis & Wine Bar',
+    customLinks: [
+      { id: 'l-9', title: 'Book Garden Terrace Table', url: 'https://thetalisman.co.ke', platform: 'website', description: 'Romantic dinners & group brunches' },
+      { id: 'l-10', title: 'Wine & Tapas Menu', url: 'https://thetalisman.co.ke/menu', platform: 'menu', description: 'Over 80 curated vintages' }
+    ],
+    pinnedHighlights: [
+      { id: 'h-8', title: 'Garden Courtyard', image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&auto=format&fit=crop', description: 'Candlelit tables surrounded by mature Karen greenery', date: 'Daily' },
+      { id: 'h-9', title: 'Feta & Coriander Samosas', image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&auto=format&fit=crop', description: 'Nairobi legendary starter with spiced chilli dip', date: 'Signature Dish' }
+    ]
   }
 ];
 
@@ -1121,7 +1172,21 @@ export const discoveryProfiles: DatingProfile[] = [
     img: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop',
     bio: 'Art director & coffee enthusiast. Looking for someone who knows good playlists and hidden Nairobi restaurants.',
     relationshipStatus: 'single',
-    vibes: ['Amapiano', 'Art Galleries', 'Brunch', 'Matcha']
+    vibes: ['Amapiano', 'Art Galleries', 'Brunch', 'Matcha'],
+    isLivenessVerified: true,
+    is_creator: true,
+    professionalTitle: 'Creative Director & Visual Storyteller',
+    professionalCategory: 'Art & Photography',
+    accentColor: '#EC4899',
+    tagline: 'Curating modern African visual aesthetics & city photo walks',
+    customLinks: [
+      { id: 'dl-1', title: 'Creative Portfolio & Gallery', url: 'https://behance.net', platform: 'website', description: 'Editorial and campaign archives' },
+      { id: 'dl-2', title: 'Visual Journal on Instagram', url: 'https://instagram.com/jane_d', platform: 'instagram', description: 'Nairobi film photography & street frames' }
+    ],
+    pinnedHighlights: [
+      { id: 'dh-1', title: 'Nairobi Sundowners', image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&auto=format&fit=crop', description: 'Golden hour captures over Nairobi skyline' },
+      { id: 'dh-2', title: 'Street Gallery Walks', image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop', description: 'Exploring graffiti & contemporary spaces in GoDown' }
+    ]
   },
   {
     id: 2,
@@ -1131,7 +1196,20 @@ export const discoveryProfiles: DatingProfile[] = [
     img: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop',
     bio: 'Architecture student at UoN. Loves rooftop sunsets, live gigs and thrift market hunts.',
     relationshipStatus: 'single',
-    vibes: ['Thrifting', 'Afrobeats', 'Rooftops', 'Photography']
+    vibes: ['Thrifting', 'Afrobeats', 'Rooftops', 'Photography'],
+    isLivenessVerified: true,
+    is_creator: true,
+    professionalTitle: 'Architectural Designer & Urban Explorer',
+    professionalCategory: 'Design & Architecture',
+    accentColor: '#06B6D4',
+    tagline: 'Documenting Nairobi brutalist & contemporary urban architecture',
+    customLinks: [
+      { id: 'dl-3', title: 'Urban Architecture Archive', url: 'https://instagram.com/amina_m', platform: 'instagram', description: 'Nairobi landmarks & structure blueprints' },
+      { id: 'dl-4', title: 'Weekend Thrift Route Guide', url: 'https://tiktok.com', platform: 'tiktok', description: 'Gikomba & Toi thrift market maps' }
+    ],
+    pinnedHighlights: [
+      { id: 'dh-3', title: 'Brutalist Nairobi', image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop', description: 'Iconic facades and concrete curves in the CBD' }
+    ]
   },
   {
     id: 3,
@@ -1141,7 +1219,20 @@ export const discoveryProfiles: DatingProfile[] = [
     img: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=600&auto=format&fit=crop',
     bio: 'UX designer & foodie. In a happy relationship, down for hangout groups and cinema runs with friends.',
     relationshipStatus: 'not_single',
-    vibes: ['Cinema', 'Late Night Drives', 'House Music']
+    vibes: ['Cinema', 'Late Night Drives', 'House Music'],
+    isLivenessVerified: true,
+    is_creator: true,
+    professionalTitle: 'Senior Product Designer & Sound Curator',
+    professionalCategory: 'Tech & Product',
+    accentColor: '#8B5CF6',
+    tagline: 'Designing digital experiences by day, deep house DJ by night',
+    customLinks: [
+      { id: 'dl-5', title: 'SoundCloud Mixtapes', url: 'https://soundcloud.com', platform: 'music', description: 'Late Night Drives electronic DJ set' },
+      { id: 'dl-6', title: 'Design System Case Studies', url: 'https://dribbble.com', platform: 'website', description: 'Interactive product components' }
+    ],
+    pinnedHighlights: [
+      { id: 'dh-4', title: 'Late Night House', image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=600&auto=format&fit=crop', description: 'Deep ambient grooves recorded live at The Alchemist' }
+    ]
   }
 ];
 

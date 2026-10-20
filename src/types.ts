@@ -71,6 +71,27 @@ isSuspended?: boolean;
   discography?: string[];
   pinnedImages?: string[];
   specialOffers?: SpecialOffer[];
+  /** Full Personalization Kit fields */
+  accentColor?: string;
+  tagline?: string;
+  businessTypeLabel?: string;
+  customLinks?: CustomLink[];
+  pinnedHighlights?: PinnedHighlight[];
+}
+
+export interface CustomLink {
+  id: string;
+  title: string;
+  url: string;
+  platform?: 'website' | 'instagram' | 'tiktok' | 'twitter' | 'youtube' | 'spotify' | 'whatsapp' | 'menu' | 'booking' | 'other' | string;
+}
+
+export interface PinnedHighlight {
+  id: string;
+  title: string;
+  imageUrl?: string;
+  description?: string;
+  linkUrl?: string;
 }
 
 export interface MenuItem {
@@ -316,6 +337,13 @@ export interface DatingProfile {
   relationshipStatus: 'single' | 'not_single';
   vibes?: string[];
   isLivenessVerified?: boolean;
+  is_creator?: boolean;
+  professionalTitle?: string;
+  professionalCategory?: string;
+  accentColor?: string;
+  tagline?: string;
+  customLinks?: CustomLink[];
+  pinnedHighlights?: PinnedHighlight[];
 }
 
 export interface UserProfile {
@@ -346,6 +374,14 @@ export interface UserProfile {
   email?: string;
   role?: UserRole;
   is_suspended?: boolean;
+  /** Professional Personalization Kit fields */
+  professionalTitle?: string;
+  professionalCategory?: string;
+  professionalWebsite?: string;
+  accentColor?: string;
+  tagline?: string;
+  customLinks?: CustomLink[];
+  pinnedHighlights?: PinnedHighlight[];
 }
 
 export type AccountType = 'personal' | 'professional';

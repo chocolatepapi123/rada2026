@@ -94,8 +94,21 @@ const DEFAULT_PROFILE: UserProfile = {
   loc: 'Westlands, Nairobi',
   relationshipStatus: 'single',
   relationship_status: 'single',
-  isLivenessVerified: false,
-  is_liveness_verified: false,
+  isLivenessVerified: true,
+  is_liveness_verified: true,
+  is_creator: true,
+  professionalTitle: 'Nightlife Curator & Streetwear Stylist',
+  professionalCategory: 'Music & Fashion',
+  accentColor: '#E0533C',
+  tagline: 'Connecting vibe seekers with Nairobi best hangouts and soundscapes',
+  customLinks: [
+    { id: 'wl-1', title: 'Instagram Profile', url: 'https://instagram.com/lowk3yFX', platform: 'instagram', description: 'Weekly outfit grids & club nights' },
+    { id: 'wl-2', title: 'Curated Spotify Playlists', url: 'https://spotify.com', platform: 'music', description: 'Nairobi Sundowner Afro-House' }
+  ],
+  pinnedHighlights: [
+    { id: 'wh-1', title: 'Westlands Nights', image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&auto=format&fit=crop', description: 'Weekend crawls around Mpaka Rd and Sarit' },
+    { id: 'wh-2', title: 'Fashion Setups', image: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=600&auto=format&fit=crop', description: 'Streetwear drops and vintage fits' }
+  ],
   vibes: ['Nightlife', 'Cocktails', 'Amapiano', 'Art', 'Thrifting']
 };
 
@@ -1470,6 +1483,13 @@ export default function App() {
     }
   };
 
+  const handleOpenBusinessProfile = (businessId: string) => {
+    const biz = businesses.find(b => b.id === businessId || b.name.toLowerCase() === businessId.toLowerCase());
+    if (biz) {
+      setSelectedPublicBusiness(biz);
+    }
+  };
+
   // Offers Handlers (SPEC 4: Decoupled Independent Engine)
   const handleCreateOffer = (newOffer: BusinessOffer) => {
     setOffers(prev => [newOffer, ...prev]);
@@ -2183,6 +2203,8 @@ export default function App() {
                 onOpenSuggestSpot={() => setIsSuggestSpotModalOpen(true)}
                 onPostReview={handlePostReview}
                 onNavigateToCalendar={handleNavigateToCalendar}
+                businesses={businesses}
+                onOpenPublicProfile={(biz) => setSelectedPublicBusiness(biz)}
                 showToast={showToast}
               />
             )}
@@ -2200,6 +2222,7 @@ export default function App() {
                 onUpdateAttendeeStatus={handleUpdateAttendeeStatus}
                 onOpenOutingChat={handleOpenOutingChat}
                 onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
+                onViewHostProfile={(host) => setViewingProfile(host)}
                 showToast={showToast}
               />
             )}
@@ -2423,6 +2446,8 @@ export default function App() {
             savedItems={savedItems}
             onToggleSave={handleToggleSave}
             onNavigateToCalendar={handleNavigateToCalendar}
+            businesses={businesses}
+            onOpenPublicProfile={(biz) => setSelectedPublicBusiness(biz)}
           />
 
           <UserProfileModal
@@ -2445,6 +2470,22 @@ export default function App() {
             showToast={showToast}
             onOpenSavedItems={() => requireAuth('view saved collections', () => setIsSavedModalOpen(true))}
             onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
+            isOwnProfile={viewingProfile ? (
+              (Boolean(session?.user?.id) && viewingProfile.id === session?.user?.id) ||
+              viewingProfile.handle === currentUserProfile.handle ||
+              viewingProfile.name === currentUserProfile.name
+            ) : false}
+            currentUserId={session?.user?.id}
+            onProfileChange={(patch) => {
+              handleOwnProfileChange(patch);
+              setViewingProfile(prev => prev ? { ...prev, ...patch } : null);
+            }}
+            outings={outings}
+            onOpenOutingDetail={() => {
+              setViewingProfile(null);
+              setActiveTab('outings');
+            }}
+            onOpenAuth={() => setIsAuthModalOpen(true)}
           />
 
           <PublicBusinessProfileModal
@@ -2455,6 +2496,8 @@ export default function App() {
             events={events}
             onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
             onOpenEventDetails={(event) => setSelectedEventModal(event)}
+            onUpdateBusiness={handleUpdateBusiness}
+            currentUserId={session?.user?.id}
             showToast={showToast}
           />
 

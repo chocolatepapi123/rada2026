@@ -152,6 +152,8 @@ interface OverlaysProps {
   savedItems?: SavedItem[];
   onToggleSave?: (item: any, kind: 'spot' | 'event' | 'offer') => void;
   onNavigateToCalendar?: (dateStr?: string, eventId?: number | string) => void;
+  businesses?: import('../types.ts').BusinessAccount[];
+  onOpenPublicProfile?: (biz: import('../types.ts').BusinessAccount) => void;
 }
 
 export const Overlays: React.FC<OverlaysProps> = ({
@@ -205,7 +207,9 @@ export const Overlays: React.FC<OverlaysProps> = ({
   showToast,
   onOpenSaved,
   onOpenAccountSettings,
-  savedCount
+  savedCount,
+  businesses = [],
+  onOpenPublicProfile
 }) => {
   // Spot Active Photo Index
   const [activeSpotImgIndex, setActiveSpotImgIndex] = useState(0);
@@ -501,6 +505,60 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 </p>
               )}
             </div>
+
+            {/* Interactive Venue & Merchant Profile Card */}
+            {(() => {
+              const matchingBiz = businesses?.find(b => b.id === selectedSpot.businessId || (selectedSpot.title && b.name.toLowerCase() === selectedSpot.title.toLowerCase()));
+              if (!matchingBiz && !onOpenPublicProfile) return null;
+              const targetBiz = matchingBiz || {
+                id: `biz-spot-${selectedSpot.id}`,
+                name: selectedSpot.title,
+                category: 'hospitality',
+                email: '',
+                phone: selectedSpot.phone || '',
+                neighborhood: selectedSpot.neighborhood,
+                address: selectedSpot.address,
+                bio: selectedSpot.description || '',
+                logo: selectedSpot.img,
+                coverImage: (selectedSpot.images && selectedSpot.images[0]) || selectedSpot.img,
+                verified: true,
+                verificationStatus: 'approved' as const,
+                createdDate: '2026-01-01',
+                businessTypeLabel: selectedSpot.category ? selectedSpot.category.replace(/_/g, ' ').toUpperCase() : 'VENUE & HOSPITALITY',
+                accentColor: '#E0533C'
+              };
+              return (
+                <div 
+                  onClick={() => {
+                    onCloseSpotModal();
+                    onOpenPublicProfile?.(targetBiz);
+                  }}
+                  className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-red-500/10 border border-orange-500/30 flex items-center justify-between gap-3 hover:border-orange-500/60 hover:shadow-md transition cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <img 
+                      src={targetBiz.logo || selectedSpot.img} 
+                      alt={targetBiz.name} 
+                      className="w-12 h-12 rounded-xl object-cover shrink-0 shadow-xs border border-orange-200 dark:border-orange-900 group-hover:scale-105 transition"
+                    />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-black text-xs text-slate-900 dark:text-slate-100 truncate group-hover:text-[#E0533C] transition">
+                          {targetBiz.name}
+                        </span>
+                        <BusinessBadge businessId={targetBiz.id} category="hospitality" size="xs" unclaimedVerified />
+                      </div>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                        {targetBiz.tagline || targetBiz.businessTypeLabel || `${selectedSpot.neighborhood} • Verified Merchant Hub`}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-xl bg-white dark:bg-[#1C1A1E] text-[#E0533C] shadow-2xs border border-orange-200 dark:border-orange-900/60 shrink-0 group-hover:bg-[#E0533C] group-hover:text-white transition">
+                    Full Profile ↗
+                  </span>
+                </div>
+              );
+            })()}
 
             {/* ACTION BUTTONS: Uber, Bolt, Add to Plan, View on Calendar, and Plan a Date */}
             <div className="space-y-2 pt-1 pb-1">
@@ -1293,6 +1351,60 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 </p>
               )}
             </div>
+
+            {/* Interactive Event Organizer / Promoter Profile Card */}
+            {(() => {
+              const matchingOrganizer = businesses?.find(b => b.id === selectedEvent.businessId || (selectedEvent.organizer && b.name.toLowerCase() === selectedEvent.organizer.toLowerCase()));
+              if (!matchingOrganizer && !onOpenPublicProfile) return null;
+              const targetBiz = matchingOrganizer || {
+                id: `biz-evt-${selectedEvent.id}`,
+                name: selectedEvent.organizer || 'Official Event Promoter',
+                category: 'event_organizer',
+                email: '',
+                phone: '',
+                neighborhood: 'Nairobi',
+                address: selectedEvent.location,
+                bio: selectedEvent.description || '',
+                logo: selectedEvent.img,
+                coverImage: selectedEvent.img,
+                verified: true,
+                verificationStatus: 'approved' as const,
+                createdDate: '2026-01-01',
+                businessTypeLabel: 'CONCERT & FESTIVAL ORGANIZER',
+                accentColor: '#8B5CF6'
+              };
+              return (
+                <div 
+                  onClick={() => {
+                    onCloseEventModal();
+                    onOpenPublicProfile?.(targetBiz);
+                  }}
+                  className="p-3.5 rounded-2xl bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-indigo-500/10 border border-purple-500/30 flex items-center justify-between gap-3 hover:border-purple-500/60 hover:shadow-md transition cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <img 
+                      src={targetBiz.logo || selectedEvent.img} 
+                      alt={targetBiz.name} 
+                      className="w-12 h-12 rounded-xl object-cover shrink-0 shadow-xs border border-purple-200 dark:border-purple-900 group-hover:scale-105 transition"
+                    />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-black text-xs text-slate-900 dark:text-slate-100 truncate group-hover:text-purple-600 transition">
+                          {targetBiz.name}
+                        </span>
+                        <BusinessBadge businessId={targetBiz.id} category="event_organizer" size="xs" unclaimedVerified />
+                      </div>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                        {targetBiz.tagline || targetBiz.businessTypeLabel || 'Primary Ticketing Verified • Official Promoter'}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-xl bg-white dark:bg-[#1C1A1E] text-purple-600 shadow-2xs border border-purple-200 dark:border-purple-900/60 shrink-0 group-hover:bg-purple-600 group-hover:text-white transition">
+                    Promoter Card ↗
+                  </span>
+                </div>
+              );
+            })()}
 
             {/* Ride to Event */}
             <div className="grid grid-cols-2 gap-2">
