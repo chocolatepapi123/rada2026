@@ -8,7 +8,7 @@ import { supabase, isSupabaseConfigured } from './lib/supabase';
 import * as cloud from './lib/cloudSync';
 import { BusinessesProvider } from './components/BusinessBadge.tsx';
 import { AuthModal } from './components/AuthModal';
-import { AdminDashboard } from './components/AdminDashboard.tsx';
+import { AdminDashboard } from './components/AdminDashboardModal.tsx';
 import { Header } from './components/Header.tsx';
 import { Navigation } from './components/Navigation.tsx';
 import { MerchantHubTab } from './components/MerchantHubTab.tsx';
@@ -120,7 +120,45 @@ export default function App() {
   const [userRole, setUserRole] = useState<'user' | 'merchant' | 'admin'>('user');
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isLivenessModalOpen, setIsLivenessModalOpen] = useState(false);
+  const [suspensionReason, setSuspensionReason] = useState<string | null>(null);
   const syncRef = useRef<(() => void) | null>(null);
+
+  // App-level suspension enforcement helper
+  const enforceUserSuspension = async (reason?: string) => {
+    const finalReason = reason || 'Violation of RADA community terms and platform safety guidelines';
+    setSuspensionReason(finalReason);
+    try {
+      if (isSupabaseConfigured && supabase?.auth) {
+        await supabase.auth.signOut().catch(() => {});
+      }
+    } catch (err) {
+      console.warn('Sign out during suspension error:', err);
+    }
+    setSession(null);
+    setUserRole('user');
+    setIsGuestMode(false);
+    setCurrentUserProfile(GUEST_PROFILE);
+    localStorage.removeItem('rada_current_user');
+    localStorage.removeItem('rada_last_uid');
+    setIsAuthModalOpen(false);
+    setIsBusinessHubOpen(false);
+    setIsAdminOpen(false);
+    triggerToast(`Account Suspended: ${finalReason}`);
+  };
+
+  const checkSuspensionState = async (uid: string): Promise<boolean> => {
+    if (!isSupabaseConfigured || !uid) return false;
+    try {
+      const state = await cloud.fetchSuspensionState(uid);
+      if (state.suspended) {
+        await enforceUserSuspension(state.reason);
+        return true;
+      }
+    } catch (e) {
+      console.warn('fetchSuspensionState error:', e);
+    }
+    return false;
+  };
 
   // Safe Supabase Session Listener & Onboarding Gate
   useEffect(() => {
@@ -130,8 +168,15 @@ export default function App() {
     }, 600);
 
     if (isSupabaseConfigured && supabase && supabase.auth) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
+      supabase.auth.getSession().then(async ({ data: { session } }) => {
         if (mounted) {
+          if (session?.user?.id) {
+            const isSuspended = await checkSuspensionState(session.user.id);
+            if (isSuspended) {
+              setAuthLoading(false);
+              return;
+            }
+          }
           setSession(session);
           setAuthLoading(false);
           if (!session) {
@@ -145,8 +190,12 @@ export default function App() {
         }
       });
 
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
         if (mounted) {
+          if (session?.user?.id) {
+            const isSuspended = await checkSuspensionState(session.user.id);
+            if (isSuspended) return;
+          }
           setSession(session);
           if (session) {
             setIsGuestMode(false);
@@ -165,7 +214,8 @@ export default function App() {
       setIsAuthModalOpen(true);
     }
   }, []);
-  // Load logged-in user's role
+
+  // Load logged-in user's role and verify profile active state
   useEffect(() => {
     if (!session?.user?.id || !isSupabaseConfigured) {
       setUserRole('user');
@@ -178,9 +228,14 @@ export default function App() {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('role, relationship_status, is_liveness_verified, avatar_url')
+        .select('role, relationship_status, is_liveness_verified, avatar_url, is_suspended, suspended_reason')
         .eq('id', session.user.id)
         .maybeSingle();
+
+      if (data?.is_suspended) {
+        await enforceUserSuspension(data.suspended_reason);
+        return;
+      }
 
       if (data) {
         if (data.relationship_status !== undefined || data.is_liveness_verified !== undefined) {
@@ -1406,15 +1461,20 @@ export default function App() {
   // Spot Claiming (SPEC 3A: Exclusive to Spot Merchants)
   const handleClaimSpot = (spotId: number, businessId: string) => {
     const claimed = spots.find(s => s.id === spotId);
-    if (claimed && currentUserId) {
-      cloudWrite(() => cloud.upsertListing('spot', { ...claimed, businessId, isUserUploaded: false }, businessId, currentUserId));
+    const ownerId = session?.user?.id || currentUserId;
+    if (claimed && ownerId) {
+      cloudWrite(() => cloud.claimUnclaimedSpot(spotId, businessId, ownerId));
     }
     setSpots(prev => prev.map(s => {
       if (s.id === spotId) {
         return {
           ...s,
           businessId,
-          isUserUploaded: false
+          merchantId: ownerId,
+          isUserUploaded: false,
+          is_claimed: true,
+          claimedByBusinessId: businessId,
+          claimedAt: new Date().toISOString()
         };
       }
       return s;
@@ -1917,6 +1977,23 @@ export default function App() {
         <>
 
 
+          {/* Account Suspended Banner */}
+          {suspensionReason && (
+            <div className="bg-red-600 text-white px-4 py-2.5 text-xs font-bold flex items-center justify-between gap-3 shadow-md z-40 sticky top-0">
+              <div className="flex items-center gap-2 flex-1">
+                <i className="fa-solid fa-triangle-exclamation text-amber-200"></i>
+                <span>Account Suspended: {suspensionReason}</span>
+              </div>
+              <button
+                onClick={() => setSuspensionReason(null)}
+                className="text-white/80 hover:text-white px-1.5 py-0.5 rounded text-xs cursor-pointer"
+                title="Dismiss banner"
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          )}
+
           {/* Top Header */}
           <Header
             onOpenOverlay={handleOpenOverlay}
@@ -2330,6 +2407,48 @@ export default function App() {
   }}
 />
 )}
+
+          {/* Account Suspended Modal */}
+          {suspensionReason && (
+            <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+              <div className="bg-white dark:bg-[#1C1A1E] border border-red-500/40 rounded-3xl p-6 max-w-md w-full shadow-2xl text-center space-y-4">
+                <div className="w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-950/60 text-red-600 flex items-center justify-center mx-auto shadow-inner">
+                  <i className="fa-solid fa-ban text-2xl"></i>
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-slate-100">
+                    Account Suspended
+                  </h3>
+                  <div className="mt-3 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-2xl text-xs font-bold text-red-700 dark:text-red-300">
+                    Account Suspended: {suspensionReason}
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-3 leading-relaxed">
+                    Your account has been suspended by a platform administrator. Access to account management, merchant operations, and personalized features has been revoked.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2 pt-2">
+                  <button
+                    onClick={() => {
+                      setSuspensionReason(null);
+                      setIsAuthModalOpen(true);
+                    }}
+                    className="w-full py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-black rounded-xl hover:opacity-90 transition cursor-pointer"
+                  >
+                    Sign In with Another Account
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSuspensionReason(null);
+                      setIsGuestMode(true);
+                    }}
+                    className="w-full py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
+                  >
+                    Continue as Guest
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
         </div>

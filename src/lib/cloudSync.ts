@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import type { BusinessAccount, SavedItem, CollectionFolder, OutingPlan, OutingAttendee, ChatConversation, HostAnalytics, HostControls, UserProfile, AdminUserRecord, PlatformStats, SpotItem, SubscriptionStatus } from '../types';
+import type { BusinessAccount, SavedItem, CollectionFolder, OutingPlan, OutingAttendee, ChatConversation, HostAnalytics, HostControls, UserProfile, AdminUserRecord, PlatformStats, SpotItem, SubscriptionStatus, UnclaimedSpotInput } from '../types';
 import { isPlatformAdmin } from '../types';
 import { STATUS_TTL_MS } from '../utils/statusLifecycle';
 
@@ -2553,15 +2553,62 @@ export async function publishAdminSpot(spot: SpotItem): Promise<string | null> {
   return upsertListing('spot', stamped, null, guard.uid);
 }
 
+/**
+ * Publishes an unclaimed spot using the Admin Dashboard form inputs.
+ */
+export async function publishUnclaimedSpot(
+  input: UnclaimedSpotInput
+): Promise<{ error: string | null; spot: SpotItem | null }> {
+  const guard = await requireAdmin();
+  if (guard.error || !guard.uid) return { error: guard.error || 'Admin access required.', spot: null };
+
+  const id = Date.now();
+  const spot: SpotItem = {
+    id,
+    title: input.title,
+    category: input.category,
+    neighborhood: input.neighborhood,
+    address: input.address,
+    description: input.description || '',
+    phone: input.phone || '',
+    openingHours: input.openingHours || '',
+    price: input.price || 'KES 1,000 - 2,500',
+    img: input.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
+    lat: input.lat ?? -1.2921,
+    lng: input.lng ?? 36.8219,
+    rating: '4.8',
+    reviewCount: 0,
+    reviews: [],
+    is_claimed: false,
+    isAdminPublished: true,
+    isUserUploaded: false,
+    merchantId: guard.uid,
+    website: input.website,
+    instagram: input.instagram,
+    socialLinks: {
+      website: input.website,
+      instagram: input.instagram,
+    },
+  };
+
+  const err = await upsertListing('spot', spot, null, guard.uid);
+  if (err) return { error: err, spot: null };
+  return { error: null, spot };
+}
+
 /** Spots still waiting for a merchant. Used by the admin list and by the merchant "Claim" search. */
 export async function fetchUnclaimedSpots(query = ''): Promise<any[] | null> {
   const listings = await fetchListings();
-  if (!listings) return null;
   const q = query.trim().toLowerCase();
+  if (!listings || !listings.spot) {
+    return [];
+  }
   return listings.spot.filter((s: any) => {
-    if (s.is_claimed !== false) return false;
+    // Unclaimed = explicitly marked false or user-uploaded with no business
+    const isUnclaimed = s.is_claimed === false || (s.isUserUploaded && !s.businessId);
+    if (!isUnclaimed) return false;
     if (!q) return true;
-    return [s.title, s.neighborhood, s.address, s.category]
+    return [s.title, s.neighborhood, s.address, s.category, s.description]
       .some(v => String(v || '').toLowerCase().includes(q));
   });
 }
@@ -2573,11 +2620,12 @@ export async function claimUnclaimedSpot(
   ownerId: string
 ): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
-  if (!isValidUuid(ownerId)) return 'you must be signed in to claim a spot';
+  const safeOwner = isValidUuid(ownerId) ? ownerId : toValidUuid(ownerId);
+  const safeBiz = isValidUuid(businessId) ? businessId : toValidUuid(businessId);
+  if (!safeOwner) return 'you must be signed in to claim a spot';
 
   const rowId = listingUuid('spot', spotId);
   const now = new Date().toISOString();
-  const safeBiz = isValidUuid(businessId) ? businessId : null;
 
   const { data: row, error: readErr } = await supabase
     .from('rada_listings')
@@ -2592,14 +2640,14 @@ export async function claimUnclaimedSpot(
     ...row.data,
     is_claimed: true,
     businessId,
-    merchantId: ownerId,
+    merchantId: safeOwner,
     claimedByBusinessId: businessId,
     claimedAt: now,
   };
 
   const { error } = await supabase
     .from('rada_listings')
-    .update({ data: claimed, owner_id: ownerId, business_id: safeBiz, updated_at: now })
+    .update({ data: claimed, owner_id: safeOwner, business_id: safeBiz, updated_at: now })
     .eq('id', rowId);
   if (error) return error.message;
 
@@ -2607,10 +2655,10 @@ export async function claimUnclaimedSpot(
     try {
       let { error: sErr } = await supabase
         .from('spots')
-        .update({ is_claimed: true, business_id: safeBiz, merchant_id: ownerId, updated_at: now })
+        .update({ is_claimed: true, business_id: safeBiz, merchant_id: safeOwner, updated_at: now })
         .eq('id', spotId);
       if (sErr && isColumnError(sErr.message)) {
-        await supabase.from('spots').update({ business_id: safeBiz, merchant_id: ownerId, updated_at: now }).eq('id', spotId);
+        await supabase.from('spots').update({ business_id: safeBiz, merchant_id: safeOwner, updated_at: now }).eq('id', spotId);
       }
     } catch (e) {
       console.warn('claimUnclaimedSpot spots update warning:', e);

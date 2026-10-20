@@ -240,7 +240,7 @@ export interface TicketTier {
 export interface EventItem {
   id: number;
   title: string;
-  category: 'concerts' | 'nightlife' | 'art' | 'cinemas';
+  category: 'concerts' | 'nightlife' | 'art' | 'cinemas' | 'tech' | 'sports';
   genre?: string;
   date: string;
   time?: string;
@@ -425,7 +425,7 @@ export interface CollectionFolder {
 
 export interface SavedItem {
   id: string | number;
-  kind: 'spot' | 'event' | 'offer';
+  kind: 'spot' | 'event' | 'offer' | 'thrift';
   savedAt: string;
   folderId?: string;
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Store, 
   Ticket, 
@@ -75,7 +75,7 @@ import {
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { DynamicLocationSelector } from './DynamicLocationSelector.tsx';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { toValidUuid } from '../lib/cloudSync.ts';
+import { toValidUuid, fetchUnclaimedSpots, claimUnclaimedSpot } from '../lib/cloudSync.ts';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 
 export type MainCategoryKey = 
@@ -1903,21 +1903,89 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   // SPOT CLAIMING SEARCH UTILITY (EXCLUSIVE TO SPOTS)
   // ----------------------------------------------------
   const [claimSearchQuery, setClaimSearchQuery] = useState('');
-  const claimableCommunitySpots = spots.filter(s => {
-    // Claimable = admin-published (is_claimed === false) or a legacy user upload nobody owns yet.
-    // Spots owned by other businesses are never claimable.
-    const isUnclaimed = s.is_claimed === false || (!!s.isUserUploaded && !s.businessId);
-    if (!isUnclaimed || s.businessId === currentBiz?.id) return false;
+  const [remoteUnclaimedSpots, setRemoteUnclaimedSpots] = useState<any[] | null>(null);
+  const [isSearchingUnclaimed, setIsSearchingUnclaimed] = useState(false);
+  const [isClaimingSpotId, setIsClaimingSpotId] = useState<number | string | null>(null);
 
-    if (!claimSearchQuery.trim()) return true;
+  const loadUnclaimedSpots = useCallback(async (query: string = '') => {
+    setIsSearchingUnclaimed(true);
+    try {
+      const res = await fetchUnclaimedSpots(query);
+      setRemoteUnclaimedSpots(res);
+    } catch (err) {
+      console.warn('Error querying unclaimed spots from cloudSync:', err);
+    } finally {
+      setIsSearchingUnclaimed(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeSubTab === 'claim') {
+      const timer = setTimeout(() => {
+        loadUnclaimedSpots(claimSearchQuery);
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [activeSubTab, claimSearchQuery, loadUnclaimedSpots]);
+
+  // Combined unclaimed spots matching query (cloud + local fallback)
+  const claimableCommunitySpots = useMemo(() => {
+    const map = new Map<string, any>();
     const q = claimSearchQuery.toLowerCase().trim();
-    return (
-      s.title.toLowerCase().includes(q) ||
-      s.neighborhood.toLowerCase().includes(q) ||
-      s.category.toLowerCase().includes(q) ||
-      s.address.toLowerCase().includes(q)
-    );
-  });
+
+    // 1. Add spots fetched from remoteUnclaimedSpots
+    if (remoteUnclaimedSpots && remoteUnclaimedSpots.length > 0) {
+      for (const s of remoteUnclaimedSpots) {
+        if (s.is_claimed !== false && s.businessId) continue;
+        if (s.businessId === currentBiz?.id) continue;
+        map.set(String(s.id), s);
+      }
+    }
+
+    // 2. Add local spots where is_claimed is false or user-uploaded with no business
+    for (const s of spots) {
+      const isUnclaimed = s.is_claimed === false || (!!s.isUserUploaded && !s.businessId);
+      if (!isUnclaimed || s.businessId === currentBiz?.id) continue;
+
+      if (q) {
+        const matches = [s.title, s.neighborhood, s.category, s.address, s.description].some(
+          v => String(v || '').toLowerCase().includes(q)
+        );
+        if (!matches) continue;
+      }
+
+      if (!map.has(String(s.id))) {
+        map.set(String(s.id), s);
+      }
+    }
+
+    return Array.from(map.values());
+  }, [remoteUnclaimedSpots, spots, claimSearchQuery, currentBiz?.id]);
+
+  const handleClaimSpotAction = async (spot: any) => {
+    if (!currentBiz?.id) {
+      showToast('Select or create your business profile before claiming.');
+      return;
+    }
+    const effectiveOwner = userId || effectiveUserId || currentBiz.ownerId || '';
+    setIsClaimingSpotId(spot.id);
+    try {
+      const err = await claimUnclaimedSpot(spot.id, currentBiz.id, effectiveOwner);
+      if (err) {
+        showToast(`Could not claim spot: ${err}`);
+        return;
+      }
+      // Update local state in App so managed listings immediately reflect the new spot
+      onClaimSpot(typeof spot.id === 'number' ? spot.id : Number(spot.id) || spot.id, currentBiz.id);
+      showToast(`Ownership claimed! "${spot.title}" is now managed by ${currentBiz.name}.`);
+      // Refresh the unclaimed list
+      loadUnclaimedSpots(claimSearchQuery);
+    } catch (e: any) {
+      showToast(`Error claiming spot: ${e?.message || String(e)}`);
+    } finally {
+      setIsClaimingSpotId(null);
+    }
+  };
 
   // Spots owned by current business or merchant
   const myClaimedSpots = spots.filter(s => 
@@ -4213,24 +4281,37 @@ isSpotFormOpen && (
                   }`}
                 >
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Claim Spots</span>
+                  <span>Claim Existing Spot</span>
                 </button>
               </>
             )}
 
             {/* Event Organizer Specific Tabs */}
             {currentBiz.category === 'event_organizer' && (
-              <button
-                onClick={() => setActiveSubTab('manage')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
-                  activeSubTab === 'manage'
-                    ? 'bg-purple-600 text-white shadow-xs'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-                }`}
-              >
-                <Ticket className="w-3.5 h-3.5" />
-                <span>Events Suite ({myEvents.length})</span>
-              </button>
+              <>
+                <button
+                  onClick={() => setActiveSubTab('manage')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
+                    activeSubTab === 'manage'
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Ticket className="w-3.5 h-3.5" />
+                  <span>Events Suite ({myEvents.length})</span>
+                </button>
+                <button
+                  onClick={() => setActiveSubTab('claim')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
+                    activeSubTab === 'claim'
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Claim Existing Spot</span>
+                </button>
+              </>
             )}
 
             {/* Independent Offers & Deals tab for ALL merchants */}
@@ -4757,25 +4838,29 @@ isSpotFormOpen && (
         {/* =========================================================================
             SUB-TAB: CLAIM COMMUNITY SPOTS (EXCLUSIVE TO SPOT MERCHANTS)
             ========================================================================= */}
-        {activeSubTab === 'claim' && currentBiz.category === 'hospitality' && (
+        {activeSubTab === 'claim' && (
           <div className="space-y-5 animate-in fade-in duration-150">
             {/* Header / Info Banner */}
             <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-transparent border border-amber-500/30 rounded-3xl p-5">
               <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-black text-xs uppercase tracking-wider mb-1">
                 <Sparkles className="w-4 h-4 text-amber-500" />
-                <span>Exclusive Merchant Privilege</span>
+                <span>Verified Merchant Privilege</span>
               </div>
-              <h3 className="text-base font-black tracking-tight">Search & Claim Community Spots</h3>
-              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                Find spots originally added by the community or unassigned. Claiming instantly grants <strong className="text-slate-900 dark:text-slate-100">{currentBiz.name}</strong> official merchant ownership, unlocking menu updates, photo curation, and verification badges!
+              <h3 className="text-base font-black tracking-tight">Claim Existing Spot</h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+                Search and claim unclaimed listings across Nairobi (where <span className="font-mono text-[11px] bg-amber-500/10 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded">is_claimed: false</span>). Claiming immediately links the listing to <strong className="text-slate-900 dark:text-slate-100">{currentBiz.name}</strong>, unlocking digital menus, hours, photo curation, and verification status!
               </p>
 
-              {/* Search input */}
+              {/* Search input with live status indicator */}
               <div className="relative mt-4">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                {isSearchingUnclaimed ? (
+                  <RefreshCw className="w-4 h-4 text-amber-500 animate-spin absolute left-3.5 top-1/2 -translate-y-1/2" />
+                ) : (
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                )}
                 <input 
                   type="text"
-                  placeholder="Search spots by name, neighborhood (e.g. Hurlingham, Westlands)..."
+                  placeholder="Search unclaimed spots by title, estate (e.g. Westlands, Kilimani, Lavington)..."
                   value={claimSearchQuery}
                   onChange={(e) => setClaimSearchQuery(e.target.value)}
                   className="w-full text-xs bg-white dark:bg-[#1C1A1E] border border-amber-500/40 rounded-2xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
@@ -4787,59 +4872,61 @@ isSpotFormOpen && (
             <div className="space-y-3">
               <div className="flex items-center justify-between px-1">
                 <span className="text-xs font-bold text-slate-500">
-                  Available to Claim ({claimableCommunitySpots.length})
+                  Unclaimed Listings ({claimableCommunitySpots.length})
                 </span>
-                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold">
-                  Verified Spot Merchant Exclusive
+                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1">
+                  {isSearchingUnclaimed ? 'Searching database…' : 'Available for Merchant Claim'}
                 </span>
               </div>
 
               {claimableCommunitySpots.length === 0 ? (
                 <div className="text-center py-8 bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-6">
                   <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-                  <p className="text-xs font-bold">No unclaimed spots matching "{claimSearchQuery}"</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">All matching listings are already claimed or verified.</p>
+                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    {claimSearchQuery.trim() ? `No unclaimed spots matching "${claimSearchQuery}"` : 'No unclaimed spots waiting for claim'}
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    All matching listings are currently claimed or verified by business owners.
+                  </p>
                 </div>
               ) : (
                 claimableCommunitySpots.map(spot => (
                   <div 
                     key={spot.id}
-                    className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-4 shadow-xs flex items-center justify-between gap-3 hover:border-amber-400/50 transition"
+                    className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-4 shadow-xs flex items-center justify-between gap-3 hover:border-amber-400/50 transition border border-slate-100 dark:border-slate-800/80"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <img src={spot.img} alt={spot.title} className="w-14 h-14 rounded-2xl object-cover shrink-0" />
+                      <img src={spot.img} alt={spot.title} className="w-14 h-14 rounded-2xl object-cover shrink-0 bg-slate-100 dark:bg-slate-800" />
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <h4 className="font-extrabold text-xs truncate">{spot.title}</h4>
-                          {spot.isUserUploaded && (
-                            <span className="text-[9px] bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-300 px-1.5 py-0.5 rounded font-bold">
-                              Community Upload
-                            </span>
-                          )}
+                          <h4 className="font-extrabold text-xs truncate text-slate-900 dark:text-slate-100">{spot.title}</h4>
+                          <span className="text-[9px] bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded font-bold">
+                            Unclaimed
+                          </span>
                         </div>
                         <p className="text-[11px] text-slate-400 truncate flex items-center gap-1 mt-0.5">
                           <MapPin className="w-3 h-3 text-[#E0533C]" />
                           <span>{spot.neighborhood} • {spot.address}</span>
                         </p>
                         <p className="text-[10px] text-slate-500 mt-0.5">
-                          Rating ★ {spot.rating} ({spot.reviewCount || 0} reviews)
+                          Rating ★ {spot.rating || '4.8'} ({spot.reviewCount || 0} reviews)
                         </p>
                       </div>
                     </div>
 
                     <button
-                      onClick={() => {
-                        if (ownedBusinesses.length === 0) {
-                          showToast('Create your business account first, then claim this spot.');
-                          return;
-                        }
-                        // App.handleClaimSpot saves the claim (is_claimed -> true) and updates local state
-                        onClaimSpot(spot.id, currentBiz.id);
-                        showToast(`Ownership claimed! "${spot.title}" now managed by ${currentBiz.name}.`);
-                      }}
-                      className="bg-gradient-to-r from-amber-500 to-[#E0533C] hover:opacity-90 text-white font-black text-xs px-3.5 py-2 rounded-xl shadow-md shadow-orange-500/20 shrink-0 cursor-pointer transition active:scale-95"
+                      onClick={() => handleClaimSpotAction(spot)}
+                      disabled={isClaimingSpotId === spot.id}
+                      className="bg-gradient-to-r from-amber-500 to-[#E0533C] hover:opacity-90 disabled:opacity-50 text-white font-black text-xs px-3.5 py-2.5 rounded-xl shadow-md shadow-orange-500/20 shrink-0 cursor-pointer transition active:scale-95 flex items-center gap-1.5"
                     >
-                      Claim Spot
+                      {isClaimingSpotId === spot.id ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>Claiming…</span>
+                        </>
+                      ) : (
+                        <span>Claim This Spot</span>
+                      )}
                     </button>
                   </div>
                 ))
