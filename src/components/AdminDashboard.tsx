@@ -1,15 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   X, Search, ShieldCheck, Clock, XCircle, RefreshCw, LayoutDashboard, MapPinPlus, Users,
-  BadgeCheck, Crown, Trash2, Ban, UserX, Store, Sparkles, ImagePlus, CircleDollarSign,
+  BadgeCheck, Crown, Trash2, Ban, UserX, Store, Sparkles, CircleDollarSign,
 } from 'lucide-react';
 import type {
-  BusinessAccount, SpotCategory, SpotItem, AdminUserRecord, PlatformStats,
-  SubscriptionStatus, UnclaimedSpotInput,
+  BusinessAccount, SpotItem, AdminUserRecord, PlatformStats, SubscriptionStatus,
 } from '../types';
+import { AdminSpotPublisher } from './MerchantHubTab';
 import {
   fetchPlatformStats, fetchAdminUsers, setUserSuspension, revokeCreatorStatus,
-  revokeBusinessStatus, deleteAccountAdmin, setBusinessSubscription, publishUnclaimedSpot,
+  revokeBusinessStatus, deleteAccountAdmin, setBusinessSubscription, publishAdminSpot,
   fetchUnclaimedSpots, deleteListing, reviewBusiness,
 } from '../lib/cloudSync';
 
@@ -27,25 +27,12 @@ export interface AdminDashboardProps {
   onSpotPublished?: (spot: SpotItem) => void;
   /** Called after an unclaimed spot is deleted. */
   onSpotDeleted?: (spotId: number | string) => void;
+  /** Signed-in admin's user id (stamped on the spot as merchantId). */
+  adminUserId?: string;
   /** Local counts, used while the live platform stats are still loading or unavailable. */
   spotsCount?: number;
   eventsCount?: number;
 }
-
-const SPOT_CATEGORIES: { id: SpotCategory; label: string }[] = [
-  { id: 'restaurants_dining', label: 'Restaurants & Dining' },
-  { id: 'cafes_bakeries', label: 'Cafes & Bakeries' },
-  { id: 'clubs_lounges', label: 'Clubs & Lounges' },
-  { id: 'date_spots', label: 'Date Spots' },
-  { id: 'nature', label: 'Nature & Outdoors' },
-  { id: 'creative_leisure', label: 'Creative & Leisure' },
-  { id: 'tech_gaming', label: 'Tech & Gaming' },
-  { id: 'action_sports', label: 'Action & Sports' },
-  { id: 'hotels_luxury', label: 'Hotels & Luxury Stays' },
-  { id: 'vacation_escapes', label: 'Vacation Escapes' },
-  { id: 'spa_wellness', label: 'Spa & Wellness' },
-  { id: 'event_space', label: 'Event Space' },
-];
 
 const SUB_STATUSES: SubscriptionStatus[] = ['none', 'active', 'trialing', 'past_due', 'canceled'];
 
@@ -56,15 +43,9 @@ const inputCls =
   'w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-500';
 const chipBase = 'px-3 py-1.5 rounded-full text-xs font-bold border transition cursor-pointer whitespace-nowrap';
 
-const emptyForm = {
-  title: '', category: 'restaurants_dining' as SpotCategory, neighborhood: '', address: '',
-  description: '', phone: '', openingHours: '', price: '', instagram: '', website: '',
-  lat: '', lng: '', img: '',
-};
-
 export function AdminDashboardModal({
   businesses, onClose, onRefresh, showToast, onUpdateBusiness,
-  onSpotPublished, onSpotDeleted, spotsCount, eventsCount,
+  onSpotPublished, onSpotDeleted, adminUserId, spotsCount, eventsCount,
 }: AdminDashboardProps) {
   const toast = useCallback((m: string) => showToast?.(m), [showToast]);
 
@@ -170,40 +151,16 @@ export function AdminDashboardModal({
   // =====================================================================
   // UNCLAIMED SPOTS
   // =====================================================================
-  const [form, setForm] = useState(emptyForm);
-  const [publishing, setPublishing] = useState(false);
-  const setF = (k: keyof typeof emptyForm, v: string) => setForm(f => ({ ...f, [k]: v }));
+  const [showSpotForm, setShowSpotForm] = useState(false);
 
-  const onPickImage = (file?: File | null) => {
-    if (!file) return;
-    if (file.size > 8 * 1024 * 1024) { toast('Image must be under 8MB.'); return; }
-    const reader = new FileReader();
-    reader.onload = () => setF('img', String(reader.result || ''));
-    reader.readAsDataURL(file);
-  };
-
-  const publishSpot = async () => {
-    if (!form.title.trim()) { toast('Spot name is required.'); return; }
-    if (!form.neighborhood.trim()) { toast('Neighborhood is required.'); return; }
-    const lat = form.lat.trim() ? Number(form.lat) : undefined;
-    const lng = form.lng.trim() ? Number(form.lng) : undefined;
-    if ((lat !== undefined && !Number.isFinite(lat)) || (lng !== undefined && !Number.isFinite(lng))) {
-      toast('Latitude / longitude must be numbers.'); return;
-    }
-    const input: UnclaimedSpotInput = {
-      title: form.title, category: form.category, neighborhood: form.neighborhood, address: form.address,
-      description: form.description, phone: form.phone, openingHours: form.openingHours, price: form.price,
-      img: form.img, lat, lng, website: form.website, instagram: form.instagram,
-    };
-    setPublishing(true);
-    const { error, spot } = await publishUnclaimedSpot(input);
-    setPublishing(false);
-    if (error || !spot) { toast(error || 'Could not publish spot.'); return; }
-    onSpotPublished?.(spot);
-    setUnclaimed(list => [spot, ...list]);
-    setForm(emptyForm);
-    toast(`"${spot.title}" published as unclaimed. Merchants can now claim it.`);
+  const publishFromForm = async (spot: SpotItem): Promise<string | null> => {
+    const err = await publishAdminSpot(spot);
+    if (err) return err;
+    const stamped: SpotItem = { ...spot, businessId: undefined, is_claimed: false, isAdminPublished: true, isUserUploaded: false };
+    onSpotPublished?.(stamped);
+    setUnclaimed(list => [stamped, ...list]);
     void fetchPlatformStats().then(setStats);
+    return null;
   };
 
   const removeSpot = async (s: any) => {
@@ -506,82 +463,15 @@ export function AdminDashboardModal({
                   <div>
                     <h2 className="text-sm font-black">Publish an unclaimed spot</h2>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Goes live immediately with no business account. Merchants can search for it and claim it later.
+                      Same form merchants use: every category, subcategory, menu and photo option. It goes live
+                      with no business account, and merchants can search for it and claim it later.
                     </p>
                   </div>
-
-                  <label className="block">
-                    <span className="text-xs font-bold text-slate-500">Spot name *</span>
-                    <input className={inputCls} value={form.title} onChange={e => setF('title', e.target.value)} placeholder="e.g. Karura Forest Café" />
-                  </label>
-                  <label className="block">
-                    <span className="text-xs font-bold text-slate-500">Category *</span>
-                    <select className={inputCls} value={form.category} onChange={e => setF('category', e.target.value)}>
-                      {SPOT_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-                    </select>
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <label className="block">
-                      <span className="text-xs font-bold text-slate-500">Neighborhood *</span>
-                      <input className={inputCls} value={form.neighborhood} onChange={e => setF('neighborhood', e.target.value)} placeholder="Westlands" />
-                    </label>
-                    <label className="block">
-                      <span className="text-xs font-bold text-slate-500">Price</span>
-                      <input className={inputCls} value={form.price} onChange={e => setF('price', e.target.value)} placeholder="KES $$" />
-                    </label>
-                  </div>
-                  <label className="block">
-                    <span className="text-xs font-bold text-slate-500">Address</span>
-                    <input className={inputCls} value={form.address} onChange={e => setF('address', e.target.value)} placeholder="Street, building, landmark" />
-                  </label>
-                  <label className="block">
-                    <span className="text-xs font-bold text-slate-500">Description</span>
-                    <textarea className={inputCls} rows={3} value={form.description} onChange={e => setF('description', e.target.value)} />
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <label className="block">
-                      <span className="text-xs font-bold text-slate-500">Phone</span>
-                      <input className={inputCls} value={form.phone} onChange={e => setF('phone', e.target.value)} />
-                    </label>
-                    <label className="block">
-                      <span className="text-xs font-bold text-slate-500">Opening hours</span>
-                      <input className={inputCls} value={form.openingHours} onChange={e => setF('openingHours', e.target.value)} placeholder="Mon–Sun 8am–10pm" />
-                    </label>
-                    <label className="block">
-                      <span className="text-xs font-bold text-slate-500">Instagram</span>
-                      <input className={inputCls} value={form.instagram} onChange={e => setF('instagram', e.target.value)} placeholder="@handle" />
-                    </label>
-                    <label className="block">
-                      <span className="text-xs font-bold text-slate-500">Website</span>
-                      <input className={inputCls} value={form.website} onChange={e => setF('website', e.target.value)} placeholder="https://" />
-                    </label>
-                    <label className="block">
-                      <span className="text-xs font-bold text-slate-500">Latitude</span>
-                      <input className={inputCls} inputMode="decimal" value={form.lat} onChange={e => setF('lat', e.target.value)} placeholder="-1.2675" />
-                    </label>
-                    <label className="block">
-                      <span className="text-xs font-bold text-slate-500">Longitude</span>
-                      <input className={inputCls} inputMode="decimal" value={form.lng} onChange={e => setF('lng', e.target.value)} placeholder="36.8115" />
-                    </label>
-                  </div>
-
-                  <div>
-                    <span className="text-xs font-bold text-slate-500">Cover photo</span>
-                    <div className="mt-1 flex items-center gap-3">
-                      <label className="flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-xs font-bold cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900">
-                        <ImagePlus className="w-4 h-4" /> Choose photo
-                        <input type="file" accept="image/*" className="hidden" onChange={e => onPickImage(e.target.files?.[0])} />
-                      </label>
-                      {form.img && <img src={form.img} alt="" className="w-12 h-12 rounded-lg object-cover" />}
-                    </div>
-                  </div>
-
                   <button
-                    onClick={publishSpot}
-                    disabled={publishing}
-                    className="w-full rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white py-3 font-bold"
+                    onClick={() => setShowSpotForm(true)}
+                    className="w-full rounded-xl bg-purple-600 hover:bg-purple-700 text-white py-3 font-bold flex items-center justify-center gap-2"
                   >
-                    {publishing ? 'Publishing…' : 'Publish unclaimed spot'}
+                    <MapPinPlus className="w-4 h-4" /> Add unclaimed spot
                   </button>
                 </div>
 
@@ -677,6 +567,16 @@ export function AdminDashboardModal({
           </div>
         </div>
       </div>
+
+      {/* ADMIN SPOT PUBLISHER (merchant spot form in admin mode) */}
+      {showSpotForm && (
+        <AdminSpotPublisher
+          adminUserId={adminUserId || ''}
+          onPublish={publishFromForm}
+          onClose={() => setShowSpotForm(false)}
+          showToast={toast}
+        />
+      )}
 
       {/* BUSINESS REVIEW MODAL */}
       {selectedBiz && (

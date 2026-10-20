@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Store, 
   Ticket, 
@@ -47,7 +47,16 @@ import {
   Coffee,
   Hotel,
   Palmtree,
-  Music
+  Music,
+  TrendingUp,
+  Eye,
+  Bookmark,
+  Star,
+  MessageSquare,
+  Calendar,
+  Award,
+  ArrowUpRight,
+  UserCheck
 } from 'lucide-react';
 import { 
   BusinessAccount, 
@@ -60,13 +69,14 @@ import {
   MenuItem, 
   ActivityItem,
   TicketTier, 
-  Artist 
+  Artist,
+  Review
 } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { DynamicLocationSelector } from './DynamicLocationSelector.tsx';
-import { toValidUuid } from '../lib/cloudSync.ts';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { toValidUuid, claimUnclaimedSpot } from '../lib/cloudSync.ts';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
-import { SpotInsightsAnalytics } from './MerchantHub.tsx';
 
 export type MainCategoryKey = 
   | 'restaurants_dining'
@@ -378,6 +388,832 @@ export function normalizePriceTier(raw?: string): string {
   return 'KES KES';
 }
 
+// =====================================================================
+// SPOT INSIGHTS ANALYTICS (merged in from the old MerchantHub.tsx)
+// =====================================================================
+/** Price tiers are KES, KES KES, KES KES KES (same as MerchantHubTab). Old "KES $$" values convert. */
+const normalizeAnalyticsPriceTier = (value?: string): string => {
+  const v = String(value || '').trim();
+  if (/^KES( KES){0,2}$/.test(v)) return v;
+  const dollars = (v.match(/\$/g) || []).length;
+  if (dollars >= 3) return 'KES KES KES';
+  if (dollars === 2) return 'KES KES';
+  return 'KES';
+};
+
+export interface SpotMetricSummary {
+  spotId: number | string;
+  title: string;
+  img: string;
+  category: string;
+  neighborhood: string;
+  impressions: number;
+  bookmarksCount: number;
+  averageRating: number;
+  reviewsCount: number;
+}
+
+export interface DayActivity {
+  day: string;
+  label: string;
+  percentage: number;
+  estimatedVisits: number;
+  isPeak?: boolean;
+}
+
+export interface MerchantAnalyticsData {
+  totalImpressions: number;
+  totalBookmarks: number;
+  averageRating: number;
+  totalReviews: number;
+  spotsCount: number;
+  topSpots: SpotMetricSummary[];
+  recentReviews: Review[];
+  peakDays: DayActivity[];
+  isLoading: boolean;
+  lastSyncedAt: Date | null;
+}
+
+export interface SpotInsightsAnalyticsProps {
+  spots: SpotItem[];
+  currentBiz: BusinessAccount;
+  userId?: string;
+  onOpenCreateSpot: () => void;
+  showToast: (msg: string) => void;
+}
+
+/**
+ * Spot Insights & Analytics Component for Merchant Hub
+ * Queries real-time aggregate data from Supabase tables ('spots', 'reviews', 'rada_user_data')
+ * matching the logged-in merchant's merchant_id and displays metrics, charts, and customer reviews.
+ */
+export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
+  spots,
+  currentBiz,
+  userId,
+  onOpenCreateSpot,
+  showToast
+}) => {
+  const [data, setData] = useState<MerchantAnalyticsData>({
+    totalImpressions: 0,
+    totalBookmarks: 0,
+    averageRating: 0,
+    totalReviews: 0,
+    spotsCount: 0,
+    topSpots: [],
+    recentReviews: [],
+    peakDays: [
+      { day: 'Mon', label: 'Monday', percentage: 9, estimatedVisits: 0 },
+      { day: 'Tue', label: 'Tuesday', percentage: 12, estimatedVisits: 0 },
+      { day: 'Wed', label: 'Wednesday', percentage: 16, estimatedVisits: 0 },
+      { day: 'Thu', label: 'Thursday', percentage: 18, estimatedVisits: 0 },
+      { day: 'Fri', label: 'Friday', percentage: 28, estimatedVisits: 0, isPeak: true },
+      { day: 'Sat', label: 'Saturday', percentage: 25, estimatedVisits: 0 },
+      { day: 'Sun', label: 'Sunday', percentage: 14, estimatedVisits: 0 }
+    ],
+    isLoading: true,
+    lastSyncedAt: null
+  });
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchAnalytics = useCallback(async (manual = false) => {
+    if (manual) setIsRefreshing(true);
+
+    try {
+      const effectiveUid = 
+        userId || 
+        currentBiz?.ownerId || 
+        (typeof window !== 'undefined' ? localStorage.getItem('rada_local_user_id') : null);
+      const bizId = currentBiz?.id;
+
+      // 1. Identify spots matching this merchant
+      const matchedSpots: SpotItem[] = [...spots.filter(s => {
+        const isOwner =
+          (effectiveUid && (s.merchantId === effectiveUid || (s as any).ownerId === effectiveUid)) ||
+          (bizId && s.businessId === bizId) ||
+          (currentBiz?.name && s.title?.toLowerCase().trim() === currentBiz.name.toLowerCase().trim());
+        return Boolean(isOwner);
+      })];
+
+      // Query Supabase spots table directly for live synced records
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data: dbSpots, error: sErr } = await supabase
+            .from('spots')
+            .select('*');
+
+          if (!sErr && dbSpots && dbSpots.length > 0) {
+            for (const row of dbSpots) {
+              const rowMerchantId = row.merchant_id || row.merchantId || row.owner_id || row.data?.merchantId;
+              const rowBizId = row.business_id || row.businessId || row.data?.businessId;
+              const isMatch =
+                (effectiveUid && rowMerchantId === effectiveUid) ||
+                (bizId && rowBizId === bizId);
+
+              if (isMatch) {
+                const sid = row.id;
+                const existingIndex = matchedSpots.findIndex(s => String(s.id) === String(sid));
+                if (existingIndex === -1) {
+                  matchedSpots.push({
+                    id: sid,
+                    title: row.title || row.data?.title || 'Spot',
+                    category: row.category || row.data?.category || 'restaurants',
+                    neighborhood: row.neighborhood || row.data?.neighborhood || 'Nairobi',
+                    rating: row.rating ? String(row.rating) : 'New',
+                    reviewCount: Number(row.review_count || 0),
+                    price: normalizeAnalyticsPriceTier(row.price || row.data?.price),
+                    lat: row.lat || -1.2675,
+                    lng: row.lng || 36.8115,
+                    address: row.address || `${row.neighborhood || 'Nairobi'}, Kenya`,
+                    img: row.img || (row.images && row.images[0]) || row.data?.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
+                    merchantId: rowMerchantId,
+                    businessId: rowBizId,
+                    ...row.data
+                  });
+                } else {
+                  // Merge updated Supabase row data
+                  matchedSpots[existingIndex] = {
+                    ...matchedSpots[existingIndex],
+                    rating: row.rating ? String(row.rating) : matchedSpots[existingIndex].rating,
+                    reviewCount: Number(row.review_count || matchedSpots[existingIndex].reviewCount || 0),
+                    ...row.data
+                  };
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('[SpotInsightsAnalytics] spots fetch warning:', e);
+        }
+      }
+
+      // If merchant has no spots, set empty state
+      if (matchedSpots.length === 0) {
+        setData(prev => ({
+          ...prev,
+          totalImpressions: 0,
+          totalBookmarks: 0,
+          averageRating: 0,
+          totalReviews: 0,
+          spotsCount: 0,
+          topSpots: [],
+          recentReviews: [],
+          isLoading: false,
+          lastSyncedAt: new Date()
+        }));
+        if (manual) {
+          setIsRefreshing(false);
+          showToast('Analytics synced with live database.');
+        }
+        return;
+      }
+
+      const spotIds = matchedSpots.map(s => s.id);
+      const spotIdStrs = spotIds.map(String);
+
+      // 2. Query reviews from Supabase ('reviews' & 'rada_reviews') and local spots
+      const allReviews: Array<Review & { spotId: string | number; spotTitle: string }> = [];
+      const seenReviewIds = new Set<string>();
+
+      // a) Local reviews
+      for (const s of matchedSpots) {
+        if (Array.isArray(s.reviews)) {
+          for (const r of s.reviews) {
+            const rid = String(r.id || `${s.id}-${r.userName}-${r.date}`);
+            if (!seenReviewIds.has(rid)) {
+              seenReviewIds.add(rid);
+              allReviews.push({
+                ...r,
+                spotId: s.id,
+                spotTitle: s.title
+              });
+            }
+          }
+        }
+      }
+
+      // b) Supabase 'reviews' table
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data: revRows } = await supabase
+            .from('reviews')
+            .select('*');
+
+          if (revRows) {
+            for (const r of revRows) {
+              if (spotIdStrs.includes(String(r.spot_id))) {
+                const rid = String(r.id);
+                if (!seenReviewIds.has(rid)) {
+                  seenReviewIds.add(rid);
+                  const matchingSpot = matchedSpots.find(s => String(s.id) === String(r.spot_id));
+                  allReviews.push({
+                    id: rid,
+                    userName: r.user_name || 'Verified Explorer',
+                    userHandle: r.user_handle || '@explorer',
+                    userAvatar: r.user_avatar || '',
+                    rating: Number(r.rating || 5),
+                    comment: r.comment || '',
+                    date: r.created_at ? new Date(r.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent',
+                    spotId: r.spot_id,
+                    spotTitle: matchingSpot?.title || 'Spot'
+                  });
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('[SpotInsightsAnalytics] reviews query warning:', e);
+        }
+
+        // c) Supabase 'rada_reviews' table
+        try {
+          const { data: radaRevRows } = await supabase
+            .from('rada_reviews')
+            .select('*');
+
+          if (radaRevRows) {
+            for (const r of radaRevRows) {
+              if (spotIdStrs.includes(String(r.spot_id))) {
+                const rid = String(r.id);
+                if (!seenReviewIds.has(rid)) {
+                  seenReviewIds.add(rid);
+                  const d = r.data || {};
+                  const matchingSpot = matchedSpots.find(s => String(s.id) === String(r.spot_id));
+                  allReviews.push({
+                    id: rid,
+                    userName: d.userName || d.user_name || 'Verified Explorer',
+                    userHandle: d.userHandle || d.user_handle || '@explorer',
+                    userAvatar: d.userAvatar || d.user_avatar || '',
+                    rating: Number(d.rating || 5),
+                    comment: d.comment || '',
+                    date: d.date || (r.created_at ? new Date(r.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent'),
+                    spotId: r.spot_id,
+                    spotTitle: matchingSpot?.title || 'Spot'
+                  });
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('[SpotInsightsAnalytics] rada_reviews query warning:', e);
+        }
+      }
+
+      // 3. Query User Plan Saved Items / Vault Bookmarks
+      const spotBookmarkCounts: Record<string, number> = {};
+      for (const sid of spotIdStrs) {
+        spotBookmarkCounts[sid] = 0;
+      }
+
+      if (isSupabaseConfigured && supabase) {
+        // Query user data plans
+        try {
+          const { data: userDataRows } = await supabase
+            .from('rada_user_data')
+            .select('key, data')
+            .in('key', ['saved_items', 'saved_plans']);
+
+          if (userDataRows) {
+            for (const row of userDataRows) {
+              const list = Array.isArray(row.data) ? row.data : [];
+              for (const item of list) {
+                const sid = String(item.id || item.spotId);
+                if (spotIdStrs.includes(sid)) {
+                  spotBookmarkCounts[sid] = (spotBookmarkCounts[sid] || 0) + 1;
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('[SpotInsightsAnalytics] rada_user_data query warning:', e);
+        }
+
+        // Check if explicit saved tables exist in project
+        try {
+          const { data: savedItemsRows } = await supabase
+            .from('saved_items')
+            .select('spot_id');
+          if (savedItemsRows) {
+            for (const item of savedItemsRows) {
+              const sid = String(item.spot_id);
+              if (spotIdStrs.includes(sid)) {
+                spotBookmarkCounts[sid] = (spotBookmarkCounts[sid] || 0) + 1;
+              }
+            }
+          }
+        } catch {}
+
+        try {
+          const { data: savedPlacesRows } = await supabase
+            .from('saved_places')
+            .select('spot_id');
+          if (savedPlacesRows) {
+            for (const item of savedPlacesRows) {
+              const sid = String(item.spot_id);
+              if (spotIdStrs.includes(sid)) {
+                spotBookmarkCounts[sid] = (spotBookmarkCounts[sid] || 0) + 1;
+              }
+            }
+          }
+        } catch {}
+      }
+
+      // Also check localStorage saves for current client session
+      try {
+        const localSaved = localStorage.getItem('rada_saved_items');
+        if (localSaved) {
+          const parsed = JSON.parse(localSaved);
+          if (Array.isArray(parsed)) {
+            for (const item of parsed) {
+              const sid = String(item.id);
+              if (spotIdStrs.includes(sid)) {
+                spotBookmarkCounts[sid] = (spotBookmarkCounts[sid] || 0) + 1;
+              }
+            }
+          }
+        }
+      } catch {}
+
+      // 4. Compute Spot Summaries & Aggregate Totals
+      let totalImpressions = 0;
+      let totalBookmarks = 0;
+      const spotSummaries: SpotMetricSummary[] = [];
+
+      matchedSpots.forEach((spot, idx) => {
+        const sid = String(spot.id);
+        const spotReviews = allReviews.filter(r => String(r.spotId) === sid);
+        const bookmarks = spotBookmarkCounts[sid] || 0;
+        totalBookmarks += bookmarks;
+
+        // Spot Impressions: real views if present or computed aggregate
+        const rawViews = (spot as any).views || (spot as any).impressions || (spot as any).data?.views;
+        const impressions = rawViews
+          ? Number(rawViews)
+          : Math.max(180, (spotReviews.length * 92) + (bookmarks * 45) + 310 + (idx * 80));
+        totalImpressions += impressions;
+
+        const ratings = spotReviews.map(r => Number(r.rating || 5)).filter(r => r > 0);
+        const avgRating = ratings.length > 0
+          ? Number((ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1))
+          : (parseFloat(spot.rating) > 0 ? parseFloat(spot.rating) : 4.8);
+
+        spotSummaries.push({
+          spotId: spot.id,
+          title: spot.title,
+          img: spot.img,
+          category: spot.category,
+          neighborhood: spot.neighborhood,
+          impressions,
+          bookmarksCount: bookmarks,
+          averageRating: avgRating,
+          reviewsCount: spotReviews.length || spot.reviewCount || (Array.isArray(spot.reviews) ? spot.reviews.length : 0)
+        });
+      });
+
+      // Overall Average Star Rating
+      const allRatingValues = allReviews.map(r => Number(r.rating || 5)).filter(r => r > 0);
+      const overallAvgRating = allRatingValues.length > 0
+        ? Number((allRatingValues.reduce((a, b) => a + b, 0) / allRatingValues.length).toFixed(1))
+        : (spotSummaries.length > 0
+            ? Number((spotSummaries.reduce((a, b) => a + b.averageRating, 0) / spotSummaries.length).toFixed(1))
+            : 0);
+
+      // Sort spots by overall activity engagement
+      spotSummaries.sort((a, b) => (b.impressions + b.bookmarksCount * 15 + b.reviewsCount * 25) - (a.impressions + a.bookmarksCount * 15 + a.reviewsCount * 25));
+
+      // Sort recent reviews
+      allReviews.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      // Peak days calculation
+      const peakDays: DayActivity[] = [
+        { day: 'Mon', label: 'Monday', percentage: 9, estimatedVisits: Math.round(totalImpressions * 0.09) },
+        { day: 'Tue', label: 'Tuesday', percentage: 12, estimatedVisits: Math.round(totalImpressions * 0.12) },
+        { day: 'Wed', label: 'Wednesday', percentage: 16, estimatedVisits: Math.round(totalImpressions * 0.16) },
+        { day: 'Thu', label: 'Thursday', percentage: 18, estimatedVisits: Math.round(totalImpressions * 0.18) },
+        { day: 'Fri', label: 'Friday', percentage: 28, estimatedVisits: Math.round(totalImpressions * 0.28), isPeak: true },
+        { day: 'Sat', label: 'Saturday', percentage: 25, estimatedVisits: Math.round(totalImpressions * 0.25) },
+        { day: 'Sun', label: 'Sunday', percentage: 14, estimatedVisits: Math.round(totalImpressions * 0.14) }
+      ];
+
+      setData({
+        totalImpressions,
+        totalBookmarks,
+        averageRating: overallAvgRating,
+        totalReviews: allReviews.length || matchedSpots.reduce((acc, s) => acc + (s.reviewCount || (s.reviews?.length || 0)), 0),
+        spotsCount: matchedSpots.length,
+        topSpots: spotSummaries,
+        recentReviews: allReviews.slice(0, 5),
+        peakDays,
+        isLoading: false,
+        lastSyncedAt: new Date()
+      });
+
+      if (manual) {
+        showToast('Real-time insights refreshed from Supabase.');
+      }
+    } catch (err) {
+      console.error('[SpotInsightsAnalytics] Error processing analytics:', err);
+      setData(prev => ({ ...prev, isLoading: false }));
+    } finally {
+      if (manual) setIsRefreshing(false);
+    }
+  }, [spots, currentBiz, userId, showToast]);
+
+  // Initial fetch and Supabase real-time subscription
+  useEffect(() => {
+    fetchAnalytics();
+
+    if (isSupabaseConfigured && supabase) {
+      const channel = supabase
+        .channel('merchant-analytics-live')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'spots' }, () => {
+          fetchAnalytics();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews' }, () => {
+          fetchAnalytics();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'rada_reviews' }, () => {
+          fetchAnalytics();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'rada_user_data' }, () => {
+          fetchAnalytics();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [fetchAnalytics]);
+
+  // -------------------------------------------------------------------------
+  // EMPTY STATE: Merchant has not published any spots yet
+  // -------------------------------------------------------------------------
+  if (!data.isLoading && data.spotsCount === 0) {
+    return (
+      <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] flex items-center justify-center text-white shadow-xs">
+              <BarChart3 className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
+                Spot Insights & Analytics
+              </h3>
+              <p className="text-[11px] text-slate-500">Live audience metrics for {currentBiz.name}</p>
+            </div>
+          </div>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">
+            0 Spots Active
+          </span>
+        </div>
+
+        {/* Clean Empty State Visual Card */}
+        <div className="text-center py-8 px-4 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800/80 bg-slate-50/50 dark:bg-[#121113]/50">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-3 shadow-xs">
+            <TrendingUp className="w-6 h-6" />
+          </div>
+          <h4 className="text-sm font-black text-slate-900 dark:text-slate-100">
+            Publish your first spot to unlock real-time visitor insights
+          </h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-1.5 leading-relaxed">
+            Track live impressions, customer vault bookmarks, star ratings, and peak hangout days in real time across Nairobi.
+          </p>
+          <button
+            onClick={onOpenCreateSpot}
+            className="mt-4 px-4 py-2.5 bg-[#E0533C] hover:bg-[#c9432d] text-white text-xs font-black rounded-xl shadow-md shadow-orange-500/20 inline-flex items-center gap-2 cursor-pointer transition active:scale-95"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Publish Your First Spot</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // POPULATED ANALYTICS DASHBOARD
+  // -------------------------------------------------------------------------
+  return (
+    <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xs space-y-6">
+      {/* Header with Title and Live Sync Indicator */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] flex items-center justify-center text-white shadow-xs">
+            <BarChart3 className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
+                Spot Insights & Analytics
+              </h3>
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Live Sync
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Real-time aggregate data for {currentBiz.name} ({data.spotsCount} spots)
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => fetchAnalytics(true)}
+          disabled={isRefreshing}
+          className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+          title="Refresh analytics data"
+          aria-label="Refresh analytics data"
+        >
+          <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-[#E0533C]' : ''}`} />
+        </button>
+      </div>
+
+      {/* 1. DYNAMIC METRICS OVERVIEW (4 HIGH-LEVEL METRIC CARDS) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        {/* Metric 1: Total Spot Impressions/Views */}
+        <div className="bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200/90 dark:border-slate-800 rounded-2xl p-3.5 relative overflow-hidden group">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Impressions
+            </span>
+            <div className="w-6 h-6 rounded-lg bg-orange-500/10 text-[#E0533C] flex items-center justify-center">
+              <Eye className="w-3.5 h-3.5" />
+            </div>
+          </div>
+          <div className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+            {data.totalImpressions.toLocaleString()}
+          </div>
+          <p className="text-[10px] text-slate-500 mt-0.5 font-medium flex items-center gap-1">
+            <ArrowUpRight className="w-3 h-3 text-emerald-500" />
+            <span>Total spot views</span>
+          </p>
+        </div>
+
+        {/* Metric 2: Total Saves / Vault Bookmarks */}
+        <div className="bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200/90 dark:border-slate-800 rounded-2xl p-3.5 relative overflow-hidden group">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Vault Saves
+            </span>
+            <div className="w-6 h-6 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+              <Bookmark className="w-3.5 h-3.5" />
+            </div>
+          </div>
+          <div className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+            {data.totalBookmarks.toLocaleString()}
+          </div>
+          <p className="text-[10px] text-slate-500 mt-0.5 font-medium">
+            Saved in user plans
+          </p>
+        </div>
+
+        {/* Metric 3: Average Star Rating */}
+        <div className="bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200/90 dark:border-slate-800 rounded-2xl p-3.5 relative overflow-hidden group">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Avg. Rating
+            </span>
+            <div className="w-6 h-6 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center">
+              <Star className="w-3.5 h-3.5 fill-amber-500" />
+            </div>
+          </div>
+          <div className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+            {data.averageRating > 0 ? `★ ${data.averageRating.toFixed(1)}` : 'New'}
+          </div>
+          <p className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold mt-0.5">
+            {data.totalReviews} customer ratings
+          </p>
+        </div>
+
+        {/* Metric 4: Total Reviews */}
+        <div className="bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200/90 dark:border-slate-800 rounded-2xl p-3.5 relative overflow-hidden group">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Reviews
+            </span>
+            <div className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <MessageSquare className="w-3.5 h-3.5" />
+            </div>
+          </div>
+          <div className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+            {data.totalReviews.toLocaleString()}
+          </div>
+          <p className="text-[10px] text-slate-500 mt-0.5 font-medium">
+            Verified feedback
+          </p>
+        </div>
+      </div>
+
+      {/* 2. PEAK ACTIVITY DAYS VISUAL BARS */}
+      <div className="bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-[#E0533C]" />
+            <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">
+              Peak Activity Days
+            </h4>
+          </div>
+          <span className="text-[10px] font-extrabold text-[#E0533C] bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">
+            🔥 Friday & Saturday Peak
+          </span>
+        </div>
+
+        {/* Mobile-optimized visual bars */}
+        <div className="grid grid-cols-7 gap-1.5 items-end pt-3 pb-1">
+          {data.peakDays.map((day) => {
+            const barHeight = Math.max(16, Math.min(100, day.percentage * 3.1));
+            return (
+              <div key={day.day} className="flex flex-col items-center gap-1.5 group">
+                <span className="text-[9px] font-bold text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition">
+                  {day.percentage}%
+                </span>
+                <div className="w-full bg-slate-200/80 dark:bg-slate-800/80 h-20 rounded-lg flex items-end p-0.5 overflow-hidden">
+                  <div
+                    style={{ height: `${barHeight}%` }}
+                    className={`w-full rounded-md transition-all duration-500 ${
+                      day.isPeak
+                        ? 'bg-gradient-to-t from-[#E0533C] to-[#E9C46A] shadow-xs shadow-orange-500/40'
+                        : day.percentage >= 20
+                        ? 'bg-amber-500/80 dark:bg-amber-500/70'
+                        : 'bg-slate-400/60 dark:bg-slate-700'
+                    }`}
+                    title={`${day.label}: ${day.percentage}% of weekly traffic`}
+                  />
+                </div>
+                <span className={`text-[10px] font-black ${day.isPeak ? 'text-[#E0533C]' : 'text-slate-500'}`}>
+                  {day.day}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 3. TOP PERFORMING SPOTS */}
+      {data.topSpots.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Award className="w-4 h-4 text-amber-500" />
+              <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">
+                Top Performing Spots
+              </h4>
+            </div>
+            <span className="text-[10px] text-slate-400 font-semibold">
+              Ranked by total engagement
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            {data.topSpots.slice(0, 3).map((spot, index) => (
+              <div
+                key={spot.spotId}
+                className="p-3 rounded-2xl bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200/90 dark:border-slate-800 flex items-center justify-between gap-3 group hover:border-[#E0533C]/40 transition"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="relative shrink-0">
+                    <img
+                      src={spot.img}
+                      alt={spot.title}
+                      className="w-12 h-12 rounded-xl object-cover border border-slate-200 dark:border-slate-700"
+                    />
+                    <span className={`absolute -top-1 -left-1 w-4 h-4 rounded-full text-[9px] font-black flex items-center justify-center text-white ${
+                      index === 0 ? 'bg-amber-500' : index === 1 ? 'bg-slate-400' : 'bg-orange-700'
+                    }`}>
+                      {index + 1}
+                    </span>
+                  </div>
+                  <div className="min-w-0">
+                    <h5 className="text-xs font-black text-slate-900 dark:text-slate-100 truncate group-hover:text-[#E0533C] transition">
+                      {spot.title}
+                    </h5>
+                    <p className="text-[10px] text-slate-500 truncate">
+                      {spot.neighborhood || 'Nairobi'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Performance metric chips */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="text-right">
+                    <div className="text-[11px] font-black text-slate-900 dark:text-slate-100 flex items-center gap-1 justify-end">
+                      <Eye className="w-3 h-3 text-[#E0533C]" />
+                      <span>{spot.impressions.toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] text-slate-500 justify-end mt-0.5">
+                      <span className="flex items-center gap-0.5 text-purple-600 dark:text-purple-400 font-bold">
+                        <Bookmark className="w-2.5 h-2.5" />
+                        {spot.bookmarksCount}
+                      </span>
+                      <span className="flex items-center gap-0.5 text-amber-500 font-bold">
+                        <Star className="w-2.5 h-2.5 fill-amber-500" />
+                        {spot.averageRating.toFixed(1)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 4. RECENT CUSTOMER REVIEWS */}
+      <div className="space-y-3 pt-1">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-emerald-500" />
+            <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">
+              Recent Customer Reviews ({data.recentReviews.length})
+            </h4>
+          </div>
+          <span className="text-[10px] text-slate-400 font-semibold">
+            Synced from Supabase
+          </span>
+        </div>
+
+        {data.recentReviews.length === 0 ? (
+          <div className="p-4 rounded-2xl bg-[#FBFBF9] dark:bg-[#121113] border border-dashed border-slate-200 dark:border-slate-800 text-center">
+            <p className="text-xs font-bold text-slate-600 dark:text-slate-400">
+              No customer reviews logged yet
+            </p>
+            <p className="text-[10px] text-slate-400 mt-0.5">
+              Encourage visitors to rate your spot on RADA to build public credibility!
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {data.recentReviews.map((rev) => (
+              <div
+                key={rev.id}
+                className="p-3.5 rounded-2xl bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200/90 dark:border-slate-800 space-y-2"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {rev.userAvatar ? (
+                      <img
+                        src={rev.userAvatar}
+                        alt={rev.userName}
+                        className="w-7 h-7 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] text-white text-[10px] font-black flex items-center justify-center shrink-0">
+                        {rev.userName ? rev.userName.slice(0, 2).toUpperCase() : 'EX'}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                          {rev.userName || 'Anonymous Explorer'}
+                        </span>
+                        <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded-full">
+                          <CheckCircle2 className="w-2.5 h-2.5" />
+                          <span>Verified</span>
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 block truncate">
+                        {rev.userHandle || '@explorer'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-0.5 text-amber-500 shrink-0">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-3 h-3 ${
+                          i < Math.round(rev.rating || 5)
+                            ? 'fill-amber-500 text-amber-500'
+                            : 'text-slate-300 dark:text-slate-700'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {rev.comment && (
+                  <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed pl-9">
+                    "{rev.comment}"
+                  </p>
+                )}
+
+                <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800/80 pl-9">
+                  <span>{(rev as any).spotTitle ? `Spot: ${(rev as any).spotTitle}` : 'Verified Spot'}</span>
+                  <span>{rev.date || 'Recent'}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+
 interface MerchantHubTabProps {
   businesses: BusinessAccount[];
   activeBusinessId: string;
@@ -406,6 +1242,13 @@ interface MerchantHubTabProps {
   onOpenPublicProfile: (biz: BusinessAccount) => void;
   onClose?: () => void;
   showToast: (msg: string) => void;
+  /**
+   * Admin publishing mode (used by AdminSpotPublisher). Renders ONLY the spot form, skips onboarding,
+   * and saves through onAdminPublishSpot as an unclaimed (is_claimed: false) listing.
+   */
+  adminMode?: boolean;
+  adminUserId?: string;
+  onAdminPublishSpot?: (spot: SpotItem) => Promise<string | null> | string | null;
 }
 export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   businesses,
@@ -431,7 +1274,10 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   onViewEventDetails,
   onOpenPublicProfile,
   onClose,
-  showToast
+  showToast,
+  adminMode,
+  adminUserId,
+  onAdminPublishSpot
 }) => {
   const effectiveUserId = userId || (typeof window !== 'undefined' ? localStorage.getItem('rada_local_user_id') : null) || 'local-merchant-user';
 
@@ -442,11 +1288,11 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
 
   // Safe fallback placeholder or active business owned by this merchant
   const currentBiz: BusinessAccount =
-    ownedBusinesses.find(b => b.id === activeBusinessId) ||
-    ownedBusinesses[0] || {
-      id: 'placeholder-biz',
+    (!adminMode && ownedBusinesses.find(b => b.id === activeBusinessId)) ||
+    (!adminMode && ownedBusinesses[0]) || {
+      id: adminMode ? 'rada-admin' : 'placeholder-biz',
       ownerId: effectiveUserId,
-      name: 'Your Business',
+      name: adminMode ? '' : 'Your Business',
       category: 'hospitality',
       email: '',
       phone: '',
@@ -463,7 +1309,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       pinnedImages: []
     };
 
-  const [isOnboardingOpen, setIsOnboardingOpen] = useState(ownedBusinesses.length === 0);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(ownedBusinesses.length === 0 && !adminMode);
 
   const [onboardingStep, setOnboardingStep] = useState<1 | 2>(1);
 
@@ -955,6 +1801,26 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       }
     };
 
+    if (adminMode) {
+      // Admin listing: no business, no merchant owner. Any verified business can claim it later.
+      const adminSpot: SpotItem = {
+        ...savedSpot,
+        businessId: undefined,
+        merchantId: adminUserId,
+        is_claimed: false,
+        isAdminPublished: true,
+        isUserUploaded: false,
+      };
+      Promise.resolve(onAdminPublishSpot ? onAdminPublishSpot(adminSpot) : 'Admin publishing is not connected.')
+        .then(err => {
+          if (err) { showToast(err); return; }
+          showToast(`"${adminSpot.title}" published as unclaimed. Merchants can now claim it.`);
+          setIsSpotFormOpen(false);
+          onClose?.();
+        });
+      return;
+    }
+
     onAddOrUpdateSpot(savedSpot);
     setIsSpotFormOpen(false);
 
@@ -1023,14 +1889,25 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     showToast(`Added ${item.name} to menu!`);
   };
 
+  useEffect(() => {
+    if (adminMode) openCreateSpotModal();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const closeSpotForm = () => {
+    setIsSpotFormOpen(false);
+    if (adminMode) onClose?.();
+  };
+
   // ----------------------------------------------------
   // SPOT CLAIMING SEARCH UTILITY (EXCLUSIVE TO SPOTS)
   // ----------------------------------------------------
   const [claimSearchQuery, setClaimSearchQuery] = useState('');
   const claimableCommunitySpots = spots.filter(s => {
-    // Spot is claimable if it was user-uploaded or has no businessId or is not claimed by current biz
-    const isUnclaimedOrUserUploaded = s.isUserUploaded || !s.businessId || s.businessId !== currentBiz?.id;
-    if (!isUnclaimedOrUserUploaded) return false;
+    // Claimable = admin-published (is_claimed === false) or a legacy user upload nobody owns yet.
+    // Spots owned by other businesses are never claimable.
+    const isUnclaimed = s.is_claimed === false || (!!s.isUserUploaded && !s.businessId);
+    if (!isUnclaimed || s.businessId === currentBiz?.id) return false;
 
     if (!claimSearchQuery.trim()) return true;
     const q = claimSearchQuery.toLowerCase().trim();
@@ -1279,1255 +2156,8 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   // Offers belonging to active business
   const myOffers = offers.filter(o => o.businessId === currentBiz?.id);
 
-  // ----------------------------------------------------
-  // RENDER: ONBOARDING VIEW
-  // ----------------------------------------------------
-  if (isOnboardingOpen || !currentBiz) {
-    return (
-      <div className="min-h-screen bg-[#FBFBF9] dark:bg-[#121113] text-slate-900 dark:text-slate-100 pb-28 px-4 py-6">
-        <div className="max-w-md mx-auto">
-          {/* Top Bar with Cancel / Exit if businesses exist */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] flex items-center justify-center text-white shadow-md">
-                <Store className="w-5 h-5" />
-              </div>
-              <div>
-                <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-slate-100">Merchant Onboarding</h1>
-                <p className="text-xs text-slate-500 font-medium">Step {onboardingStep} of 2</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {ownedBusinesses.length > 0 && (
-                <button 
-                  onClick={() => setIsOnboardingOpen(false)}
-                  className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 bg-white dark:bg-[#1C1A1E] px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1 cursor-pointer"
-                >
-                  <span>Dashboard</span>
-                </button>
-              )}
-              {onClose && (
-                <button 
-                  onClick={onClose}
-                  className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 bg-white dark:bg-[#1C1A1E] px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1 cursor-pointer"
-                  title="Close Merchant Hub"
-                >
-                  <X className="w-3.5 h-3.5" />
-                  <span>Exit</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Stepper progress indicator */}
-          <div className="flex items-center gap-2 mb-8">
-            <div className={`flex-1 h-1.5 rounded-full transition-all ${onboardingStep >= 1 ? 'bg-[#E0533C]' : 'bg-slate-200 dark:bg-slate-800'}`} />
-            <div className={`flex-1 h-1.5 rounded-full transition-all ${onboardingStep >= 2 ? 'bg-[#E0533C]' : 'bg-slate-200 dark:bg-slate-800'}`} />
-          </div>
-
-          {/* STEP 1: MASTER BUSINESS PROFILE CREATION */}
-          {onboardingStep === 1 && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-200">
-              <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-6 shadow-sm">
-                <div className="flex items-center gap-2 text-[#E0533C] font-extrabold text-xs uppercase tracking-wider mb-2">
-                  <Building2 className="w-4 h-4" />
-                  <span>Step 1: Master Business Identity</span>
-                </div>
-                <h2 className="text-lg font-black tracking-tight">Create your business presence</h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Establish your brand on Nairobi's premier guide. This information is displayed across your listings and public profile.
-                </p>
-
-                <div className="space-y-4 mt-6">
-                  {/* Business Name */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Business Name <span className="text-[#E0533C]">*</span>
-                    </label>
-                    <input 
-                      type="text"
-                      placeholder="e.g. Ink & Drink Lounge, Nairobi Waves, 90s Vintage"
-                      value={onboardName}
-                      onChange={(e) => setOnboardName(e.target.value)}
-                      className="w-full text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl px-4 py-3 focus:outline-none focus:border-[#E0533C]"
-                    />
-                  </div>
-
-                  {/* Global Bio */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Global Bio / Tagline
-                    </label>
-                    <textarea 
-                      rows={3}
-                      placeholder="Tell Nairobi what makes your venue, rave, or streetwear drop extraordinary..."
-                      value={onboardBio}
-                      onChange={(e) => setOnboardBio(e.target.value)}
-                      className="w-full text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-4 focus:outline-none focus:border-[#E0533C]"
-                    />
-                  </div>
-
-                  {/* Profile Logo / Picture */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Profile Picture / Logo *
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <img 
-                        src={onboardLogo || presetLogos[0]} 
-                        alt="Logo Preview" 
-                        className="w-14 h-14 rounded-2xl object-cover shadow-xs shrink-0" 
-                      />
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <label className="cursor-pointer px-3 py-1.5 bg-[#E0533C] hover:bg-[#d04630] text-white text-xs font-bold rounded-xl transition inline-flex items-center gap-1.5 shadow-xs">
-                            <Upload className="w-3.5 h-3.5" />
-                            <span>Upload Photo</span>
-                            <input 
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  const reader = new FileReader();
-                                  reader.onload = (event) => {
-                                    if (event.target?.result) {
-                                      setOnboardLogo(event.target.result as string);
-                                      showToast('Profile photo selected!');
-                                    }
-                                  };
-                                  reader.readAsDataURL(file);
-                                }
-                              }}
-                            />
-                          </label>
-                          {onboardLogo && (
-                            <button
-                              type="button"
-                              onClick={() => setOnboardLogo('')}
-                              className="px-2.5 py-1.5 text-xs text-red-500 hover:text-red-600 font-bold border border-red-200 dark:border-red-900/50 rounded-xl"
-                            >
-                              Remove
-                            </button>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] text-slate-400">Or pick preset:</span>
-                          {presetLogos.map((preset, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => setOnboardLogo(preset)}
-                              className={`w-6 h-6 rounded-lg overflow-hidden border ${onboardLogo === preset ? 'ring-2 ring-[#E0533C]' : 'opacity-70'}`}
-                            >
-                              <img src={preset} alt="preset" className="w-full h-full object-cover" />
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Neighborhood & Address */}
-                  <div className="space-y-3 pt-2">
-                    <DynamicLocationSelector
-                      value={onboardNeighborhood}
-                      onChange={(loc) => setOnboardNeighborhood(loc)}
-                      label="Neighborhood / Location Area *"
-                      placeholder="Search neighborhood, sub-location or type custom..."
-                    />
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                        Full Address / Building / Stall Number
-                      </label>
-                      <input 
-                        type="text"
-                        placeholder="e.g. Mpaka Rd, 2nd Floor / Gikomba Stall 4B"
-                        value={onboardAddress}
-                        onChange={(e) => setOnboardAddress(e.target.value)}
-                        className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl px-4 py-3 font-medium focus:outline-none focus:border-[#E0533C]"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Contact Info */}
-                  <div className="grid grid-cols-2 gap-3 pt-2">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                        Phone Number
-                      </label>
-                      <input 
-                        type="text"
-                        placeholder="+254 700 000 000"
-                        value={onboardPhone}
-                        onChange={(e) => setOnboardPhone(e.target.value)}
-                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl px-3 py-2.5 focus:outline-none focus:border-[#E0533C]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                        WhatsApp (Orders)
-                      </label>
-                      <input 
-                        type="text"
-                        placeholder="+254 700 000 000"
-                        value={onboardWhatsapp}
-                        onChange={(e) => setOnboardWhatsapp(e.target.value)}
-                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl px-3 py-2.5 focus:outline-none focus:border-[#E0533C]"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!onboardName.trim()) {
-                      showToast('Please specify a Business Name first.');
-                      return;
-                    }
-                    setOnboardingStep(2);
-                  }}
-                  className="w-full mt-8 bg-[#E0533C] hover:bg-[#c9432d] text-white font-black text-sm py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 active:scale-[0.99] transition cursor-pointer"
-                >
-                  <span>Continue to Vertical Selection</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 2: VERTICAL SELECTION */}
-          {onboardingStep === 2 && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-3 duration-200">
-              <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-6 shadow-sm">
-                <div className="flex items-center gap-2 text-[#E0533C] font-extrabold text-xs uppercase tracking-wider mb-2">
-                  <Sparkles className="w-4 h-4" />
-                  <span>Step 2: Choose Merchant Vertical</span>
-                </div>
-                <h2 className="text-lg font-black tracking-tight">Select your operation model</h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  We customize your dashboard tools, listing capabilities, and verification badge to match your vertical precisely.
-                </p>
-
-                {/* 3 Vertical Options */}
-                <div className="space-y-3 mt-6">
-                  {/* Vertical 1: Spot Merchant */}
-                  <div 
-                    onClick={() => setSelectedVertical('hospitality')}
-                    className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                      selectedVertical === 'hospitality'
-                        ? 'border-amber-500 bg-amber-500/5 ring-2 ring-amber-500/20 shadow-md'
-                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-[#FBFBF9] dark:bg-[#121113]'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
-                          <Store className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-black text-sm text-slate-900 dark:text-slate-100">Spot Merchant</h3>
-                            <BusinessBadge businessId={currentBiz.id} category="hospitality" size="xs" />
-                          </div>
-                          <p className="text-[11px] text-slate-500 font-medium">Restaurants, Clubs, Lounges, Cafes & Hotels</p>
-                        </div>
-                      </div>
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                        selectedVertical === 'hospitality' ? 'border-amber-500 bg-amber-500 text-white' : 'border-slate-300 dark:border-slate-600'
-                      }`}>
-                        {selectedVertical === 'hospitality' && <Check className="w-3 h-3 stroke-[3]" />}
-                      </div>
-                    </div>
-                    <ul className="text-[10px] text-slate-500 space-y-1 mt-3 pl-1 border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
-                      <li className="flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3 h-3 text-amber-500 shrink-0" />
-                        <span>Interactive Digital Menu builder with prices</span>
-                      </li>
-                      <li className="flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3 h-3 text-amber-500 shrink-0" />
-                        <span>Exact location tags with nearest Bus Stop & Landmark</span>
-                      </li>
-                      <li className="flex items-center gap-1.5 font-bold text-amber-700 dark:text-amber-400">
-                        <Sparkles className="w-3 h-3 shrink-0" />
-                        <span>EXCLUSIVE: Search & Claim community user-uploaded spots</span>
-                      </li>
-                    </ul>
-                  </div>
-
-                  {/* Vertical 2: Event Organizer */}
-                  <div 
-                    onClick={() => setSelectedVertical('event_organizer')}
-                    className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                      selectedVertical === 'event_organizer'
-                        ? 'border-purple-500 bg-purple-500/5 ring-2 ring-purple-500/20 shadow-md'
-                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-[#FBFBF9] dark:bg-[#121113]'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center shrink-0">
-                          <Ticket className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-black text-sm text-slate-900 dark:text-slate-100">Event Organizer</h3>
-                            <BusinessBadge businessId={currentBiz.id} category="event_organizer" size="xs" />
-                          </div>
-                          <p className="text-[11px] text-slate-500 font-medium">Parties, Raves, Concerts, Festivals & Art Shows</p>
-                        </div>
-                      </div>
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                        selectedVertical === 'event_organizer' ? 'border-purple-500 bg-purple-500 text-white' : 'border-slate-300 dark:border-slate-600'
-                      }`}>
-                        {selectedVertical === 'event_organizer' && <Check className="w-3 h-3 stroke-[3]" />}
-                      </div>
-                    </div>
-                    <ul className="text-[10px] text-slate-500 space-y-1 mt-3 pl-1 border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
-                      <li className="flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3 h-3 text-purple-500 shrink-0" />
-                        <span>Direct ticketing links (HustleSasa, Tikiti, Mtickets)</span>
-                      </li>
-                      <li className="flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3 h-3 text-purple-500 shrink-0" />
-                        <span>Tiered ticketing passes & multi-artist lineup manager</span>
-                      </li>
-                      <li className="flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3 h-3 text-purple-500 shrink-0" />
-                        <span>Primary Ticketing Verified authenticity badge</span>
-                      </li>
-                    </ul>
-                  </div>
-
-                </div>
-
-                {submitError && (
-                  <div className="mt-6 rounded-2xl border border-red-300 bg-red-50 dark:bg-red-950/40 dark:border-red-800 text-red-800 dark:text-red-200 text-xs font-semibold p-4 flex items-start gap-2.5 break-words shadow-xs animate-in fade-in">
-                    <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                    <span className="flex-1">{submitError}</span>
-                  </div>
-                )}
-
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-8">
-                  <button
-                    type="button"
-                    onClick={() => setOnboardingStep(1)}
-                    className="w-full sm:w-auto sm:px-6 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs py-3.5 rounded-2xl transition text-center shrink-0 order-2 sm:order-1 cursor-pointer"
-                  >
-                    Back to Profile
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleCompleteOnboarding}
-                    disabled={isSubmitting}
-                    className="w-full flex-1 bg-[#E0533C] hover:bg-[#c9432d] disabled:opacity-60 disabled:cursor-not-allowed text-white font-extrabold text-xs sm:text-sm px-6 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 active:scale-[0.99] transition cursor-pointer leading-tight text-center whitespace-normal order-1 sm:order-2"
-                  >
-                    <CheckCircle2 className="w-4 h-4 shrink-0" />
-                    <span>{isSubmitting ? 'Launching Dashboard…' : 'Launch Merchant Dashboard'}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // ----------------------------------------------------
-  // RENDER: FULL DEDICATED MERCHANT DASHBOARD VIEWPORT
-  // ----------------------------------------------------
-  return (
-    <div className="min-h-screen bg-[#FBFBF9] dark:bg-[#121113] text-slate-900 dark:text-slate-100 pb-28">
-      {/* Top Merchant Workspace Banner */}
-      <div className="bg-white dark:bg-[#1C1A1E] sticky top-0 z-40 shadow-sm">
-        <div className="max-w-lg mx-auto px-4 pt-4 pb-3.5 overflow-visible">
-          <div className="flex items-start justify-between gap-3">
-            {/* Merchant Identity & Account Switcher */}
-            <div className="relative flex-1 min-w-0 z-10">
-              <button 
-                onClick={() => setIsSwitcherOpen(!isSwitcherOpen)}
-                className="flex items-start gap-3 text-left group w-full"
-              >
-                <img 
-                  src={currentBiz.logo} 
-                  alt={currentBiz.name} 
-                  className="relative z-10 w-12 h-12 rounded-2xl object-cover shadow-md bg-slate-100 dark:bg-slate-800 shrink-0" 
-                />
-                <div className="min-w-0 flex-1 pt-0.5">
-                  <div className="flex items-start gap-1.5">
-                    <h2 className="font-black text-[15px] leading-snug text-slate-900 dark:text-slate-100 break-words line-clamp-2 group-hover:text-[#E0533C] transition">
-                      {currentBiz.name}
-                    </h2>
-                    <span className="text-[10px] text-slate-400 mt-1 shrink-0">▼</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <BusinessBadge businessId={currentBiz.id} category={currentBiz.category} size="xs" />
-                  </div>
-                </div>
-              </button>
-
-              {/* Business Switcher Dropdown */}
-              {isSwitcherOpen && (
-                <div className="absolute top-full left-0 mt-2 w-72 max-w-[calc(100vw-2rem)] bg-white dark:bg-[#1C1A1E] rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
-                  <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Your Merchant Accounts ({ownedBusinesses.length})
-                  </div>
-                  <div className="space-y-1">
-                    {ownedBusinesses.map((biz) => (
-                      <button
-                        key={biz.id}
-                        onClick={() => {
-                          onSelectBusiness(biz.id);
-                          setIsSwitcherOpen(false);
-                          showToast(`Switched to ${biz.name}`);
-                        }}
-                        className={`w-full text-left p-2.5 rounded-xl flex items-center justify-between text-xs transition ${
-                          biz.id === currentBiz.id
-                            ? 'bg-amber-50 dark:bg-amber-950/40 text-[#E0533C] font-bold'
-                            : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <img src={biz.logo} alt={biz.name} className="w-6 h-6 rounded-lg object-cover shrink-0" />
-                          <span className="truncate">{biz.name}</span>
-                        </div>
-                        <BusinessBadge businessId={biz.id} category={biz.category} size="xs" />
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="border-t border-slate-100 dark:border-slate-800 mt-2 pt-2">
-                    <button
-                      onClick={() => {
-                        setIsSwitcherOpen(false);
-                        handleStartOnboarding();
-                      }}
-                      className="w-full text-left p-2 rounded-xl text-xs font-bold text-[#E0533C] hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-2 transition"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>Add New Merchant Account</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Quick Actions */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button 
-                onClick={() => onOpenPublicProfile(currentBiz)}
-                className="text-[11px] font-bold px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 transition flex items-center gap-1 cursor-pointer"
-                title="View your public merchant storefront"
-              >
-                <Share2 className="w-3.5 h-3.5" />
-                <span>Storefront</span>
-              </button>
-
-              {onClose && (
-                <button
-                  onClick={onClose}
-                  className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center gap-1 text-slate-700 dark:text-slate-200 text-xs font-bold transition cursor-pointer"
-                  title="Close Merchant Hub"
-                  aria-label="Close Merchant Hub"
-                >
-                  <X className="w-4 h-4" />
-                  <span>Exit</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Sub Navigation Bar for this Vertical */}
-          <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar mt-3 pt-2 border-t border-slate-100 dark:border-slate-800/80">
-            <button
-              onClick={() => setActiveSubTab('overview')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
-                activeSubTab === 'overview'
-                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-              }`}
-            >
-              Overview
-            </button>
-
-            <button
-              onClick={() => setActiveSubTab('analytics')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
-                activeSubTab === 'analytics'
-                  ? 'bg-amber-600 text-white shadow-xs'
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-              }`}
-            >
-              <BarChart3 className="w-3.5 h-3.5" />
-              <span>Spot Analytics</span>
-            </button>
-
-            {/* Spot Merchant Specific Tabs */}
-            {currentBiz.category === 'hospitality' && (
-              <>
-                <button
-                  onClick={() => setActiveSubTab('manage')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
-                    activeSubTab === 'manage'
-                      ? 'bg-[#E0533C] text-white shadow-xs'
-                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-                  }`}
-                >
-                  <Store className="w-3.5 h-3.5" />
-                  <span>My Spots ({myClaimedSpots.length})</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveSubTab('claim')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
-                    activeSubTab === 'claim'
-                      ? 'bg-amber-500 text-white shadow-xs'
-                      : 'text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20'
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Claim Spots</span>
-                </button>
-              </>
-            )}
-
-            {/* Event Organizer Specific Tabs */}
-            {currentBiz.category === 'event_organizer' && (
-              <button
-                onClick={() => setActiveSubTab('manage')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
-                  activeSubTab === 'manage'
-                    ? 'bg-purple-600 text-white shadow-xs'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-                }`}
-              >
-                <Ticket className="w-3.5 h-3.5" />
-                <span>Events Suite ({myEvents.length})</span>
-              </button>
-            )}
-
-            {/* Independent Offers & Deals tab for ALL merchants */}
-            <button
-              onClick={() => setActiveSubTab('offers')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
-                activeSubTab === 'offers'
-                  ? 'bg-rose-600 text-white shadow-xs'
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-              }`}
-            >
-              <Percent className="w-3.5 h-3.5" />
-              <span>Offers & Deals ({myOffers.length})</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Dashboard Container */}
-      <div className="max-w-lg mx-auto px-4 py-5 space-y-6">
-
-        {/* =========================================================================
-            SUB-TAB: OVERVIEW
-            ========================================================================= */}
-        {activeSubTab === 'overview' && (
-          <div 
- className="space-y-6 animate-in fade-in duration-150">
-            {/* ACTUAL BUSINESS VERIFICATION STATUS */}
-{(() => {
-  const status =
-    currentBiz.verificationStatus ||
-    (currentBiz.verified ? 'approved' : 'pending');
-
-  const statusStyles = {
-    pending: 'border-amber-300 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-200',
-    approved: 'border-emerald-300 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-200',
-    rejected: 'border-red-300 bg-red-50 text-red-900 dark:bg-red-950/30 dark:border-red-800 dark:text-red-200',
-  };
-
-  const statusContent = {
-    pending: {
-      title: 'Verification pending',
-      message: 'Your business profile has been submitted and is waiting for RADA admin review.',
-    },
-    approved: {
-      title: 'Business verified',
-      message: 'Your business has been approved by RADA.',
-    },
-    rejected: {
-      title: 'Verification rejected',
-      message: currentBiz.verificationNote
-        ? `Reason: ${currentBiz.verificationNote}`
-        : 'Your business was not approved. Please review your details and contact RADA support.',
-    },
-  };
-
-  return (
-    <div className={`rounded-2xl border p-4 ${statusStyles[status]}`}>
-      <div className="flex items-start gap-3">
-        <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5" />
-        <div>
-          <p className="text-sm font-black">
-            {statusContent[status].title}
-          </p>
-          <p className="text-xs mt-1 leading-relaxed">
-            {statusContent[status].message}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-})()}
-            {/* Quick Metrics Bar */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-2xl p-3 text-center shadow-xs">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Managed</span>
-                <span className="text-xl font-black text-slate-900 dark:text-slate-100 mt-0.5 block">
-                  {currentBiz.category === 'hospitality' 
-                    ? myClaimedSpots.length 
-                    : currentBiz.category === 'event_organizer' 
-                    ? myEvents.length 
-                    : 0}
-                </span>
-                <span className="text-[10px] text-[#E0533C] font-semibold">Active Listings</span>
-              </div>
-
-              <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-2xl p-3 text-center shadow-xs">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Promotions</span>
-                <span className="text-xl font-black text-slate-900 dark:text-slate-100 mt-0.5 block">
-                  {myOffers.length}
-                </span>
-                <span className="text-[10px] text-emerald-600 font-semibold">Live on Feed</span>
-              </div>
-
-              <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-2xl p-3 text-center shadow-xs">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Trust Score</span>
-                <div className="flex items-center justify-center gap-1 mt-0.5">
-                  <ShieldCheck className="w-5 h-5 text-emerald-500" />
-                  <span className="text-xl font-black text-slate-900 dark:text-slate-100">100%</span>
-                </div>
-                <span className="text-[10px] text-slate-400 font-medium">Verified Merchant</span>
-              </div>
-            </div>
-
-            {/* Dynamic Metrics & Analytics Overview */}
-            <SpotInsightsAnalytics
-              spots={spots}
-              currentBiz={currentBiz}
-              userId={userId || effectiveUserId}
-              onOpenCreateSpot={openCreateSpotModal}
-              showToast={showToast}
-            />
-
-            {/* Operational Hub Action Cards */}
-            <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-5 shadow-xs space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Quick Operations</h3>
-                  <p className="text-[11px] text-slate-500">Fast tasks for {currentBiz.name}</p>
-                </div>
-                <BusinessBadge businessId={currentBiz.id} category={currentBiz.category} size="xs" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                {currentBiz.category === 'hospitality' && (
-                  <>
-                    <button
-                      onClick={openCreateSpotModal}
-                      className="p-3.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 dark:text-amber-200 border border-amber-500/30 rounded-2xl text-left transition group cursor-pointer"
-                    >
-                      <Plus className="w-5 h-5 text-amber-600 mb-2 group-hover:scale-110 transition" />
-                      <span className="font-extrabold text-xs block">Add New Spot</span>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400">Menus, exact hours & bus stop</span>
-                    </button>
-
-                    <button
-                      onClick={() => setActiveSubTab('claim')}
-                      className="p-3.5 bg-orange-500/10 hover:bg-orange-500/20 text-orange-900 dark:text-orange-200 border border-orange-500/30 rounded-2xl text-left transition group cursor-pointer"
-                    >
-                      <Sparkles className="w-5 h-5 text-orange-600 mb-2 group-hover:scale-110 transition" />
-                      <span className="font-extrabold text-xs block">Claim Community Spots</span>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400">{claimableCommunitySpots.length} spots in area</span>
-                    </button>
-                  </>
-                )}
-
-                {currentBiz.category === 'event_organizer' && (
-                  <>
-                    <button
-                      onClick={openCreateEventModal}
-                      className="p-3.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-900 dark:text-purple-200 border border-purple-500/30 rounded-2xl text-left transition group cursor-pointer"
-                    >
-                      <Plus className="w-5 h-5 text-purple-600 mb-2 group-hover:scale-110 transition" />
-                      <span className="font-extrabold text-xs block">Publish Event Rave</span>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400">Tickets, lineup & venue</span>
-                    </button>
-
-                    <button
-                      onClick={() => setActiveSubTab('manage')}
-                      className="p-3.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-900 dark:text-indigo-200 border border-indigo-500/30 rounded-2xl text-left transition group cursor-pointer"
-                    >
-                      <Ticket className="w-5 h-5 text-indigo-600 mb-2 group-hover:scale-110 transition" />
-                      <span className="font-extrabold text-xs block">Ticket Tiers & Links</span>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400">HustleSasa, Tikiti setup</span>
-                    </button>
-                  </>
-                )}
-
-                {/* Independent Offer Button (Shared) */}
-                <button
-                  onClick={openCreateOfferModal}
-                  className="p-3.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-900 dark:text-rose-200 border border-rose-500/30 rounded-2xl text-left transition group cursor-pointer"
-                >
-                  <Percent className="w-5 h-5 text-rose-600 mb-2 group-hover:scale-110 transition" />
-                  <span className="font-extrabold text-xs block">Post Promo Offer</span>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400">Decoupled deal banner</span>
-                </button>
-
-                <button
-                  onClick={() => onOpenPublicProfile(currentBiz)}
-                  className="p-3.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-2xl text-left transition group cursor-pointer"
-                >
-                  <Share2 className="w-5 h-5 text-slate-600 dark:text-slate-300 mb-2 group-hover:scale-110 transition" />
-                  <span className="font-extrabold text-xs block">View Storefront</span>
-                  <span className="text-[10px] text-slate-500">Public customer view</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Running Offers Spotlight */}
-            <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-5 shadow-xs space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                    <Flame className="w-4 h-4 text-[#E0533C]" />
-                    <span>Active Offers on Home Feed ({myOffers.length})</span>
-                  </h3>
-                  <p className="text-[10px] text-slate-500">Promotions showcased to all users on RADA Home</p>
-                </div>
-                <button 
-                  onClick={openCreateOfferModal}
-                  className="text-[10px] font-black text-[#E0533C] hover:underline"
-                >
-                  + Create Offer
-                </button>
-              </div>
-
-              {myOffers.length === 0 ? (
-                <div className="text-center py-6 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
-                  <Percent className="w-7 h-7 text-slate-300 mx-auto mb-1.5" />
-                  <p className="text-xs font-bold text-slate-600 dark:text-slate-400">No active promotions right now</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Post an offer or deal to drive weekend traffic!</p>
-                  <button 
-                    onClick={openCreateOfferModal}
-                    className="mt-3 text-xs bg-[#E0533C] text-white font-bold px-3 py-1.5 rounded-xl shadow-xs"
-                  >
-                    Post an Offer
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {myOffers.map(offer => (
-                    <div 
-                      key={offer.id}
-                      className="p-3 bg-slate-100 dark:bg-[#121113] rounded-2xl flex items-center justify-between gap-3"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        {offer.posterUrl && (
-                          <img src={offer.posterUrl} alt={offer.title} className="w-12 h-12 rounded-xl object-cover shrink-0" />
-                        )}
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[9px] font-black bg-rose-500 text-white px-1.5 py-0.2 rounded-md">
-                              {offer.discount}
-                            </span>
-                            <span className="text-[10px] font-bold text-slate-400">{offer.category}</span>
-                          </div>
-                          <h4 className="font-extrabold text-xs truncate mt-0.5">{offer.title}</h4>
-                          <p className="text-[10px] text-slate-400 truncate">{offer.validUntil}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button 
-                          onClick={() => openEditOfferModal(offer)}
-                          className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-500"
-                          title="Edit Offer"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-                        <button 
-                          onClick={() => {
-                            onDeleteOffer(offer.id);
-                            showToast('Offer removed from Home feed.');
-                          }}
-                          className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg text-red-500"
-                          title="Delete Offer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* =========================================================================
-            SUB-TAB: MANAGE (VERTICAL-SPECIFIC)
-            ========================================================================= */}
-        {activeSubTab === 'manage' && (
-          <div className="space-y-6 animate-in fade-in duration-150">
-
-            {/* A. SPOT MERCHANT MANAGEMENT */}
-            {currentBiz.category === 'hospitality' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-base font-black tracking-tight">My Managed Spots ({myClaimedSpots.length})</h3>
-                    <p className="text-xs text-slate-500">Spots owned by {currentBiz.name} with editing rights</p>
-                  </div>
-                  <button 
-                    onClick={openCreateSpotModal}
-                    className="text-xs font-black bg-[#E0533C] text-white px-3.5 py-2 rounded-xl flex items-center gap-1 shadow-md shadow-orange-500/20 cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>New Spot</span>
-                  </button>
-                </div>
-
-                {myClaimedSpots.length === 0 ? (
-                  <div className="text-center py-10 bg-white dark:bg-[#1C1A1E] border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl p-6">
-                    <Store className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                    <h4 className="font-black text-sm">No spots claimed or added yet</h4>
-                    <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
-                      Create your own spot or claim an existing community-uploaded listing to manage digital menus and exact bus stops.
-                    </p>
-                    <div className="flex items-center justify-center gap-2 mt-4">
-                      <button 
-                        onClick={openCreateSpotModal}
-                        className="text-xs bg-[#E0533C] text-white font-bold px-4 py-2 rounded-xl"
-                      >
-                        Create Spot
-                      </button>
-                      <button 
-                        onClick={() => setActiveSubTab('claim')}
-                        className="text-xs bg-amber-500 text-white font-bold px-4 py-2 rounded-xl"
-                      >
-                        Claim a Spot
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {myClaimedSpots.map(spot => (
-                      <div 
-                        key={spot.id}
-                        className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-4 shadow-xs space-y-3"
-                      >
-                        <div className="flex items-start gap-3">
-                          <img src={spot.img} alt={spot.title} className="w-16 h-16 rounded-2xl object-cover shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <h4 className="font-black text-sm truncate">{spot.title}</h4>
-                              <BusinessBadge businessId={currentBiz.id} category="hospitality" size="xs" />
-                            </div>
-                            <p className="text-xs text-slate-500 truncate flex items-center gap-1 mt-0.5">
-                              <MapPin className="w-3 h-3 text-[#E0533C]" />
-                              <span>{spot.exactLocationTag || spot.address}</span>
-                            </p>
-                            <div className="flex items-center gap-2 mt-1.5 text-[10px] text-slate-400 font-semibold">
-                              <span>★ {spot.rating} ({spot.reviewCount || 0} reviews)</span>
-                              <span>•</span>
-                              <span>{spot.menuItems?.length || 0} Menu Items</span>
-                              <span>•</span>
-                              <span className="text-emerald-600 font-bold">Claimed & Verified</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Location & Bus stop info */}
-                        {spot.landmark && (
-                          <div className="bg-[#FBFBF9] dark:bg-[#121113] p-2.5 rounded-xl text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                            <MapPin className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                            <span>Stage / Landmark: <strong className="text-slate-900 dark:text-slate-100">{spot.landmark}</strong></span>
-                          </div>
-                        )}
-
-                        <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/80">
-                          <button
-                            onClick={() => onViewSpotDetails(spot)}
-                            className="text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-[#E0533C] flex items-center gap-1"
-                          >
-                            <span>Preview Listing</span>
-                            <ChevronRight className="w-3 h-3" />
-                          </button>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => openEditSpotModal(spot)}
-                              className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-bold flex items-center gap-1"
-                            >
-                              <Edit3 className="w-3 h-3 text-slate-600 dark:text-slate-300" />
-                              <span>Edit Spot & Menu</span>
-                            </button>
-                            <button
-                              onClick={() => {
-                                onReleaseSpot(spot.id);
-                                showToast(`Released ownership of "${spot.title}".`);
-                              }}
-                              className="px-2.5 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/30 text-red-500 hover:bg-red-100 text-xs font-bold"
-                              title="Release Spot Ownership"
-                            >
-                              Release
-                            </button>
-                            <button
-                              onClick={() => {
-                                if (window.confirm(`Delete "${spot.title}" permanently? This removes it from RADA for everyone.`)) {
-                                  onDeleteListing('spot', spot.id);
-                                  showToast(`Deleted "${spot.title}".`);
-                                }
-                              }}
-                              className="px-2.5 py-1.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-bold flex items-center gap-1 transition"
-                              title="Delete Spot"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                              <span>Delete</span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* B. EVENT ORGANIZER MANAGEMENT */}
-            {currentBiz.category === 'event_organizer' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-base font-black tracking-tight">Active Events Suite ({myEvents.length})</h3>
-                    <p className="text-xs text-slate-500">Concerts, parties & raves hosted by {currentBiz.name}</p>
-                  </div>
-                  <button 
-                    onClick={openCreateEventModal}
-                    className="text-xs font-black bg-purple-600 text-white px-3.5 py-2 rounded-xl flex items-center gap-1 shadow-md shadow-purple-500/20 cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Publish Event</span>
-                  </button>
-                </div>
-
-                {myEvents.length === 0 ? (
-                  <div className="text-center py-10 bg-white dark:bg-[#1C1A1E] border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl p-6">
-                    <Ticket className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                    <h4 className="font-black text-sm">No events published yet</h4>
-                    <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
-                      List your upcoming club night, concert, or festival with verified ticketing and multi-tier passes.
-                    </p>
-                    <button 
-                      onClick={openCreateEventModal}
-                      className="mt-4 text-xs bg-purple-600 text-white font-bold px-4 py-2 rounded-xl"
-                    >
-                      Publish First Event
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {myEvents.map(evt => (
-                      <div 
-                        key={evt.id}
-                        className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-4 shadow-xs space-y-3"
-                      >
-                        <div className="flex items-start gap-3">
-                          <img src={evt.img} alt={evt.title} className="w-16 h-16 rounded-2xl object-cover shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <h4 className="font-black text-sm truncate">{evt.title}</h4>
-                              <BusinessBadge businessId={currentBiz.id} category="event_organizer" size="xs" />
-                            </div>
-                            <p className="text-xs text-slate-500 truncate mt-0.5">{evt.date} • {evt.time}</p>
-                            <p className="text-xs text-slate-400 truncate flex items-center gap-1">
-                              <MapPin className="w-3 h-3 text-purple-500" />
-                              <span>{evt.location}</span>
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Ticket tiers pills */}
-                        <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar py-1">
-                          {evt.tiers?.map((tier, idx) => (
-                            <span 
-                              key={idx} 
-                              className="text-[10px] font-bold bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 px-2 py-0.5 rounded-lg whitespace-nowrap"
-                            >
-                              {tier.name}: {tier.price}
-                            </span>
-                          ))}
-                        </div>
-
-                        <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/80">
-                          <button
-                            onClick={() => onViewEventDetails(evt)}
-                            className="text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-purple-600 flex items-center gap-1"
-                          >
-                            <span>Preview Event</span>
-                            <ChevronRight className="w-3 h-3" />
-                          </button>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => openEditEventModal(evt)}
-                              className="px-2.5 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/30 text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900/40 text-xs font-bold flex items-center gap-1 transition"
-                              title="Edit Event"
-                            >
-                              <Edit3 className="w-3 h-3" />
-                              <span>Edit</span>
-                            </button>
-                            <a
-                              href={evt.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="px-2.5 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/30 text-purple-600 text-xs font-bold flex items-center gap-1"
-                            >
-                              <span>Tickets</span>
-                              <ExternalLink className="w-3 h-3" />
-                            </a>
-                            <button
-                              onClick={() => {
-                                onDeleteListing('event', evt.id);
-                                showToast(`Deleted "${evt.title}".`);
-                              }}
-                              className="px-2.5 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/30 text-red-500 text-xs font-bold"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* =========================================================================
-            SUB-TAB: SPOT ANALYTICS & INSIGHTS
-            ========================================================================= */}
-        {activeSubTab === 'analytics' && (
-          <div className="space-y-6 animate-in fade-in duration-150">
-            <SpotInsightsAnalytics
-              spots={spots}
-              currentBiz={currentBiz}
-              userId={userId || effectiveUserId}
-              onOpenCreateSpot={openCreateSpotModal}
-              showToast={showToast}
-            />
-          </div>
-        )}
-
-        {/* =========================================================================
-            SUB-TAB: CLAIM COMMUNITY SPOTS (EXCLUSIVE TO SPOT MERCHANTS)
-            ========================================================================= */}
-        {activeSubTab === 'claim' && currentBiz.category === 'hospitality' && (
-          <div className="space-y-5 animate-in fade-in duration-150">
-            {/* Header / Info Banner */}
-            <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-transparent border border-amber-500/30 rounded-3xl p-5">
-              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-black text-xs uppercase tracking-wider mb-1">
-                <Sparkles className="w-4 h-4 text-amber-500" />
-                <span>Exclusive Merchant Privilege</span>
-              </div>
-              <h3 className="text-base font-black tracking-tight">Search & Claim Community Spots</h3>
-              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                Find spots originally added by the community or unassigned. Claiming instantly grants <strong className="text-slate-900 dark:text-slate-100">{currentBiz.name}</strong> official merchant ownership, unlocking menu updates, photo curation, and verification badges!
-              </p>
-
-              {/* Search input */}
-              <div className="relative mt-4">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input 
-                  type="text"
-                  placeholder="Search spots by name, neighborhood (e.g. Hurlingham, Westlands)..."
-                  value={claimSearchQuery}
-                  onChange={(e) => setClaimSearchQuery(e.target.value)}
-                  className="w-full text-xs bg-white dark:bg-[#1C1A1E] border border-amber-500/40 rounded-2xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
-                />
-              </div>
-            </div>
-
-            {/* Results List */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-xs font-bold text-slate-500">
-                  Available to Claim ({claimableCommunitySpots.length})
-                </span>
-                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold">
-                  Verified Spot Merchant Exclusive
-                </span>
-              </div>
-
-              {claimableCommunitySpots.length === 0 ? (
-                <div className="text-center py-8 bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-6">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-                  <p className="text-xs font-bold">No unclaimed spots matching "{claimSearchQuery}"</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">All matching listings are already claimed or verified.</p>
-                </div>
-              ) : (
-                claimableCommunitySpots.map(spot => (
-                  <div 
-                    key={spot.id}
-                    className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-4 shadow-xs flex items-center justify-between gap-3 hover:border-amber-400/50 transition"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <img src={spot.img} alt={spot.title} className="w-14 h-14 rounded-2xl object-cover shrink-0" />
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-extrabold text-xs truncate">{spot.title}</h4>
-                          {spot.isUserUploaded && (
-                            <span className="text-[9px] bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-300 px-1.5 py-0.5 rounded font-bold">
-                              Community Upload
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-slate-400 truncate flex items-center gap-1 mt-0.5">
-                          <MapPin className="w-3 h-3 text-[#E0533C]" />
-                          <span>{spot.neighborhood} • {spot.address}</span>
-                        </p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">
-                          Rating ★ {spot.rating} ({spot.reviewCount || 0} reviews)
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        onClaimSpot(spot.id, currentBiz.id);
-                        showToast(`Ownership claimed! "${spot.title}" now managed by ${currentBiz.name}.`);
-                      }}
-                      className="bg-gradient-to-r from-amber-500 to-[#E0533C] hover:opacity-90 text-white font-black text-xs px-3.5 py-2 rounded-xl shadow-md shadow-orange-500/20 shrink-0 cursor-pointer transition active:scale-95"
-                    >
-                      Claim Spot
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* =========================================================================
-            SUB-TAB: OFFERS & DEALS (INDEPENDENT ENGINE)
-            ========================================================================= */}
-        {activeSubTab === 'offers' && (
-          <div className="space-y-5 animate-in fade-in duration-150">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-black tracking-tight">Independent Promotions ({myOffers.length})</h3>
-                <p className="text-xs text-slate-500">Create, modify & delete offers separate from your profile</p>
-              </div>
-              <button
-                onClick={openCreateOfferModal}
-                className="text-xs font-black bg-[#E0533C] text-white px-3.5 py-2 rounded-xl flex items-center gap-1 shadow-md shadow-orange-500/20 cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>New Promotion</span>
-              </button>
-            </div>
-
-            {myOffers.length === 0 ? (
-              <div className="text-center py-12 bg-white dark:bg-[#1C1A1E] border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl p-6">
-                <Percent className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                <h4 className="font-black text-sm">No promotional offers active</h4>
-                <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
-                  Launch a Happy Hour deal, early-bird ticket discount, or wardrobe bundle to appear on the Home Running Offers feed.
-                </p>
-                <button
-                  onClick={openCreateOfferModal}
-                  className="mt-4 text-xs bg-[#E0533C] text-white font-bold px-4 py-2 rounded-xl shadow-md"
-                >
-                  Create Your First Offer
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {myOffers.map(offer => (
-                  <div 
-                    key={offer.id}
-                    className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl overflow-hidden shadow-xs hover:border-slate-300 transition"
-                  >
-                    {/* Offer Banner */}
-                    <div className="relative h-36 w-full bg-slate-900">
-                      <img 
-                        src={offer.posterUrl || currentBiz.coverImage || 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&auto=format&fit=crop'} 
-                        alt={offer.title} 
-                        className="w-full h-full object-cover opacity-85" 
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                      <div className="absolute top-3 left-3 flex items-center gap-1.5">
-                        <span className="text-[10px] font-black bg-[#E0533C] text-white px-2.5 py-1 rounded-full shadow-md uppercase tracking-wider">
-                          {offer.discount}
-                        </span>
-                        <span className="text-[10px] font-extrabold bg-black/60 backdrop-blur-md text-white px-2.5 py-1 rounded-full border border-white/20">
-                          {offer.category}
-                        </span>
-                      </div>
-                      <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between">
-                        <div>
-                          <span className="text-[10px] text-amber-300 font-bold block">{offer.validUntil}</span>
-                          <h4 className="text-base font-black text-white leading-tight mt-0.5">{offer.title}</h4>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Offer Content & Controls */}
-                    <div className="p-4 space-y-3">
-                      <p className="text-xs text-slate-600 dark:text-slate-300">{offer.description}</p>
-                      
-                      <div className="flex items-center justify-between bg-[#FBFBF9] dark:bg-[#121113] p-2.5 rounded-xl">
-                        <div className="flex items-center gap-2">
-                          <Tag className="w-3.5 h-3.5 text-[#E0533C]" />
-                          <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200">{offer.claimCode || 'RADADEAL'}</span>
-                        </div>
-                        <span className="text-[10px] font-bold text-emerald-600">Active on Home Feed</span>
-                      </div>
-
-                      <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
-                        <button
-                          onClick={() => openEditOfferModal(offer)}
-                          className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-bold flex items-center gap-1 transition"
-                        >
-                          <Edit3 className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
-                          <span>Edit Offer</span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            onDeleteOffer(offer.id);
-                            showToast('Offer deleted from store & Home feed.');
-                          }}
-                          className="px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/30 text-red-500 hover:bg-red-100 text-xs font-bold transition flex items-center gap-1"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Delete</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* =========================================================================
-          FULL-SCREEN DEDICATED VIEW: CREATE / EDIT SPOT & MENU
-          ========================================================================= */}
-      {isSpotFormOpen && (
+  const spotFormOverlay =
+isSpotFormOpen && (
         <div className="fixed inset-0 z-50 bg-[#FBFBF9] dark:bg-[#121113] text-slate-900 dark:text-slate-100 overflow-y-auto animate-in fade-in duration-150 flex flex-col">
           {/* Top Sticky Header with Back Button */}
           <div className="sticky top-0 z-30 bg-white/95 dark:bg-[#1C1A1E]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-xs">
@@ -2535,7 +2165,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => setIsSpotFormOpen(false)}
+                  onClick={closeSpotForm}
                   className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200 transition cursor-pointer"
                   title="Back to Dashboard"
                   aria-label="Back to Dashboard"
@@ -2544,10 +2174,10 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
                 </button>
                 <div>
                   <h2 className="font-black text-base sm:text-lg tracking-tight text-slate-900 dark:text-slate-100">
-                    {editingSpotId ? 'Edit Spot & Menu' : 'Publish New Spot Listing'}
+                    {editingSpotId ? 'Edit Spot & Menu' : adminMode ? 'Publish Unclaimed Spot' : 'Publish New Spot Listing'}
                   </h2>
                   <p className="text-[11px] text-slate-500 font-medium">
-                    Managing {currentBiz.name} official spot profile
+                    {adminMode ? 'Publishing as RADA Admin • listed as unclaimed' : `Managing ${currentBiz.name} official spot profile`}
                   </p>
                 </div>
               </div>
@@ -2555,7 +2185,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsSpotFormOpen(false)}
+                  onClick={closeSpotForm}
                   className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 px-3 py-1.5 rounded-full shadow-sm bg-white dark:bg-[#121113] transition cursor-pointer"
                 >
                   Cancel
@@ -4049,7 +3679,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
               <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
                 <button 
                   type="button"
-                  onClick={() => setIsSpotFormOpen(false)}
+                  onClick={closeSpotForm}
                   className="w-full sm:w-auto px-6 py-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-extrabold text-xs sm:text-sm rounded-2xl transition cursor-pointer text-center order-2 sm:order-1"
                 >
                   Cancel
@@ -4067,7 +3697,1278 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
             </form>
           </div>
         </div>
-      )}
+      );
+
+  // Admin mode: only the spot form, nothing else of the merchant hub
+  if (adminMode) return <>{spotFormOverlay}</>;
+
+  // ----------------------------------------------------
+  // RENDER: ONBOARDING VIEW
+  // ----------------------------------------------------
+  if (isOnboardingOpen || !currentBiz) {
+    return (
+      <div className="min-h-screen bg-[#FBFBF9] dark:bg-[#121113] text-slate-900 dark:text-slate-100 pb-28 px-4 py-6">
+        <div className="max-w-md mx-auto">
+          {/* Top Bar with Cancel / Exit if businesses exist */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] flex items-center justify-center text-white shadow-md">
+                <Store className="w-5 h-5" />
+              </div>
+              <div>
+                <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-slate-100">Merchant Onboarding</h1>
+                <p className="text-xs text-slate-500 font-medium">Step {onboardingStep} of 2</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {ownedBusinesses.length > 0 && (
+                <button 
+                  onClick={() => setIsOnboardingOpen(false)}
+                  className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 bg-white dark:bg-[#1C1A1E] px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1 cursor-pointer"
+                >
+                  <span>Dashboard</span>
+                </button>
+              )}
+              {onClose && (
+                <button 
+                  onClick={onClose}
+                  className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 bg-white dark:bg-[#1C1A1E] px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1 cursor-pointer"
+                  title="Close Merchant Hub"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Exit</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Stepper progress indicator */}
+          <div className="flex items-center gap-2 mb-8">
+            <div className={`flex-1 h-1.5 rounded-full transition-all ${onboardingStep >= 1 ? 'bg-[#E0533C]' : 'bg-slate-200 dark:bg-slate-800'}`} />
+            <div className={`flex-1 h-1.5 rounded-full transition-all ${onboardingStep >= 2 ? 'bg-[#E0533C]' : 'bg-slate-200 dark:bg-slate-800'}`} />
+          </div>
+
+          {/* STEP 1: MASTER BUSINESS PROFILE CREATION */}
+          {onboardingStep === 1 && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-200">
+              <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-6 shadow-sm">
+                <div className="flex items-center gap-2 text-[#E0533C] font-extrabold text-xs uppercase tracking-wider mb-2">
+                  <Building2 className="w-4 h-4" />
+                  <span>Step 1: Master Business Identity</span>
+                </div>
+                <h2 className="text-lg font-black tracking-tight">Create your business presence</h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Establish your brand on Nairobi's premier guide. This information is displayed across your listings and public profile.
+                </p>
+
+                <div className="space-y-4 mt-6">
+                  {/* Business Name */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Business Name <span className="text-[#E0533C]">*</span>
+                    </label>
+                    <input 
+                      type="text"
+                      placeholder="e.g. Ink & Drink Lounge, Nairobi Waves, 90s Vintage"
+                      value={onboardName}
+                      onChange={(e) => setOnboardName(e.target.value)}
+                      className="w-full text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl px-4 py-3 focus:outline-none focus:border-[#E0533C]"
+                    />
+                  </div>
+
+                  {/* Global Bio */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Global Bio / Tagline
+                    </label>
+                    <textarea 
+                      rows={3}
+                      placeholder="Tell Nairobi what makes your venue, rave, or streetwear drop extraordinary..."
+                      value={onboardBio}
+                      onChange={(e) => setOnboardBio(e.target.value)}
+                      className="w-full text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-4 focus:outline-none focus:border-[#E0533C]"
+                    />
+                  </div>
+
+                  {/* Profile Logo / Picture */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Profile Picture / Logo *
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <img 
+                        src={onboardLogo || presetLogos[0]} 
+                        alt="Logo Preview" 
+                        className="w-14 h-14 rounded-2xl object-cover shadow-xs shrink-0" 
+                      />
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <label className="cursor-pointer px-3 py-1.5 bg-[#E0533C] hover:bg-[#d04630] text-white text-xs font-bold rounded-xl transition inline-flex items-center gap-1.5 shadow-xs">
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>Upload Photo</span>
+                            <input 
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onload = (event) => {
+                                    if (event.target?.result) {
+                                      setOnboardLogo(event.target.result as string);
+                                      showToast('Profile photo selected!');
+                                    }
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                          </label>
+                          {onboardLogo && (
+                            <button
+                              type="button"
+                              onClick={() => setOnboardLogo('')}
+                              className="px-2.5 py-1.5 text-xs text-red-500 hover:text-red-600 font-bold border border-red-200 dark:border-red-900/50 rounded-xl"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-slate-400">Or pick preset:</span>
+                          {presetLogos.map((preset, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => setOnboardLogo(preset)}
+                              className={`w-6 h-6 rounded-lg overflow-hidden border ${onboardLogo === preset ? 'ring-2 ring-[#E0533C]' : 'opacity-70'}`}
+                            >
+                              <img src={preset} alt="preset" className="w-full h-full object-cover" />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Neighborhood & Address */}
+                  <div className="space-y-3 pt-2">
+                    <DynamicLocationSelector
+                      value={onboardNeighborhood}
+                      onChange={(loc) => setOnboardNeighborhood(loc)}
+                      label="Neighborhood / Location Area *"
+                      placeholder="Search neighborhood, sub-location or type custom..."
+                    />
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Full Address / Building / Stall Number
+                      </label>
+                      <input 
+                        type="text"
+                        placeholder="e.g. Mpaka Rd, 2nd Floor / Gikomba Stall 4B"
+                        value={onboardAddress}
+                        onChange={(e) => setOnboardAddress(e.target.value)}
+                        className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl px-4 py-3 font-medium focus:outline-none focus:border-[#E0533C]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Contact Info */}
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Phone Number
+                      </label>
+                      <input 
+                        type="text"
+                        placeholder="+254 700 000 000"
+                        value={onboardPhone}
+                        onChange={(e) => setOnboardPhone(e.target.value)}
+                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl px-3 py-2.5 focus:outline-none focus:border-[#E0533C]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                        WhatsApp (Orders)
+                      </label>
+                      <input 
+                        type="text"
+                        placeholder="+254 700 000 000"
+                        value={onboardWhatsapp}
+                        onChange={(e) => setOnboardWhatsapp(e.target.value)}
+                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl px-3 py-2.5 focus:outline-none focus:border-[#E0533C]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!onboardName.trim()) {
+                      showToast('Please specify a Business Name first.');
+                      return;
+                    }
+                    setOnboardingStep(2);
+                  }}
+                  className="w-full mt-8 bg-[#E0533C] hover:bg-[#c9432d] text-white font-black text-sm py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 active:scale-[0.99] transition cursor-pointer"
+                >
+                  <span>Continue to Vertical Selection</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 2: VERTICAL SELECTION */}
+          {onboardingStep === 2 && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-3 duration-200">
+              <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-6 shadow-sm">
+                <div className="flex items-center gap-2 text-[#E0533C] font-extrabold text-xs uppercase tracking-wider mb-2">
+                  <Sparkles className="w-4 h-4" />
+                  <span>Step 2: Choose Merchant Vertical</span>
+                </div>
+                <h2 className="text-lg font-black tracking-tight">Select your operation model</h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  We customize your dashboard tools, listing capabilities, and verification badge to match your vertical precisely.
+                </p>
+
+                {/* 3 Vertical Options */}
+                <div className="space-y-3 mt-6">
+                  {/* Vertical 1: Spot Merchant */}
+                  <div 
+                    onClick={() => setSelectedVertical('hospitality')}
+                    className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                      selectedVertical === 'hospitality'
+                        ? 'border-amber-500 bg-amber-500/5 ring-2 ring-amber-500/20 shadow-md'
+                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-[#FBFBF9] dark:bg-[#121113]'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
+                          <Store className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-black text-sm text-slate-900 dark:text-slate-100">Spot Merchant</h3>
+                            <BusinessBadge businessId={currentBiz.id} category="hospitality" size="xs" />
+                          </div>
+                          <p className="text-[11px] text-slate-500 font-medium">Restaurants, Clubs, Lounges, Cafes & Hotels</p>
+                        </div>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                        selectedVertical === 'hospitality' ? 'border-amber-500 bg-amber-500 text-white' : 'border-slate-300 dark:border-slate-600'
+                      }`}>
+                        {selectedVertical === 'hospitality' && <Check className="w-3 h-3 stroke-[3]" />}
+                      </div>
+                    </div>
+                    <ul className="text-[10px] text-slate-500 space-y-1 mt-3 pl-1 border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
+                      <li className="flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3 h-3 text-amber-500 shrink-0" />
+                        <span>Interactive Digital Menu builder with prices</span>
+                      </li>
+                      <li className="flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3 h-3 text-amber-500 shrink-0" />
+                        <span>Exact location tags with nearest Bus Stop & Landmark</span>
+                      </li>
+                      <li className="flex items-center gap-1.5 font-bold text-amber-700 dark:text-amber-400">
+                        <Sparkles className="w-3 h-3 shrink-0" />
+                        <span>EXCLUSIVE: Search & Claim community user-uploaded spots</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  {/* Vertical 2: Event Organizer */}
+                  <div 
+                    onClick={() => setSelectedVertical('event_organizer')}
+                    className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                      selectedVertical === 'event_organizer'
+                        ? 'border-purple-500 bg-purple-500/5 ring-2 ring-purple-500/20 shadow-md'
+                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-[#FBFBF9] dark:bg-[#121113]'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center shrink-0">
+                          <Ticket className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-black text-sm text-slate-900 dark:text-slate-100">Event Organizer</h3>
+                            <BusinessBadge businessId={currentBiz.id} category="event_organizer" size="xs" />
+                          </div>
+                          <p className="text-[11px] text-slate-500 font-medium">Parties, Raves, Concerts, Festivals & Art Shows</p>
+                        </div>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                        selectedVertical === 'event_organizer' ? 'border-purple-500 bg-purple-500 text-white' : 'border-slate-300 dark:border-slate-600'
+                      }`}>
+                        {selectedVertical === 'event_organizer' && <Check className="w-3 h-3 stroke-[3]" />}
+                      </div>
+                    </div>
+                    <ul className="text-[10px] text-slate-500 space-y-1 mt-3 pl-1 border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
+                      <li className="flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3 h-3 text-purple-500 shrink-0" />
+                        <span>Direct ticketing links (HustleSasa, Tikiti, Mtickets)</span>
+                      </li>
+                      <li className="flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3 h-3 text-purple-500 shrink-0" />
+                        <span>Tiered ticketing passes & multi-artist lineup manager</span>
+                      </li>
+                      <li className="flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3 h-3 text-purple-500 shrink-0" />
+                        <span>Primary Ticketing Verified authenticity badge</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                </div>
+
+                {submitError && (
+                  <div className="mt-6 rounded-2xl border border-red-300 bg-red-50 dark:bg-red-950/40 dark:border-red-800 text-red-800 dark:text-red-200 text-xs font-semibold p-4 flex items-start gap-2.5 break-words shadow-xs animate-in fade-in">
+                    <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                    <span className="flex-1">{submitError}</span>
+                  </div>
+                )}
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-8">
+                  <button
+                    type="button"
+                    onClick={() => setOnboardingStep(1)}
+                    className="w-full sm:w-auto sm:px-6 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs py-3.5 rounded-2xl transition text-center shrink-0 order-2 sm:order-1 cursor-pointer"
+                  >
+                    Back to Profile
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCompleteOnboarding}
+                    disabled={isSubmitting}
+                    className="w-full flex-1 bg-[#E0533C] hover:bg-[#c9432d] disabled:opacity-60 disabled:cursor-not-allowed text-white font-extrabold text-xs sm:text-sm px-6 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 active:scale-[0.99] transition cursor-pointer leading-tight text-center whitespace-normal order-1 sm:order-2"
+                  >
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>{isSubmitting ? 'Launching Dashboard…' : 'Launch Merchant Dashboard'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ----------------------------------------------------
+  // RENDER: FULL DEDICATED MERCHANT DASHBOARD VIEWPORT
+  // ----------------------------------------------------
+  return (
+    <div className="min-h-screen bg-[#FBFBF9] dark:bg-[#121113] text-slate-900 dark:text-slate-100 pb-28">
+      {/* Top Merchant Workspace Banner */}
+      <div className="bg-white dark:bg-[#1C1A1E] sticky top-0 z-40 shadow-sm">
+        <div className="max-w-lg mx-auto px-4 pt-4 pb-3.5 overflow-visible">
+          <div className="flex items-start justify-between gap-3">
+            {/* Merchant Identity & Account Switcher */}
+            <div className="relative flex-1 min-w-0 z-10">
+              <button 
+                onClick={() => setIsSwitcherOpen(!isSwitcherOpen)}
+                className="flex items-start gap-3 text-left group w-full"
+              >
+                <img 
+                  src={currentBiz.logo} 
+                  alt={currentBiz.name} 
+                  className="relative z-10 w-12 h-12 rounded-2xl object-cover shadow-md bg-slate-100 dark:bg-slate-800 shrink-0" 
+                />
+                <div className="min-w-0 flex-1 pt-0.5">
+                  <div className="flex items-start gap-1.5">
+                    <h2 className="font-black text-[15px] leading-snug text-slate-900 dark:text-slate-100 break-words line-clamp-2 group-hover:text-[#E0533C] transition">
+                      {currentBiz.name}
+                    </h2>
+                    <span className="text-[10px] text-slate-400 mt-1 shrink-0">▼</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <BusinessBadge businessId={currentBiz.id} category={currentBiz.category} size="xs" />
+                  </div>
+                </div>
+              </button>
+
+              {/* Business Switcher Dropdown */}
+              {isSwitcherOpen && (
+                <div className="absolute top-full left-0 mt-2 w-72 max-w-[calc(100vw-2rem)] bg-white dark:bg-[#1C1A1E] rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Your Merchant Accounts ({ownedBusinesses.length})
+                  </div>
+                  <div className="space-y-1">
+                    {ownedBusinesses.map((biz) => (
+                      <button
+                        key={biz.id}
+                        onClick={() => {
+                          onSelectBusiness(biz.id);
+                          setIsSwitcherOpen(false);
+                          showToast(`Switched to ${biz.name}`);
+                        }}
+                        className={`w-full text-left p-2.5 rounded-xl flex items-center justify-between text-xs transition ${
+                          biz.id === currentBiz.id
+                            ? 'bg-amber-50 dark:bg-amber-950/40 text-[#E0533C] font-bold'
+                            : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <img src={biz.logo} alt={biz.name} className="w-6 h-6 rounded-lg object-cover shrink-0" />
+                          <span className="truncate">{biz.name}</span>
+                        </div>
+                        <BusinessBadge businessId={biz.id} category={biz.category} size="xs" />
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="border-t border-slate-100 dark:border-slate-800 mt-2 pt-2">
+                    <button
+                      onClick={() => {
+                        setIsSwitcherOpen(false);
+                        handleStartOnboarding();
+                      }}
+                      className="w-full text-left p-2 rounded-xl text-xs font-bold text-[#E0533C] hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-2 transition"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Add New Merchant Account</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button 
+                onClick={() => onOpenPublicProfile(currentBiz)}
+                className="text-[11px] font-bold px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 transition flex items-center gap-1 cursor-pointer"
+                title="View your public merchant storefront"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span>Storefront</span>
+              </button>
+
+              {onClose && (
+                <button
+                  onClick={onClose}
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center gap-1 text-slate-700 dark:text-slate-200 text-xs font-bold transition cursor-pointer"
+                  title="Close Merchant Hub"
+                  aria-label="Close Merchant Hub"
+                >
+                  <X className="w-4 h-4" />
+                  <span>Exit</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Sub Navigation Bar for this Vertical */}
+          <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar mt-3 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+            <button
+              onClick={() => setActiveSubTab('overview')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
+                activeSubTab === 'overview'
+                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              Overview
+            </button>
+
+            <button
+              onClick={() => setActiveSubTab('analytics')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
+                activeSubTab === 'analytics'
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span>Spot Analytics</span>
+            </button>
+
+            {/* Spot Merchant Specific Tabs */}
+            {currentBiz.category === 'hospitality' && (
+              <>
+                <button
+                  onClick={() => setActiveSubTab('manage')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
+                    activeSubTab === 'manage'
+                      ? 'bg-[#E0533C] text-white shadow-xs'
+                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Store className="w-3.5 h-3.5" />
+                  <span>My Spots ({myClaimedSpots.length})</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveSubTab('claim')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
+                    activeSubTab === 'claim'
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Claim Spots</span>
+                </button>
+              </>
+            )}
+
+            {/* Event Organizer Specific Tabs */}
+            {currentBiz.category === 'event_organizer' && (
+              <button
+                onClick={() => setActiveSubTab('manage')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
+                  activeSubTab === 'manage'
+                    ? 'bg-purple-600 text-white shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                }`}
+              >
+                <Ticket className="w-3.5 h-3.5" />
+                <span>Events Suite ({myEvents.length})</span>
+              </button>
+            )}
+
+            {/* Independent Offers & Deals tab for ALL merchants */}
+            <button
+              onClick={() => setActiveSubTab('offers')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
+                activeSubTab === 'offers'
+                  ? 'bg-rose-600 text-white shadow-xs'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <Percent className="w-3.5 h-3.5" />
+              <span>Offers & Deals ({myOffers.length})</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Dashboard Container */}
+      <div className="max-w-lg mx-auto px-4 py-5 space-y-6">
+
+        {/* =========================================================================
+            SUB-TAB: OVERVIEW
+            ========================================================================= */}
+        {activeSubTab === 'overview' && (
+          <div 
+ className="space-y-6 animate-in fade-in duration-150">
+            {/* ACTUAL BUSINESS VERIFICATION STATUS */}
+{(() => {
+  const status =
+    currentBiz.verificationStatus ||
+    (currentBiz.verified ? 'approved' : 'pending');
+
+  const statusStyles = {
+    pending: 'border-amber-300 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-200',
+    approved: 'border-emerald-300 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-200',
+    rejected: 'border-red-300 bg-red-50 text-red-900 dark:bg-red-950/30 dark:border-red-800 dark:text-red-200',
+  };
+
+  const statusContent = {
+    pending: {
+      title: 'Verification pending',
+      message: 'Your business profile has been submitted and is waiting for RADA admin review.',
+    },
+    approved: {
+      title: 'Business verified',
+      message: 'Your business has been approved by RADA.',
+    },
+    rejected: {
+      title: 'Verification rejected',
+      message: currentBiz.verificationNote
+        ? `Reason: ${currentBiz.verificationNote}`
+        : 'Your business was not approved. Please review your details and contact RADA support.',
+    },
+  };
+
+  return (
+    <div className={`rounded-2xl border p-4 ${statusStyles[status]}`}>
+      <div className="flex items-start gap-3">
+        <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-black">
+            {statusContent[status].title}
+          </p>
+          <p className="text-xs mt-1 leading-relaxed">
+            {statusContent[status].message}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+})()}
+            {/* Quick Metrics Bar */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-2xl p-3 text-center shadow-xs">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Managed</span>
+                <span className="text-xl font-black text-slate-900 dark:text-slate-100 mt-0.5 block">
+                  {currentBiz.category === 'hospitality' 
+                    ? myClaimedSpots.length 
+                    : currentBiz.category === 'event_organizer' 
+                    ? myEvents.length 
+                    : 0}
+                </span>
+                <span className="text-[10px] text-[#E0533C] font-semibold">Active Listings</span>
+              </div>
+
+              <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-2xl p-3 text-center shadow-xs">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Promotions</span>
+                <span className="text-xl font-black text-slate-900 dark:text-slate-100 mt-0.5 block">
+                  {myOffers.length}
+                </span>
+                <span className="text-[10px] text-emerald-600 font-semibold">Live on Feed</span>
+              </div>
+
+              <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-2xl p-3 text-center shadow-xs">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Trust Score</span>
+                <div className="flex items-center justify-center gap-1 mt-0.5">
+                  <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                  <span className="text-xl font-black text-slate-900 dark:text-slate-100">100%</span>
+                </div>
+                <span className="text-[10px] text-slate-400 font-medium">Verified Merchant</span>
+              </div>
+            </div>
+
+            {/* Dynamic Metrics & Analytics Overview */}
+            <SpotInsightsAnalytics
+              spots={spots}
+              currentBiz={currentBiz}
+              userId={userId || effectiveUserId}
+              onOpenCreateSpot={openCreateSpotModal}
+              showToast={showToast}
+            />
+
+            {/* Operational Hub Action Cards */}
+            <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-5 shadow-xs space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Quick Operations</h3>
+                  <p className="text-[11px] text-slate-500">Fast tasks for {currentBiz.name}</p>
+                </div>
+                <BusinessBadge businessId={currentBiz.id} category={currentBiz.category} size="xs" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                {currentBiz.category === 'hospitality' && (
+                  <>
+                    <button
+                      onClick={openCreateSpotModal}
+                      className="p-3.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 dark:text-amber-200 border border-amber-500/30 rounded-2xl text-left transition group cursor-pointer"
+                    >
+                      <Plus className="w-5 h-5 text-amber-600 mb-2 group-hover:scale-110 transition" />
+                      <span className="font-extrabold text-xs block">Add New Spot</span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400">Menus, exact hours & bus stop</span>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveSubTab('claim')}
+                      className="p-3.5 bg-orange-500/10 hover:bg-orange-500/20 text-orange-900 dark:text-orange-200 border border-orange-500/30 rounded-2xl text-left transition group cursor-pointer"
+                    >
+                      <Sparkles className="w-5 h-5 text-orange-600 mb-2 group-hover:scale-110 transition" />
+                      <span className="font-extrabold text-xs block">Claim Community Spots</span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400">{claimableCommunitySpots.length} spots in area</span>
+                    </button>
+                  </>
+                )}
+
+                {currentBiz.category === 'event_organizer' && (
+                  <>
+                    <button
+                      onClick={openCreateEventModal}
+                      className="p-3.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-900 dark:text-purple-200 border border-purple-500/30 rounded-2xl text-left transition group cursor-pointer"
+                    >
+                      <Plus className="w-5 h-5 text-purple-600 mb-2 group-hover:scale-110 transition" />
+                      <span className="font-extrabold text-xs block">Publish Event Rave</span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400">Tickets, lineup & venue</span>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveSubTab('manage')}
+                      className="p-3.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-900 dark:text-indigo-200 border border-indigo-500/30 rounded-2xl text-left transition group cursor-pointer"
+                    >
+                      <Ticket className="w-5 h-5 text-indigo-600 mb-2 group-hover:scale-110 transition" />
+                      <span className="font-extrabold text-xs block">Ticket Tiers & Links</span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400">HustleSasa, Tikiti setup</span>
+                    </button>
+                  </>
+                )}
+
+                {/* Independent Offer Button (Shared) */}
+                <button
+                  onClick={openCreateOfferModal}
+                  className="p-3.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-900 dark:text-rose-200 border border-rose-500/30 rounded-2xl text-left transition group cursor-pointer"
+                >
+                  <Percent className="w-5 h-5 text-rose-600 mb-2 group-hover:scale-110 transition" />
+                  <span className="font-extrabold text-xs block">Post Promo Offer</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">Decoupled deal banner</span>
+                </button>
+
+                <button
+                  onClick={() => onOpenPublicProfile(currentBiz)}
+                  className="p-3.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-2xl text-left transition group cursor-pointer"
+                >
+                  <Share2 className="w-5 h-5 text-slate-600 dark:text-slate-300 mb-2 group-hover:scale-110 transition" />
+                  <span className="font-extrabold text-xs block">View Storefront</span>
+                  <span className="text-[10px] text-slate-500">Public customer view</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Running Offers Spotlight */}
+            <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-5 shadow-xs space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    <Flame className="w-4 h-4 text-[#E0533C]" />
+                    <span>Active Offers on Home Feed ({myOffers.length})</span>
+                  </h3>
+                  <p className="text-[10px] text-slate-500">Promotions showcased to all users on RADA Home</p>
+                </div>
+                <button 
+                  onClick={openCreateOfferModal}
+                  className="text-[10px] font-black text-[#E0533C] hover:underline"
+                >
+                  + Create Offer
+                </button>
+              </div>
+
+              {myOffers.length === 0 ? (
+                <div className="text-center py-6 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+                  <Percent className="w-7 h-7 text-slate-300 mx-auto mb-1.5" />
+                  <p className="text-xs font-bold text-slate-600 dark:text-slate-400">No active promotions right now</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Post an offer or deal to drive weekend traffic!</p>
+                  <button 
+                    onClick={openCreateOfferModal}
+                    className="mt-3 text-xs bg-[#E0533C] text-white font-bold px-3 py-1.5 rounded-xl shadow-xs"
+                  >
+                    Post an Offer
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {myOffers.map(offer => (
+                    <div 
+                      key={offer.id}
+                      className="p-3 bg-slate-100 dark:bg-[#121113] rounded-2xl flex items-center justify-between gap-3"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        {offer.posterUrl && (
+                          <img src={offer.posterUrl} alt={offer.title} className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                        )}
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[9px] font-black bg-rose-500 text-white px-1.5 py-0.2 rounded-md">
+                              {offer.discount}
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-400">{offer.category}</span>
+                          </div>
+                          <h4 className="font-extrabold text-xs truncate mt-0.5">{offer.title}</h4>
+                          <p className="text-[10px] text-slate-400 truncate">{offer.validUntil}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button 
+                          onClick={() => openEditOfferModal(offer)}
+                          className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-500"
+                          title="Edit Offer"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                        <button 
+                          onClick={() => {
+                            onDeleteOffer(offer.id);
+                            showToast('Offer removed from Home feed.');
+                          }}
+                          className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg text-red-500"
+                          title="Delete Offer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* =========================================================================
+            SUB-TAB: MANAGE (VERTICAL-SPECIFIC)
+            ========================================================================= */}
+        {activeSubTab === 'manage' && (
+          <div className="space-y-6 animate-in fade-in duration-150">
+
+            {/* A. SPOT MERCHANT MANAGEMENT */}
+            {currentBiz.category === 'hospitality' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-base font-black tracking-tight">My Managed Spots ({myClaimedSpots.length})</h3>
+                    <p className="text-xs text-slate-500">Spots owned by {currentBiz.name} with editing rights</p>
+                  </div>
+                  <button 
+                    onClick={openCreateSpotModal}
+                    className="text-xs font-black bg-[#E0533C] text-white px-3.5 py-2 rounded-xl flex items-center gap-1 shadow-md shadow-orange-500/20 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>New Spot</span>
+                  </button>
+                </div>
+
+                {myClaimedSpots.length === 0 ? (
+                  <div className="text-center py-10 bg-white dark:bg-[#1C1A1E] border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl p-6">
+                    <Store className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                    <h4 className="font-black text-sm">No spots claimed or added yet</h4>
+                    <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+                      Create your own spot or claim an existing community-uploaded listing to manage digital menus and exact bus stops.
+                    </p>
+                    <div className="flex items-center justify-center gap-2 mt-4">
+                      <button 
+                        onClick={openCreateSpotModal}
+                        className="text-xs bg-[#E0533C] text-white font-bold px-4 py-2 rounded-xl"
+                      >
+                        Create Spot
+                      </button>
+                      <button 
+                        onClick={() => setActiveSubTab('claim')}
+                        className="text-xs bg-amber-500 text-white font-bold px-4 py-2 rounded-xl"
+                      >
+                        Claim a Spot
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {myClaimedSpots.map(spot => (
+                      <div 
+                        key={spot.id}
+                        className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-4 shadow-xs space-y-3"
+                      >
+                        <div className="flex items-start gap-3">
+                          <img src={spot.img} alt={spot.title} className="w-16 h-16 rounded-2xl object-cover shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-black text-sm truncate">{spot.title}</h4>
+                              <BusinessBadge businessId={currentBiz.id} category="hospitality" size="xs" />
+                            </div>
+                            <p className="text-xs text-slate-500 truncate flex items-center gap-1 mt-0.5">
+                              <MapPin className="w-3 h-3 text-[#E0533C]" />
+                              <span>{spot.exactLocationTag || spot.address}</span>
+                            </p>
+                            <div className="flex items-center gap-2 mt-1.5 text-[10px] text-slate-400 font-semibold">
+                              <span>★ {spot.rating} ({spot.reviewCount || 0} reviews)</span>
+                              <span>•</span>
+                              <span>{spot.menuItems?.length || 0} Menu Items</span>
+                              <span>•</span>
+                              <span className="text-emerald-600 font-bold">Claimed & Verified</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Location & Bus stop info */}
+                        {spot.landmark && (
+                          <div className="bg-[#FBFBF9] dark:bg-[#121113] p-2.5 rounded-xl text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                            <MapPin className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                            <span>Stage / Landmark: <strong className="text-slate-900 dark:text-slate-100">{spot.landmark}</strong></span>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                          <button
+                            onClick={() => onViewSpotDetails(spot)}
+                            className="text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-[#E0533C] flex items-center gap-1"
+                          >
+                            <span>Preview Listing</span>
+                            <ChevronRight className="w-3 h-3" />
+                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => openEditSpotModal(spot)}
+                              className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-bold flex items-center gap-1"
+                            >
+                              <Edit3 className="w-3 h-3 text-slate-600 dark:text-slate-300" />
+                              <span>Edit Spot & Menu</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                onReleaseSpot(spot.id);
+                                showToast(`Released ownership of "${spot.title}".`);
+                              }}
+                              className="px-2.5 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/30 text-red-500 hover:bg-red-100 text-xs font-bold"
+                              title="Release Spot Ownership"
+                            >
+                              Release
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`Delete "${spot.title}" permanently? This removes it from RADA for everyone.`)) {
+                                  onDeleteListing('spot', spot.id);
+                                  showToast(`Deleted "${spot.title}".`);
+                                }
+                              }}
+                              className="px-2.5 py-1.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-bold flex items-center gap-1 transition"
+                              title="Delete Spot"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* B. EVENT ORGANIZER MANAGEMENT */}
+            {currentBiz.category === 'event_organizer' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-base font-black tracking-tight">Active Events Suite ({myEvents.length})</h3>
+                    <p className="text-xs text-slate-500">Concerts, parties & raves hosted by {currentBiz.name}</p>
+                  </div>
+                  <button 
+                    onClick={openCreateEventModal}
+                    className="text-xs font-black bg-purple-600 text-white px-3.5 py-2 rounded-xl flex items-center gap-1 shadow-md shadow-purple-500/20 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Publish Event</span>
+                  </button>
+                </div>
+
+                {myEvents.length === 0 ? (
+                  <div className="text-center py-10 bg-white dark:bg-[#1C1A1E] border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl p-6">
+                    <Ticket className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                    <h4 className="font-black text-sm">No events published yet</h4>
+                    <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+                      List your upcoming club night, concert, or festival with verified ticketing and multi-tier passes.
+                    </p>
+                    <button 
+                      onClick={openCreateEventModal}
+                      className="mt-4 text-xs bg-purple-600 text-white font-bold px-4 py-2 rounded-xl"
+                    >
+                      Publish First Event
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {myEvents.map(evt => (
+                      <div 
+                        key={evt.id}
+                        className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-4 shadow-xs space-y-3"
+                      >
+                        <div className="flex items-start gap-3">
+                          <img src={evt.img} alt={evt.title} className="w-16 h-16 rounded-2xl object-cover shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-black text-sm truncate">{evt.title}</h4>
+                              <BusinessBadge businessId={currentBiz.id} category="event_organizer" size="xs" />
+                            </div>
+                            <p className="text-xs text-slate-500 truncate mt-0.5">{evt.date} • {evt.time}</p>
+                            <p className="text-xs text-slate-400 truncate flex items-center gap-1">
+                              <MapPin className="w-3 h-3 text-purple-500" />
+                              <span>{evt.location}</span>
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Ticket tiers pills */}
+                        <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar py-1">
+                          {evt.tiers?.map((tier, idx) => (
+                            <span 
+                              key={idx} 
+                              className="text-[10px] font-bold bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 px-2 py-0.5 rounded-lg whitespace-nowrap"
+                            >
+                              {tier.name}: {tier.price}
+                            </span>
+                          ))}
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                          <button
+                            onClick={() => onViewEventDetails(evt)}
+                            className="text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-purple-600 flex items-center gap-1"
+                          >
+                            <span>Preview Event</span>
+                            <ChevronRight className="w-3 h-3" />
+                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => openEditEventModal(evt)}
+                              className="px-2.5 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/30 text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900/40 text-xs font-bold flex items-center gap-1 transition"
+                              title="Edit Event"
+                            >
+                              <Edit3 className="w-3 h-3" />
+                              <span>Edit</span>
+                            </button>
+                            <a
+                              href={evt.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-2.5 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/30 text-purple-600 text-xs font-bold flex items-center gap-1"
+                            >
+                              <span>Tickets</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                            <button
+                              onClick={() => {
+                                onDeleteListing('event', evt.id);
+                                showToast(`Deleted "${evt.title}".`);
+                              }}
+                              className="px-2.5 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/30 text-red-500 text-xs font-bold"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* =========================================================================
+            SUB-TAB: SPOT ANALYTICS & INSIGHTS
+            ========================================================================= */}
+        {activeSubTab === 'analytics' && (
+          <div className="space-y-6 animate-in fade-in duration-150">
+            <SpotInsightsAnalytics
+              spots={spots}
+              currentBiz={currentBiz}
+              userId={userId || effectiveUserId}
+              onOpenCreateSpot={openCreateSpotModal}
+              showToast={showToast}
+            />
+          </div>
+        )}
+
+        {/* =========================================================================
+            SUB-TAB: CLAIM COMMUNITY SPOTS (EXCLUSIVE TO SPOT MERCHANTS)
+            ========================================================================= */}
+        {activeSubTab === 'claim' && currentBiz.category === 'hospitality' && (
+          <div className="space-y-5 animate-in fade-in duration-150">
+            {/* Header / Info Banner */}
+            <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-transparent border border-amber-500/30 rounded-3xl p-5">
+              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-black text-xs uppercase tracking-wider mb-1">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <span>Exclusive Merchant Privilege</span>
+              </div>
+              <h3 className="text-base font-black tracking-tight">Search & Claim Community Spots</h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                Find spots originally added by the community or unassigned. Claiming instantly grants <strong className="text-slate-900 dark:text-slate-100">{currentBiz.name}</strong> official merchant ownership, unlocking menu updates, photo curation, and verification badges!
+              </p>
+
+              {/* Search input */}
+              <div className="relative mt-4">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input 
+                  type="text"
+                  placeholder="Search spots by name, neighborhood (e.g. Hurlingham, Westlands)..."
+                  value={claimSearchQuery}
+                  onChange={(e) => setClaimSearchQuery(e.target.value)}
+                  className="w-full text-xs bg-white dark:bg-[#1C1A1E] border border-amber-500/40 rounded-2xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                />
+              </div>
+            </div>
+
+            {/* Results List */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-xs font-bold text-slate-500">
+                  Available to Claim ({claimableCommunitySpots.length})
+                </span>
+                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold">
+                  Verified Spot Merchant Exclusive
+                </span>
+              </div>
+
+              {claimableCommunitySpots.length === 0 ? (
+                <div className="text-center py-8 bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-6">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                  <p className="text-xs font-bold">No unclaimed spots matching "{claimSearchQuery}"</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">All matching listings are already claimed or verified.</p>
+                </div>
+              ) : (
+                claimableCommunitySpots.map(spot => (
+                  <div 
+                    key={spot.id}
+                    className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-4 shadow-xs flex items-center justify-between gap-3 hover:border-amber-400/50 transition"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <img src={spot.img} alt={spot.title} className="w-14 h-14 rounded-2xl object-cover shrink-0" />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-extrabold text-xs truncate">{spot.title}</h4>
+                          {spot.isUserUploaded && (
+                            <span className="text-[9px] bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-300 px-1.5 py-0.5 rounded font-bold">
+                              Community Upload
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-400 truncate flex items-center gap-1 mt-0.5">
+                          <MapPin className="w-3 h-3 text-[#E0533C]" />
+                          <span>{spot.neighborhood} • {spot.address}</span>
+                        </p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">
+                          Rating ★ {spot.rating} ({spot.reviewCount || 0} reviews)
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={async () => {
+                        if (spot.is_claimed === false) {
+                          if (ownedBusinesses.length === 0) {
+                            showToast('Create your business account first, then claim this spot.');
+                            return;
+                          }
+                          const err = await claimUnclaimedSpot(spot.id, currentBiz.id, effectiveUserId);
+                          if (err) { showToast(err); return; }
+                          // Updates local state and re-saves with is_claimed: true
+                          onAddOrUpdateSpot({
+                            ...spot,
+                            is_claimed: true,
+                            businessId: currentBiz.id,
+                            merchantId: effectiveUserId,
+                            claimedByBusinessId: currentBiz.id,
+                            claimedAt: new Date().toISOString(),
+                          });
+                        } else {
+                          onClaimSpot(spot.id, currentBiz.id);
+                        }
+                        showToast(`Ownership claimed! "${spot.title}" now managed by ${currentBiz.name}.`);
+                      }}
+                      className="bg-gradient-to-r from-amber-500 to-[#E0533C] hover:opacity-90 text-white font-black text-xs px-3.5 py-2 rounded-xl shadow-md shadow-orange-500/20 shrink-0 cursor-pointer transition active:scale-95"
+                    >
+                      Claim Spot
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* =========================================================================
+            SUB-TAB: OFFERS & DEALS (INDEPENDENT ENGINE)
+            ========================================================================= */}
+        {activeSubTab === 'offers' && (
+          <div className="space-y-5 animate-in fade-in duration-150">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-black tracking-tight">Independent Promotions ({myOffers.length})</h3>
+                <p className="text-xs text-slate-500">Create, modify & delete offers separate from your profile</p>
+              </div>
+              <button
+                onClick={openCreateOfferModal}
+                className="text-xs font-black bg-[#E0533C] text-white px-3.5 py-2 rounded-xl flex items-center gap-1 shadow-md shadow-orange-500/20 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>New Promotion</span>
+              </button>
+            </div>
+
+            {myOffers.length === 0 ? (
+              <div className="text-center py-12 bg-white dark:bg-[#1C1A1E] border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl p-6">
+                <Percent className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                <h4 className="font-black text-sm">No promotional offers active</h4>
+                <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+                  Launch a Happy Hour deal, early-bird ticket discount, or wardrobe bundle to appear on the Home Running Offers feed.
+                </p>
+                <button
+                  onClick={openCreateOfferModal}
+                  className="mt-4 text-xs bg-[#E0533C] text-white font-bold px-4 py-2 rounded-xl shadow-md"
+                >
+                  Create Your First Offer
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {myOffers.map(offer => (
+                  <div 
+                    key={offer.id}
+                    className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl overflow-hidden shadow-xs hover:border-slate-300 transition"
+                  >
+                    {/* Offer Banner */}
+                    <div className="relative h-36 w-full bg-slate-900">
+                      <img 
+                        src={offer.posterUrl || currentBiz.coverImage || 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&auto=format&fit=crop'} 
+                        alt={offer.title} 
+                        className="w-full h-full object-cover opacity-85" 
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                      <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                        <span className="text-[10px] font-black bg-[#E0533C] text-white px-2.5 py-1 rounded-full shadow-md uppercase tracking-wider">
+                          {offer.discount}
+                        </span>
+                        <span className="text-[10px] font-extrabold bg-black/60 backdrop-blur-md text-white px-2.5 py-1 rounded-full border border-white/20">
+                          {offer.category}
+                        </span>
+                      </div>
+                      <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between">
+                        <div>
+                          <span className="text-[10px] text-amber-300 font-bold block">{offer.validUntil}</span>
+                          <h4 className="text-base font-black text-white leading-tight mt-0.5">{offer.title}</h4>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Offer Content & Controls */}
+                    <div className="p-4 space-y-3">
+                      <p className="text-xs text-slate-600 dark:text-slate-300">{offer.description}</p>
+                      
+                      <div className="flex items-center justify-between bg-[#FBFBF9] dark:bg-[#121113] p-2.5 rounded-xl">
+                        <div className="flex items-center gap-2">
+                          <Tag className="w-3.5 h-3.5 text-[#E0533C]" />
+                          <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200">{offer.claimCode || 'RADADEAL'}</span>
+                        </div>
+                        <span className="text-[10px] font-bold text-emerald-600">Active on Home Feed</span>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                        <button
+                          onClick={() => openEditOfferModal(offer)}
+                          className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-bold flex items-center gap-1 transition"
+                        >
+                          <Edit3 className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
+                          <span>Edit Offer</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            onDeleteOffer(offer.id);
+                            showToast('Offer deleted from store & Home feed.');
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/30 text-red-500 hover:bg-red-100 text-xs font-bold transition flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Delete</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* =========================================================================
+          FULL-SCREEN DEDICATED VIEW: CREATE / EDIT SPOT & MENU
+          ========================================================================= */}
+      {spotFormOverlay}
 
       {/* =========================================================================
           VIEW 2: DEDICATED FULL-SCREEN VIEW: CREATE / EDIT EVENT
@@ -4861,3 +5762,45 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     </div>
   );
 };
+
+/** Admin entry point: the exact merchant "Publish New Spot Listing" form, saved as an unclaimed spot. */
+export const AdminSpotPublisher: React.FC<{
+  adminUserId: string;
+  onPublish: (spot: SpotItem) => Promise<string | null> | string | null;
+  onClose: () => void;
+  showToast: (msg: string) => void;
+}> = ({ adminUserId, onPublish, onClose, showToast }) => {
+  const noop = () => {};
+  return (
+    <MerchantHubTab
+      adminMode
+      adminUserId={adminUserId}
+      onAdminPublishSpot={onPublish}
+      onClose={onClose}
+      showToast={showToast}
+      businesses={[]}
+      activeBusinessId=""
+      onSelectBusiness={noop}
+      onCreateBusiness={noop}
+      onUpdateBusiness={noop}
+      spots={[]}
+      onAddOrUpdateSpot={noop}
+      onDeleteListing={noop}
+      events={[]}
+      onAddEvent={noop}
+      offers={[]}
+      onCreateOffer={noop}
+      onUpdateOffer={noop}
+      onDeleteOffer={noop}
+      onClaimSpot={noop}
+      onReleaseSpot={noop}
+      onViewSpotDetails={noop}
+      onViewEventDetails={noop}
+      onOpenPublicProfile={noop}
+    />
+  );
+};
+
+// Back-compat for everything that used to import from './MerchantHub.tsx'
+export { MerchantHubTab as MerchantHub };
+export default MerchantHubTab;
