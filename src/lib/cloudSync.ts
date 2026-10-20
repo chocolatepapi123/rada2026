@@ -2580,6 +2580,24 @@ export async function publishUnclaimedSpot(
   return error ? { error } : { error: null, spot };
 }
 
+/**
+ * Publishes a fully built SpotItem (from the merchant-style spot form) as an admin listing:
+ * no business, is_claimed = false, so a verified business can claim it later.
+ */
+export async function publishAdminSpot(spot: SpotItem): Promise<string | null> {
+  const guard = await requireAdmin();
+  if (guard.error || !guard.uid) return guard.error || 'Admin access required.';
+  const stamped: SpotItem = {
+    ...spot,
+    businessId: undefined,
+    merchantId: guard.uid,
+    is_claimed: false,
+    isAdminPublished: true,
+    isUserUploaded: false,
+  };
+  return upsertListing('spot', stamped, null, guard.uid);
+}
+
 /** Spots still waiting for a merchant. Used by the admin list and by the merchant "Claim" search. */
 export async function fetchUnclaimedSpots(query = ''): Promise<any[] | null> {
   const listings = await fetchListings();
