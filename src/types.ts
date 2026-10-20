@@ -1,4 +1,4 @@
-export type BusinessCategory = 'hospitality' | 'event_organizer' | 'thrift_store' | 'thrift';
+export type BusinessCategory = 'hospitality' | 'event_organizer';
 
 export type OfferCategory = 'Tickets' | 'Food' | 'Drinks' | 'Apparel' | 'Special Deals';
 
@@ -211,7 +211,7 @@ export interface TicketTier {
 export interface EventItem {
   id: number;
   title: string;
-  category: 'concerts' | 'nightlife' | 'art' | 'cinemas' | 'tech' | 'sports';
+  category: 'concerts' | 'nightlife' | 'art' | 'cinemas';
   genre?: string;
   date: string;
   time?: string;
@@ -393,30 +393,9 @@ export interface CollectionFolder {
 
 export interface SavedItem {
   id: string | number;
-  kind: 'spot' | 'event' | 'offer' | 'thrift';
+  kind: 'spot' | 'event' | 'offer';
   savedAt: string;
   folderId?: string;
-}
-
-export interface ThriftItem {
-  id: number | string;
-  name: string;
-  category: string;
-  price: string;
-  seller: string;
-  businessId?: string;
-  img: string;
-  images?: string[];
-  description?: string;
-  storeLocation: string;
-  condition: string;
-  contactNumber?: string;
-  whatsapp?: string;
-  size?: string;
-  stallNumber?: string;
-  verified?: boolean;
-  rating?: string | number;
-  available?: boolean;
 }
 
 export interface OutingAttendee {
