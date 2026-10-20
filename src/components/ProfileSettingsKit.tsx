@@ -17,6 +17,7 @@ import { VerifiedBadge } from './VerifiedBadge';
 import {
   USERNAME_MAX,
   checkUsernameAvailable,
+  cleanDisplayName,
   fetchHostAnalytics,
   fetchHostControls,
   fetchProfessionalState,
@@ -68,12 +69,19 @@ export function useOwnProfile({
 }: UseOwnProfileArgs) {
   const fallbackHandle = profile.handle && profile.handle !== '@explorer' ? profile.handle : '';
   const currentUsername = normalizeUsername(profile.username || fallbackHandle);
-  const currentName = profile.name || '';
+  // Display name starts blank. The legacy "Explorer" placeholder is never shown or edited as a real name.
+  const currentName = cleanDisplayName(profile.name);
   const currentBio = profile.bio || '';
   const profileIsPro = profile.is_creator === true || profile.account_type === 'professional';
   const currentStatus: 'single' | 'not_single' = profile.relationshipStatus === 'single' ? 'single' : 'not_single';
 
-  // ---- drafts (reset whenever the parent value changes, e.g. after a save in the other modal)
+  // Always-fresh view of the parent's user object, for async callbacks that outlive a render
+  const profileRef = useRef(profile);
+  profileRef.current = profile;
+  const latestRef = useRef({ currentName, currentUsername, currentBio, currentStatus });
+  latestRef.current = { currentName, currentUsername, currentBio, currentStatus };
+
+  // ---- drafts: local input state, always re-synced from the parent's user object
   const [name, setName] = useState(currentName);
   const [username, setUsername] = useState(currentUsername);
   const [bio, setBio] = useState(currentBio);
@@ -83,22 +91,44 @@ export function useOwnProfile({
   useEffect(() => setBio(currentBio), [currentBio, userId]);
   useEffect(() => setStatus(currentStatus), [currentStatus, userId]);
 
+  /** Throws away unsaved edits and reloads every input from the parent's user object. */
+  const resetDrafts = () => {
+    const l = latestRef.current;
+    setName(l.currentName);
+    setUsername(l.currentUsername);
+    setBio(l.currentBio);
+    setStatus(l.currentStatus);
+  };
+  // Re-opening the modal (it stays mounted while closed) must show the stored values, not the
+  // previous session's leftover drafts.
+  useEffect(() => {
+    if (active) resetDrafts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, userId]);
+
+  // A save that finishes while the open-time fetch is still in flight must win over that fetch
+  const savedAtRef = useRef(0);
+
   // ---- hydrate the parent from Supabase once per open so both modals show the same thing
   useEffect(() => {
     if (!active || !userId) return;
     let cancelled = false;
+    const startedAt = Date.now();
     (async () => {
       const [idn, pro] = await Promise.all([fetchProfileIdentity(userId), fetchProfessionalState(userId)]);
-      if (cancelled) return;
+      if (cancelled || savedAtRef.current >= startedAt) return;
+      const cur = profileRef.current;
       const patch: Partial<UserProfile> = {};
-      if (idn?.name && idn.name !== profile.name) patch.name = idn.name;
-      if (idn?.username && idn.username !== profile.username) {
+      // '' is a valid stored name; it also clears a stale "Explorer" left in the store
+      if (idn && idn.name !== undefined && idn.name !== cleanDisplayName(cur.name)) patch.name = idn.name;
+      if (idn?.username && idn.username !== cur.username) {
         patch.username = idn.username;
         patch.handle = toHandle(idn.username);
       }
-      if (idn?.avatarUrl && idn.avatarUrl !== profile.avatar) patch.avatar = idn.avatarUrl;
-      if (typeof idn?.bio === 'string' && idn.bio && idn.bio !== profile.bio) patch.bio = idn.bio;
-      if (pro && pro.isCreator !== profileIsPro) {
+      if (idn?.avatarUrl && idn.avatarUrl !== cur.avatar) patch.avatar = idn.avatarUrl;
+      if (typeof idn?.bio === 'string' && idn.bio && idn.bio !== cur.bio) patch.bio = idn.bio;
+      const curIsPro = cur.is_creator === true || cur.account_type === 'professional';
+      if (pro && pro.isCreator !== curIsPro) {
         patch.is_creator = pro.isCreator;
         patch.account_type = pro.isCreator ? 'professional' : 'personal';
         if (pro.since) patch.professional_since = pro.since;
@@ -159,7 +189,7 @@ export function useOwnProfile({
 
     if (identityChanged) {
       const res = await saveUnifiedProfile(userId, { name, username, ...(bioChanged ? { bio } : {}) });
-      if (res.error || !res.username || !res.name) {
+      if (res.error || !res.username || res.name === undefined) {
         setSaving(false);
         showToast(res.error || 'Could not save profile.');
         return false;
@@ -185,6 +215,8 @@ export function useOwnProfile({
     }
 
     setSaving(false);
+    savedAtRef.current = Date.now();
+    // Dispatch what Supabase returned straight into the app store (the single shared user object)
     if (Object.keys(patch).length) onProfileChange?.(patch);
     showToast(bioFailed ? 'Saved, but your bio could not be stored yet.' : 'Profile saved.');
     return true;
@@ -282,6 +314,7 @@ export function useOwnProfile({
     username, setUsername,
     bio, setBio,
     status, setStatus,
+    resetDrafts,
     currentStatus,
     usernameState,
     dirty,
@@ -485,6 +518,7 @@ export const IdentityFields: React.FC<{ p: OwnProfile; showSave?: boolean; saveL
           value={p.name}
           onChange={(e) => p.setName(e.target.value)}
           maxLength={40}
+          placeholder="Add a display name (optional)"
           className={inputCls}
         />
         <p className="mt-1 text-[11px] text-slate-400 flex items-center gap-1">

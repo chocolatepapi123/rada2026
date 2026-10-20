@@ -123,6 +123,20 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
     }
   }, [isOpen]);
 
+  // Re-sync the inputs with the user store whenever the modal opens or the stored profile changes.
+  // The modal stays mounted while closed, so without this it reopens with stale local drafts.
+  useEffect(() => {
+    if (isOpen) own.resetDrafts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isOpen,
+    user?.id,
+    currentUserProfile?.name,
+    currentUserProfile?.username,
+    currentUserProfile?.bio,
+    currentUserProfile?.relationshipStatus,
+  ]);
+
   if (!isOpen) return null;
 
   const email =
