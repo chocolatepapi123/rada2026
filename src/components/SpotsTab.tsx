@@ -778,7 +778,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           {[
             { id: 'all', label: 'All Categories', icon: Compass },
             { id: 'restaurants_dining', label: 'Restaurants and dining', icon: UtensilsCrossed },
-            { id: 'nature', label: 'Nature', icon: Trees },
+            { id: 'nature', label: 'Nature Trails & Outdoors', icon: Trees },
             { id: 'creative_leisure', label: 'Creative and leisure', icon: Palette },
             { id: 'tech_gaming', label: 'Tech and Gaming', icon: Gamepad2 },
             { id: 'action_sports', label: 'Action and sports', icon: Dumbbell },
@@ -897,10 +897,10 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
                 <Trees className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Nature</span>
+                <span>NATURE TRAILS & OUTDOORS</span>
               </h3>
               <button
-                onClick={() => onOpenDedicatedViewAll('Nature', 'nature')}
+                onClick={() => onOpenDedicatedViewAll('Nature Trails & Outdoors', 'nature')}
                 className="text-[11px] font-bold text-[#E0533C] hover:underline"
               >
                 View All ({natureSpots.length})

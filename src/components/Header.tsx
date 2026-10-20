@@ -6,7 +6,6 @@ import {
   UserCheck, 
   MoreVertical, 
   MapPin,
-  IdCard,
   Sun,
   Moon,
   Bookmark,
@@ -179,14 +178,6 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                 </button>
 
-                {/* Profile */}
-                <button
-                  onClick={() => handleMenuClick('profileOverlay')}
-                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-3 text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
-                >
-                  <IdCard className="w-4 h-4 text-[#E0533C]" />
-                  <span>Profile</span>
-                </button>
 
                 {/* Prominent Saved Items */}
                 <button

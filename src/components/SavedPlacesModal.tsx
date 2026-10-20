@@ -39,7 +39,7 @@ interface SavedPlacesModalProps {
   spots: SpotItem[];
   events: EventItem[];
   offers?: BusinessOffer[];
-  onToggleSave: (item: any, kind: 'spot' | 'event' | 'offer') => void;
+  onToggleSave: (item: any, kind: 'spot' | 'event' | 'offer' | 'thrift') => void;
   onOpenSpot: (spot: SpotItem) => void;
   onOpenEvent: (event: EventItem) => void;
   onOpenOffer?: (offer: BusinessOffer) => void;

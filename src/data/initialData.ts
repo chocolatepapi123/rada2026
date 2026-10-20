@@ -955,6 +955,50 @@ export const initialEvents: EventItem[] = [
       { name: 'Ravers Pass', price: 'KES 2,500', perks: 'All-night warehouse pass' },
       { name: 'VIP Booth Package', price: 'KES 15,000', perks: 'Table for 6 + 2 premium spirit bottles' }
     ]
+  },
+  {
+    id: 11,
+    title: 'Nairobi GameFest & Esports Arena Championship',
+    category: 'tech',
+    genre: 'Tech & Gaming',
+    date: 'Sat, 24 Oct 2026',
+    time: '10:00 AM - 08:00 PM',
+    location: 'Sarit Expo Centre Hall B, Westlands',
+    lat: -1.2618,
+    lng: 36.8042,
+    img: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&auto=format&fit=crop',
+    goingCount: 620,
+    url: 'https://tikiti.co.ke/gamefest-nairobi',
+    description: 'East Africa’s premier gaming showdown. 64-player EA Sports FC tournament, Tekken 8 arena, wireless VR gaming zones, and indie game dev showcase.',
+    artists: [
+      { name: 'BeastKE (Esports Caster)', role: 'Tournament Host', img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop' }
+    ],
+    tiers: [
+      { name: 'Gamer Pass', price: 'KES 1,000', perks: 'Free play access across all stations' },
+      { name: 'Tournament Competitor Pass', price: 'KES 2,000', perks: 'Bracket entry + tournament jersey' }
+    ]
+  },
+  {
+    id: 12,
+    title: 'Nairobi City Midnight 10K & Fitness Rave',
+    category: 'sports',
+    genre: 'Sports & Fitness',
+    date: 'Fri, 23 Oct 2026',
+    time: '07:00 PM - 11:30 PM',
+    location: 'Uhuru Park Recreational Grounds, Nairobi',
+    lat: -1.2884,
+    lng: 36.8189,
+    img: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=800&auto=format&fit=crop',
+    goingCount: 840,
+    url: 'https://tikiti.co.ke/midnight-run',
+    description: 'Neon-lit 10K night run through illuminated city avenues followed by an open-air aerobic dance party and cold-pressed hydration lounge.',
+    artists: [
+      { name: 'Coach Sammy & FitSquad', role: 'Aerobic Warmup Crew', img: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&auto=format&fit=crop' }
+    ],
+    tiers: [
+      { name: 'Runner Starter Kit', price: 'KES 1,500', perks: 'Bib number, LED armbands & timing chip' },
+      { name: 'VIP Pace Pass', price: 'KES 3,000', perks: 'Includes tech running tee & VIP recovery massage' }
+    ]
   }
 ];
 

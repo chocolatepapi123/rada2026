@@ -46,6 +46,7 @@ import {
   Tag,
   Check,
   Bookmark,
+  Flame,
   KeyRound,
   Trees,
   Plus,
@@ -280,7 +281,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
   // SPEC 5: Plan a date - free browsing across all categories
   const [planDateCategory, setPlanDateCategory] = useState<string>('all');
   const [planDateSearch, setPlanDateSearch] = useState('');
-  const [eventsCalendarDay, setEventsCalendarDay] = useState<number | null>(null);
+  const [eventsCategoryFilter, setEventsCategoryFilter] = useState<'all' | 'nightlife' | 'music' | 'tech' | 'art' | 'sports'>('all');
 
   // Create Group State
   const [newGroupName, setNewGroupName] = useState('');
@@ -2206,43 +2207,39 @@ export const Overlays: React.FC<OverlaysProps> = ({
               {viewAllCategory === 'events' ? (
                 /* STRICTLY DISPLAY EVENTS with Dynamic Calendar Day Filter */
                 <div className="space-y-4">
-                  {/* Calendar Quick Day Filter Bar */}
+                  {/* Category Quick Filter Bar */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5 text-[#E0533C]" />
-                        <span>Filter by Calendar Date</span>
+                        <Flame className="w-3.5 h-3.5 text-[#E0533C]" />
+                        <span>Filter by Event Category</span>
                       </span>
-                      {eventsCalendarDay !== null && (
+                      {eventsCategoryFilter !== 'all' && (
                         <button
                           type="button"
-                          onClick={() => setEventsCalendarDay(null)}
+                          onClick={() => setEventsCategoryFilter('all')}
                           className="text-[10px] font-bold text-[#E0533C] hover:underline cursor-pointer"
                         >
-                          Show All Dates
+                          Show All Events
                         </button>
                       )}
                     </div>
 
                     <div className="flex gap-1.5 overflow-x-auto hide-scrollbar pb-1 text-xs">
                       {[
-                        { id: null, label: 'All Dates' },
-                        { id: 14, label: 'Today (Oct 14)' },
-                        { id: 17, label: 'Sat, Oct 17' },
-                        { id: 18, label: 'Sun, Oct 18' },
-                        { id: 23, label: 'Fri, Oct 23' },
-                        { id: 24, label: 'Sat, Oct 24' },
-                        { id: 25, label: 'Sun, Oct 25' },
-                        { id: 30, label: 'Fri, Oct 30' },
-                        { id: 31, label: 'Sat, Oct 31' },
-                        { id: 7, label: 'Sat, Nov 7' }
+                        { id: 'all' as const, label: 'All Events' },
+                        { id: 'nightlife' as const, label: 'Parties & Nightlife' },
+                        { id: 'music' as const, label: 'Live Music' },
+                        { id: 'tech' as const, label: 'Tech & Gaming' },
+                        { id: 'art' as const, label: 'Art & Culture' },
+                        { id: 'sports' as const, label: 'Sports & Fitness' }
                       ].map((item, idx) => (
                         <button
                           key={idx}
                           type="button"
-                          onClick={() => setEventsCalendarDay(item.id)}
+                          onClick={() => setEventsCategoryFilter(item.id)}
                           className={`px-3 py-1.5 rounded-full font-bold shrink-0 transition text-xs cursor-pointer ${
-                            eventsCalendarDay === item.id
+                            eventsCategoryFilter === item.id
                               ? 'bg-[#E0533C] text-white shadow-xs'
                               : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
                           }`}
@@ -2253,16 +2250,35 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     </div>
                   </div>
 
-                  {/* Clean Formatted Date Header */}
+                  {/* Clean Formatted Header */}
                   {(() => {
-                    const isToday = eventsCalendarDay !== null && isDateToday(2026, 9, eventsCalendarDay);
-                    const headerText = eventsCalendarDay !== null
-                      ? getCleanDateHeader(2026, 9, eventsCalendarDay, isToday)
-                      : 'All Upcoming Nairobi Events';
+                    const headerText = eventsCategoryFilter === 'all' 
+                      ? 'All Upcoming Nairobi Events' 
+                      : (eventsCategoryFilter === 'nightlife' ? 'Parties & Nightlife'
+                        : eventsCategoryFilter === 'music' ? 'Live Music & Concerts'
+                        : eventsCategoryFilter === 'tech' ? 'Tech & Gaming'
+                        : eventsCategoryFilter === 'art' ? 'Art & Culture'
+                        : 'Sports & Fitness');
 
                     const matchingEvents = events.filter((evt) => {
-                      if (eventsCalendarDay === null) return true;
-                      return doesEventMatchDay(evt.date, 2026, 9, eventsCalendarDay, isToday);
+                      if (eventsCategoryFilter === 'all') return true;
+                      const text = `${evt.category || ''} ${evt.genre || ''} ${evt.title || ''} ${evt.description || ''}`.toLowerCase();
+                      if (eventsCategoryFilter === 'nightlife') {
+                        return evt.category === 'nightlife' || text.includes('party') || text.includes('rave') || text.includes('club') || text.includes('amapiano') || text.includes('afro-house') || text.includes('house & techno') || text.includes('nightlife');
+                      }
+                      if (eventsCategoryFilter === 'music') {
+                        return evt.category === 'concerts' || text.includes('live') || text.includes('concert') || text.includes('band') || text.includes('acoustic') || text.includes('jazz') || text.includes('soul') || text.includes('afrobeats') || text.includes('music');
+                      }
+                      if (eventsCategoryFilter === 'tech') {
+                        return evt.category === 'tech' || text.includes('tech') || text.includes('gaming') || text.includes('game') || text.includes('vr') || text.includes('esports') || text.includes('hackathon');
+                      }
+                      if (eventsCategoryFilter === 'art') {
+                        return evt.category === 'art' || text.includes('art') || text.includes('visual') || text.includes('culture') || text.includes('fashion') || text.includes('streetwear') || text.includes('sneaker') || text.includes('food & wine') || text.includes('tasting');
+                      }
+                      if (eventsCategoryFilter === 'sports') {
+                        return evt.category === 'sports' || text.includes('sport') || text.includes('fitness') || text.includes('run') || text.includes('marathon') || text.includes('derby') || text.includes('race') || text.includes('football') || text.includes('tournament');
+                      }
+                      return true;
                     });
 
                     return (
@@ -2355,11 +2371,11 @@ export const Overlays: React.FC<OverlaysProps> = ({
                             </div>
                             <button
                               type="button"
-                              onClick={() => setEventsCalendarDay(null)}
+                              onClick={() => setEventsCategoryFilter('all')}
                               className="px-4 py-2 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5 cursor-pointer"
                             >
                               <Sparkles className="w-3.5 h-3.5" />
-                              <span>Explore Trending Events</span>
+                              <span>Show All Events</span>
                             </button>
                           </div>
                         )}
@@ -2397,7 +2413,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   {spots
                     .filter(s => {
                       if (!viewAllCategory || viewAllCategory === 'spots') return true;
-                      if (viewAllCategory === 'connect_with_nature' || viewAllCategory === 'outdoors') {
+                      if (viewAllCategory === 'connect_with_nature' || viewAllCategory === 'nature' || viewAllCategory === 'outdoors') {
                         return s.category === 'connect_with_nature' || s.category === 'outdoors' || (s.category === 'activities' && (s.title.toLowerCase().includes('forest') || s.title.toLowerCase().includes('arboretum') || s.title.toLowerCase().includes('trail') || s.title.toLowerCase().includes('nature') || s.title.toLowerCase().includes('biking') || s.title.toLowerCase().includes('hike') || s.title.toLowerCase().includes('waterfall') || s.title.toLowerCase().includes('mountain') || s.title.toLowerCase().includes('hills')));
                       }
                       if (viewAllCategory === 'creative_leisure' || viewAllCategory === 'social_activities') {

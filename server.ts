@@ -103,7 +103,7 @@ Persona: Warm, witty, urban, and authentic to Nairobi culture. Use natural Kenya
 Current User Context:
 - User's Selected Location: "${selectedLocation || 'Nairobi (General)'}"
 - Active Category: "${activeCategory || 'All Hangout Categories'}"
-- Available Categories: ${Array.isArray(activeCategories) && activeCategories.length > 0 ? activeCategories.join(', ') : 'Restaurants & Dining, Cafés & Bakeries, Clubs & Lounges, Date Spots, Connect with Nature, Creative Leisure, Tech & Gaming, Action & Sports, Hotels & Luxury, Vacation Escapes'}
+- Available Categories: ${Array.isArray(activeCategories) && activeCategories.length > 0 ? activeCategories.join(', ') : 'Restaurants & Dining, Cafés & Bakeries, Clubs & Lounges, Date Spots, Nature Trails & Outdoors, Creative Leisure, Tech & Gaming, Action & Sports, Hotels & Luxury, Vacation Escapes'}
 
 Guidelines for Recommendations:
 1. Always analyze the user's specific requirements, vibe, and location against the provided database listings.
@@ -313,7 +313,7 @@ Respond as Wagwan AI in JSON format.`;
 Tone: Warm, witty, urban Nairobi persona with natural local Sheng ('Wagwan!', 'rada safi', 'vibes', 'turn up', 'shikisha').
 User Selected Location: "${selectedLocation || 'Nairobi'}"
 Active Category: "${activeCategory || 'All Hangout Categories'}"
-Available Categories: ${Array.isArray(activeCategories) && activeCategories.length > 0 ? activeCategories.join(', ') : 'Restaurants & Dining, Cafés & Bakeries, Clubs & Lounges, Date Spots, Connect with Nature, Creative Leisure, Tech & Gaming, Action & Sports, Hotels & Luxury, Vacation Escapes'}
+Available Categories: ${Array.isArray(activeCategories) && activeCategories.length > 0 ? activeCategories.join(', ') : 'Restaurants & Dining, Cafés & Bakeries, Clubs & Lounges, Date Spots, Nature Trails & Outdoors, Creative Leisure, Tech & Gaming, Action & Sports, Hotels & Luxury, Vacation Escapes'}
 
 Guidelines for Recommendations:
 1. Recommend real spots, events, or thrift items from the provided database that match the user's inquiry, vibe, and location.

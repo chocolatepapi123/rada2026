@@ -49,13 +49,13 @@ export const LukuTab: React.FC<LukuTabProps> = ({
   const [selectedPriceRange, setSelectedPriceRange] = useState('all');
   const [isListening, setIsListening] = useState(false);
   const [activeStoreModal, setActiveStoreModal] = useState<BusinessAccount | null>(null);
-  const [activeImageIndices, setActiveImageIndices] = useState<Record<number, number>>({});
+  const [activeImageIndices, setActiveImageIndices] = useState<Record<string | number, number>>({});
 
   React.useEffect(() => {
     onCategoryChange?.(selectedCategory === 'all' ? 'luku' : selectedCategory);
   }, [selectedCategory, onCategoryChange]);
 
-  const handlePrevImage = (e: React.MouseEvent, itemId: number, maxImages: number) => {
+  const handlePrevImage = (e: React.MouseEvent, itemId: string | number, maxImages: number) => {
     e.stopPropagation();
     setActiveImageIndices(prev => {
       const current = prev[itemId] || 0;
@@ -63,7 +63,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
     });
   };
 
-  const handleNextImage = (e: React.MouseEvent, itemId: number, maxImages: number) => {
+  const handleNextImage = (e: React.MouseEvent, itemId: string | number, maxImages: number) => {
     e.stopPropagation();
     setActiveImageIndices(prev => {
       const current = prev[itemId] || 0;
@@ -371,7 +371,7 @@ export const LukuTab: React.FC<LukuTabProps> = ({
                       address: `${item.storeLocation} ${item.stallNumber || ''}`,
                       bio: `Curated streetwear & thrift drops from ${item.seller} at ${item.storeLocation}.`,
                       logo: item.img,
-                      verified: item.businessId ? false : item.verified,
+                      verified: Boolean(item.businessId ? false : item.verified),
                       createdDate: '2026',
                       discography: ['Vintage Streetwear Archive', 'Rare Denim & Outerwear', 'Graphic Tees Showcase'],
                       pinnedImages: [item.img]

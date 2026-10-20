@@ -99,7 +99,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   const [isEventFilterModalOpen, setIsEventFilterModalOpen] = useState(false);
   const [selectedEventPriceTier, setSelectedEventPriceTier] = useState('all');
   const [selectedEventDateRange, setSelectedEventDateRange] = useState('all');
-  const [selectedCalendarDay, setSelectedCalendarDay] = useState<number | null>(null);
+  const [selectedEventCategory, setSelectedEventCategory] = useState<'all' | 'nightlife' | 'music' | 'tech' | 'art' | 'sports'>('all');
   const [showStatusEmojiPicker, setShowStatusEmojiPicker] = useState(false);
 
   // Offers state
@@ -314,14 +314,26 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       matchesDate = e.date.toLowerCase().includes('sat') || e.date.toLowerCase().includes('sun') || e.date.toLowerCase().includes('weekend') || e.date.toLowerCase().includes('17 oct') || e.date.toLowerCase().includes('18 oct');
     }
 
-    // Calendar specific day filtering
-    let matchesCalendarDay = true;
-    if (selectedCalendarDay !== null) {
-      const isToday = isDateToday(2026, 9, selectedCalendarDay);
-      matchesCalendarDay = doesEventMatchDay(e.date, 2026, 9, selectedCalendarDay, isToday);
+    // Event Category Filtering
+    let matchesEventCategory = true;
+    if (selectedEventCategory === 'nightlife') {
+      const text = `${e.category || ''} ${e.genre || ''} ${e.title || ''} ${e.description || ''}`.toLowerCase();
+      matchesEventCategory = e.category === 'nightlife' || text.includes('party') || text.includes('rave') || text.includes('club') || text.includes('amapiano') || text.includes('afro-house') || text.includes('house & techno') || text.includes('nightlife');
+    } else if (selectedEventCategory === 'music') {
+      const text = `${e.category || ''} ${e.genre || ''} ${e.title || ''} ${e.description || ''}`.toLowerCase();
+      matchesEventCategory = e.category === 'concerts' || text.includes('live') || text.includes('concert') || text.includes('band') || text.includes('acoustic') || text.includes('jazz') || text.includes('soul') || text.includes('afrobeats') || text.includes('music');
+    } else if (selectedEventCategory === 'tech') {
+      const text = `${e.category || ''} ${e.genre || ''} ${e.title || ''} ${e.description || ''}`.toLowerCase();
+      matchesEventCategory = e.category === 'tech' || text.includes('tech') || text.includes('gaming') || text.includes('game') || text.includes('vr') || text.includes('esports') || text.includes('hackathon');
+    } else if (selectedEventCategory === 'art') {
+      const text = `${e.category || ''} ${e.genre || ''} ${e.title || ''} ${e.description || ''}`.toLowerCase();
+      matchesEventCategory = e.category === 'art' || text.includes('art') || text.includes('visual') || text.includes('culture') || text.includes('fashion') || text.includes('streetwear') || text.includes('sneaker') || text.includes('food & wine') || text.includes('tasting');
+    } else if (selectedEventCategory === 'sports') {
+      const text = `${e.category || ''} ${e.genre || ''} ${e.title || ''} ${e.description || ''}`.toLowerCase();
+      matchesEventCategory = e.category === 'sports' || text.includes('sport') || text.includes('fitness') || text.includes('run') || text.includes('marathon') || text.includes('derby') || text.includes('race') || text.includes('football') || text.includes('tournament');
     }
 
-    if (!matchesVibe || !matchesGenre || !matchesPrice || !matchesDate || !matchesCalendarDay) return false;
+    if (!matchesVibe || !matchesGenre || !matchesPrice || !matchesDate || !matchesEventCategory) return false;
 
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
@@ -833,26 +845,22 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         </div>
       )}
 
-      {/* Featured Trending Events Section with Dynamic Calendar Day Filter */}
+      {/* Featured Trending Events Section with Category Filter */}
       {(selectedVibe === 'all' || selectedVibe === 'concerts' || selectedVibe === 'nightlife' || selectedVibe === 'art') && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-[#E0533C]"></span>
-              <span>
-                {selectedCalendarDay !== null 
-                  ? getCleanDateHeader(2026, 9, selectedCalendarDay, isDateToday(2026, 9, selectedCalendarDay))
-                  : 'Featured Trending Events'}
-              </span>
+              <span>Featured Trending Events</span>
             </h2>
             <div className="flex items-center gap-2">
-              {selectedCalendarDay !== null && (
+              {selectedEventCategory !== 'all' && (
                 <button
                   type="button"
-                  onClick={() => setSelectedCalendarDay(null)}
+                  onClick={() => setSelectedEventCategory('all')}
                   className="text-[11px] font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
                 >
-                  Show All Dates
+                  Show All Events
                 </button>
               )}
               <button
@@ -864,44 +872,44 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             </div>
           </div>
 
-          {/* Calendar Day Filter Pills */}
+          {/* Scrollable Event Category Filter Pills */}
           <div className="flex gap-1.5 overflow-x-auto hide-scrollbar pb-1 text-xs">
             {[
-              { id: null, label: 'All Dates' },
-              { id: 14, label: 'Today (Oct 14)' },
-              { id: 17, label: 'Sat, Oct 17' },
-              { id: 18, label: 'Sun, Oct 18' },
-              { id: 23, label: 'Fri, Oct 23' },
-              { id: 24, label: 'Sat, Oct 24' },
-              { id: 25, label: 'Sun, Oct 25' },
-              { id: 30, label: 'Fri, Oct 30' },
-              { id: 31, label: 'Sat, Oct 31' },
-              { id: 7, label: 'Sat, Nov 7' }
-            ].map((d, idx) => (
+              { id: 'all' as const, label: 'All Events' },
+              { id: 'nightlife' as const, label: 'Parties & Nightlife' },
+              { id: 'music' as const, label: 'Live Music' },
+              { id: 'tech' as const, label: 'Tech & Gaming' },
+              { id: 'art' as const, label: 'Art & Culture' },
+              { id: 'sports' as const, label: 'Sports & Fitness' }
+            ].map((cat) => (
               <button
-                key={idx}
+                key={cat.id}
                 type="button"
-                onClick={() => {
-                  setSelectedCalendarDay(d.id);
-                  if (d.id !== null) {
-                    setSelectedEventDateRange('all');
-                  }
-                }}
+                onClick={() => setSelectedEventCategory(cat.id)}
                 className={`px-3 py-1.5 rounded-full font-bold shrink-0 transition text-xs cursor-pointer ${
-                  selectedCalendarDay === d.id
+                  selectedEventCategory === cat.id
                     ? 'bg-[#E0533C] text-white shadow-xs'
                     : 'bg-white dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
                 }`}
               >
-                {d.label}
+                {cat.label}
               </button>
             ))}
           </div>
 
           {/* Active Filter Indicators if any */}
-          {(selectedGenre !== 'all' || selectedEventPriceTier !== 'all' || selectedEventDateRange !== 'all') && (
+          {(selectedEventCategory !== 'all' || selectedGenre !== 'all' || selectedEventPriceTier !== 'all' || selectedEventDateRange !== 'all') && (
             <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-1 text-[11px]">
               <span className="text-slate-400 font-bold uppercase text-[10px]">Active Filters:</span>
+              {selectedEventCategory !== 'all' && (
+                <span className="bg-[#E0533C]/10 text-[#E0533C] px-2.5 py-0.5 rounded-full font-bold">
+                  {selectedEventCategory === 'nightlife' && 'Parties & Nightlife'}
+                  {selectedEventCategory === 'music' && 'Live Music'}
+                  {selectedEventCategory === 'tech' && 'Tech & Gaming'}
+                  {selectedEventCategory === 'art' && 'Art & Culture'}
+                  {selectedEventCategory === 'sports' && 'Sports & Fitness'}
+                </span>
+              )}
               {selectedGenre !== 'all' && (
                 <span className="bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 px-2.5 py-0.5 rounded-full font-bold">
                   {selectedGenre}
@@ -920,10 +928,10 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               <button
                 type="button"
                 onClick={() => {
+                  setSelectedEventCategory('all');
                   setSelectedGenre('all');
                   setSelectedEventPriceTier('all');
                   setSelectedEventDateRange('all');
-                  setSelectedCalendarDay(null);
                 }}
                 className="text-[10px] text-red-500 font-bold hover:underline cursor-pointer ml-1"
               >
@@ -1037,7 +1045,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedCalendarDay(null)}
+                onClick={() => setSelectedEventCategory('all')}
                 className="px-4 py-2 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5 cursor-pointer"
               >
                 <Flame className="w-3.5 h-3.5" />
@@ -1141,7 +1149,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       )}
 
       {/* ========================================================
-          4A. CONNECT WITH NATURE
+          4A. NATURE TRAILS & OUTDOORS
           (Hiking, nature trails, waterfalls, mountains, and outdoor groups)
           ======================================================== */}
       {natureSpots.length > 0 && (
@@ -1152,11 +1160,11 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <Trees className="w-3.5 h-3.5" />
               </div>
               <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
-                Connect with Nature
+                NATURE TRAILS & OUTDOORS
               </h2>
             </div>
             <button
-              onClick={() => onOpenDedicatedViewAll('Connect with Nature', 'connect_with_nature')}
+              onClick={() => onOpenDedicatedViewAll('Nature Trails & Outdoors', 'connect_with_nature')}
               className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
             >
               View All ({natureSpots.length})

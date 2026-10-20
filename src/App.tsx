@@ -571,7 +571,7 @@ export default function App() {
     }));
   };
 
-  const handleToggleSave = (item: any, kind: 'spot' | 'event' | 'offer') => {
+  const handleToggleSave = (item: any, kind: 'spot' | 'event' | 'offer' | 'thrift') => {
     requireAuth('save items', () => {
       setSavedItems(prev => {
         const exists = prev.some(s => String(s.id) === String(item.id) && s.kind === kind);
@@ -2152,7 +2152,7 @@ export default function App() {
               'Cafés & Bakeries',
               'Clubs & Lounges',
               'Date Spots',
-              'Connect with Nature',
+              'Nature Trails & Outdoors',
               'Creative Leisure',
               'Tech & Gaming',
               'Action & Sports',
