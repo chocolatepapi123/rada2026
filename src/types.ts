@@ -1,3 +1,14 @@
+/** Platform owner. UI gate only: real enforcement must live in Supabase RLS / RPCs (see admin_migration.sql). */
+export const ADMIN_EMAIL = 'hello.rada.app@gmail.com';
+
+export type UserRole = 'user' | 'merchant' | 'admin';
+
+/** True when the account is the platform owner or carries the admin role. */
+export function isPlatformAdmin(user?: { email?: string | null; role?: string | null } | null): boolean {
+  if (!user) return false;
+  return (user.email || '').trim().toLowerCase() === ADMIN_EMAIL || user.role === 'admin';
+}
+
 export type BusinessCategory = 'hospitality' | 'event_organizer';
 
 export type OfferCategory = 'Tickets' | 'Food' | 'Drinks' | 'Apparel' | 'Special Deals';
@@ -26,6 +37,8 @@ export interface SpecialOffer {
   expires?: string;
 }
 
+export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'none';
+
 export interface BusinessAccount {
   id: string;
   ownerId?: string;
@@ -46,6 +59,13 @@ verificationNote?: string;
 verifiedAt?: string;
 verifiedBy?: string;
 instagram?: string;
+/** Subscription / billing state (mirrors rada_businesses.subscription_* or data.subscription*). */
+subscriptionStatus?: SubscriptionStatus;
+subscriptionPlan?: string;
+subscriptionAmount?: number;
+subscriptionRenewsAt?: string;
+/** Set when an admin suspends the merchant's listing privileges. */
+isSuspended?: boolean;
 
   createdDate: string;
   discography?: string[];
@@ -134,6 +154,15 @@ export interface SpotItem {
   businessId?: string;
   merchantId?: string;
   isUserUploaded?: boolean;
+  /**
+   * false = published by an admin on behalf of a venue; no merchant owns it yet and any verified
+   * business may claim it. undefined/true = owned (all pre-existing spots).
+   */
+  is_claimed?: boolean;
+  /** Admin-published listing (not created by a business account). */
+  isAdminPublished?: boolean;
+  claimedByBusinessId?: string;
+  claimedAt?: string;
   phone?: string;
   openingHours?: string;
   // Dynamic Category-Specific Metadata
@@ -304,6 +333,9 @@ export interface UserProfile {
   account_type?: AccountType;
   /** ISO time the account was switched to professional. */
   professional_since?: string;
+  email?: string;
+  role?: UserRole;
+  is_suspended?: boolean;
 }
 
 export type AccountType = 'personal' | 'professional';
@@ -434,3 +466,48 @@ export interface OutingPlan {
   attendees?: OutingAttendee[];
 }
 
+
+// =====================================================================
+// ADMIN
+// =====================================================================
+export interface AdminUserRecord {
+  id: string;
+  name: string;
+  username?: string;
+  email?: string;
+  avatar?: string;
+  role: UserRole;
+  isCreator: boolean;
+  isMerchant: boolean;
+  businessIds: string[];
+  isSuspended: boolean;
+  suspendedReason?: string;
+  suspendedAt?: string;
+  createdAt?: string;
+}
+
+export interface PlatformStats {
+  totalUsers: number | null;
+  totalSpots: number | null;
+  totalEvents: number | null;
+  totalBusinesses: number | null;
+  professionalHosts: number | null;
+  unclaimedSpots: number | null;
+}
+
+/** Fields an admin supplies when publishing a spot with no business account behind it. */
+export interface UnclaimedSpotInput {
+  title: string;
+  category: SpotCategory;
+  neighborhood: string;
+  address: string;
+  description?: string;
+  phone?: string;
+  openingHours?: string;
+  price?: string;
+  img?: string;
+  lat?: number;
+  lng?: number;
+  website?: string;
+  instagram?: string;
+}
