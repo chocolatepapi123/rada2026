@@ -47,7 +47,8 @@ import {
   initialConversations,
   initialTickets,
   initialContacts,
-  initialOutings
+  initialOutings,
+  initialSpotClaims
 } from './data/initialData.ts';
 
 import {
@@ -66,7 +67,8 @@ import {
   SavedItem,
   CollectionFolder,
   OutingPlan,
-  OutingAttendee
+  OutingAttendee,
+  SpotClaimRequest
 } from './types.ts';
 
 
@@ -465,6 +467,18 @@ export default function App() {
       } catch (e) {}
     }
     return initialOutings;
+  });
+
+  // Spot Ownership Claims & Verification Requests
+  const [spotClaims, setSpotClaims] = useState<SpotClaimRequest[]>(() => {
+    const saved = localStorage.getItem('rada_spot_claims');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {}
+    }
+    return initialSpotClaims;
   });
 
   // Public Business Profile View Modal State
@@ -888,6 +902,10 @@ export default function App() {
     localStorage.setItem('rada_offers', JSON.stringify(offers));
   }, [offers]);
 
+  useEffect(() => {
+    localStorage.setItem('rada_spot_claims', JSON.stringify(spotClaims));
+  }, [spotClaims]);
+
   // Lock body scroll and handle Escape key for Business Hub modal
   useEffect(() => {
     if (isBusinessHubOpen) {
@@ -1236,6 +1254,14 @@ export default function App() {
       setSpots(mergedSpots);
       setEvents(mergedEvents);
       setOffers(mergedOffers);
+      try {
+        const remoteClaims = await cloud.fetchSpotClaims();
+        if (remoteClaims && remoteClaims.length > 0) {
+          setSpotClaims(remoteClaims);
+        }
+      } catch (cErr) {
+        console.warn('Failed to sync spot claims:', cErr);
+      }
       if (remoteStatuses) {
         setStatuses(prev => cleanStatuses(mergeRemoteStatuses(remoteStatuses, prev, initialStatuses)));
       }
@@ -1458,27 +1484,111 @@ export default function App() {
     if (currentUserId) cloudWrite(() => cloud.deleteListing('offer', offerId));
   };
 
-  // Spot Claiming (SPEC 3A: Exclusive to Spot Merchants)
-  const handleClaimSpot = (spotId: number, businessId: string) => {
-    const claimed = spots.find(s => s.id === spotId);
-    const ownerId = session?.user?.id || currentUserId;
-    if (claimed && ownerId) {
-      cloudWrite(() => cloud.claimUnclaimedSpot(spotId, businessId, ownerId));
-    }
+  // Spot Claiming with Proof of Ownership Verification (Admin checks & confirms)
+  const handleSubmitClaimRequest = async (claim: SpotClaimRequest) => {
+    setSpotClaims(prev => [claim, ...prev.filter(c => c.id !== claim.id)]);
+    // Mark spot as having pending claim without transferring ownership yet
     setSpots(prev => prev.map(s => {
-      if (s.id === spotId) {
+      if (String(s.id) === String(claim.spotId)) {
         return {
           ...s,
-          businessId,
-          merchantId: ownerId,
-          isUserUploaded: false,
-          is_claimed: true,
-          claimedByBusinessId: businessId,
-          claimedAt: new Date().toISOString()
+          hasPendingClaim: true,
+          pendingClaimId: claim.id,
+          pendingClaimBusinessId: claim.businessId
         };
       }
       return s;
     }));
+    await cloud.submitSpotClaim(claim);
+    showToast(`Proof submitted! Admin will verify "${claim.spotTitle}".`);
+  };
+
+  const handleApproveClaim = async (claim: SpotClaimRequest) => {
+    const now = new Date().toISOString();
+    setSpotClaims(prev => prev.map(c => c.id === claim.id ? { ...c, status: 'approved', reviewedAt: now, reviewedBy: 'admin' } : c));
+    
+    // Transfer spot ownership to claiming business
+    setSpots(prev => prev.map(s => {
+      if (String(s.id) === String(claim.spotId)) {
+        return {
+          ...s,
+          businessId: claim.businessId,
+          merchantId: claim.applicantUserId || session?.user?.id || currentUserId,
+          isUserUploaded: false,
+          is_claimed: true,
+          claimedByBusinessId: claim.businessId,
+          claimedAt: now,
+          hasPendingClaim: false,
+          pendingClaimId: undefined,
+          pendingClaimBusinessId: undefined
+        };
+      }
+      return s;
+    }));
+    await cloud.reviewSpotClaim(claim.id, 'approved', undefined, 'admin');
+    showToast(`Claim approved! "${claim.spotTitle}" ownership transferred to ${claim.businessName}.`);
+  };
+
+  const handleRejectClaim = async (claimId: string, reason?: string) => {
+    const now = new Date().toISOString();
+    let targetSpotId: string | number | undefined;
+    setSpotClaims(prev => prev.map(c => {
+      if (c.id === claimId) {
+        targetSpotId = c.spotId;
+        return { ...c, status: 'rejected', rejectionReason: reason, reviewedAt: now, reviewedBy: 'admin' };
+      }
+      return c;
+    }));
+
+    if (targetSpotId !== undefined) {
+      setSpots(prev => prev.map(s => {
+        if (String(s.id) === String(targetSpotId)) {
+          return {
+            ...s,
+            hasPendingClaim: false,
+            pendingClaimId: undefined,
+            pendingClaimBusinessId: undefined
+          };
+        }
+        return s;
+      }));
+    }
+    await cloud.reviewSpotClaim(claimId, 'rejected', reason, 'admin');
+    showToast('Claim rejected.');
+  };
+
+  const handleClaimSpot = (spotId: number, businessId: string) => {
+    // Forward to proof submission with target spot
+    const target = spots.find(s => s.id === spotId);
+    const targetBiz = businesses.find(b => b.id === businessId);
+    if (!target || !targetBiz) return;
+    const req: SpotClaimRequest = {
+      id: `claim-${Date.now()}`,
+      spotId,
+      spotTitle: target.title,
+      spotCategory: target.category,
+      spotNeighborhood: target.neighborhood,
+      spotAddress: target.address,
+      spotImg: target.img,
+      businessId,
+      businessName: targetBiz.name,
+      businessCategory: targetBiz.category,
+      businessPhone: targetBiz.phone,
+      businessEmail: targetBiz.email,
+      businessLogo: targetBiz.logo,
+      applicantUserId: session?.user?.id || currentUserId || '',
+      applicantName: targetBiz.name,
+      applicantHandle: `@${targetBiz.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+      claimantRole: 'Owner / Founder',
+      contactPhone: targetBiz.phone || '+254 ',
+      contactEmail: targetBiz.email || '',
+      officialSocialUrl: targetBiz.instagram,
+      proofNote: `Ownership claim submitted by verified merchant ${targetBiz.name}.`,
+      proofDocuments: [],
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    };
+    handleSubmitClaimRequest(req);
   };
 
   const handleReleaseSpot = (spotId: number) => {
@@ -2118,6 +2228,8 @@ export default function App() {
                 onViewSpotDetails={(spot) => setSelectedSpotModal(spot)}
                 onViewEventDetails={(event) => setSelectedEventModal(event)}
                 onOpenPublicProfile={(biz) => setSelectedPublicBusiness(biz)}
+                spotClaims={spotClaims}
+                onSubmitClaimRequest={handleSubmitClaimRequest}
                 showToast={showToast}
               />
             )}
@@ -2219,6 +2331,8 @@ export default function App() {
                 onViewSpotDetails={(spot) => setSelectedSpotModal(spot)}
                 onViewEventDetails={(event) => setSelectedEventModal(event)}
                 onOpenPublicProfile={(biz) => setSelectedPublicBusiness(biz)}
+                spotClaims={spotClaims}
+                onSubmitClaimRequest={handleSubmitClaimRequest}
                 onClose={() => setIsBusinessHubOpen(false)}
                 showToast={showToast}
               />
@@ -2392,6 +2506,10 @@ export default function App() {
   onClose={() => setIsAdminOpen(false)}
   onRefresh={() => syncRef.current?.()}
   showToast={showToast}
+  spotClaims={spotClaims}
+  onApproveClaim={handleApproveClaim}
+  onRejectClaim={handleRejectClaim}
+  spotsCount={spots.length}
   onUpdateBusiness={(businessId, updates) => {
     const business = businesses.find(b => b.id === businessId);
 

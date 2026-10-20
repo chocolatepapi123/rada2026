@@ -70,12 +70,13 @@ import {
   ActivityItem,
   TicketTier, 
   Artist,
-  Review
+  Review,
+  SpotClaimRequest
 } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { DynamicLocationSelector } from './DynamicLocationSelector.tsx';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { toValidUuid, fetchUnclaimedSpots, claimUnclaimedSpot } from '../lib/cloudSync.ts';
+import { toValidUuid, fetchUnclaimedSpots, claimUnclaimedSpot, submitSpotClaim } from '../lib/cloudSync.ts';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 
 export type MainCategoryKey = 
@@ -1242,6 +1243,8 @@ interface MerchantHubTabProps {
   onOpenPublicProfile: (biz: BusinessAccount) => void;
   onClose?: () => void;
   showToast: (msg: string) => void;
+  spotClaims?: SpotClaimRequest[];
+  onSubmitClaimRequest?: (claim: SpotClaimRequest) => void;
   /**
    * Admin publishing mode (used by AdminSpotPublisher). Renders ONLY the spot form, skips onboarding,
    * and saves through onAdminPublishSpot as an unclaimed (is_claimed: false) listing.
@@ -1277,7 +1280,9 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   showToast,
   adminMode,
   adminUserId,
-  onAdminPublishSpot
+  onAdminPublishSpot,
+  spotClaims = [],
+  onSubmitClaimRequest
 }) => {
   const effectiveUserId = userId || (typeof window !== 'undefined' ? localStorage.getItem('rada_local_user_id') : null) || 'local-merchant-user';
 
@@ -1962,28 +1967,111 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     return Array.from(map.values());
   }, [remoteUnclaimedSpots, spots, claimSearchQuery, currentBiz?.id]);
 
-  const handleClaimSpotAction = async (spot: any) => {
+  // Claim Proof of Ownership Modal State
+  const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
+  const [claimTargetSpot, setClaimTargetSpot] = useState<any | null>(null);
+  const [claimantRole, setClaimantRole] = useState('Owner / Founder');
+  const [claimantPhone, setClaimantPhone] = useState('');
+  const [claimantEmail, setClaimantEmail] = useState('');
+  const [claimantSocialUrl, setClaimantSocialUrl] = useState('');
+  const [claimProofNote, setClaimProofNote] = useState('');
+  const [claimProofDocs, setClaimProofDocs] = useState<string[]>([]);
+  const [isSubmittingClaim, setIsSubmittingClaim] = useState(false);
+  const [previewProofDocUrl, setPreviewProofDocUrl] = useState<string | null>(null);
+
+  const handleOpenClaimModal = (spot: any) => {
     if (!currentBiz?.id) {
       showToast('Select or create your business profile before claiming.');
       return;
     }
+    setClaimTargetSpot(spot);
+    setClaimantRole('Owner / Founder');
+    setClaimantPhone(currentBiz.phone || '+254 ');
+    setClaimantEmail(currentBiz.email || '');
+    setClaimantSocialUrl(currentBiz.instagram && currentBiz.instagram !== '@' ? `https://instagram.com/${currentBiz.instagram.replace('@', '')}` : '');
+    setClaimProofNote('');
+    setClaimProofDocs([]);
+    setIsClaimModalOpen(true);
+  };
+
+  const handleProofDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    if (claimProofDocs.length >= 5) {
+      showToast('Maximum 5 proof documents allowed.');
+      return;
+    }
+    const dataUrls = await readFilesAsDataUrls(files);
+    const combined = [...claimProofDocs, ...dataUrls].slice(0, 5);
+    setClaimProofDocs(combined);
+    showToast(`Added ${dataUrls.length} proof document(s).`);
+    e.target.value = '';
+  };
+
+  const handleRemoveProofDoc = (index: number) => {
+    setClaimProofDocs(prev => prev.filter((_, i) => i !== index));
+    showToast('Proof document removed.');
+  };
+
+  const handleSubmitProofOfOwnership = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!claimTargetSpot || !currentBiz) return;
+    if (!claimantRole.trim()) {
+      showToast('Please state your role at this venue.');
+      return;
+    }
+    if (!claimantPhone.trim() && !claimantEmail.trim()) {
+      showToast('Please provide contact phone or email for verification.');
+      return;
+    }
+    if (claimProofDocs.length === 0 && !claimProofNote.trim()) {
+      showToast('Please upload proof documents or provide verification notes.');
+      return;
+    }
+
+    setIsSubmittingClaim(true);
     const effectiveOwner = userId || effectiveUserId || currentBiz.ownerId || '';
-    setIsClaimingSpotId(spot.id);
+    const newClaim: SpotClaimRequest = {
+      id: `claim-${Date.now()}`,
+      spotId: claimTargetSpot.id,
+      spotTitle: claimTargetSpot.title,
+      spotCategory: claimTargetSpot.category,
+      spotNeighborhood: claimTargetSpot.neighborhood,
+      spotAddress: claimTargetSpot.address,
+      spotImg: claimTargetSpot.img,
+      businessId: currentBiz.id,
+      businessName: currentBiz.name,
+      businessCategory: currentBiz.category,
+      businessPhone: claimantPhone.trim() || currentBiz.phone,
+      businessEmail: claimantEmail.trim() || currentBiz.email,
+      businessLogo: currentBiz.logo,
+      applicantUserId: effectiveOwner,
+      applicantName: currentBiz.name,
+      applicantHandle: `@${currentBiz.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+      claimantRole: claimantRole.trim(),
+      contactPhone: claimantPhone.trim(),
+      contactEmail: claimantEmail.trim(),
+      officialSocialUrl: claimantSocialUrl.trim(),
+      proofNote: claimProofNote.trim(),
+      proofDocuments: claimProofDocs,
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    };
+
     try {
-      const err = await claimUnclaimedSpot(spot.id, currentBiz.id, effectiveOwner);
-      if (err) {
-        showToast(`Could not claim spot: ${err}`);
-        return;
+      if (onSubmitClaimRequest) {
+        onSubmitClaimRequest(newClaim);
+      } else {
+        await submitSpotClaim(newClaim);
       }
-      // Update local state in App so managed listings immediately reflect the new spot
-      onClaimSpot(typeof spot.id === 'number' ? spot.id : Number(spot.id) || spot.id, currentBiz.id);
-      showToast(`Ownership claimed! "${spot.title}" is now managed by ${currentBiz.name}.`);
-      // Refresh the unclaimed list
+      showToast(`Proof submitted! Admin will verify "${claimTargetSpot.title}".`);
+      setIsClaimModalOpen(false);
+      setClaimTargetSpot(null);
       loadUnclaimedSpots(claimSearchQuery);
-    } catch (e: any) {
-      showToast(`Error claiming spot: ${e?.message || String(e)}`);
+    } catch (err: any) {
+      showToast(`Failed to submit claim: ${err?.message || String(err)}`);
     } finally {
-      setIsClaimingSpotId(null);
+      setIsSubmittingClaim(false);
     }
   };
 
@@ -4416,15 +4504,6 @@ isSpotFormOpen && (
               </div>
             </div>
 
-            {/* Dynamic Metrics & Analytics Overview */}
-            <SpotInsightsAnalytics
-              spots={spots}
-              currentBiz={currentBiz}
-              userId={userId || effectiveUserId}
-              onOpenCreateSpot={openCreateSpotModal}
-              showToast={showToast}
-            />
-
             {/* Operational Hub Action Cards */}
             <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-5 shadow-xs space-y-4">
               <div className="flex items-center justify-between">
@@ -4500,6 +4579,15 @@ isSpotFormOpen && (
                 </button>
               </div>
             </div>
+
+            {/* Dynamic Metrics & Analytics Overview (Placed directly below Quick Actions) */}
+            <SpotInsightsAnalytics
+              spots={spots}
+              currentBiz={currentBiz}
+              userId={userId || effectiveUserId}
+              onOpenCreateSpot={openCreateSpotModal}
+              showToast={showToast}
+            />
 
             {/* Running Offers Spotlight */}
             <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-5 shadow-xs space-y-3">
@@ -4843,12 +4931,12 @@ isSpotFormOpen && (
             {/* Header / Info Banner */}
             <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-transparent border border-amber-500/30 rounded-3xl p-5">
               <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-black text-xs uppercase tracking-wider mb-1">
-                <Sparkles className="w-4 h-4 text-amber-500" />
-                <span>Verified Merchant Privilege</span>
+                <ShieldCheck className="w-4 h-4 text-amber-500" />
+                <span>Verified Merchant Ownership Verification</span>
               </div>
               <h3 className="text-base font-black tracking-tight">Claim Existing Spot</h3>
               <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
-                Search and claim unclaimed listings across Nairobi (where <span className="font-mono text-[11px] bg-amber-500/10 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded">is_claimed: false</span>). Claiming immediately links the listing to <strong className="text-slate-900 dark:text-slate-100">{currentBiz.name}</strong>, unlocking digital menus, hours, photo curation, and verification status!
+                Found your venue or hangout already on RADA? To protect businesses and prevent unauthorized takeovers, spots do not automatically transfer. You upload proof of ownership (e.g. County Single Business Permit, utility bill, or exterior signage) which the admin team verifies before transferring full management rights to <strong className="text-slate-900 dark:text-slate-100">{currentBiz.name}</strong>.
               </p>
 
               {/* Search input with live status indicator */}
@@ -4867,6 +4955,84 @@ isSpotFormOpen && (
                 />
               </div>
             </div>
+
+            {/* Merchant's Submitted Claims Section (if any) */}
+            {(() => {
+              const myClaims = (spotClaims || []).filter(c => c.businessId === currentBiz.id);
+              if (myClaims.length === 0) return null;
+              return (
+                <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Your Claim Submissions ({myClaims.length})</span>
+                      </h4>
+                      <p className="text-[11px] text-slate-400">Track verification status of spots claimed by {currentBiz.name}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {myClaims.map(c => {
+                      const isPending = c.status === 'pending';
+                      const isApproved = c.status === 'approved';
+                      const isRejected = c.status === 'rejected';
+
+                      return (
+                        <div
+                          key={c.id}
+                          className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            {c.spotImg ? (
+                              <img src={c.spotImg} alt={c.spotTitle} className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                            ) : (
+                              <div className="w-12 h-12 rounded-xl bg-orange-50 dark:bg-orange-950/40 text-[#E0533C] flex items-center justify-center font-bold text-xs shrink-0">
+                                <Store className="w-5 h-5" />
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <h5 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">{c.spotTitle}</h5>
+                              <p className="text-[11px] text-slate-500 truncate">
+                                Role: {c.claimantRole} • {c.proofDocuments?.length || 0} proof docs attached
+                              </p>
+                              {c.rejectionReason && (
+                                <p className="text-[10px] text-red-500 font-semibold mt-0.5 truncate">
+                                  Admin feedback: {c.rejectionReason}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                            {isPending && (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                                <Clock className="w-3 h-3 animate-spin" />
+                                <span>Under Admin Review</span>
+                              </span>
+                            )}
+                            {isApproved && (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                                <CheckCircle2 className="w-3 h-3" />
+                                <span>Ownership Confirmed</span>
+                              </span>
+                            )}
+                            {isRejected && (
+                              <div className="flex items-center gap-1.5">
+                                <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase px-2.5 py-1 rounded-full bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800">
+                                  <AlertCircle className="w-3 h-3" />
+                                  <span>Claim Rejected</span>
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Results List */}
             <div className="space-y-3">
@@ -4890,46 +5056,67 @@ isSpotFormOpen && (
                   </p>
                 </div>
               ) : (
-                claimableCommunitySpots.map(spot => (
-                  <div 
-                    key={spot.id}
-                    className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-4 shadow-xs flex items-center justify-between gap-3 hover:border-amber-400/50 transition border border-slate-100 dark:border-slate-800/80"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <img src={spot.img} alt={spot.title} className="w-14 h-14 rounded-2xl object-cover shrink-0 bg-slate-100 dark:bg-slate-800" />
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-extrabold text-xs truncate text-slate-900 dark:text-slate-100">{spot.title}</h4>
-                          <span className="text-[9px] bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded font-bold">
-                            Unclaimed
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-400 truncate flex items-center gap-1 mt-0.5">
-                          <MapPin className="w-3 h-3 text-[#E0533C]" />
-                          <span>{spot.neighborhood} • {spot.address}</span>
-                        </p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">
-                          Rating ★ {spot.rating || '4.8'} ({spot.reviewCount || 0} reviews)
-                        </p>
-                      </div>
-                    </div>
+                claimableCommunitySpots.map(spot => {
+                  const pendingClaim = (spotClaims || []).find(
+                    c => String(c.spotId) === String(spot.id) && c.status === 'pending'
+                  );
+                  const isClaimedByMe = pendingClaim?.businessId === currentBiz.id;
 
-                    <button
-                      onClick={() => handleClaimSpotAction(spot)}
-                      disabled={isClaimingSpotId === spot.id}
-                      className="bg-gradient-to-r from-amber-500 to-[#E0533C] hover:opacity-90 disabled:opacity-50 text-white font-black text-xs px-3.5 py-2.5 rounded-xl shadow-md shadow-orange-500/20 shrink-0 cursor-pointer transition active:scale-95 flex items-center gap-1.5"
+                  return (
+                    <div 
+                      key={spot.id}
+                      className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-4 shadow-xs flex items-center justify-between gap-3 hover:border-amber-400/50 transition border border-slate-100 dark:border-slate-800/80"
                     >
-                      {isClaimingSpotId === spot.id ? (
-                        <>
-                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                          <span>Claiming…</span>
-                        </>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <img src={spot.img} alt={spot.title} className="w-14 h-14 rounded-2xl object-cover shrink-0 bg-slate-100 dark:bg-slate-800" />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-extrabold text-xs truncate text-slate-900 dark:text-slate-100">{spot.title}</h4>
+                            <span className="text-[9px] bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded font-bold">
+                              Unclaimed
+                            </span>
+                            {(spot.hasPendingClaim || pendingClaim) && (
+                              <span className="text-[9px] bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded font-bold">
+                                Proof Pending
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-400 truncate flex items-center gap-1 mt-0.5">
+                            <MapPin className="w-3 h-3 text-[#E0533C]" />
+                            <span>{spot.neighborhood} • {spot.address}</span>
+                          </p>
+                          <p className="text-[10px] text-slate-500 mt-0.5">
+                            Rating ★ {spot.rating || '4.8'} ({spot.reviewCount || 0} reviews)
+                          </p>
+                        </div>
+                      </div>
+
+                      {pendingClaim ? (
+                        <div className="shrink-0 text-right">
+                          {isClaimedByMe ? (
+                            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                              <Clock className="w-3.5 h-3.5 animate-spin" />
+                              <span>Your Claim Pending Review</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500">
+                              <Clock className="w-3.5 h-3.5" />
+                              <span>Under Admin Review</span>
+                            </span>
+                          )}
+                        </div>
                       ) : (
-                        <span>Claim This Spot</span>
+                        <button
+                          onClick={() => handleOpenClaimModal(spot)}
+                          className="bg-gradient-to-r from-amber-500 to-[#E0533C] hover:opacity-90 text-white font-black text-xs px-3.5 py-2.5 rounded-xl shadow-md shadow-orange-500/20 shrink-0 cursor-pointer transition active:scale-95 flex items-center gap-1.5"
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          <span>Claim & Upload Proof</span>
+                        </button>
                       )}
-                    </button>
-                  </div>
-                ))
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
@@ -5829,6 +6016,278 @@ isSpotFormOpen && (
                 {editingOfferId ? 'Update Promotion' : 'Publish Offer Live'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          VIEW: PROOF OF OWNERSHIP CLAIM MODAL
+          ========================================================================= */}
+      {isClaimModalOpen && claimTargetSpot && (
+        <div className="fixed inset-0 z-[120] bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+          <div className="bg-white dark:bg-[#1C1A1E] text-slate-900 dark:text-slate-100 rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5 my-auto max-h-[92vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
+                  <ShieldCheck className="w-5 h-5 text-amber-500" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black tracking-tight">Claim Spot Ownership</h3>
+                  <p className="text-xs text-slate-500">Submit proof of ownership for administrator review</p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => {
+                  setIsClaimModalOpen(false);
+                  setClaimTargetSpot(null);
+                }}
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Target Spot Preview Card */}
+            <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-center gap-3">
+              <img 
+                src={claimTargetSpot.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&auto=format&fit=crop'} 
+                alt={claimTargetSpot.title} 
+                className="w-14 h-14 rounded-xl object-cover shrink-0" 
+              />
+              <div className="min-w-0">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Target Listing</span>
+                <h4 className="font-extrabold text-sm truncate text-slate-900 dark:text-slate-100">{claimTargetSpot.title}</h4>
+                <p className="text-xs text-slate-500 truncate flex items-center gap-1">
+                  <MapPin className="w-3 h-3 text-[#E0533C]" />
+                  <span>{claimTargetSpot.neighborhood} • {claimTargetSpot.address}</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Verification Security Notice */}
+            <div className="p-3.5 bg-amber-500/10 border border-amber-500/25 rounded-2xl space-y-1.5 text-xs text-slate-700 dark:text-slate-300">
+              <p className="font-extrabold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Verification Policy</span>
+              </p>
+              <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">
+                To prevent fraud and protect venues, this spot will <strong>not</strong> immediately become yours. Our admin team will verify your submitted documents and confirm ownership in the Admin Dashboard.
+              </p>
+            </div>
+
+            {/* Claim Submission Form */}
+            <form onSubmit={handleSubmitProofOfOwnership} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Your Role / Title at Venue *
+                  </label>
+                  <select
+                    value={claimantRole}
+                    onChange={(e) => setClaimantRole(e.target.value)}
+                    className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#E0533C]"
+                    required
+                  >
+                    <option value="Owner / Founder">Owner / Founder</option>
+                    <option value="General Manager">General Manager</option>
+                    <option value="Managing Partner">Managing Partner</option>
+                    <option value="Marketing & Brand Lead">Marketing & Brand Lead</option>
+                    <option value="Authorized Representative">Authorized Representative</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Official Contact Phone *
+                  </label>
+                  <input
+                    type="text"
+                    value={claimantPhone}
+                    onChange={(e) => setClaimantPhone(e.target.value)}
+                    placeholder="+254 7XX XXX XXX"
+                    className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#E0533C]"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Official Contact Email *
+                  </label>
+                  <input
+                    type="email"
+                    value={claimantEmail}
+                    onChange={(e) => setClaimantEmail(e.target.value)}
+                    placeholder="management@venue.ke"
+                    className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#E0533C]"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Official Instagram or Website
+                  </label>
+                  <input
+                    type="text"
+                    value={claimantSocialUrl}
+                    onChange={(e) => setClaimantSocialUrl(e.target.value)}
+                    placeholder="https://instagram.com/venue"
+                    className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#E0533C]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Ownership Statement / Verification Notes *
+                </label>
+                <textarea
+                  rows={3}
+                  value={claimProofNote}
+                  onChange={(e) => setClaimProofNote(e.target.value)}
+                  placeholder="Explain your connection to this venue (e.g. 'We are the founding operators of this cocktail lounge located at XYZ building. Attached is our Nairobi County Single Business Permit and exterior signage with staff.')..."
+                  className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#E0533C]"
+                  required
+                />
+              </div>
+
+              {/* Document Proof Upload Section */}
+              <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                      Upload Proof of Ownership Documents ({claimProofDocs.length}/5) *
+                    </label>
+                    <p className="text-[11px] text-slate-400">
+                      Upload permit, business license, utility bill, or storefront photo with signage
+                    </p>
+                  </div>
+                  {claimProofDocs.length < 5 && (
+                    <label
+                      htmlFor="claim-proof-docs-input"
+                      className="px-3 py-1.5 bg-[#E0533C]/10 hover:bg-[#E0533C]/20 text-[#E0533C] text-xs font-extrabold rounded-xl cursor-pointer transition flex items-center gap-1 shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Attach Proof</span>
+                    </label>
+                  )}
+                  <input
+                    id="claim-proof-docs-input"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleProofDocUpload}
+                    className="hidden"
+                  />
+                </div>
+
+                {claimProofDocs.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
+                    {claimProofDocs.map((docUrl, idx) => (
+                      <div key={idx} className="relative group rounded-xl overflow-hidden aspect-[4/3] bg-slate-900 border border-slate-200 dark:border-slate-700">
+                        <img 
+                          src={docUrl} 
+                          alt={`Proof document ${idx + 1}`} 
+                          className="w-full h-full object-cover cursor-pointer"
+                          onClick={() => setPreviewProofDocUrl(docUrl)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveProofDoc(idx)}
+                          className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/75 hover:bg-black text-white rounded-full flex items-center justify-center transition cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="absolute bottom-1.5 left-1.5 bg-black/70 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
+                          Doc #{idx + 1}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <label
+                    htmlFor="claim-proof-docs-empty"
+                    className="w-full py-6 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-amber-500 bg-slate-50 dark:bg-slate-900/40 flex flex-col items-center justify-center gap-2 cursor-pointer transition text-center"
+                  >
+                    <Upload className="w-7 h-7 text-amber-500" />
+                    <div>
+                      <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                        Attach proof photos or document scans
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-0.5 max-w-sm">
+                        Acceptable: Nairobi County Single Business Permit, KRA PIN certificate, Utility bill matching spot address, or branded exterior signage
+                      </p>
+                    </div>
+                    <span className="px-3 py-1 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-bold text-xs rounded-xl">
+                      Choose Files
+                    </span>
+                    <input
+                      id="claim-proof-docs-empty"
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleProofDocUpload}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="flex items-center gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsClaimModalOpen(false);
+                    setClaimTargetSpot(null);
+                  }}
+                  className="px-5 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-extrabold text-slate-700 dark:text-slate-300 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingClaim}
+                  className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-[#E0533C] hover:opacity-95 text-white text-xs font-black shadow-lg shadow-orange-500/20 transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isSubmittingClaim ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Submitting Proof…</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Submit Proof of Ownership for Review</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* FULL-SCREEN PROOF DOCUMENT ZOOM PREVIEW */}
+      {previewProofDocUrl && (
+        <div 
+          onClick={() => setPreviewProofDocUrl(null)}
+          className="fixed inset-0 z-[130] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer"
+        >
+          <div className="relative max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl" onClick={e => e.stopPropagation()}>
+            <img src={previewProofDocUrl} alt="Proof Document Preview" className="max-w-full max-h-[85vh] object-contain rounded-xl" />
+            <button
+              type="button"
+              onClick={() => setPreviewProofDocUrl(null)}
+              className="absolute top-3 right-3 w-8 h-8 bg-black/80 text-white rounded-full flex items-center justify-center hover:bg-black transition cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}

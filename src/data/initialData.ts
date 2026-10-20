@@ -10,7 +10,8 @@ import {
   VaultTicket, 
   EmergencyContact,
   CollectionFolder,
-  OutingPlan
+  OutingPlan,
+  SpotClaimRequest
 } from '../types.ts';
 import { generatePlayableWavDataUrl } from '../utils/mediaUtils.ts';
 
@@ -534,6 +535,10 @@ export const initialSpots: SpotItem[] = [
     reviewCount: 0,
     price: '$$',
     address: 'Muthithi Road, Westlands, Nairobi',
+    is_claimed: false,
+    hasPendingClaim: true,
+    pendingClaimId: 'claim-init-1',
+    pendingClaimBusinessId: 'biz-1',
     img: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=800&auto=format&fit=crop',
     description: 'Creative social art studio! Step-by-step acrylic canvas painting, pottery sculpting, and social craft workshops accompanied by curated wines and afro-house tracks.',
     phone: '+254 719 333 777',
@@ -559,6 +564,7 @@ export const initialSpots: SpotItem[] = [
     rating: 'New',
     reviewCount: 0,
     price: '$$',
+    is_claimed: false,
     address: 'Limuru Road, Village Market, Nairobi',
     img: 'https://images.unsplash.com/photo-1593508512255-86ab42a8e620?w=800&auto=format&fit=crop',
     description: 'Premier virtual reality and tech entertainment center featuring 6DOF motion simulators, multiplayer VR cooperative missions, arcade rigs, and gaming lounges.',
@@ -1343,6 +1349,38 @@ export const initialOutings: OutingPlan[] = [
     attendees: [
       { id: 'att-10', outingId: 'out-5', userId: 'usr-10', userName: 'Martin Mutua', userAvatar: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=200&auto=format&fit=crop', userHandle: '@martin_m', status: 'joined', requestedAt: '2026-10-19T09:00:00Z' }
     ]
+  }
+];
+
+export const initialSpotClaims: SpotClaimRequest[] = [
+  {
+    id: 'claim-init-1',
+    spotId: 13,
+    spotTitle: 'Paint & Sip Nairobi Studio',
+    spotCategory: 'creative_leisure',
+    spotNeighborhood: 'Westlands',
+    spotAddress: 'Muthithi Road, The Promenade 2nd Floor',
+    spotImg: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=800&auto=format&fit=crop',
+    businessId: 'biz-1',
+    businessName: 'Ink & Drink Bar & Lounge',
+    businessCategory: 'hospitality',
+    businessPhone: '+254 722 123 456',
+    businessEmail: 'events@inkanddrink.ke',
+    businessLogo: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=200&auto=format&fit=crop',
+    applicantUserId: 'user-demo-claimant',
+    applicantName: 'Wayne Waweru',
+    applicantHandle: '@lowk3yFX',
+    claimantRole: 'Managing Partner & Co-Owner',
+    contactPhone: '+254 722 123 456',
+    contactEmail: 'management@paintsipkenya.com',
+    officialSocialUrl: 'https://instagram.com/paintsipnairobi',
+    proofNote: 'We operate Paint & Sip Studio on 2nd Floor, The Promenade, Muthithi Road. Uploaded our Nairobi City County Single Business Permit (SBP-2026/04918) and building commercial lease agreement.',
+    proofDocuments: [
+      'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&auto=format&fit=crop'
+    ],
+    status: 'pending',
+    createdAt: '2026-10-18T10:30:00.000Z'
   }
 ];
 

@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import type { BusinessAccount, SavedItem, CollectionFolder, OutingPlan, OutingAttendee, ChatConversation, HostAnalytics, HostControls, UserProfile, AdminUserRecord, PlatformStats, SpotItem, SubscriptionStatus, UnclaimedSpotInput } from '../types';
+import type { BusinessAccount, SavedItem, CollectionFolder, OutingPlan, OutingAttendee, ChatConversation, HostAnalytics, HostControls, UserProfile, AdminUserRecord, PlatformStats, SpotItem, SubscriptionStatus, UnclaimedSpotInput, SpotClaimRequest } from '../types';
 import { isPlatformAdmin } from '../types';
 import { STATUS_TTL_MS } from '../utils/statusLifecycle';
 
@@ -2666,3 +2666,144 @@ export async function claimUnclaimedSpot(
   }
   return null;
 }
+
+// ---------- Spot Claim Requests with Proof of Ownership ----------
+export async function fetchSpotClaims(): Promise<SpotClaimRequest[]> {
+  let localClaims: SpotClaimRequest[] = [];
+  try {
+    const raw = localStorage.getItem('rada_spot_claims');
+    if (raw) localClaims = JSON.parse(raw);
+  } catch {}
+
+  if (!isSupabaseConfigured) return localClaims;
+
+  try {
+    const { data, error } = await supabase
+      .from('rada_listings')
+      .select('*')
+      .eq('kind', 'spot_claim')
+      .order('created_at', { ascending: false });
+
+    if (!error && data && data.length > 0) {
+      const remoteClaims: SpotClaimRequest[] = data.map(r => r.data).filter(Boolean);
+      const map = new Map<string, SpotClaimRequest>();
+      for (const c of remoteClaims) map.set(c.id, c);
+      for (const c of localClaims) {
+        if (!map.has(c.id)) map.set(c.id, c);
+      }
+      return Array.from(map.values());
+    }
+  } catch (err) {
+    console.warn('fetchSpotClaims failed:', err);
+  }
+
+  return localClaims;
+}
+
+export async function submitSpotClaim(claim: SpotClaimRequest): Promise<string | null> {
+  try {
+    const raw = localStorage.getItem('rada_spot_claims');
+    const existing: SpotClaimRequest[] = raw ? JSON.parse(raw) : [];
+    const updated = [claim, ...existing.filter(c => c.id !== claim.id)];
+    localStorage.setItem('rada_spot_claims', JSON.stringify(updated));
+  } catch {}
+
+  if (!isSupabaseConfigured) return null;
+
+  try {
+    const rowId = listingUuid('spot_claim', claim.id);
+    const ownerId = claim.applicantUserId && isValidUuid(claim.applicantUserId) ? claim.applicantUserId : toValidUuid(claim.applicantUserId || 'guest');
+    const bizId = isValidUuid(claim.businessId) ? claim.businessId : toValidUuid(claim.businessId);
+
+    await supabase.from('rada_listings').upsert({
+      id: rowId,
+      kind: 'spot_claim',
+      business_id: bizId,
+      owner_id: ownerId,
+      data: claim,
+      created_at: claim.createdAt,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'id' });
+
+    // Mark spot as hasPendingClaim in database
+    const spotRowId = listingUuid('spot', claim.spotId);
+    const { data: spotRow } = await supabase.from('rada_listings').select('data').eq('id', spotRowId).maybeSingle();
+    if (spotRow?.data) {
+      const patched = {
+        ...spotRow.data,
+        hasPendingClaim: true,
+        pendingClaimId: claim.id,
+        pendingClaimBusinessId: claim.businessId
+      };
+      await supabase.from('rada_listings').update({ data: patched }).eq('id', spotRowId);
+    }
+  } catch (err) {
+    console.warn('submitSpotClaim remote sync warning:', err);
+  }
+
+  return null;
+}
+
+export async function reviewSpotClaim(
+  claimId: string,
+  status: 'approved' | 'rejected',
+  rejectionReason?: string,
+  reviewedBy = 'admin'
+): Promise<string | null> {
+  const now = new Date().toISOString();
+  let matchedClaim: SpotClaimRequest | null = null;
+  try {
+    const raw = localStorage.getItem('rada_spot_claims');
+    if (raw) {
+      const list: SpotClaimRequest[] = JSON.parse(raw);
+      const updated = list.map(c => {
+        if (c.id === claimId) {
+          matchedClaim = {
+            ...c,
+            status,
+            rejectionReason: status === 'rejected' ? rejectionReason : undefined,
+            reviewedAt: now,
+            reviewedBy
+          };
+          return matchedClaim;
+        }
+        return c;
+      });
+      localStorage.setItem('rada_spot_claims', JSON.stringify(updated));
+    }
+  } catch {}
+
+  if (!isSupabaseConfigured) return null;
+
+  try {
+    const rowId = listingUuid('spot_claim', claimId);
+    const { data: row } = await supabase.from('rada_listings').select('data').eq('id', rowId).maybeSingle();
+    const existing = row?.data || matchedClaim;
+    if (existing) {
+      const patched = {
+        ...existing,
+        status,
+        rejectionReason: status === 'rejected' ? rejectionReason : undefined,
+        reviewedAt: now,
+        reviewedBy
+      };
+      await supabase.from('rada_listings').update({ data: patched, updated_at: now }).eq('id', rowId);
+
+      if (status === 'approved') {
+        await claimUnclaimedSpot(existing.spotId, existing.businessId, existing.applicantUserId || 'admin');
+      } else {
+        const spotRowId = listingUuid('spot', existing.spotId);
+        const { data: sRow } = await supabase.from('rada_listings').select('data').eq('id', spotRowId).maybeSingle();
+        if (sRow?.data) {
+          const sPatched = { ...sRow.data, hasPendingClaim: false };
+          await supabase.from('rada_listings').update({ data: sPatched }).eq('id', spotRowId);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('reviewSpotClaim remote sync warning:', err);
+  }
+
+  return null;
+}
+

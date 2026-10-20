@@ -2,19 +2,20 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   X, Search, ShieldCheck, Clock, XCircle, RefreshCw, LayoutDashboard, MapPinPlus, Users,
   BadgeCheck, Crown, Trash2, Ban, UserX, Store, Sparkles, ImagePlus, CircleDollarSign,
+  ExternalLink, FileText, CheckCircle2, AlertCircle, MapPin, Phone, Mail, Globe,
 } from 'lucide-react';
 import type {
   BusinessAccount, SpotCategory, SpotItem, AdminUserRecord, PlatformStats,
-  SubscriptionStatus, UnclaimedSpotInput,
+  SubscriptionStatus, UnclaimedSpotInput, SpotClaimRequest
 } from '../types';
 import {
   fetchPlatformStats, fetchAdminUsers, setUserSuspension, revokeCreatorStatus,
   revokeBusinessStatus, deleteAccountAdmin, setBusinessSubscription, publishUnclaimedSpot,
-  fetchUnclaimedSpots, deleteListing, reviewBusiness,
+  fetchUnclaimedSpots, deleteListing, reviewBusiness, fetchSpotClaims, reviewSpotClaim,
 } from '../lib/cloudSync';
 
 type VerificationStatus = 'pending' | 'approved' | 'rejected';
-type TabId = 'overview' | 'verification' | 'spots' | 'users';
+type TabId = 'overview' | 'claims' | 'verification' | 'spots' | 'users';
 
 export interface AdminDashboardProps {
   businesses: BusinessAccount[];
@@ -30,6 +31,9 @@ export interface AdminDashboardProps {
   /** Local counts, used while the live platform stats are still loading or unavailable. */
   spotsCount?: number;
   eventsCount?: number;
+  spotClaims?: SpotClaimRequest[];
+  onApproveClaim?: (claim: SpotClaimRequest) => void;
+  onRejectClaim?: (claimId: string, reason?: string) => void;
 }
 
 const SPOT_CATEGORIES: { id: SpotCategory; label: string }[] = [
@@ -65,6 +69,7 @@ const emptyForm = {
 export function AdminDashboardModal({
   businesses, onClose, onRefresh, showToast, onUpdateBusiness,
   onSpotPublished, onSpotDeleted, spotsCount, eventsCount,
+  spotClaims = [], onApproveClaim, onRejectClaim,
 }: AdminDashboardProps) {
   const toast = useCallback((m: string) => showToast?.(m), [showToast]);
 
@@ -76,18 +81,36 @@ export function AdminDashboardModal({
   const [users, setUsers] = useState<AdminUserRecord[] | null>(null);
   const [usersError, setUsersError] = useState(false);
   const [unclaimed, setUnclaimed] = useState<any[]>([]);
+  const [liveClaims, setLiveClaims] = useState<SpotClaimRequest[]>(spotClaims || []);
+  const [claimStatusFilter, setClaimStatusFilter] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
+  const [claimSearch, setClaimSearch] = useState('');
+  const [selectedClaim, setSelectedClaim] = useState<SpotClaimRequest | null>(null);
+  const [claimRejectNote, setClaimRejectNote] = useState('');
+  const [previewDocUrl, setPreviewDocUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (spotClaims && spotClaims.length > 0) {
+      setLiveClaims(spotClaims);
+    }
+  }, [spotClaims]);
 
   const loadAll = useCallback(async () => {
-    const [s, u, sp] = await Promise.all([
+    const [s, u, sp, cl] = await Promise.all([
       fetchPlatformStats(),
       fetchAdminUsers(businesses),
       fetchUnclaimedSpots(),
+      fetchSpotClaims(),
     ]);
     setStats(s);
     setUsers(u);
     setUsersError(u === null);
     setUnclaimed(sp || []);
-  }, [businesses]);
+    if (cl && cl.length > 0) {
+      setLiveClaims(cl);
+    } else if (spotClaims && spotClaims.length > 0) {
+      setLiveClaims(spotClaims);
+    }
+  }, [businesses, spotClaims]);
 
   useEffect(() => { void loadAll(); }, [loadAll]);
 
@@ -97,6 +120,36 @@ export function AdminDashboardModal({
     await loadAll();
     toast('Admin data refreshed.');
     setIsRefreshing(false);
+  };
+
+  const handleAdminApproveClaim = async (claim: SpotClaimRequest) => {
+    if (onApproveClaim) {
+      onApproveClaim(claim);
+    } else {
+      await reviewSpotClaim(claim.id, 'approved');
+    }
+    setLiveClaims(prev => prev.map(c => c.id === claim.id ? { ...c, status: 'approved', reviewedAt: new Date().toISOString(), reviewedBy: 'admin' } : c));
+    setSelectedClaim(null);
+    toast(`Claim approved! "${claim.spotTitle}" ownership transferred to ${claim.businessName}.`);
+    onRefresh?.();
+  };
+
+  const handleAdminRejectClaim = async (claim: SpotClaimRequest) => {
+    const reason = claimRejectNote.trim();
+    if (!reason) {
+      toast('Please enter a rejection reason.');
+      return;
+    }
+    if (onRejectClaim) {
+      onRejectClaim(claim.id, reason);
+    } else {
+      await reviewSpotClaim(claim.id, 'rejected', reason);
+    }
+    setLiveClaims(prev => prev.map(c => c.id === claim.id ? { ...c, status: 'rejected', rejectionReason: reason, reviewedAt: new Date().toISOString(), reviewedBy: 'admin' } : c));
+    setSelectedClaim(null);
+    setClaimRejectNote('');
+    toast(`Claim for "${claim.spotTitle}" rejected.`);
+    onRefresh?.();
   };
 
   // =====================================================================
@@ -289,8 +342,42 @@ export function AdminDashboardModal({
   const num = (live: number | null | undefined, fallback?: number) =>
     live ?? fallback ?? '–';
 
+  const pendingClaimsCount = useMemo(() => {
+    return (liveClaims || []).filter(c => c.status === 'pending').length;
+  }, [liveClaims]);
+
+  const claimCounts = useMemo(() => {
+    const counts = { all: 0, pending: 0, approved: 0, rejected: 0 };
+    (liveClaims || []).forEach(c => {
+      counts.all++;
+      if (c.status in counts) counts[c.status as 'pending' | 'approved' | 'rejected']++;
+    });
+    return counts;
+  }, [liveClaims]);
+
+  const filteredClaims = useMemo(() => {
+    const q = claimSearch.trim().toLowerCase();
+    return (liveClaims || []).filter(c => {
+      const matchesStatus = claimStatusFilter === 'all' || c.status === claimStatusFilter;
+      if (!matchesStatus) return false;
+      if (!q) return true;
+      return [
+        c.spotTitle,
+        c.businessName,
+        c.spotNeighborhood,
+        c.claimantRole,
+        c.contactEmail,
+        c.contactPhone,
+        c.applicantHandle,
+        c.applicantName,
+        c.proofNote
+      ].some(v => String(v || '').toLowerCase().includes(q));
+    });
+  }, [liveClaims, claimStatusFilter, claimSearch]);
+
   const tabs: { id: TabId; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="w-4 h-4" /> },
+    { id: 'claims', label: 'Spot Claims', icon: <ShieldCheck className="w-4 h-4" />, badge: pendingClaimsCount },
     { id: 'verification', label: 'Businesses', icon: <BadgeCheck className="w-4 h-4" />, badge: counts.pending },
     { id: 'spots', label: 'Add Unclaimed Spot', icon: <MapPinPlus className="w-4 h-4" /> },
     { id: 'users', label: 'Users', icon: <Users className="w-4 h-4" /> },
@@ -372,9 +459,33 @@ export function AdminDashboardModal({
                     <StatCard label="Total events" value={num(stats?.totalEvents, eventsCount)} icon={<Sparkles className="w-5 h-5" />} />
                     <StatCard label="Businesses" value={num(stats?.totalBusinesses, businesses.length)} icon={<Store className="w-5 h-5" />} />
                     <StatCard label="Pro hosts" value={num(stats?.professionalHosts)} icon={<Crown className="w-5 h-5" />} />
-                    <StatCard label="Unclaimed spots" value={num(stats?.unclaimedSpots, unclaimed.length)} icon={<MapPinPlus className="w-5 h-5" />} />
+                    <StatCard label="Spot Claims" value={liveClaims.length} icon={<ShieldCheck className="w-5 h-5" />} />
                   </div>
                 </div>
+
+                {pendingClaimsCount > 0 && (
+                  <div className="rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+                        <Clock className="w-5 h-5 animate-spin" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-amber-900 dark:text-amber-200">
+                          {pendingClaimsCount} Spot Claim{pendingClaimsCount > 1 ? 's' : ''} Awaiting Proof Review
+                        </p>
+                        <p className="text-xs text-amber-800/80 dark:text-amber-300/80">
+                          Merchants submitted proof of ownership documents to claim venues.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setTab('claims')}
+                      className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black shrink-0 transition cursor-pointer self-start sm:self-auto"
+                    >
+                      Review Claims ↗
+                    </button>
+                  </div>
+                )}
 
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -432,6 +543,154 @@ export function AdminDashboardModal({
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* ================= SPOT CLAIMS ================= */}
+            {tab === 'claims' && (
+              <div className="p-4 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h2 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-purple-600" />
+                      <span>Spot Ownership Claims & Proof Verification</span>
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Verify proof of ownership (business permits, utility bills, signage) before confirming spot claims.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Filter buttons */}
+                <div className="grid grid-cols-4 gap-2.5">
+                  {([
+                    ['pending', 'Pending', <Clock key="p" className="w-4 h-4 text-amber-500 mb-1" />, 'border-amber-500 bg-amber-50/50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200'],
+                    ['approved', 'Approved', <CheckCircle2 key="a" className="w-4 h-4 text-emerald-500 mb-1" />, 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200'],
+                    ['rejected', 'Rejected', <XCircle key="r" className="w-4 h-4 text-red-500 mb-1" />, 'border-red-500 bg-red-50/50 dark:bg-red-950/20 text-red-900 dark:text-red-200'],
+                    ['all', 'All Claims', <ShieldCheck key="all" className="w-4 h-4 text-purple-500 mb-1" />, 'border-purple-500 bg-purple-50/50 dark:bg-purple-950/20 text-purple-900 dark:text-purple-200'],
+                  ] as [typeof claimStatusFilter, string, React.ReactNode, string][]).map(([id, label, icon, activeCls]) => (
+                    <button
+                      key={id}
+                      onClick={() => setClaimStatusFilter(id)}
+                      className={`rounded-xl border p-2.5 text-left transition cursor-pointer ${
+                        claimStatusFilter === id ? activeCls : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      {icon}
+                      <p className="text-xl font-black">{claimCounts[id as keyof typeof claimCounts]}</p>
+                      <p className="text-[11px] font-bold truncate">{label}</p>
+                    </button>
+                  ))}
+                </div>
+
+                <SearchBox value={claimSearch} onChange={setClaimSearch} placeholder="Search spot title, business name, claimant contact..." />
+
+                {filteredClaims.length === 0 ? (
+                  <div className="py-12 text-center space-y-2 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl p-6">
+                    <ShieldCheck className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
+                    <p className="font-bold text-sm text-slate-700 dark:text-slate-300">
+                      No {claimStatusFilter === 'all' ? '' : claimStatusFilter} spot claims found
+                    </p>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                      {claimStatusFilter === 'pending'
+                        ? 'When merchants claim an unclaimed spot and upload proof of ownership, they will appear here for verification.'
+                        : 'No claims match your current filter query.'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredClaims.map(c => {
+                      const isPending = c.status === 'pending';
+                      const isApproved = c.status === 'approved';
+                      const isRejected = c.status === 'rejected';
+
+                      return (
+                        <div
+                          key={c.id}
+                          className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 hover:border-purple-400/80 dark:hover:border-purple-600 transition bg-white dark:bg-slate-900/50 flex flex-col md:flex-row md:items-center justify-between gap-4"
+                        >
+                          <div className="flex items-start gap-3.5 min-w-0">
+                            {c.spotImg ? (
+                              <img src={c.spotImg} alt={c.spotTitle} className="w-16 h-16 rounded-xl object-cover shrink-0 bg-slate-100 dark:bg-slate-800" />
+                            ) : (
+                              <div className="w-16 h-16 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center font-bold text-xs shrink-0">
+                                <Store className="w-6 h-6" />
+                              </div>
+                            )}
+
+                            <div className="min-w-0 space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate">{c.spotTitle}</h3>
+                                {c.spotCategory && (
+                                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                    {c.spotCategory}
+                                  </span>
+                                )}
+                              </div>
+
+                              <p className="text-xs text-slate-500 flex items-center gap-1">
+                                <MapPin className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+                                <span className="truncate">{c.spotNeighborhood ? `${c.spotNeighborhood} • ` : ''}{c.spotAddress || 'Nairobi'}</span>
+                              </p>
+
+                              <div className="flex items-center gap-2 flex-wrap text-xs pt-0.5">
+                                <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                                  <Store className="w-3.5 h-3.5 text-amber-500" />
+                                  <span>Claimed by: {c.businessName}</span>
+                                </span>
+                                <span className="text-slate-400">•</span>
+                                <span className="text-slate-500">Role: <strong className="text-slate-700 dark:text-slate-300">{c.claimantRole}</strong></span>
+                                {c.proofDocuments && c.proofDocuments.length > 0 && (
+                                  <>
+                                    <span className="text-slate-400">•</span>
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/50 px-2 py-0.5 rounded-md">
+                                      <FileText className="w-3 h-3" />
+                                      <span>{c.proofDocuments.length} doc{c.proofDocuments.length > 1 ? 's' : ''}</span>
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between md:justify-end gap-3 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-slate-800">
+                            <div>
+                              {isPending && (
+                                <span className="inline-flex items-center gap-1.5 text-xs font-black uppercase px-3 py-1.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-800">
+                                  <Clock className="w-3.5 h-3.5 animate-spin" />
+                                  <span>Pending Review</span>
+                                </span>
+                              )}
+                              {isApproved && (
+                                <span className="inline-flex items-center gap-1.5 text-xs font-black uppercase px-3 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800">
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>Ownership Approved</span>
+                                </span>
+                              )}
+                              {isRejected && (
+                                <span className="inline-flex items-center gap-1.5 text-xs font-black uppercase px-3 py-1.5 rounded-full bg-red-100 dark:bg-red-950/60 text-red-800 dark:text-red-200 border border-red-300 dark:border-red-800">
+                                  <XCircle className="w-3.5 h-3.5" />
+                                  <span>Claim Rejected</span>
+                                </span>
+                              )}
+                            </div>
+
+                            <button
+                              onClick={() => {
+                                setSelectedClaim(c);
+                                setClaimRejectNote(c.rejectionReason || '');
+                              }}
+                              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl transition shadow-xs cursor-pointer flex items-center gap-1.5"
+                            >
+                              <span>Inspect & Confirm</span>
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
@@ -755,6 +1014,276 @@ export function AdminDashboardModal({
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* SPOT CLAIM REVIEW MODAL */}
+      {selectedClaim && (
+        <div className="absolute inset-0 z-[115] flex items-center justify-center p-3 sm:p-5 bg-slate-950/70 backdrop-blur-xs">
+          <div className="w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 sticky top-0 bg-white dark:bg-slate-950 z-10">
+              <div className="min-w-0">
+                <span className="text-[11px] font-black uppercase text-purple-600 tracking-wider flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Spot Ownership Verification</span>
+                </span>
+                <h2 className="text-base sm:text-lg font-black truncate mt-0.5">
+                  Review Claim: {selectedClaim.spotTitle}
+                </h2>
+              </div>
+              <button 
+                onClick={() => { setSelectedClaim(null); setClaimRejectNote(''); }} 
+                className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-4 sm:p-6 space-y-5">
+              
+              {/* Target Spot Preview Card */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex items-center gap-3.5">
+                {selectedClaim.spotImg ? (
+                  <img src={selectedClaim.spotImg} alt={selectedClaim.spotTitle} className="w-16 h-16 rounded-xl object-cover shrink-0" />
+                ) : (
+                  <div className="w-16 h-16 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-600 flex items-center justify-center font-bold text-xs shrink-0">
+                    <Store className="w-6 h-6" />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300">
+                    Target Venue
+                  </span>
+                  <h3 className="font-black text-sm text-slate-900 dark:text-slate-100 mt-0.5 truncate">{selectedClaim.spotTitle}</h3>
+                  <p className="text-xs text-slate-500 truncate flex items-center gap-1 mt-0.5">
+                    <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
+                    <span>{selectedClaim.spotNeighborhood} • {selectedClaim.spotAddress}</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Claiming Business Account & Representative */}
+              <div className="grid sm:grid-cols-2 gap-3.5">
+                <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">Claiming Business</h4>
+                  <div className="flex items-center gap-2.5">
+                    {selectedClaim.businessLogo ? (
+                      <img src={selectedClaim.businessLogo} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
+                    ) : (
+                      <div className="w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-950 text-amber-700 flex items-center justify-center text-xs font-black">
+                        <Store className="w-4 h-4" />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-xs font-black truncate">{selectedClaim.businessName}</p>
+                      <p className="text-[11px] text-slate-400 capitalize">{selectedClaim.businessCategory || 'Venue Merchant'}</p>
+                    </div>
+                  </div>
+                  {selectedClaim.businessPhone && (
+                    <p className="text-[11px] text-slate-500 flex items-center gap-1.5 truncate">
+                      <Phone className="w-3 h-3 text-slate-400" />
+                      <span>{selectedClaim.businessPhone}</span>
+                    </p>
+                  )}
+                  {selectedClaim.businessEmail && (
+                    <p className="text-[11px] text-slate-500 flex items-center gap-1.5 truncate">
+                      <Mail className="w-3 h-3 text-slate-400" />
+                      <span>{selectedClaim.businessEmail}</span>
+                    </p>
+                  )}
+                </div>
+
+                <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">Claimant Credentials</h4>
+                  <div className="space-y-1 text-xs">
+                    <p className="font-bold text-slate-900 dark:text-slate-100">
+                      Role at Venue: <span className="text-purple-600 dark:text-purple-400">{selectedClaim.claimantRole}</span>
+                    </p>
+                    <p className="text-slate-500 flex items-center gap-1.5">
+                      <Phone className="w-3 h-3 text-slate-400" />
+                      <span>{selectedClaim.contactPhone}</span>
+                    </p>
+                    <p className="text-slate-500 flex items-center gap-1.5">
+                      <Mail className="w-3 h-3 text-slate-400" />
+                      <span>{selectedClaim.contactEmail}</span>
+                    </p>
+                    {selectedClaim.officialSocialUrl && (
+                      <a
+                        href={selectedClaim.officialSocialUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] text-blue-600 dark:text-blue-400 font-bold hover:underline flex items-center gap-1 truncate pt-0.5"
+                      >
+                        <Globe className="w-3 h-3" />
+                        <span>{selectedClaim.officialSocialUrl}</span>
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Claimant's Proof Note / Explanation */}
+              <div className="space-y-1.5">
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                  Proof of Ownership Statement
+                </h4>
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                  {selectedClaim.proofNote || 'No text note provided. See attached documentation below.'}
+                </div>
+              </div>
+
+              {/* Uploaded Documents & Permits */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Uploaded Proof Documents & Permits ({selectedClaim.proofDocuments?.length || 0})</span>
+                  </h4>
+                  <span className="text-[10px] text-slate-400">Click any document to inspect full size</span>
+                </div>
+
+                {!selectedClaim.proofDocuments || selectedClaim.proofDocuments.length === 0 ? (
+                  <div className="p-4 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 text-center text-xs text-slate-400">
+                    No images or scans uploaded. Review note above or contact claimant.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {selectedClaim.proofDocuments.map((docUrl, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => setPreviewDocUrl(docUrl)}
+                        className="group relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 aspect-4/3 cursor-pointer hover:border-purple-500 transition shadow-xs"
+                      >
+                        <img src={docUrl} alt={`Proof doc ${idx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition duration-200" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-1 text-white text-xs font-black">
+                          <ExternalLink className="w-4 h-4" />
+                          <span>View Scan</span>
+                        </div>
+                        <span className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-xs text-white text-[9px] font-bold px-2 py-0.5 rounded-md">
+                          Doc #{idx + 1}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Previous Review Feedback (if already rejected or reviewed) */}
+              {selectedClaim.rejectionReason && (
+                <div className="rounded-2xl border border-red-200 dark:border-red-900/60 bg-red-50/60 dark:bg-red-950/20 p-3.5 space-y-1">
+                  <p className="text-xs font-black text-red-700 dark:text-red-300 flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    <span>Previous Rejection Feedback</span>
+                  </p>
+                  <p className="text-xs text-red-600 dark:text-red-400 leading-relaxed">
+                    {selectedClaim.rejectionReason}
+                  </p>
+                </div>
+              )}
+
+              {/* Status and Action Buttons */}
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-3">
+                {selectedClaim.status === 'pending' ? (
+                  <>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1">
+                        Rejection reason (if denying claim):
+                      </label>
+                      <textarea
+                        value={claimRejectNote}
+                        onChange={e => setClaimRejectNote(e.target.value)}
+                        placeholder="e.g. Document image is blurry, please re-upload clear Nairobi County Single Business Permit or business lease..."
+                        rows={2}
+                        className={inputCls}
+                      />
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
+                      <button
+                        onClick={() => handleAdminApproveClaim(selectedClaim)}
+                        className="flex-1 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 font-black text-xs transition cursor-pointer shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Confirm & Transfer Ownership</span>
+                      </button>
+                      <button
+                        onClick={() => handleAdminRejectClaim(selectedClaim)}
+                        className="flex-1 rounded-2xl bg-red-600 hover:bg-red-700 text-white py-3.5 font-black text-xs transition cursor-pointer shadow-md shadow-red-600/20 flex items-center justify-center gap-2"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        <span>Reject Claim</span>
+                      </button>
+                    </div>
+                  </>
+                ) : selectedClaim.status === 'approved' ? (
+                  <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-800 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                      <div>
+                        <p className="text-xs font-black text-emerald-900 dark:text-emerald-200">
+                          Ownership Confirmed & Active
+                        </p>
+                        <p className="text-[11px] text-emerald-700 dark:text-emerald-300">
+                          Spot management assigned to {selectedClaim.businessName}.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleAdminRejectClaim(selectedClaim)}
+                      className="text-[11px] font-bold text-red-600 hover:underline cursor-pointer"
+                    >
+                      Revoke Claim
+                    </button>
+                  </div>
+                ) : (
+                  <div className="p-3.5 rounded-2xl bg-red-50 dark:bg-red-950/30 border border-red-300 dark:border-red-800 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <XCircle className="w-5 h-5 text-red-600" />
+                      <div>
+                        <p className="text-xs font-black text-red-900 dark:text-red-200">
+                          Claim Rejected
+                        </p>
+                        <p className="text-[11px] text-red-700 dark:text-red-300">
+                          Spot remains unclaimed and open for valid verification.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleAdminApproveClaim(selectedClaim)}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 cursor-pointer"
+                    >
+                      Approve Instead
+                    </button>
+                  </div>
+                )}
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FULL-SCREEN PROOF DOCUMENT ZOOM LIGHTBOX */}
+      {previewDocUrl && (
+        <div 
+          onClick={() => setPreviewDocUrl(null)}
+          className="fixed inset-0 z-[130] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer"
+        >
+          <div className="relative max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl" onClick={e => e.stopPropagation()}>
+            <img src={previewDocUrl} alt="Ownership Proof Document" className="max-w-full max-h-[85vh] object-contain rounded-xl" />
+            <button
+              type="button"
+              onClick={() => setPreviewDocUrl(null)}
+              className="absolute top-3 right-3 w-9 h-9 bg-black/80 hover:bg-black text-white rounded-full flex items-center justify-center transition cursor-pointer"
+              title="Close Preview"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
         </div>
       )}

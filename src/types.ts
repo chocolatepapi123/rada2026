@@ -163,6 +163,9 @@ export interface SpotItem {
   isAdminPublished?: boolean;
   claimedByBusinessId?: string;
   claimedAt?: string;
+  hasPendingClaim?: boolean;
+  pendingClaimId?: string;
+  pendingClaimBusinessId?: string;
   phone?: string;
   openingHours?: string;
   // Dynamic Category-Specific Metadata
@@ -510,4 +513,34 @@ export interface UnclaimedSpotInput {
   lng?: number;
   website?: string;
   instagram?: string;
+}
+
+export interface SpotClaimRequest {
+  id: string;
+  spotId: number | string;
+  spotTitle: string;
+  spotCategory?: string;
+  spotNeighborhood?: string;
+  spotAddress?: string;
+  spotImg?: string;
+  businessId: string;
+  businessName: string;
+  businessCategory?: BusinessCategory;
+  businessPhone?: string;
+  businessEmail?: string;
+  businessLogo?: string;
+  applicantUserId?: string;
+  applicantName?: string;
+  applicantHandle?: string;
+  claimantRole: string;
+  contactPhone: string;
+  contactEmail: string;
+  officialSocialUrl?: string;
+  proofNote: string;
+  proofDocuments: string[];
+  status: 'pending' | 'approved' | 'rejected';
+  rejectionReason?: string;
+  createdAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
 }
