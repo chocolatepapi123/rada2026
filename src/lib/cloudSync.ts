@@ -2282,7 +2282,7 @@ export function createOrUnlockOutingGroupChat(
 // NOTE: requireAdmin() is a client-side guard so the UI fails fast. It is NOT a security
 // boundary. Enforce admin-only writes with Supabase RLS / RPCs (see admin_migration.sql).
 async function requireAdmin(): Promise<{ uid: string | null; error: string | null }> {
-  if (!isSupabaseConfigured) return { uid: null, error: 'Supabase is not configured.' };
+  if (!isSupabaseConfigured) return { uid: null, error: 'Cloud sync is not configured.' };
   try {
     const { data } = await supabase.auth.getUser();
     const u: any = data?.user;
