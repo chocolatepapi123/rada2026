@@ -79,3 +79,24 @@ body {
     transform: translateY(0);
   }
 }
+
+/* Minimal 2D sketch-style map: flat outlines, no colour noise */
+.rada-sketch-map .leaflet-tile-pane { filter: grayscale(1) contrast(1.08); }
+.rada-sketch-map { background: #f4f4f2; }
+html.dark .rada-sketch-map { background: #17151a; }
+.rada-map-pin { background: transparent !important; border: 0 !important; }
+
+/* Dark mode: muted, desaturated accents so orange/amber highlights sit calmly on dark surfaces */
+html.dark {
+  --color-brandTerracotta: #C06A58;
+  --color-brandAmber: #BFA25F;
+  --color-orange-300: #CFA183;
+  --color-orange-400: #C27F57;
+  --color-orange-500: #B5694A;
+  --color-orange-600: #9C573C;
+  --color-amber-300: #C9AB6A;
+  --color-amber-400: #B89A58;
+  --color-amber-500: #A38449;
+  --color-amber-600: #8F7340;
+}
+html.dark .spot-title { color: #D17A68 !important; }

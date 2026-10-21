@@ -27,7 +27,7 @@ import { AccountSettingsModal } from './components/AccountSettingsModal.tsx';
 import { SavedPlacesModal } from './components/SavedPlacesModal.tsx';
 import { LivenessVerificationModal } from './components/LivenessVerificationModal.tsx';
 import { SuggestSpotModal } from './components/SuggestSpotModal.tsx';
-import { ToastProvider, showToast as triggerToast } from './components/Toast.tsx';
+import { ToastProvider, showToast as triggerToast, type ToastOptions } from './components/Toast.tsx';
 import { getTimeOfDayGreeting } from './utils/greetingUtils';
 import {
   cleanStatuses,
@@ -37,12 +37,16 @@ import {
   isOwnStatus
 } from './utils/statusLifecycle';
 
+import { fetchCinemaShowings } from './lib/cinema.ts';
+import { readJSON, writeJSON, purgeSeedData } from './lib/storage.ts';
+
+// One-time removal of the old demo content cached on this device
+purgeSeedData();
 import {
   initialBusinesses,
   initialOffers,
   initialSpots,
   initialEvents,
-  cinemaMovies,
   initialStatuses,
   discoveryProfiles,
   initialConversations,
@@ -147,7 +151,7 @@ export default function App() {
     setIsAuthModalOpen(false);
     setIsBusinessHubOpen(false);
     setIsAdminOpen(false);
-    triggerToast(`Account Suspended: ${finalReason}`);
+    triggerToast(`Account Suspended: ${finalReason}`, { type: 'error' });
   };
 
   const checkSuspensionState = async (uid: string): Promise<boolean> => {
@@ -314,15 +318,13 @@ export default function App() {
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.rpc('delete_user_account');
       if (error) {
-        showToast("Error deleting account: " + error.message);
+        showToast("Error deleting account: " + error.message, { type: 'error' });
       } else {
         await supabase.auth.signOut();
         setSession(null);
-        showToast("Account deleted successfully.");
       }
     } else {
       setSession(null);
-      showToast("Signed out.");
     }
   };
 
@@ -348,8 +350,17 @@ export default function App() {
 
   const handleToggleTheme = () => {
     setIsDarkMode(prev => !prev);
-    showToast(!isDarkMode ? 'Dark theme enabled.' : 'Switched to Light theme (Default White).');
   };
+
+  // Live cinema showings (fetched, cached for 6h; empty when unavailable)
+  const [cinemaMovies, setCinemaMovies] = useState<CinemaMovie[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchCinemaShowings().then(list => {
+      if (!cancelled) setCinemaMovies(list);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   // Navigation
   const [activeTab, setActiveTab] = useState<string>(readDeepLinkTab);
@@ -421,30 +432,21 @@ export default function App() {
 
   const [statuses, setStatuses] = useState<StatusPost[]>(() => {
     let base: StatusPost[] = initialStatuses;
-    try {
-      const saved = localStorage.getItem('rada_statuses');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) base = parsed;
-      }
-    } catch (e) {}
+    base = readJSON<StatusPost[]>('rada_statuses', initialStatuses, Array.isArray);
     // Drop anything older than 12 hours and keep one status per person
     return cleanStatuses(base);
   });
 
   const [conversations, setConversations] = useState<ChatConversation[]>(() => {
-    const saved = localStorage.getItem('rada_conversations');
-    return saved ? JSON.parse(saved) : initialConversations;
+    return readJSON<ChatConversation[]>('rada_conversations', initialConversations, Array.isArray);
   });
 
   const [tickets, setTickets] = useState<VaultTicket[]>(() => {
-    const saved = localStorage.getItem('rada_tickets');
-    return saved ? JSON.parse(saved) : initialTickets;
+    return readJSON<VaultTicket[]>('rada_tickets', initialTickets, Array.isArray);
   });
 
   const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>(() => {
-    const saved = localStorage.getItem('rada_contacts');
-    return saved ? JSON.parse(saved) : initialContacts;
+    return readJSON<EmergencyContact[]>('rada_contacts', initialContacts, Array.isArray);
   });
 
   // Independent Offers & Promotions State (10 items)
@@ -461,14 +463,7 @@ export default function App() {
 
   // Outings & Public Plans State
   const [outings, setOutings] = useState<OutingPlan[]>(() => {
-    const saved = localStorage.getItem('rada_outings_cache');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch (e) {}
-    }
-    return initialOutings;
+    return readJSON<OutingPlan[]>('rada_outings_cache', initialOutings, Array.isArray);
   });
 
   // Spot Ownership Claims & Verification Requests
@@ -558,7 +553,8 @@ export default function App() {
   };
 
   // GPS Broadcast
-  const [isGpsBroadcasting, setIsGpsBroadcasting] = useState(false);
+  const [isGpsBroadcasting, setIsGpsBroadcasting] = useState<boolean>(() => readJSON<boolean>('rada_gps_broadcast', false, v => typeof v === 'boolean'));
+  useEffect(() => { writeJSON('rada_gps_broadcast', isGpsBroadcasting); }, [isGpsBroadcasting]);
 
   // Going Events Tracking (Only clickable once; click again to remove count)
   const [goingEventIds, setGoingEventIds] = useState<number[]>(() => {
@@ -575,7 +571,7 @@ export default function App() {
   const [viewingProfile, setViewingProfile] = useState<UserProfile | null>(null);
 
   // Unified RADA Toast Dispatcher with 2.5s auto-dismiss and glassmorphism styling
-  const showToast = (text: string, options?: any) => {
+  const showToast = (text: string, options?: ToastOptions) => {
     triggerToast(text, options);
   };
 
@@ -648,10 +644,8 @@ export default function App() {
         const exists = prev.some(s => String(s.id) === String(item.id) && s.kind === kind);
         let updated: SavedItem[];
         if (exists) {
-          showToast('Removed from Vault');
           updated = prev.filter(s => !(String(s.id) === String(item.id) && s.kind === kind));
         } else {
-          showToast('Saved to Vault');
           updated = [{ id: item.id, kind, savedAt: new Date().toISOString() }, ...prev];
         }
         if (session?.user?.id) {
@@ -740,7 +734,7 @@ export default function App() {
         }
         return o;
       });
-      localStorage.setItem('rada_outings_cache', JSON.stringify(updatedList));
+      writeJSON('rada_outings_cache', updatedList);
       return updatedList;
     });
 
@@ -753,10 +747,7 @@ export default function App() {
       if (basePlan) {
         const updatedConversations = cloud.createOrUnlockOutingGroupChat(basePlan, targetApplicant);
         setConversations(updatedConversations);
-        showToast(`${targetApplicant?.userName || 'Applicant'} approved! Temporary Group Chat unlocked 🎉`);
       }
-    } else if (status === 'declined') {
-      showToast('Join request declined.');
     }
   };
 
@@ -837,7 +828,6 @@ export default function App() {
 
   // Explicit refresh (header refresh icon). No pull-down gesture anywhere in the app.
   const handleHeaderRefresh = () => {
-    showToast('Refreshing…');
     setStatuses(prev => cleanStatuses(prev));
     syncRef.current?.();
     cloud.fetchOutings().then(res => {
@@ -868,7 +858,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('rada_statuses', JSON.stringify(statuses));
+    writeJSON('rada_statuses', statuses);
   }, [statuses]);
 
   // Status lifecycle: every minute, and when the app comes back to the foreground,
@@ -887,8 +877,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('rada_tickets', JSON.stringify(tickets));
+    writeJSON('rada_tickets', tickets);
   }, [tickets]);
+
+  // Chats and emergency contacts were never saved, so they vanished on every restart
+  useEffect(() => {
+    writeJSON('rada_conversations', conversations);
+  }, [conversations]);
+
+  useEffect(() => {
+    writeJSON('rada_contacts', emergencyContacts);
+  }, [emergencyContacts]);
 
   useEffect(() => {
     localStorage.setItem('rada_going_events', JSON.stringify(goingEventIds));
@@ -1035,7 +1034,6 @@ export default function App() {
       lastBackPressRef.current = now;
       // Re-anchor history state to keep the user safely inside the web app
       window.history.pushState({ radaApp: true, tab: 'home' }, '');
-      showToast('Press back again to exit RADA');
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -1128,14 +1126,14 @@ export default function App() {
       .then((err) => {
         if (err) {
           console.warn('Cloud save failed:', err);
-          showToast(`Saved on this device only (${err}).`);
+          showToast(`Saved on this device only (${err}).`, { type: 'error' });
         } else {
           ok = true;
         }
       })
       .catch((e) => {
         console.warn('Cloud save error:', e);
-        showToast('Saved on this device only (offline?).');
+        showToast('Saved on this device only (offline?).', { type: 'error' });
       })
       .finally(() => {
         pendingRef.current -= 1;
@@ -1301,7 +1299,14 @@ export default function App() {
     userDataUidRef.current = null;
     if (!uid) {
       setCurrentUserProfile(GUEST_PROFILE);
-      setTickets([]);
+      // Only wipe the previous person's data after a real sign-out; a plain app restart
+      // (guest or still restoring the session) must keep what is saved on the device.
+      if (localStorage.getItem('rada_last_uid')) {
+        setTickets([]);
+        setEmergencyContacts([]);
+        setConversations([]);
+        localStorage.removeItem('rada_last_uid');
+      }
       return;
     }
     let cancelled = false;
@@ -1402,12 +1407,12 @@ export default function App() {
         const err = await cloud.insertBusiness(biz, effectiveOwner);
         if (err) {
           console.error('insertBusiness failed:', err);
-          return `Could not save business to Supabase: ${err}`;
+          return `Could not save business: ${err}`;
         }
       }
     } catch (e) {
       console.error('insertBusiness threw:', e);
-      return `Could not save business to Supabase: ${e instanceof Error ? e.message : String(e)}`;
+      return `Could not save business: ${e instanceof Error ? e.message : String(e)}`;
     } finally {
       pendingRef.current -= 1;
     }
@@ -1502,7 +1507,6 @@ export default function App() {
       return s;
     }));
     await cloud.submitSpotClaim(claim);
-    showToast(`Proof submitted! Admin will verify "${claim.spotTitle}".`);
   };
 
   const handleApproveClaim = async (claim: SpotClaimRequest) => {
@@ -1528,7 +1532,6 @@ export default function App() {
       return s;
     }));
     await cloud.reviewSpotClaim(claim.id, 'approved', undefined, 'admin');
-    showToast(`Claim approved! "${claim.spotTitle}" ownership transferred to ${claim.businessName}.`);
   };
 
   const handleRejectClaim = async (claimId: string, reason?: string) => {
@@ -1556,7 +1559,6 @@ export default function App() {
       }));
     }
     await cloud.reviewSpotClaim(claimId, 'rejected', reason, 'admin');
-    showToast('Claim rejected.');
   };
 
   const handleClaimSpot = (spotId: number, businessId: string) => {
@@ -1621,7 +1623,7 @@ export default function App() {
     requireAuth('add a spot or business', () => {
       const ownerId = session?.user?.id || currentUserId;
       if (!ownerId) {
-        showToast('Please sign in to manage spots.');
+        showToast('Please sign in to manage spots.', { type: 'error' });
         return;
       }
 
@@ -1630,7 +1632,7 @@ export default function App() {
       if (existing && existing.merchantId && existing.merchantId !== ownerId) {
         const userBizIds = businesses.filter(b => b.ownerId === ownerId).map(b => b.id);
         if (!existing.businessId || !userBizIds.includes(existing.businessId)) {
-          showToast('Permission denied: Only the spot owner or verified merchant can edit this spot.');
+          showToast('Permission denied: Only the spot owner or verified merchant can edit this spot.', { type: 'error' });
           return;
         }
       }
@@ -1677,10 +1679,8 @@ export default function App() {
       if (ownerId) cloudWrite(() => cloud.deleteListing(type, id));
       if (type === 'spot') {
         setSpots(prev => prev.filter(s => s.id !== id));
-        showToast('Spot listing removed.');
       } else {
         setEvents(prev => prev.filter(e => e.id !== id));
-        showToast('Event listing removed.');
       }
     });
   };
@@ -1717,7 +1717,6 @@ export default function App() {
         return s;
       }));
 
-      showToast('Review Submitted');
     });
   };
 
@@ -1744,14 +1743,11 @@ export default function App() {
       id: `pass-${Date.now()}`,
       title: movie.title,
       dateStr: movie.date,
-      locationStr: movie.locationName,
+      locationStr: 'Cinema',
       type: 'Cinema Movie Pass'
     };
     setTickets(prev => [newPass, ...prev]);
-    showToast(`Booked ${movie.title}! Synced to Vault Calendar.`);
-    setTimeout(() => {
-      window.open(movie.url, '_blank');
-    }, 700);
+    window.open(movie.bookingUrl || movie.url, '_blank', 'noopener');
   };
 
   // Status Posting with clean location (e.g. Westlands, Nairobi - no GPS coordinates)
@@ -1785,11 +1781,6 @@ export default function App() {
       setStatuses(next);
       replaced.forEach(old => deleteStatusInCloud(old.id));
       if (currentUserId) cloudWrite(() => cloud.insertStatus(newPost, currentUserId));
-      showToast(
-        replaced.length > 0
-          ? 'Status updated. Your previous one was replaced.'
-          : 'Status posted live! It disappears after 12 hours.'
-      );
     });
   };
 
@@ -1800,7 +1791,6 @@ export default function App() {
       if (!target || !isOwnStatus(target, { userId: session?.user?.id, handle: currentUserProfile.handle })) return;
       setStatuses(prev => prev.filter(s => s.id !== statusId));
       deleteStatusInCloud(statusId);
-      showToast('Status deleted.');
     });
   };
 
@@ -1829,7 +1819,6 @@ export default function App() {
         }
         return s;
       }));
-      showToast('Reply posted to status!');
     });
   };
 
@@ -1845,7 +1834,6 @@ export default function App() {
         setSelectedEventModal(prev => prev ? { ...prev, goingCount: Math.max(0, prev.goingCount - 1) } : null);
       }
       setTickets(prev => prev.filter(t => t.title !== event.title));
-      showToast(`Removed from going list for ${event.title}`);
     } else {
       // Toggle: add count
       setGoingEventIds(prev => [...prev, event.id]);
@@ -1861,7 +1849,6 @@ export default function App() {
         type: 'Vault Synced Outing'
       };
       setTickets(prev => [newPass, ...prev]);
-      showToast(`You're going to ${event.title}! Synced to Vault.`);
     }
   };
 
@@ -1898,7 +1885,7 @@ export default function App() {
         updates.avatar || currentUserProfile.avatar
       ).catch(e => console.warn('Profile verification update error:', e));
     }
-    showToast('Profile updated!');
+    showToast('Profile updated!', { category: 'profile' });
   };
 
   const handleVerificationSuccess = async (verified: {
@@ -1933,7 +1920,7 @@ export default function App() {
     }
 
     setIsLivenessModalOpen(false);
-    showToast('Profile Verified');
+    showToast('Profile Verified', { category: 'profile' });
   };
 
   const handleBuyEventTicket = (event: EventItem) => {
@@ -1945,7 +1932,6 @@ export default function App() {
       type: 'Verified Ticket Pass'
     };
     setTickets(prev => [newPass, ...prev]);
-    showToast(`Ticket pass for ${event.title} added to Vault! Redirecting to checkout...`);
     setTimeout(() => {
       window.open(event.url, '_blank');
     }, 750);
@@ -1989,7 +1975,6 @@ export default function App() {
     }, ...prev]);
 
     setActiveTab('socials');
-    showToast(`Date invitation for ${spot.title} sent to chat!`);
   };
 
   // Accept Dating Request
@@ -2034,7 +2019,6 @@ export default function App() {
     };
     setConversations(prev => [newGroupConv, ...prev]);
     setActiveTab('socials');
-    showToast(`Group "${name}" created!`);
   };
 
   const handleOpenOverlay = (overlayId: string) => {
@@ -2214,7 +2198,6 @@ export default function App() {
                 onSelectBusiness={(id) => {
                   setActiveBusinessId(id);
                   const b = businesses.find(item => item.id === id);
-                  if (b) showToast(`Switched active business to "${b.name}"`);
                 }}
                 onCreateBusiness={handleCreateBusiness}
                 onUpdateBusiness={handleUpdateBusiness}
@@ -2411,7 +2394,6 @@ export default function App() {
             onAddEmergencyContact={(name, phone) => {
               requireAuth('add emergency contacts', () => {
                 setEmergencyContacts(prev => [...prev, { id: `ec-${Date.now()}`, name, phone }]);
-                showToast(`Emergency contact "${name}" saved!`);
               });
             }}
             isDarkMode={isDarkMode}
@@ -2431,13 +2413,12 @@ export default function App() {
             onClose={() => setViewingProfile(null)}
             onSendMatchRequest={(u) => {
               requireAuth('send messages', () => {
-                showToast(`Hangout & Match request sent to ${u.name}!`);
+                showToast(`Hangout & Match request sent to ${u.name}!`, { category: 'match' });
                 setViewingProfile(null);
               });
             }}
             onSendMessage={(u) => {
               requireAuth('send messages', () => {
-                showToast(`Direct message opened with ${u.name}!`);
                 setActiveTab('socials');
                 setViewingProfile(null);
               });

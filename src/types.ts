@@ -272,13 +272,15 @@ export interface CinemaMovie {
   id: number;
   title: string;
   genre?: string;
-  location: 'gardencity' | 'sarit' | 'junction' | 'tworivers';
-  locationName: string;
+  /** Release date (YYYY-MM-DD) from the live feed. */
   date: string;
-  times: string;
+  /** Rating or "Now Showing" label. */
   format: string;
   img: string;
+  /** Direct movie page link. */
   url: string;
+  /** Ticket / booking link built per movie. */
+  bookingUrl: string;
 }
 
 export interface StatusReply {
