@@ -1,11 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import { X, MapPin, Car, Navigation, ExternalLink } from 'lucide-react';
 import { SpotItem } from '../types.ts';
+import type { ToastOptions } from './Toast.tsx';
 
 interface LocationMapModalProps {
   spot: SpotItem | null;
   onClose: () => void;
-  showToast: (msg: string) => void;
+  showToast: (msg: string, options?: ToastOptions) => void;
 }
 
 export const LocationMapModal: React.FC<LocationMapModalProps> = ({
@@ -29,14 +30,29 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
       }
 
       if (mapContainerRef.current) {
-        const map = L.map(mapContainerRef.current).setView([spot.lat, spot.lng], 15);
+        const map = L.map(mapContainerRef.current, { zoomControl: false, attributionControl: true }).setView([spot.lat, spot.lng], 15);
         mapInstanceRef.current = map;
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; OpenStreetMap'
-        }).addTo(map);
+        // Minimal 2D vector-style basemap: flat light/dark line map, no 3D buildings or satellite
+        const isDark = document.documentElement.classList.contains('dark');
+        L.tileLayer(
+          `https://{s}.basemaps.cartocdn.com/${isDark ? 'dark_nolabels' : 'light_nolabels'}/{z}/{x}/{y}{r}.png`,
+          { attribution: '&copy; OpenStreetMap &copy; CARTO', subdomains: 'abcd', maxZoom: 19 }
+        ).addTo(map);
+        L.tileLayer(
+          `https://{s}.basemaps.cartocdn.com/${isDark ? 'dark_only_labels' : 'light_only_labels'}/{z}/{x}/{y}{r}.png`,
+          { subdomains: 'abcd', maxZoom: 19, opacity: 0.7 }
+        ).addTo(map);
 
-        const marker = L.marker([spot.lat, spot.lng]).addTo(map);
+        const pinIcon = L.divIcon({
+          className: 'rada-map-pin',
+          html: '<svg width="28" height="36" viewBox="0 0 28 36" xmlns="http://www.w3.org/2000/svg"><path d="M14 1C7 1 1.5 6.4 1.5 13.2 1.5 22 14 35 14 35s12.5-13 12.5-21.8C26.5 6.4 21 1 14 1Z" fill="none" stroke="#E0533C" stroke-width="2.4" stroke-linejoin="round"/><circle cx="14" cy="13" r="4.2" fill="#E0533C"/></svg>',
+          iconSize: [28, 36],
+          iconAnchor: [14, 35],
+          popupAnchor: [0, -32]
+        });
+
+        const marker = L.marker([spot.lat, spot.lng], { icon: pinIcon }).addTo(map);
         marker.bindPopup(`
           <div style="font-family: inherit; font-size: 12px; line-height: 1.4;">
             <b style="color: #E0533C; font-size: 13px;">${spot.title}</b><br/>
@@ -65,11 +81,11 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
       <div className="bg-white dark:bg-[#1C1A1E] w-full max-w-md rounded-3xl p-4 space-y-4 shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-150">
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-950/80 text-[#E0533C] flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-950/80 text-[#E0533C] dark:text-[#D17A68] flex items-center justify-center shrink-0">
               <MapPin className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <h3 className="font-black text-sm text-[#E0533C] truncate">{spot.title}</h3>
+              <h3 className="font-black text-sm text-[#E0533C] dark:text-[#D17A68] truncate">{spot.title}</h3>
               <p className="text-[10px] text-slate-500 truncate">{spot.neighborhood} • {spot.address}</p>
             </div>
           </div>
@@ -84,7 +100,7 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
         {/* Leaflet Map Display */}
         <div 
           ref={mapContainerRef} 
-          className="h-60 w-full rounded-2xl border border-slate-200 dark:border-slate-800 shadow-inner overflow-hidden relative z-10"
+          className="h-60 w-full rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden relative z-10 rada-sketch-map"
         />
 
         <div className="p-2.5 bg-[#F8F8F6] dark:bg-[#121113] rounded-2xl flex items-center justify-between text-xs">
@@ -106,7 +122,6 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => {
-              showToast(`Requesting Uber to ${spot.title}...`);
               window.open(`https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${encodeURIComponent(spot.address)}`, '_blank');
             }}
             className="py-2.5 bg-black text-white hover:bg-slate-800 font-black rounded-xl text-xs transition flex items-center justify-center gap-1.5"
@@ -115,7 +130,6 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
           </button>
           <button
             onClick={() => {
-              showToast(`Opening Bolt to ${spot.title}...`);
               window.open('https://bolt.eu/', '_blank');
             }}
             className="py-2.5 bg-emerald-600 text-white hover:bg-emerald-700 font-black rounded-xl text-xs transition flex items-center justify-center gap-1.5"

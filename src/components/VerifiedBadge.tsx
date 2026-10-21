@@ -52,7 +52,7 @@ export const VerifiedBadge: React.FC<VerifiedBadgeProps> = ({
         viewBox="0 0 24 24"
         role="img"
         aria-label="Verified RADA host"
-        className="shrink-0 drop-shadow-sm"
+        className="shrink-0 bg-transparent"
       >
         {/* shield */}
         <path
@@ -70,7 +70,7 @@ export const VerifiedBadge: React.FC<VerifiedBadgeProps> = ({
         {/* star */}
         <polygon points={STAR} fill="#FFF7E8" />
       </svg>
-      {showLabel && <span className="text-[11px] font-black text-[#E0533C]">{label}</span>}
+      {showLabel && <span className="text-[11px] font-black text-[#E0533C] dark:text-[#D17A68]">{label}</span>}
     </span>
   );
 };

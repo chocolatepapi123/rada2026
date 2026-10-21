@@ -27,13 +27,14 @@ import {
   Section,
   useOwnProfile,
 } from './ProfileSettingsKit';
+import type { ToastOptions } from './Toast.tsx';
 
 interface AccountSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   session: any;
   currentUserProfile?: UserProfile;
-  showToast: (msg: string) => void;
+  showToast: (msg: string, options?: ToastOptions) => void;
   onOpenAuth?: () => void;
   onSignOut?: () => void;
   /** Called on every save/switch/upload so the parent App state (the one shared user object) updates immediately. */
@@ -100,7 +101,7 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
   const isLoggedIn = !!user;
 
   const requireLogin = () => {
-    showToast('Please sign in first.');
+    showToast('Please sign in first.', { type: 'error' });
     if (onOpenAuth) onOpenAuth();
   };
 
@@ -160,21 +161,21 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-      showToast('Password updated successfully!');
+      showToast('Password updated successfully!', { category: 'profile' });
       setNewPassword('');
       setConfirmPassword('');
       setScreen('main');
     } catch (err: any) {
       const msg = err?.message || 'Could not update password. Please sign in again and retry.';
       setPasswordError(msg);
-      showToast(`Error: ${msg}`);
+      showToast(`Error: ${msg}`, { type: 'error' });
     } finally {
       setIsUpdatingPassword(false);
     }
   };
 
   const inputCls =
-    'w-full px-3.5 py-2.5 text-[13px] bg-slate-100 dark:bg-[#121113] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E0533C]/40 text-slate-900 dark:text-slate-100 placeholder:text-slate-400';
+    'w-full px-3.5 py-2.5 text-[13px] bg-slate-100 dark:bg-[#121113] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E0533C]/40 dark:focus:ring-[#D17A68]/40 text-slate-900 dark:text-slate-100 placeholder:text-slate-400';
   const labelCls = 'block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1';
 
   const titles: Record<Screen, string> = {
@@ -249,7 +250,7 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
                         <span className="block text-[13px] font-semibold">{label}</span>
                         <span className="block text-[11px] text-slate-500 dark:text-slate-400 truncate">{hint}</span>
                       </span>
-                      {screen === target && <Check className="w-4 h-4 text-[#E0533C] shrink-0" />}
+                      {screen === target && <Check className="w-4 h-4 text-[#E0533C] dark:text-[#D17A68] shrink-0" />}
                     </button>
                   ))}
                 </div>
@@ -286,7 +287,7 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
                           onClose();
                           onOpenAuth();
                         }}
-                        className="mt-2 px-3.5 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white font-black text-xs rounded-xl cursor-pointer"
+                        className="mt-2 px-3.5 py-1.5 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white font-black text-xs rounded-xl cursor-pointer"
                       >
                         Log In / Create Account
                       </button>
@@ -337,7 +338,7 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
                     isLoggedIn
                       ? canChangePassword
                         ? setScreen('password')
-                        : showToast(`Your password is managed by ${authProviderName}.`)
+                        : showToast(`Your password is managed by ${authProviderName}.`, { type: 'error' })
                       : requireLogin()
                   }
                 />
@@ -351,7 +352,6 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
                     onClick={() => {
                       onClose();
                       onSignOut();
-                      showToast('You have been logged out.');
                     }}
                     className="w-full py-3 bg-white dark:bg-[#1C1A1E] shadow-sm hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 dark:text-red-400 font-black rounded-2xl text-[13px] transition flex items-center justify-center gap-2 cursor-pointer"
                   >
@@ -429,7 +429,7 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
               <button
                 type="submit"
                 disabled={isUpdatingPassword || !newPassword}
-                className="w-full py-3 bg-[#E0533C] hover:bg-orange-700 disabled:opacity-50 text-white font-black rounded-xl text-[13px] transition flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 disabled:opacity-50 text-white font-black rounded-xl text-[13px] transition flex items-center justify-center gap-2 cursor-pointer"
               >
                 {isUpdatingPassword ? (
                   <>
@@ -451,7 +451,7 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
               type="button"
               onClick={own.save}
               disabled={!own.dirty || own.saving}
-              className="w-full py-3 bg-[#E0533C] hover:bg-orange-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black rounded-xl text-[13px] transition flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black rounded-xl text-[13px] transition flex items-center justify-center gap-2 cursor-pointer"
             >
               {own.saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Save changes</span>}
             </button>

@@ -28,14 +28,14 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
             onClick={() => onTabChange(tab.id)}
             className={`nav-btn relative flex flex-col items-center gap-1 flex-1 py-1 transition-all duration-200 cursor-pointer ${
               isActive 
-                ? 'text-[#FF5733] font-black scale-105' 
+                ? 'text-[#FF5733] dark:text-[#D17A68] font-black scale-105' 
                 : 'text-slate-400 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium'
             }`}
           >
             <Icon className={`w-5 h-5 transition-transform ${isActive ? 'stroke-[2.5px]' : 'stroke-2'}`} />
             <span className="text-[10px] tracking-tight">{tab.label}</span>
             {isActive && (
-              <span className="w-1.5 h-1.5 rounded-full bg-[#FF5733] shadow-xs" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[#FF5733] dark:bg-[#A94F3E] shadow-xs" />
             )}
           </button>
         );

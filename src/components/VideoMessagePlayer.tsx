@@ -164,7 +164,7 @@ export const VideoMessagePlayer: React.FC<VideoMessagePlayerProps> = ({
 
         <div
           onClick={handleTogglePlay}
-          className="relative w-32 h-32 sm:w-36 sm:h-36 rounded-full overflow-hidden border-4 border-[#E0533C] shadow-xl bg-black group select-none cursor-pointer"
+          className="relative w-32 h-32 sm:w-36 sm:h-36 rounded-full overflow-hidden border-4 border-[#E0533C] dark:border-[#D17A68] shadow-xl bg-black group select-none cursor-pointer"
           title={isPlaying ? 'Pause video note' : 'Play video note'}
         >
           {/* Real video tag */}
@@ -200,7 +200,7 @@ export const VideoMessagePlayer: React.FC<VideoMessagePlayerProps> = ({
           <div className={`absolute inset-0 bg-black/35 flex items-center justify-center transition-opacity duration-200 ${
             isPlaying ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'
           }`}>
-            <div className="w-10 h-10 rounded-full bg-[#E0533C]/90 text-white flex items-center justify-center shadow-lg">
+            <div className="w-10 h-10 rounded-full bg-[#E0533C]/90 dark:bg-[#A94F3E]/90 text-white flex items-center justify-center shadow-lg">
               {isPlaying ? (
                 <Pause className="w-5 h-5" />
               ) : (
@@ -251,7 +251,7 @@ export const VideoMessagePlayer: React.FC<VideoMessagePlayerProps> = ({
             >
               <div className="flex items-center justify-between w-full border-b border-slate-800 pb-2">
                 <span className="font-extrabold text-xs text-slate-200 flex items-center gap-1.5">
-                  <Film className="w-4 h-4 text-[#E0533C]" />
+                  <Film className="w-4 h-4 text-[#E0533C] dark:text-[#D17A68]" />
                   <span>Circular Video Note</span>
                 </span>
                 <button
@@ -262,7 +262,7 @@ export const VideoMessagePlayer: React.FC<VideoMessagePlayerProps> = ({
                 </button>
               </div>
 
-              <div className="w-64 h-64 rounded-full overflow-hidden border-4 border-[#E0533C] shadow-2xl bg-black relative">
+              <div className="w-64 h-64 rounded-full overflow-hidden border-4 border-[#E0533C] dark:border-[#D17A68] shadow-2xl bg-black relative">
                 <video
                   ref={modalVideoRef}
                   src={videoUrl}

@@ -24,6 +24,7 @@ import {
   getCategoryBadgeStyle, 
   isDateToday 
 } from '../utils/calendarUtils.ts';
+import type { ToastOptions } from './Toast.tsx';
 
 interface VaultTabProps {
   tickets: VaultTicket[];
@@ -31,7 +32,7 @@ interface VaultTabProps {
   onShowQrCode: (title: string) => void;
   onOpenEventDetails?: (event: EventItem) => void;
   onExploreTrendingEvents?: () => void;
-  showToast?: (msg: string) => void;
+  showToast?: (msg: string, options?: ToastOptions) => void;
 }
 
 export const VaultTab: React.FC<VaultTabProps> = ({ 
@@ -42,9 +43,10 @@ export const VaultTab: React.FC<VaultTabProps> = ({
   onExploreTrendingEvents,
   showToast 
 }) => {
-  const [selectedMonth, setSelectedMonth] = useState(9); // October
-  const [selectedYear, setSelectedYear] = useState(2026);
-  const [selectedDay, setSelectedDay] = useState<number | null>(14);
+  const today = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
+  const [selectedYear, setSelectedYear] = useState(today.getFullYear());
+  const [selectedDay, setSelectedDay] = useState<number | null>(today.getDate());
 
   // Month navigation
   const handlePrevMonth = () => {
@@ -125,7 +127,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({
             <button
               type="button"
               onClick={handlePrevMonth}
-              className="p-1.5 rounded-xl bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:text-[#E05328] transition cursor-pointer"
+              className="p-1.5 rounded-xl bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:text-[#E05328] dark:hover:text-[#D17A68] transition cursor-pointer"
               title="Previous Month"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
@@ -154,7 +156,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({
             <button
               type="button"
               onClick={handleNextMonth}
-              className="p-1.5 rounded-xl bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:text-[#E05328] transition cursor-pointer"
+              className="p-1.5 rounded-xl bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:text-[#E05328] dark:hover:text-[#D17A68] transition cursor-pointer"
               title="Next Month"
             >
               <ChevronRight className="w-3.5 h-3.5" />
@@ -168,11 +170,10 @@ export const VaultTab: React.FC<VaultTabProps> = ({
                 setSelectedMonth(9);
                 setSelectedYear(2026);
                 setSelectedDay(14);
-                showToast?.('Viewing Events for Today (Oct 14)');
               }}
               className={`px-2.5 py-1 rounded-xl text-[10px] font-black transition cursor-pointer ${
                 isSelectedDayToday
-                  ? 'bg-[#E05328] text-white shadow-xs'
+                  ? 'bg-[#E05328] dark:bg-[#A94F3E] text-white shadow-xs'
                   : 'bg-white dark:bg-[#121113] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
               }`}
             >
@@ -212,15 +213,14 @@ export const VaultTab: React.FC<VaultTabProps> = ({
                 type="button"
                 onClick={() => {
                   setSelectedDay(day);
-                  showToast?.(`Viewing ${monthNames[selectedMonth].slice(0, 3)} ${day}`);
                 }}
                 className={`min-w-0 py-2 rounded-xl transition cursor-pointer relative flex flex-col items-center justify-center font-bold select-none ${
                   isSelected
-                    ? 'font-black bg-[#E05328] text-white shadow-md ring-2 ring-[#E05328] ring-offset-2 dark:ring-offset-[#1C1A1E]'
+                    ? 'font-black bg-[#E05328] dark:bg-[#A94F3E] text-white shadow-md ring-2 ring-[#E05328] ring-offset-2 dark:ring-offset-[#1C1A1E]'
                     : isTodayDay
                     ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 font-black border border-amber-300 dark:border-amber-700'
                     : hasActivity
-                    ? 'font-black bg-white dark:bg-[#121113] text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 hover:border-[#E05328]'
+                    ? 'font-black bg-white dark:bg-[#121113] text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 hover:border-[#E05328] dark:hover:border-[#D17A68]'
                     : 'font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800'
                 }`}
               >
@@ -229,7 +229,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({
                 {hasActivity && (
                   <span
                     className={`w-1.5 h-1.5 rounded-full mt-0.5 ${
-                      isSelected ? 'bg-white' : 'bg-[#E05328]'
+                      isSelected ? 'bg-white' : 'bg-[#E05328] dark:bg-[#A94F3E]'
                     }`}
                   />
                 )}
@@ -240,7 +240,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({
 
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[10px] pt-1 border-t border-slate-200 dark:border-slate-800 text-slate-500">
           <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-[#E05328]" />
+            <span className="w-2 h-2 rounded-full bg-[#E05328] dark:bg-[#A94F3E]" />
             <span>Event / Outing Scheduled</span>
           </span>
           <span className="flex items-center gap-1.5">
@@ -255,7 +255,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({
         <div className="flex items-start justify-between gap-3 min-w-0">
           <div className="space-y-0.5 min-w-0 flex-1">
             <h2 className="text-xs font-black tracking-wider uppercase text-slate-800 dark:text-slate-200 flex items-start gap-1.5 min-w-0">
-              <CalendarIcon className="w-3.5 h-3.5 text-[#E05328] shrink-0 mt-px" />
+              <CalendarIcon className="w-3.5 h-3.5 text-[#E05328] dark:text-[#D17A68] shrink-0 mt-px" />
               <span className="min-w-0 break-words">{dateHeader}</span>
             </h2>
             <p className="text-[10px] text-slate-400 font-bold">
@@ -267,7 +267,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({
             <button
               type="button"
               onClick={() => setSelectedDay(null)}
-              className="shrink-0 whitespace-nowrap text-[11px] font-bold text-[#E05328] hover:underline cursor-pointer"
+              className="shrink-0 whitespace-nowrap text-[11px] font-bold text-[#E05328] dark:text-[#D17A68] hover:underline cursor-pointer"
             >
               View All Dates
             </button>
@@ -285,7 +285,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({
                 <div
                   key={evt.id}
                   onClick={() => onOpenEventDetails?.(evt)}
-                  className="w-full max-w-full min-w-0 overflow-hidden bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3.5 shadow-sm hover:border-[#E05328] transition-all cursor-pointer group flex flex-col sm:flex-row gap-3.5"
+                  className="w-full max-w-full min-w-0 overflow-hidden bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3.5 shadow-sm hover:border-[#E05328] dark:hover:border-[#D17A68] transition-all cursor-pointer group flex flex-col sm:flex-row gap-3.5"
                 >
                   {/* Event Poster Thumbnail */}
                   <div
@@ -305,7 +305,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({
                   <div className="flex-1 flex flex-col justify-between space-y-2 min-w-0">
                     <div className="space-y-1">
                       <div className="flex items-start justify-between gap-2">
-                        <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 group-hover:text-[#E05328] transition line-clamp-1">
+                        <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 group-hover:text-[#E05328] dark:group-hover:text-[#D17A68] transition line-clamp-1">
                           {evt.title}
                         </h4>
                         <span className="hidden sm:inline-block shrink-0 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
@@ -317,7 +317,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({
                       <div className="space-y-1 text-slate-500 dark:text-slate-400 text-xs">
                         {evt.time && (
                           <p className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-300">
-                            <Clock className="w-3.5 h-3.5 text-[#E05328] shrink-0" />
+                            <Clock className="w-3.5 h-3.5 text-[#E05328] dark:text-[#D17A68] shrink-0" />
                             <span>{evt.time}</span>
                           </p>
                         )}
@@ -347,7 +347,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({
                           e.stopPropagation();
                           onOpenEventDetails?.(evt);
                         }}
-                        className="px-3.5 py-1.5 bg-[#E05328] hover:bg-orange-700 text-white rounded-xl text-xs font-black shadow-xs transition flex items-center gap-1 cursor-pointer active:scale-95"
+                        className="px-3.5 py-1.5 bg-[#E05328] dark:bg-[#A94F3E] hover:bg-orange-700 text-white rounded-xl text-xs font-black shadow-xs transition flex items-center gap-1 cursor-pointer active:scale-95"
                       >
                         <span>Event Details</span>
                         <ArrowRight className="w-3 h-3" />
@@ -361,7 +361,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({
         ) : (
           /* Sleek Empty State Card */
           <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-dashed border-slate-300 dark:border-slate-800 rounded-3xl p-6 sm:p-8 text-center space-y-3.5 shadow-2xs">
-            <div className="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#E05328] mx-auto flex items-center justify-center shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#E05328] dark:text-[#D17A68] mx-auto flex items-center justify-center shadow-xs">
               <CalendarIcon className="w-6 h-6" />
             </div>
 
@@ -381,7 +381,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({
                   setSelectedDay(null);
                   if (onExploreTrendingEvents) onExploreTrendingEvents();
                 }}
-                className="px-4 py-2 bg-[#E05328] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2 bg-[#E05328] dark:bg-[#A94F3E] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5 cursor-pointer"
               >
                 <Flame className="w-3.5 h-3.5" />
                 <span>Explore Trending Events</span>
@@ -395,7 +395,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({
       <div className="space-y-3 pt-2">
         <div className="flex items-center justify-between">
           <h2 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-            <Ticket className="w-3.5 h-3.5 text-[#E05328]" />
+            <Ticket className="w-3.5 h-3.5 text-[#E05328] dark:text-[#D17A68]" />
             <span>
               {selectedDay !== null 
                 ? `Passes for This Day (${dayTickets.length})`
@@ -413,9 +413,9 @@ export const VaultTab: React.FC<VaultTabProps> = ({
                 key={t.id}
                 className={`relative w-full max-w-full min-w-0 overflow-hidden rounded-3xl p-4 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-white transition select-none ${
                   isToday
-                    ? 'bg-gradient-to-r from-[#E05328] via-[#D94E28] to-[#E9C46A] ring-4 ring-amber-400/40 shadow-xl'
+                    ? 'bg-gradient-to-r from-[#E05328] dark:from-[#A94F3E] via-[#D94E28] dark:via-[#A94F3E] to-[#E9C46A] dark:to-[#A68B4B] ring-4 ring-amber-400/40 shadow-xl'
                     : t.type === 'Verified Ticket Pass'
-                    ? 'bg-gradient-to-r from-[#E05328] to-[#E9C46A]'
+                    ? 'bg-gradient-to-r from-[#E05328] dark:from-[#A94F3E] to-[#E9C46A] dark:to-[#A68B4B]'
                     : 'bg-gradient-to-r from-[#2D6A4F] to-emerald-700'
                 }`}
               >
@@ -448,8 +448,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({
                         title: `RADA Pass: ${t.title}`,
                         text: `🎟️ Outing locked in! Catch me at "${t.title}" on ${t.dateStr} at ${t.locationStr}. Check it out on RADA!`,
                         url: window.location.href,
-                        onSuccess: showToast,
-                        onError: showToast
+                        onError: (m: string) => showToast?.(m, { type: 'error' })
                       });
                     }}
                     title="Share Outing Pass"
@@ -467,7 +466,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({
                     }}
                     className="px-3.5 py-2.5 bg-white text-slate-900 rounded-xl text-xs font-black shadow-md hover:bg-slate-100 transition flex items-center gap-1.5 cursor-pointer"
                   >
-                    <QrCode className="w-4 h-4 text-[#E05328]" />
+                    <QrCode className="w-4 h-4 text-[#E05328] dark:text-[#D17A68]" />
                     <span>QR Pass</span>
                   </button>
                 </div>

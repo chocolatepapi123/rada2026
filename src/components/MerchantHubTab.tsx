@@ -78,6 +78,8 @@ import { DynamicLocationSelector } from './DynamicLocationSelector.tsx';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { toValidUuid, fetchUnclaimedSpots, claimUnclaimedSpot, submitSpotClaim } from '../lib/cloudSync.ts';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
+import type { ToastOptions } from './Toast.tsx';
+import { toBudget, BUDGET_OPTIONS } from '../lib/budget.ts';
 
 export type MainCategoryKey = 
   | 'restaurants_dining'
@@ -378,29 +380,16 @@ export const PRESET_VENUE_AMENITIES = [
 ];
 
 
-// Clean tier indicators: KES / KES KES / KES KES KES (no numeric ranges)
-export const PRICE_TIERS = ['KES', 'KES KES', 'KES KES KES'] as const;
+// Budget level for a spot: Low / Mid / High (older KES / $ values are converted)
+export const PRICE_TIERS = BUDGET_OPTIONS;
 export function normalizePriceTier(raw?: string): string {
-  if (!raw) return 'KES KES';
-  const dollars = (raw.match(/\$/g) || []).length;
-  if (dollars > 0) return PRICE_TIERS[Math.min(dollars, 3) - 1];
-  const kes = (raw.match(/KES/gi) || []).length;
-  if (kes >= 1 && kes <= 3 && !/\d/.test(raw)) return PRICE_TIERS[kes - 1];
-  return 'KES KES';
+  return toBudget(raw) ?? 'Mid';
 }
 
 // =====================================================================
 // SPOT INSIGHTS ANALYTICS (merged in from the old MerchantHub.tsx)
 // =====================================================================
-/** Price tiers are KES, KES KES, KES KES KES (same as MerchantHubTab). Old "KES $$" values convert. */
-const normalizeAnalyticsPriceTier = (value?: string): string => {
-  const v = String(value || '').trim();
-  if (/^KES( KES){0,2}$/.test(v)) return v;
-  const dollars = (v.match(/\$/g) || []).length;
-  if (dollars >= 3) return 'KES KES KES';
-  if (dollars === 2) return 'KES KES';
-  return 'KES';
-};
+const normalizeAnalyticsPriceTier = (value?: string): string => toBudget(value) ?? 'Mid';
 
 export interface SpotMetricSummary {
   spotId: number | string;
@@ -440,7 +429,7 @@ export interface SpotInsightsAnalyticsProps {
   currentBiz: BusinessAccount;
   userId?: string;
   onOpenCreateSpot: () => void;
-  showToast: (msg: string) => void;
+  showToast: (msg: string, options?: ToastOptions) => void;
 }
 
 /**
@@ -565,7 +554,6 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
         }));
         if (manual) {
           setIsRefreshing(false);
-          showToast('Analytics synced with live database.');
         }
         return;
       }
@@ -810,9 +798,6 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
         lastSyncedAt: new Date()
       });
 
-      if (manual) {
-        showToast('Real-time insights refreshed from Supabase.');
-      }
     } catch (err) {
       console.error('[SpotInsightsAnalytics] Error processing analytics:', err);
       setData(prev => ({ ...prev, isLoading: false }));
@@ -856,7 +841,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
       <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] flex items-center justify-center text-white shadow-xs">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#E0533C] dark:from-[#A94F3E] to-[#E9C46A] dark:to-[#A68B4B] flex items-center justify-center text-white shadow-xs">
               <BarChart3 className="w-5 h-5" />
             </div>
             <div>
@@ -884,7 +869,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
           </p>
           <button
             onClick={onOpenCreateSpot}
-            className="mt-4 px-4 py-2.5 bg-[#E0533C] hover:bg-[#c9432d] text-white text-xs font-black rounded-xl shadow-md shadow-orange-500/20 inline-flex items-center gap-2 cursor-pointer transition active:scale-95"
+            className="mt-4 px-4 py-2.5 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-[#c9432d] dark:hover:bg-[#8F4334] text-white text-xs font-black rounded-xl shadow-md shadow-orange-500/20 inline-flex items-center gap-2 cursor-pointer transition active:scale-95"
           >
             <Plus className="w-4 h-4" />
             <span>Publish Your First Spot</span>
@@ -902,7 +887,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
       {/* Header with Title and Live Sync Indicator */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] flex items-center justify-center text-white shadow-xs">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#E0533C] dark:from-[#A94F3E] to-[#E9C46A] dark:to-[#A68B4B] flex items-center justify-center text-white shadow-xs">
             <BarChart3 className="w-5 h-5" />
           </div>
           <div>
@@ -928,7 +913,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
           title="Refresh analytics data"
           aria-label="Refresh analytics data"
         >
-          <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-[#E0533C]' : ''}`} />
+          <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-[#E0533C] dark:text-[#D17A68]' : ''}`} />
         </button>
       </div>
 
@@ -940,7 +925,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
               Impressions
             </span>
-            <div className="w-6 h-6 rounded-lg bg-orange-500/10 text-[#E0533C] flex items-center justify-center">
+            <div className="w-6 h-6 rounded-lg bg-orange-500/10 text-[#E0533C] dark:text-[#D17A68] flex items-center justify-center">
               <Eye className="w-3.5 h-3.5" />
             </div>
           </div>
@@ -1012,12 +997,12 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
       <div className="bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-[#E0533C]" />
+            <Calendar className="w-4 h-4 text-[#E0533C] dark:text-[#D17A68]" />
             <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">
               Peak Activity Days
             </h4>
           </div>
-          <span className="text-[10px] font-extrabold text-[#E0533C] bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">
+          <span className="text-[10px] font-extrabold text-[#E0533C] dark:text-[#D17A68] bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">
             🔥 Friday & Saturday Peak
           </span>
         </div>
@@ -1036,7 +1021,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
                     style={{ height: `${barHeight}%` }}
                     className={`w-full rounded-md transition-all duration-500 ${
                       day.isPeak
-                        ? 'bg-gradient-to-t from-[#E0533C] to-[#E9C46A] shadow-xs shadow-orange-500/40'
+                        ? 'bg-gradient-to-t from-[#E0533C] dark:from-[#A94F3E] to-[#E9C46A] dark:to-[#A68B4B] shadow-xs shadow-orange-500/40'
                         : day.percentage >= 20
                         ? 'bg-amber-500/80 dark:bg-amber-500/70'
                         : 'bg-slate-400/60 dark:bg-slate-700'
@@ -1044,7 +1029,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
                     title={`${day.label}: ${day.percentage}% of weekly traffic`}
                   />
                 </div>
-                <span className={`text-[10px] font-black ${day.isPeak ? 'text-[#E0533C]' : 'text-slate-500'}`}>
+                <span className={`text-[10px] font-black ${day.isPeak ? 'text-[#E0533C] dark:text-[#D17A68]' : 'text-slate-500'}`}>
                   {day.day}
                 </span>
               </div>
@@ -1072,7 +1057,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
             {data.topSpots.slice(0, 3).map((spot, index) => (
               <div
                 key={spot.spotId}
-                className="p-3 rounded-2xl bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200/90 dark:border-slate-800 flex items-center justify-between gap-3 group hover:border-[#E0533C]/40 transition"
+                className="p-3 rounded-2xl bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200/90 dark:border-slate-800 flex items-center justify-between gap-3 group hover:border-[#E0533C]/40 dark:hover:border-[#D17A68]/40 transition"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="relative shrink-0">
@@ -1088,7 +1073,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
                     </span>
                   </div>
                   <div className="min-w-0">
-                    <h5 className="text-xs font-black text-slate-900 dark:text-slate-100 truncate group-hover:text-[#E0533C] transition">
+                    <h5 className="text-xs font-black text-slate-900 dark:text-slate-100 truncate group-hover:text-[#E0533C] dark:group-hover:text-[#D17A68] transition">
                       {spot.title}
                     </h5>
                     <p className="text-[10px] text-slate-500 truncate">
@@ -1101,7 +1086,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
                 <div className="flex items-center gap-2 shrink-0">
                   <div className="text-right">
                     <div className="text-[11px] font-black text-slate-900 dark:text-slate-100 flex items-center gap-1 justify-end">
-                      <Eye className="w-3 h-3 text-[#E0533C]" />
+                      <Eye className="w-3 h-3 text-[#E0533C] dark:text-[#D17A68]" />
                       <span>{spot.impressions.toLocaleString()}</span>
                     </div>
                     <div className="flex items-center gap-2 text-[10px] text-slate-500 justify-end mt-0.5">
@@ -1132,7 +1117,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
             </h4>
           </div>
           <span className="text-[10px] text-slate-400 font-semibold">
-            Synced from Supabase
+            Cloud Sync
           </span>
         </div>
 
@@ -1161,7 +1146,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
                         className="w-7 h-7 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0"
                       />
                     ) : (
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] text-white text-[10px] font-black flex items-center justify-center shrink-0">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#E0533C] dark:from-[#A94F3E] to-[#E9C46A] dark:to-[#A68B4B] text-white text-[10px] font-black flex items-center justify-center shrink-0">
                         {rev.userName ? rev.userName.slice(0, 2).toUpperCase() : 'EX'}
                       </div>
                     )}
@@ -1242,7 +1227,7 @@ interface MerchantHubTabProps {
   onViewEventDetails: (event: EventItem) => void;
   onOpenPublicProfile: (biz: BusinessAccount) => void;
   onClose?: () => void;
-  showToast: (msg: string) => void;
+  showToast: (msg: string, options?: ToastOptions) => void;
   spotClaims?: SpotClaimRequest[];
   onSubmitClaimRequest?: (claim: SpotClaimRequest) => void;
   /**
@@ -1370,7 +1355,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
 
     if (!onboardName.trim()) {
       setSubmitError('Please enter your business name on the Profile step first.');
-      showToast('Please enter your business name.');
+      showToast('Please enter your business name.', { type: 'error' });
       setOnboardingStep(1);
       return;
     }
@@ -1410,18 +1395,17 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       if (typeof err === 'string' && err) {
         console.error('Create business error:', err);
         setSubmitError(`Could not save business: ${err}`);
-        showToast(`Could not save business: ${err}`);
+        showToast(`Could not save business: ${err}`, { type: 'error' });
         setIsSubmitting(false);
         return;
       }
       onSelectBusiness(newBizId);
       setIsOnboardingOpen(false);
       setActiveSubTab('overview');
-      showToast(`Welcome! ${newBiz.name} dashboard launched successfully.`);
     } catch (e) {
       console.error('Onboarding failed:', e);
       setSubmitError(`Something went wrong: ${e instanceof Error ? e.message : String(e)}`);
-      showToast('Something went wrong saving your business.');
+      showToast('Something went wrong saving your business.', { type: 'error' });
     } finally {
       setIsSubmitting(false);
     }
@@ -1439,7 +1423,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   const [spotAddress, setSpotAddress] = useState('');
   const [spotExactLocationTag, setSpotExactLocationTag] = useState('');
   const [spotLandmark, setSpotLandmark] = useState('');
-  const [spotPrice, setSpotPrice] = useState('KES KES');
+  const [spotPrice, setSpotPrice] = useState('Mid');
   const [spotPhone, setSpotPhone] = useState('+254 ');
   const [spotOpeningHours, setSpotOpeningHours] = useState('11:00 AM - 11:00 PM');
   const [spotDescription, setSpotDescription] = useState('');
@@ -1514,7 +1498,6 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     reader.onloadend = () => {
       if (typeof reader.result === 'string') {
         setSpotCoverImg(reader.result);
-        showToast('Cover photo uploaded successfully!');
       }
     };
     reader.readAsDataURL(file);
@@ -1525,7 +1508,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     if (!files || files.length === 0) return;
 
     if (spotGalleryImgs.length >= 5) {
-      showToast('Maximum 5 gallery photos allowed.');
+      showToast('Maximum 5 gallery photos allowed.', { type: 'error' });
       e.target.value = '';
       return;
     }
@@ -1533,14 +1516,8 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     const dataUrls = await readFilesAsDataUrls(files);
     const result = deduplicateAndLimitPhotos(spotGalleryImgs, dataUrls, 5);
 
-    if (result.duplicateCount > 0 && result.addedCount === 0) {
-      showToast('Duplicate photo(s) skipped — already in spot gallery.');
-    } else if (result.duplicateCount > 0 && result.addedCount > 0) {
-      showToast(`Added ${result.addedCount} photo(s). Skipped ${result.duplicateCount} duplicate(s).`);
-    } else if (result.exceededLimit) {
-      showToast('Maximum 5 gallery photos limit reached.');
-    } else if (result.addedCount > 0) {
-      showToast(`Added ${result.addedCount} photo(s) to spot gallery.`);
+    if (result.exceededLimit) {
+      showToast('Maximum 5 gallery photos limit reached.', { type: 'error' });
     }
 
     setSpotGalleryImgs(result.updatedList);
@@ -1549,7 +1526,6 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
 
   const handleRemoveGalleryImage = (indexToRemove: number) => {
     setSpotGalleryImgs(prev => prev.filter((_, idx) => idx !== indexToRemove));
-    showToast('Gallery image removed.');
   };
 
   const handleSpotMenuDocUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1559,7 +1535,6 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     reader.onloadend = () => {
       if (typeof reader.result === 'string') {
         setSpotMenuUploadUrl(reader.result);
-        showToast('Menu document / image uploaded successfully!');
       }
     };
     reader.readAsDataURL(file);
@@ -1575,7 +1550,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setSpotAddress(currentBiz?.address || 'Westlands, Nairobi');
     setSpotExactLocationTag(`${currentBiz?.address || 'Westlands'}, near Stage`);
     setSpotLandmark('Nearest Stage / Roundabout');
-    setSpotPrice('KES KES');
+    setSpotPrice('Mid');
     setSpotPhone(currentBiz?.phone || '+254 ');
     setSpotOpeningHours('12:00 PM - 01:00 AM');
     setSpotDescription(currentBiz?.bio || '');
@@ -1628,7 +1603,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       ownedBusinesses.some(b => b.id === spot.businessId || b.ownerId === effectiveUserId || b.ownerId === userId);
 
     if (!isOwner) {
-      showToast('Permission denied: Only the spot owner or verified merchant can edit this spot.');
+      showToast('Permission denied: Only the spot owner or verified merchant can edit this spot.', { type: 'error' });
       return;
     }
 
@@ -1694,24 +1669,24 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
 
     // Required Field Validations (Spot Name, Category, Location, Description)
     if (!spotTitle.trim()) {
-      showToast('Please enter the Spot Name.');
+      showToast('Please enter the Spot Name.', { type: 'error' });
       return;
     }
     if (!spotCategory) {
-      showToast('Please select a Spot Category.');
+      showToast('Please select a Spot Category.', { type: 'error' });
       return;
     }
     const loc = (spotNeighborhood || spotAddress || '').trim();
     if (!loc) {
-      showToast('Please specify a Location (Neighborhood or Address).');
+      showToast('Please specify a Location (Neighborhood or Address).', { type: 'error' });
       return;
     }
     if (!spotDescription.trim()) {
-      showToast('Please provide a brief Description for the spot.');
+      showToast('Please provide a brief Description for the spot.', { type: 'error' });
       return;
     }
     if (!spotCoverImg) {
-      showToast('Please upload a cover photo for the spot.');
+      showToast('Please upload a cover photo for the spot.', { type: 'error' });
       return;
     }
 
@@ -1727,7 +1702,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
         ownedBusinesses.some(b => b.id === existingSpot.businessId || b.ownerId === effectiveUserId || b.ownerId === userId);
 
       if (!isOwner) {
-        showToast('Permission denied: Only the spot owner or verified merchant can edit this spot.');
+        showToast('Permission denied: Only the spot owner or verified merchant can edit this spot.', { type: 'error' });
         return;
       }
     }
@@ -1749,7 +1724,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       lng: existing?.lng || 36.8115,
       rating: existing?.rating || 'New',
       reviewCount: existing?.reviewCount || 0,
-      price: spotPrice || 'KES KES',
+      price: spotPrice || 'Mid',
       img: spotCoverImg,
       images: spotGalleryImgs.length > 0 ? spotGalleryImgs : [spotCoverImg],
       description: spotDescription.trim(),
@@ -1818,8 +1793,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       };
       Promise.resolve(onAdminPublishSpot ? onAdminPublishSpot(adminSpot) : 'Admin publishing is not connected.')
         .then(err => {
-          if (err) { showToast(err); return; }
-          showToast(`"${adminSpot.title}" published as unclaimed. Merchants can now claim it.`);
+          if (err) { showToast(err, { type: 'error' }); return; }
           setIsSpotFormOpen(false);
           onClose?.();
         });
@@ -1839,7 +1813,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setSpotAddress('');
     setSpotExactLocationTag('');
     setSpotLandmark('');
-    setSpotPrice('KES KES');
+    setSpotPrice('Mid');
     setSpotPhone('+254 ');
     setSpotOpeningHours('11:00 AM - 11:00 PM');
     setSpotDescription('');
@@ -1874,7 +1848,6 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setSpotWebsite('');
     setSpotInstagram('');
 
-    showToast(editingSpotId ? `Spot "${savedSpot.title}" details updated successfully.` : `Spot "${savedSpot.title}" published live to RADA!`);
   };
 
   // Add menu item in spot form
@@ -1891,7 +1864,6 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setNewMenuName('');
     setNewMenuPrice('KES ');
     setNewMenuDesc('');
-    showToast(`Added ${item.name} to menu!`);
   };
 
   useEffect(() => {
@@ -1981,7 +1953,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
 
   const handleOpenClaimModal = (spot: any) => {
     if (!currentBiz?.id) {
-      showToast('Select or create your business profile before claiming.');
+      showToast('Select or create your business profile before claiming.', { type: 'error' });
       return;
     }
     setClaimTargetSpot(spot);
@@ -1998,34 +1970,32 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     const files = e.target.files;
     if (!files || files.length === 0) return;
     if (claimProofDocs.length >= 5) {
-      showToast('Maximum 5 proof documents allowed.');
+      showToast('Maximum 5 proof documents allowed.', { type: 'error' });
       return;
     }
     const dataUrls = await readFilesAsDataUrls(files);
     const combined = [...claimProofDocs, ...dataUrls].slice(0, 5);
     setClaimProofDocs(combined);
-    showToast(`Added ${dataUrls.length} proof document(s).`);
     e.target.value = '';
   };
 
   const handleRemoveProofDoc = (index: number) => {
     setClaimProofDocs(prev => prev.filter((_, i) => i !== index));
-    showToast('Proof document removed.');
   };
 
   const handleSubmitProofOfOwnership = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!claimTargetSpot || !currentBiz) return;
     if (!claimantRole.trim()) {
-      showToast('Please state your role at this venue.');
+      showToast('Please state your role at this venue.', { type: 'error' });
       return;
     }
     if (!claimantPhone.trim() && !claimantEmail.trim()) {
-      showToast('Please provide contact phone or email for verification.');
+      showToast('Please provide contact phone or email for verification.', { type: 'error' });
       return;
     }
     if (claimProofDocs.length === 0 && !claimProofNote.trim()) {
-      showToast('Please upload proof documents or provide verification notes.');
+      showToast('Please upload proof documents or provide verification notes.', { type: 'error' });
       return;
     }
 
@@ -2064,12 +2034,11 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       } else {
         await submitSpotClaim(newClaim);
       }
-      showToast(`Proof submitted! Admin will verify "${claimTargetSpot.title}".`);
       setIsClaimModalOpen(false);
       setClaimTargetSpot(null);
       loadUnclaimedSpots(claimSearchQuery);
     } catch (err: any) {
-      showToast(`Failed to submit claim: ${err?.message || String(err)}`);
+      showToast(`Failed to submit claim: ${err?.message || String(err)}`, { type: 'error' });
     } finally {
       setIsSubmittingClaim(false);
     }
@@ -2122,7 +2091,6 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     reader.onloadend = () => {
       if (typeof reader.result === 'string') {
         setEventImg(reader.result);
-        showToast('Event artwork poster uploaded successfully!');
       }
     };
     reader.readAsDataURL(file);
@@ -2133,7 +2101,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     if (!files || files.length === 0) return;
 
     if (eventGalleryImgs.length >= 5) {
-      showToast('Maximum 5 event gallery photos allowed.');
+      showToast('Maximum 5 event gallery photos allowed.', { type: 'error' });
       e.target.value = '';
       return;
     }
@@ -2141,14 +2109,8 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     const dataUrls = await readFilesAsDataUrls(files);
     const result = deduplicateAndLimitPhotos(eventGalleryImgs, dataUrls, 5);
 
-    if (result.duplicateCount > 0 && result.addedCount === 0) {
-      showToast('Duplicate photo(s) skipped — already in event gallery.');
-    } else if (result.duplicateCount > 0 && result.addedCount > 0) {
-      showToast(`Added ${result.addedCount} photo(s). Skipped ${result.duplicateCount} duplicate(s).`);
-    } else if (result.exceededLimit) {
-      showToast('Maximum 5 event gallery photos limit reached.');
-    } else if (result.addedCount > 0) {
-      showToast(`Added ${result.addedCount} photo(s) to event gallery.`);
+    if (result.exceededLimit) {
+      showToast('Maximum 5 event gallery photos limit reached.', { type: 'error' });
     }
 
     setEventGalleryImgs(result.updatedList);
@@ -2157,7 +2119,6 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
 
   const handleRemoveEventGalleryImage = (indexToRemove: number) => {
     setEventGalleryImgs(prev => prev.filter((_, idx) => idx !== indexToRemove));
-    showToast('Event gallery image removed.');
   };
 
 
@@ -2206,7 +2167,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   const handleSaveEvent = (e: React.FormEvent) => {
     e.preventDefault();
     if (!eventTitle.trim()) {
-      showToast('Please enter an event title.');
+      showToast('Please enter an event title.', { type: 'error' });
       return;
     }
     const finalLocation = eventExactLocationTag.trim() && !eventLocation.includes(eventExactLocationTag.trim())
@@ -2234,7 +2195,6 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     };
     onAddEvent(newEvt);
     setIsEventFormOpen(false);
-    showToast(editingEventId ? `Event "${newEvt.title}" updated successfully!` : `Event "${newEvt.title}" published live with verified ticketing!`);
   };
 
   const myEvents = events.filter(e => e.businessId === currentBiz?.id);
@@ -2279,7 +2239,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   const handleSaveOffer = (e: React.FormEvent) => {
     e.preventDefault();
     if (!offerTitle.trim()) {
-      showToast('Please enter an offer title.');
+      showToast('Please enter an offer title.', { type: 'error' });
       return;
     }
 
@@ -2300,10 +2260,8 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
 
     if (editingOfferId) {
       onUpdateOffer(offerPayload);
-      showToast('Promotional offer updated!');
     } else {
       onCreateOffer(offerPayload);
-      showToast('New promotion live on Home running feed!');
     }
 
     setIsOfferFormOpen(false);
@@ -2360,7 +2318,7 @@ isSpotFormOpen && (
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
                     Basic Spot Info & Category
                   </h3>
-                  <span className="text-[10px] text-[#E0533C] font-bold">Step 1 • Classification</span>
+                  <span className="text-[10px] text-[#E0533C] dark:text-[#D17A68] font-bold">Step 1 • Classification</span>
                 </div>
 
                 <div>
@@ -2372,7 +2330,7 @@ isSpotFormOpen && (
                     value={spotTitle} 
                     onChange={(e) => setSpotTitle(e.target.value)} 
                     placeholder="e.g. Ink & Drink Lounge, Karura Forest Foresters, The Foundry"
-                    className="w-full text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C] font-semibold"
+                    className="w-full text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68] font-semibold"
                     required 
                   />
                 </div>
@@ -2411,20 +2369,20 @@ isSpotFormOpen && (
                           }}
                           className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between gap-2.5 cursor-pointer group relative ${
                             isCurrentGroup
-                              ? 'border-[#E0533C] bg-orange-50/70 dark:bg-orange-950/40 text-slate-900 dark:text-slate-100 ring-2 ring-[#E0533C]/20 shadow-xs'
+                              ? 'border-[#E0533C] dark:border-[#D17A68] bg-orange-50/70 dark:bg-orange-950/40 text-slate-900 dark:text-slate-100 ring-2 ring-[#E0533C]/20 dark:ring-[#D17A68]/20 shadow-xs'
                               : 'border-slate-200 dark:border-slate-800 bg-[#FBFBF9] dark:bg-[#121113] hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300'
                           }`}
                         >
                           <div className="flex items-center justify-between w-full">
                             <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition ${
                               isCurrentGroup 
-                                ? 'bg-[#E0533C] text-white shadow-xs' 
+                                ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white shadow-xs' 
                                 : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:scale-105'
                             }`}>
                               <Icon className="w-4 h-4" />
                             </div>
                             {isCurrentGroup && (
-                              <span className="w-2 h-2 rounded-full bg-[#E0533C]" />
+                              <span className="w-2 h-2 rounded-full bg-[#E0533C] dark:bg-[#A94F3E]" />
                             )}
                           </div>
                           <div>
@@ -2444,14 +2402,14 @@ isSpotFormOpen && (
                   <div className="pt-2">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between">
                       <span>Subcategory ({PRIMARY_SPOT_CATEGORIES.find(c => c.id === spotPrimaryGroup)?.label || 'Specialized'}) *</span>
-                      <span className="text-[10px] text-[#E0533C] font-semibold">
+                      <span className="text-[10px] text-[#E0533C] dark:text-[#D17A68] font-semibold">
                         {(SUBCATEGORIES_BY_CATEGORY[spotPrimaryGroup] || []).length} options available
                       </span>
                     </label>
                     <select
                       value={spotSubcategory}
                       onChange={(e) => setSpotSubcategory(e.target.value)}
-                      className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 font-semibold focus:outline-none focus:border-[#E0533C]"
+                      className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 font-semibold focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]"
                     >
                       {(SUBCATEGORIES_BY_CATEGORY[spotPrimaryGroup] || []).map((subName) => (
                         <option key={subName} value={subName}>
@@ -2465,16 +2423,16 @@ isSpotFormOpen && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Price Tier
+                      Budget
                     </label>
                     <select 
                       value={spotPrice} 
                       onChange={(e) => setSpotPrice(e.target.value)}
-                      className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 font-semibold focus:outline-none focus:border-[#E0533C]"
+                      className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 font-semibold focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]"
                     >
-                      <option value="KES">KES</option>
-                      <option value="KES KES">KES KES</option>
-                      <option value="KES KES KES">KES KES KES</option>
+                      <option value="Low">Low</option>
+                      <option value="Mid">Mid</option>
+                      <option value="High">High</option>
                     </select>
                   </div>
 
@@ -2487,7 +2445,7 @@ isSpotFormOpen && (
                       value={spotOpeningHours} 
                       onChange={(e) => setSpotOpeningHours(e.target.value)} 
                       placeholder="e.g. 11:00 AM - Midnight"
-                      className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C]"
+                      className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]"
                     />
                   </div>
                 </div>
@@ -2501,7 +2459,7 @@ isSpotFormOpen && (
                     value={spotDescription} 
                     onChange={(e) => setSpotDescription(e.target.value)} 
                     placeholder="Tell Nairobi explorers what makes your hangout, cocktails, ambiance, scenic views, or activities unique..."
-                    className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C]"
+                    className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]"
                     required
                   />
                 </div>
@@ -2514,7 +2472,7 @@ isSpotFormOpen && (
                 <div className="bg-white dark:bg-[#1C1A1E] border border-orange-200 dark:border-orange-900/40 rounded-3xl p-5 sm:p-6 shadow-xs space-y-6 animate-in fade-in duration-200">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-orange-500/10 text-[#E0533C] flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-xl bg-orange-500/10 text-[#E0533C] dark:text-[#D17A68] flex items-center justify-center">
                         <UtensilsCrossed className="w-4 h-4" />
                       </div>
                       <div>
@@ -2526,7 +2484,7 @@ isSpotFormOpen && (
                         </p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/60 text-[#E0533C]">
+                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] dark:text-[#D17A68]">
                       Dining Active
                     </span>
                   </div>
@@ -2552,7 +2510,7 @@ isSpotFormOpen && (
                             }}
                             className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
                               isSelected
-                                ? 'bg-[#E0533C] text-white shadow-xs'
+                                ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white shadow-xs'
                                 : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
                             }`}
                           >
@@ -2580,7 +2538,7 @@ isSpotFormOpen && (
                             key={idx}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/50 text-xs font-bold text-orange-900 dark:text-orange-200"
                           >
-                            <Sparkles className="w-3 h-3 text-[#E0533C]" />
+                            <Sparkles className="w-3 h-3 text-[#E0533C] dark:text-[#D17A68]" />
                             <span>{dish}</span>
                             <button
                               type="button"
@@ -2610,7 +2568,7 @@ isSpotFormOpen && (
                           }
                         }}
                         placeholder="e.g. Signature Dawa Honey Spritz, Smoked Mbuzi Ribs, Truffle Parmesan Fries..."
-                        className="text-xs flex-1 bg-slate-100 dark:bg-[#121113] rounded-xl p-2.5 focus:outline-none focus:border-[#E0533C]"
+                        className="text-xs flex-1 bg-slate-100 dark:bg-[#121113] rounded-xl p-2.5 focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]"
                       />
                       <button
                         type="button"
@@ -2620,7 +2578,7 @@ isSpotFormOpen && (
                             setNewFeaturedDishInput('');
                           }
                         }}
-                        className="px-3.5 py-2 bg-[#E0533C] hover:bg-[#c9432d] text-white text-xs font-bold rounded-xl flex items-center gap-1"
+                        className="px-3.5 py-2 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-[#c9432d] dark:hover:bg-[#8F4334] text-white text-xs font-bold rounded-xl flex items-center gap-1"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>Add Dish</span>
@@ -2683,7 +2641,6 @@ isSpotFormOpen && (
                             type="button"
                             onClick={() => {
                               setSpotMenuUploadUrl('');
-                              showToast('Menu document removed.');
                             }}
                             className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition cursor-pointer"
                             title="Remove menu document"
@@ -2695,9 +2652,9 @@ isSpotFormOpen && (
                     ) : (
                       <label
                         htmlFor="spot-menu-doc-input"
-                        className="w-full py-5 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-2 cursor-pointer transition text-center group"
+                        className="w-full py-5 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] dark:hover:border-[#D17A68] bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-2 cursor-pointer transition text-center group"
                       >
-                        <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] flex items-center justify-center group-hover:scale-105 transition">
+                        <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] dark:text-[#D17A68] flex items-center justify-center group-hover:scale-105 transition">
                           <Upload className="w-5 h-5" />
                         </div>
                         <div>
@@ -2745,7 +2702,7 @@ isSpotFormOpen && (
                                   </span>
                                 )}
                               </div>
-                              <span className="text-[11px] text-[#E0533C] font-black">{item.price}</span>
+                              <span className="text-[11px] text-[#E0533C] dark:text-[#D17A68] font-black">{item.price}</span>
                               {item.description && <span className="text-[10px] text-slate-400 block truncate">{item.description}</span>}
                             </div>
                             <button 
@@ -2802,7 +2759,7 @@ isSpotFormOpen && (
                       <button 
                         type="button"
                         onClick={handleAddMenuItem}
-                        className="w-full text-xs font-extrabold bg-[#E0533C]/10 text-[#E0533C] hover:bg-[#E0533C]/20 py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1"
+                        className="w-full text-xs font-extrabold bg-[#E0533C]/10 dark:bg-[#A94F3E]/10 text-[#E0533C] dark:text-[#D17A68] hover:bg-[#E0533C]/20 dark:hover:bg-[#A94F3E]/20 py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>Add Item to Digital Menu</span>
@@ -3505,7 +3462,7 @@ isSpotFormOpen && (
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
                     Location, Transit Directions & Social Links
                   </h3>
-                  <span className="text-[10px] text-[#E0533C] font-bold">Standard Details</span>
+                  <span className="text-[10px] text-[#E0533C] dark:text-[#D17A68] font-bold">Standard Details</span>
                 </div>
 
                 {/* Dynamic Auto-Search Location Selector */}
@@ -3531,7 +3488,7 @@ isSpotFormOpen && (
                       value={spotExactLocationTag} 
                       onChange={(e) => setSpotExactLocationTag(e.target.value)} 
                       placeholder="e.g. Mpaka Road, Westlands, Opposite PrideInn Hotel"
-                      className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C]"
+                      className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]"
                     />
                   </div>
 
@@ -3544,7 +3501,7 @@ isSpotFormOpen && (
                       value={spotLandmark} 
                       onChange={(e) => setSpotLandmark(e.target.value)} 
                       placeholder="e.g. Westlands Stage / Sarit Roundabout"
-                      className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C]"
+                      className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]"
                     />
                   </div>
                 </div>
@@ -3553,7 +3510,7 @@ isSpotFormOpen && (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-                      <Phone className="w-3.5 h-3.5 text-[#E0533C]" />
+                      <Phone className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
                       <span>Reservation Phone / WhatsApp</span>
                     </label>
                     <input 
@@ -3567,7 +3524,7 @@ isSpotFormOpen && (
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-                      <Globe className="w-3.5 h-3.5 text-[#E0533C]" />
+                      <Globe className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
                       <span>Official Website</span>
                     </label>
                     <input 
@@ -3633,7 +3590,7 @@ isSpotFormOpen && (
                             htmlFor="spot-cover-file-input"
                             className="px-3.5 py-2 bg-white/95 hover:bg-white text-slate-900 rounded-xl text-xs font-extrabold cursor-pointer transition shadow-md flex items-center gap-1.5"
                           >
-                            <Upload className="w-3.5 h-3.5 text-[#E0533C]" />
+                            <Upload className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
                             <span>Change Photo</span>
                           </label>
                           <input
@@ -3649,7 +3606,6 @@ isSpotFormOpen && (
                           type="button"
                           onClick={() => {
                             setSpotCoverImg('');
-                            showToast('Cover photo removed. Please upload a new image.');
                           }}
                           className="px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-extrabold cursor-pointer transition shadow-md flex items-center gap-1.5"
                           title="Remove cover photo"
@@ -3662,9 +3618,9 @@ isSpotFormOpen && (
                   ) : (
                     <label
                       htmlFor="spot-cover-file-input-empty"
-                      className="w-full h-48 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-2.5 p-6 cursor-pointer transition group text-center"
+                      className="w-full h-48 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] dark:hover:border-[#D17A68] bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-2.5 p-6 cursor-pointer transition group text-center"
                     >
-                      <div className="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] flex items-center justify-center group-hover:scale-105 transition">
+                      <div className="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] dark:text-[#D17A68] flex items-center justify-center group-hover:scale-105 transition">
                         <Camera className="w-6 h-6" />
                       </div>
                       <div>
@@ -3675,7 +3631,7 @@ isSpotFormOpen && (
                           Click to select a high-resolution photo from your device
                         </p>
                       </div>
-                      <span className="px-4 py-2 bg-[#E0533C] text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5">
+                      <span className="px-4 py-2 bg-[#E0533C] dark:bg-[#A94F3E] text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5">
                         <Upload className="w-3.5 h-3.5" />
                         <span>Select Image File</span>
                       </span>
@@ -3707,7 +3663,7 @@ isSpotFormOpen && (
                     {spotGalleryImgs.length < 5 && (
                       <label
                         htmlFor="spot-gallery-file-input"
-                        className="px-3.5 py-1.5 bg-[#E0533C]/10 hover:bg-[#E0533C]/20 text-[#E0533C] rounded-xl text-xs font-extrabold cursor-pointer transition flex items-center gap-1.5 shrink-0"
+                        className="px-3.5 py-1.5 bg-[#E0533C]/10 dark:bg-[#A94F3E]/10 hover:bg-[#E0533C]/20 dark:hover:bg-[#A94F3E]/20 text-[#E0533C] dark:text-[#D17A68] rounded-xl text-xs font-extrabold cursor-pointer transition flex items-center gap-1.5 shrink-0"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>Upload Photos</span>
@@ -3755,7 +3711,6 @@ isSpotFormOpen && (
                               type="button"
                               onClick={() => {
                                 setSpotCoverImg(imgUrl);
-                                showToast('Set as primary cover photo!');
                               }}
                               className="px-2.5 py-1 bg-white text-slate-900 rounded-lg text-[10px] font-black hover:bg-slate-100 transition"
                             >
@@ -3771,7 +3726,7 @@ isSpotFormOpen && (
                             </button>
                           </div>
                           {spotCoverImg === imgUrl && (
-                            <div className="absolute top-2 left-2 bg-[#E0533C] text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md uppercase">
+                            <div className="absolute top-2 left-2 bg-[#E0533C] dark:bg-[#A94F3E] text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md uppercase">
                               Cover
                             </div>
                           )}
@@ -3782,9 +3737,9 @@ isSpotFormOpen && (
                       {spotGalleryImgs.length < 5 && (
                         <label
                           htmlFor="spot-gallery-file-input-grid"
-                          className="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-1.5 p-3 aspect-square cursor-pointer transition text-center group"
+                          className="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] dark:hover:border-[#D17A68] bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-1.5 p-3 aspect-square cursor-pointer transition text-center group"
                         >
-                          <div className="w-9 h-9 rounded-xl bg-orange-50 dark:bg-orange-950/40 text-[#E0533C] flex items-center justify-center group-hover:scale-110 transition">
+                          <div className="w-9 h-9 rounded-xl bg-orange-50 dark:bg-orange-950/40 text-[#E0533C] dark:text-[#D17A68] flex items-center justify-center group-hover:scale-110 transition">
                             <Plus className="w-5 h-5" />
                           </div>
                           <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-300">
@@ -3804,7 +3759,7 @@ isSpotFormOpen && (
                   ) : (
                     <label
                       htmlFor="spot-gallery-file-input-empty"
-                      className="w-full py-8 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-2 cursor-pointer transition text-center"
+                      className="w-full py-8 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] dark:hover:border-[#D17A68] bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-2 cursor-pointer transition text-center"
                     >
                       <ImageIcon className="w-8 h-8 text-slate-400" />
                       <div>
@@ -3842,7 +3797,7 @@ isSpotFormOpen && (
                 </button>
                 <button 
                   type="submit"
-                  className="w-full flex-1 bg-[#E0533C] hover:bg-[#c9432d] text-white font-black text-sm py-4 rounded-2xl shadow-xl shadow-orange-500/20 active:scale-[0.99] transition cursor-pointer flex items-center justify-center gap-2 order-1 sm:order-2"
+                  className="w-full flex-1 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-[#c9432d] dark:hover:bg-[#8F4334] text-white font-black text-sm py-4 rounded-2xl shadow-xl shadow-orange-500/20 active:scale-[0.99] transition cursor-pointer flex items-center justify-center gap-2 order-1 sm:order-2"
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   <span>{editingSpotId ? 'Save & Update Spot Listing' : 'Publish Spot to RADA'}</span>
@@ -3868,7 +3823,7 @@ isSpotFormOpen && (
           {/* Top Bar with Cancel / Exit if businesses exist */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] flex items-center justify-center text-white shadow-md">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#E0533C] dark:from-[#A94F3E] to-[#E9C46A] dark:to-[#A68B4B] flex items-center justify-center text-white shadow-md">
                 <Store className="w-5 h-5" />
               </div>
               <div>
@@ -3900,15 +3855,15 @@ isSpotFormOpen && (
 
           {/* Stepper progress indicator */}
           <div className="flex items-center gap-2 mb-8">
-            <div className={`flex-1 h-1.5 rounded-full transition-all ${onboardingStep >= 1 ? 'bg-[#E0533C]' : 'bg-slate-200 dark:bg-slate-800'}`} />
-            <div className={`flex-1 h-1.5 rounded-full transition-all ${onboardingStep >= 2 ? 'bg-[#E0533C]' : 'bg-slate-200 dark:bg-slate-800'}`} />
+            <div className={`flex-1 h-1.5 rounded-full transition-all ${onboardingStep >= 1 ? 'bg-[#E0533C] dark:bg-[#A94F3E]' : 'bg-slate-200 dark:bg-slate-800'}`} />
+            <div className={`flex-1 h-1.5 rounded-full transition-all ${onboardingStep >= 2 ? 'bg-[#E0533C] dark:bg-[#A94F3E]' : 'bg-slate-200 dark:bg-slate-800'}`} />
           </div>
 
           {/* STEP 1: MASTER BUSINESS PROFILE CREATION */}
           {onboardingStep === 1 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-200">
               <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-6 shadow-sm">
-                <div className="flex items-center gap-2 text-[#E0533C] font-extrabold text-xs uppercase tracking-wider mb-2">
+                <div className="flex items-center gap-2 text-[#E0533C] dark:text-[#D17A68] font-extrabold text-xs uppercase tracking-wider mb-2">
                   <Building2 className="w-4 h-4" />
                   <span>Step 1: Master Business Identity</span>
                 </div>
@@ -3921,14 +3876,14 @@ isSpotFormOpen && (
                   {/* Business Name */}
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Business Name <span className="text-[#E0533C]">*</span>
+                      Business Name <span className="text-[#E0533C] dark:text-[#D17A68]">*</span>
                     </label>
                     <input 
                       type="text"
                       placeholder="e.g. Ink & Drink Lounge, Nairobi Waves, 90s Vintage"
                       value={onboardName}
                       onChange={(e) => setOnboardName(e.target.value)}
-                      className="w-full text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl px-4 py-3 focus:outline-none focus:border-[#E0533C]"
+                      className="w-full text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl px-4 py-3 focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]"
                     />
                   </div>
 
@@ -3942,7 +3897,7 @@ isSpotFormOpen && (
                       placeholder="Tell Nairobi what makes your venue, rave, or streetwear drop extraordinary..."
                       value={onboardBio}
                       onChange={(e) => setOnboardBio(e.target.value)}
-                      className="w-full text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-4 focus:outline-none focus:border-[#E0533C]"
+                      className="w-full text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-4 focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]"
                     />
                   </div>
 
@@ -3959,7 +3914,7 @@ isSpotFormOpen && (
                       />
                       <div className="flex-1 space-y-2">
                         <div className="flex items-center gap-2">
-                          <label className="cursor-pointer px-3 py-1.5 bg-[#E0533C] hover:bg-[#d04630] text-white text-xs font-bold rounded-xl transition inline-flex items-center gap-1.5 shadow-xs">
+                          <label className="cursor-pointer px-3 py-1.5 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-[#d04630] text-white text-xs font-bold rounded-xl transition inline-flex items-center gap-1.5 shadow-xs">
                             <Upload className="w-3.5 h-3.5" />
                             <span>Upload Photo</span>
                             <input 
@@ -3973,7 +3928,6 @@ isSpotFormOpen && (
                                   reader.onload = (event) => {
                                     if (event.target?.result) {
                                       setOnboardLogo(event.target.result as string);
-                                      showToast('Profile photo selected!');
                                     }
                                   };
                                   reader.readAsDataURL(file);
@@ -3998,7 +3952,7 @@ isSpotFormOpen && (
                               key={idx}
                               type="button"
                               onClick={() => setOnboardLogo(preset)}
-                              className={`w-6 h-6 rounded-lg overflow-hidden border ${onboardLogo === preset ? 'ring-2 ring-[#E0533C]' : 'opacity-70'}`}
+                              className={`w-6 h-6 rounded-lg overflow-hidden border ${onboardLogo === preset ? 'ring-2 ring-[#E0533C] dark:ring-[#D17A68]' : 'opacity-70'}`}
                             >
                               <img src={preset} alt="preset" className="w-full h-full object-cover" />
                             </button>
@@ -4026,7 +3980,7 @@ isSpotFormOpen && (
                         placeholder="e.g. Mpaka Rd, 2nd Floor / Gikomba Stall 4B"
                         value={onboardAddress}
                         onChange={(e) => setOnboardAddress(e.target.value)}
-                        className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl px-4 py-3 font-medium focus:outline-none focus:border-[#E0533C]"
+                        className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl px-4 py-3 font-medium focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]"
                       />
                     </div>
                   </div>
@@ -4042,7 +3996,7 @@ isSpotFormOpen && (
                         placeholder="+254 700 000 000"
                         value={onboardPhone}
                         onChange={(e) => setOnboardPhone(e.target.value)}
-                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl px-3 py-2.5 focus:outline-none focus:border-[#E0533C]"
+                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl px-3 py-2.5 focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]"
                       />
                     </div>
                     <div>
@@ -4054,7 +4008,7 @@ isSpotFormOpen && (
                         placeholder="+254 700 000 000"
                         value={onboardWhatsapp}
                         onChange={(e) => setOnboardWhatsapp(e.target.value)}
-                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl px-3 py-2.5 focus:outline-none focus:border-[#E0533C]"
+                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl px-3 py-2.5 focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]"
                       />
                     </div>
                   </div>
@@ -4064,12 +4018,12 @@ isSpotFormOpen && (
                   type="button"
                   onClick={() => {
                     if (!onboardName.trim()) {
-                      showToast('Please specify a Business Name first.');
+                      showToast('Please specify a Business Name first.', { type: 'error' });
                       return;
                     }
                     setOnboardingStep(2);
                   }}
-                  className="w-full mt-8 bg-[#E0533C] hover:bg-[#c9432d] text-white font-black text-sm py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 active:scale-[0.99] transition cursor-pointer"
+                  className="w-full mt-8 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-[#c9432d] dark:hover:bg-[#8F4334] text-white font-black text-sm py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 active:scale-[0.99] transition cursor-pointer"
                 >
                   <span>Continue to Vertical Selection</span>
                   <ArrowRight className="w-4 h-4" />
@@ -4082,7 +4036,7 @@ isSpotFormOpen && (
           {onboardingStep === 2 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-3 duration-200">
               <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-6 shadow-sm">
-                <div className="flex items-center gap-2 text-[#E0533C] font-extrabold text-xs uppercase tracking-wider mb-2">
+                <div className="flex items-center gap-2 text-[#E0533C] dark:text-[#D17A68] font-extrabold text-xs uppercase tracking-wider mb-2">
                   <Sparkles className="w-4 h-4" />
                   <span>Step 2: Choose Merchant Vertical</span>
                 </div>
@@ -4202,7 +4156,7 @@ isSpotFormOpen && (
                     type="button"
                     onClick={handleCompleteOnboarding}
                     disabled={isSubmitting}
-                    className="w-full flex-1 bg-[#E0533C] hover:bg-[#c9432d] disabled:opacity-60 disabled:cursor-not-allowed text-white font-extrabold text-xs sm:text-sm px-6 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 active:scale-[0.99] transition cursor-pointer leading-tight text-center whitespace-normal order-1 sm:order-2"
+                    className="w-full flex-1 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-[#c9432d] dark:hover:bg-[#8F4334] disabled:opacity-60 disabled:cursor-not-allowed text-white font-extrabold text-xs sm:text-sm px-6 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 active:scale-[0.99] transition cursor-pointer leading-tight text-center whitespace-normal order-1 sm:order-2"
                   >
                     <CheckCircle2 className="w-4 h-4 shrink-0" />
                     <span>{isSubmitting ? 'Launching Dashboard…' : 'Launch Merchant Dashboard'}</span>
@@ -4238,7 +4192,7 @@ isSpotFormOpen && (
                 />
                 <div className="min-w-0 flex-1 pt-0.5">
                   <div className="flex items-start gap-1.5">
-                    <h2 className="font-black text-[15px] leading-snug text-slate-900 dark:text-slate-100 break-words line-clamp-2 group-hover:text-[#E0533C] transition">
+                    <h2 className="font-black text-[15px] leading-snug text-slate-900 dark:text-slate-100 break-words line-clamp-2 group-hover:text-[#E0533C] dark:group-hover:text-[#D17A68] transition">
                       {currentBiz.name}
                     </h2>
                     <span className="text-[10px] text-slate-400 mt-1 shrink-0">▼</span>
@@ -4262,11 +4216,10 @@ isSpotFormOpen && (
                         onClick={() => {
                           onSelectBusiness(biz.id);
                           setIsSwitcherOpen(false);
-                          showToast(`Switched to ${biz.name}`);
                         }}
                         className={`w-full text-left p-2.5 rounded-xl flex items-center justify-between text-xs transition ${
                           biz.id === currentBiz.id
-                            ? 'bg-amber-50 dark:bg-amber-950/40 text-[#E0533C] font-bold'
+                            ? 'bg-amber-50 dark:bg-amber-950/40 text-[#E0533C] dark:text-[#D17A68] font-bold'
                             : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
                         }`}
                       >
@@ -4285,7 +4238,7 @@ isSpotFormOpen && (
                         setIsSwitcherOpen(false);
                         handleStartOnboarding();
                       }}
-                      className="w-full text-left p-2 rounded-xl text-xs font-bold text-[#E0533C] hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-2 transition"
+                      className="w-full text-left p-2 rounded-xl text-xs font-bold text-[#E0533C] dark:text-[#D17A68] hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-2 transition"
                     >
                       <Plus className="w-4 h-4" />
                       <span>Add New Merchant Account</span>
@@ -4352,7 +4305,7 @@ isSpotFormOpen && (
                   onClick={() => setActiveSubTab('manage')}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
                     activeSubTab === 'manage'
-                      ? 'bg-[#E0533C] text-white shadow-xs'
+                      ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white shadow-xs'
                       : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60'
                   }`}
                 >
@@ -4483,7 +4436,7 @@ isSpotFormOpen && (
                     ? myEvents.length 
                     : 0}
                 </span>
-                <span className="text-[10px] text-[#E0533C] font-semibold">Active Listings</span>
+                <span className="text-[10px] text-[#E0533C] dark:text-[#D17A68] font-semibold">Active Listings</span>
               </div>
 
               <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-2xl p-3 text-center shadow-xs">
@@ -4580,28 +4533,19 @@ isSpotFormOpen && (
               </div>
             </div>
 
-            {/* Dynamic Metrics & Analytics Overview (Placed directly below Quick Actions) */}
-            <SpotInsightsAnalytics
-              spots={spots}
-              currentBiz={currentBiz}
-              userId={userId || effectiveUserId}
-              onOpenCreateSpot={openCreateSpotModal}
-              showToast={showToast}
-            />
-
             {/* Running Offers Spotlight */}
             <div className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-5 shadow-xs space-y-3">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                    <Flame className="w-4 h-4 text-[#E0533C]" />
+                    <Flame className="w-4 h-4 text-[#E0533C] dark:text-[#D17A68]" />
                     <span>Active Offers on Home Feed ({myOffers.length})</span>
                   </h3>
                   <p className="text-[10px] text-slate-500">Promotions showcased to all users on RADA Home</p>
                 </div>
                 <button 
                   onClick={openCreateOfferModal}
-                  className="text-[10px] font-black text-[#E0533C] hover:underline"
+                  className="text-[10px] font-black text-[#E0533C] dark:text-[#D17A68] hover:underline"
                 >
                   + Create Offer
                 </button>
@@ -4614,7 +4558,7 @@ isSpotFormOpen && (
                   <p className="text-[10px] text-slate-400 mt-0.5">Post an offer or deal to drive weekend traffic!</p>
                   <button 
                     onClick={openCreateOfferModal}
-                    className="mt-3 text-xs bg-[#E0533C] text-white font-bold px-3 py-1.5 rounded-xl shadow-xs"
+                    className="mt-3 text-xs bg-[#E0533C] dark:bg-[#A94F3E] text-white font-bold px-3 py-1.5 rounded-xl shadow-xs"
                   >
                     Post an Offer
                   </button>
@@ -4652,7 +4596,6 @@ isSpotFormOpen && (
                         <button 
                           onClick={() => {
                             onDeleteOffer(offer.id);
-                            showToast('Offer removed from Home feed.');
                           }}
                           className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg text-red-500"
                           title="Delete Offer"
@@ -4684,7 +4627,7 @@ isSpotFormOpen && (
                   </div>
                   <button 
                     onClick={openCreateSpotModal}
-                    className="text-xs font-black bg-[#E0533C] text-white px-3.5 py-2 rounded-xl flex items-center gap-1 shadow-md shadow-orange-500/20 cursor-pointer"
+                    className="text-xs font-black bg-[#E0533C] dark:bg-[#A94F3E] text-white px-3.5 py-2 rounded-xl flex items-center gap-1 shadow-md shadow-orange-500/20 cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>New Spot</span>
@@ -4701,7 +4644,7 @@ isSpotFormOpen && (
                     <div className="flex items-center justify-center gap-2 mt-4">
                       <button 
                         onClick={openCreateSpotModal}
-                        className="text-xs bg-[#E0533C] text-white font-bold px-4 py-2 rounded-xl"
+                        className="text-xs bg-[#E0533C] dark:bg-[#A94F3E] text-white font-bold px-4 py-2 rounded-xl"
                       >
                         Create Spot
                       </button>
@@ -4728,7 +4671,7 @@ isSpotFormOpen && (
                               <BusinessBadge businessId={currentBiz.id} category="hospitality" size="xs" />
                             </div>
                             <p className="text-xs text-slate-500 truncate flex items-center gap-1 mt-0.5">
-                              <MapPin className="w-3 h-3 text-[#E0533C]" />
+                              <MapPin className="w-3 h-3 text-[#E0533C] dark:text-[#D17A68]" />
                               <span>{spot.exactLocationTag || spot.address}</span>
                             </p>
                             <div className="flex items-center gap-2 mt-1.5 text-[10px] text-slate-400 font-semibold">
@@ -4752,7 +4695,7 @@ isSpotFormOpen && (
                         <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/80">
                           <button
                             onClick={() => onViewSpotDetails(spot)}
-                            className="text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-[#E0533C] flex items-center gap-1"
+                            className="text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-[#E0533C] dark:hover:text-[#D17A68] flex items-center gap-1"
                           >
                             <span>Preview Listing</span>
                             <ChevronRight className="w-3 h-3" />
@@ -4768,7 +4711,6 @@ isSpotFormOpen && (
                             <button
                               onClick={() => {
                                 onReleaseSpot(spot.id);
-                                showToast(`Released ownership of "${spot.title}".`);
                               }}
                               className="px-2.5 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/30 text-red-500 hover:bg-red-100 text-xs font-bold"
                               title="Release Spot Ownership"
@@ -4779,7 +4721,6 @@ isSpotFormOpen && (
                               onClick={() => {
                                 if (window.confirm(`Delete "${spot.title}" permanently? This removes it from RADA for everyone.`)) {
                                   onDeleteListing('spot', spot.id);
-                                  showToast(`Deleted "${spot.title}".`);
                                 }
                               }}
                               className="px-2.5 py-1.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-bold flex items-center gap-1 transition"
@@ -4891,7 +4832,6 @@ isSpotFormOpen && (
                             <button
                               onClick={() => {
                                 onDeleteListing('event', evt.id);
-                                showToast(`Deleted "${evt.title}".`);
                               }}
                               className="px-2.5 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/30 text-red-500 text-xs font-bold"
                             >
@@ -4987,7 +4927,7 @@ isSpotFormOpen && (
                             {c.spotImg ? (
                               <img src={c.spotImg} alt={c.spotTitle} className="w-12 h-12 rounded-xl object-cover shrink-0" />
                             ) : (
-                              <div className="w-12 h-12 rounded-xl bg-orange-50 dark:bg-orange-950/40 text-[#E0533C] flex items-center justify-center font-bold text-xs shrink-0">
+                              <div className="w-12 h-12 rounded-xl bg-orange-50 dark:bg-orange-950/40 text-[#E0533C] dark:text-[#D17A68] flex items-center justify-center font-bold text-xs shrink-0">
                                 <Store className="w-5 h-5" />
                               </div>
                             )}
@@ -5082,7 +5022,7 @@ isSpotFormOpen && (
                             )}
                           </div>
                           <p className="text-[11px] text-slate-400 truncate flex items-center gap-1 mt-0.5">
-                            <MapPin className="w-3 h-3 text-[#E0533C]" />
+                            <MapPin className="w-3 h-3 text-[#E0533C] dark:text-[#D17A68]" />
                             <span>{spot.neighborhood} • {spot.address}</span>
                           </p>
                           <p className="text-[10px] text-slate-500 mt-0.5">
@@ -5108,7 +5048,7 @@ isSpotFormOpen && (
                       ) : (
                         <button
                           onClick={() => handleOpenClaimModal(spot)}
-                          className="bg-gradient-to-r from-amber-500 to-[#E0533C] hover:opacity-90 text-white font-black text-xs px-3.5 py-2.5 rounded-xl shadow-md shadow-orange-500/20 shrink-0 cursor-pointer transition active:scale-95 flex items-center gap-1.5"
+                          className="bg-gradient-to-r from-amber-500 to-[#E0533C] dark:to-[#A94F3E] hover:opacity-90 text-white font-black text-xs px-3.5 py-2.5 rounded-xl shadow-md shadow-orange-500/20 shrink-0 cursor-pointer transition active:scale-95 flex items-center gap-1.5"
                         >
                           <ShieldCheck className="w-3.5 h-3.5" />
                           <span>Claim & Upload Proof</span>
@@ -5134,7 +5074,7 @@ isSpotFormOpen && (
               </div>
               <button
                 onClick={openCreateOfferModal}
-                className="text-xs font-black bg-[#E0533C] text-white px-3.5 py-2 rounded-xl flex items-center gap-1 shadow-md shadow-orange-500/20 cursor-pointer"
+                className="text-xs font-black bg-[#E0533C] dark:bg-[#A94F3E] text-white px-3.5 py-2 rounded-xl flex items-center gap-1 shadow-md shadow-orange-500/20 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>New Promotion</span>
@@ -5150,7 +5090,7 @@ isSpotFormOpen && (
                 </p>
                 <button
                   onClick={openCreateOfferModal}
-                  className="mt-4 text-xs bg-[#E0533C] text-white font-bold px-4 py-2 rounded-xl shadow-md"
+                  className="mt-4 text-xs bg-[#E0533C] dark:bg-[#A94F3E] text-white font-bold px-4 py-2 rounded-xl shadow-md"
                 >
                   Create Your First Offer
                 </button>
@@ -5171,7 +5111,7 @@ isSpotFormOpen && (
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                       <div className="absolute top-3 left-3 flex items-center gap-1.5">
-                        <span className="text-[10px] font-black bg-[#E0533C] text-white px-2.5 py-1 rounded-full shadow-md uppercase tracking-wider">
+                        <span className="text-[10px] font-black bg-[#E0533C] dark:bg-[#A94F3E] text-white px-2.5 py-1 rounded-full shadow-md uppercase tracking-wider">
                           {offer.discount}
                         </span>
                         <span className="text-[10px] font-extrabold bg-black/60 backdrop-blur-md text-white px-2.5 py-1 rounded-full border border-white/20">
@@ -5192,7 +5132,7 @@ isSpotFormOpen && (
                       
                       <div className="flex items-center justify-between bg-[#FBFBF9] dark:bg-[#121113] p-2.5 rounded-xl">
                         <div className="flex items-center gap-2">
-                          <Tag className="w-3.5 h-3.5 text-[#E0533C]" />
+                          <Tag className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
                           <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200">{offer.claimCode || 'RADADEAL'}</span>
                         </div>
                         <span className="text-[10px] font-bold text-emerald-600">Active on Home Feed</span>
@@ -5209,7 +5149,6 @@ isSpotFormOpen && (
                         <button
                           onClick={() => {
                             onDeleteOffer(offer.id);
-                            showToast('Offer deleted from store & Home feed.');
                           }}
                           className="px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/30 text-red-500 hover:bg-red-100 text-xs font-bold transition flex items-center gap-1"
                         >
@@ -5489,7 +5428,6 @@ isSpotFormOpen && (
                             type="button"
                             onClick={() => {
                               setEventImg('');
-                              showToast('Poster artwork removed.');
                             }}
                             className="px-3 py-2 bg-red-600/90 hover:bg-red-600 text-white rounded-xl text-xs font-bold shadow-lg transition flex items-center gap-1"
                           >
@@ -5595,7 +5533,6 @@ isSpotFormOpen && (
                               type="button"
                               onClick={() => {
                                 setEventImg(imgUrl);
-                                showToast('Set as main event poster!');
                               }}
                               className="px-2.5 py-1 bg-white text-slate-900 rounded-lg text-[10px] font-black hover:bg-slate-100 transition"
                             >
@@ -5756,7 +5693,6 @@ isSpotFormOpen && (
                         setNewTierName('');
                         setNewTierPrice('KES ');
                         setNewTierPerks('');
-                        showToast(`Added tier "${newTierName}"!`);
                       }}
                       className="w-full py-2 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition"
                     >
@@ -5820,7 +5756,6 @@ isSpotFormOpen && (
                         img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop'
                       }]);
                       setNewArtistName('');
-                      showToast(`Added ${newArtistName} to lineup!`);
                     }}
                     className="px-4 py-3 bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold rounded-xl text-xs flex items-center justify-center gap-1"
                   >
@@ -5879,7 +5814,7 @@ isSpotFormOpen && (
                   value={offerTitle} 
                   onChange={(e) => setOfferTitle(e.target.value)} 
                   placeholder="e.g. Happy Hour 2-for-1 Cocktails, 20% Off Gate Pass"
-                  className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-[#E0533C]"
+                  className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]"
                   required
                 />
               </div>
@@ -5919,7 +5854,7 @@ isSpotFormOpen && (
                   value={offerDesc} 
                   onChange={(e) => setOfferDesc(e.target.value)} 
                   placeholder="Describe what customers get and how to redeem it..."
-                  className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-[#E0533C]"
+                  className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]"
                 />
               </div>
 
@@ -5936,7 +5871,7 @@ isSpotFormOpen && (
                     />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
                       <label className="cursor-pointer px-3 py-1.5 bg-white text-slate-900 text-xs font-black rounded-xl shadow-md flex items-center gap-1">
-                        <Upload className="w-3.5 h-3.5 text-[#E0533C]" /> Change
+                        <Upload className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" /> Change
                         <input 
                           type="file"
                           accept="image/*"
@@ -5963,8 +5898,8 @@ isSpotFormOpen && (
                     </div>
                   </div>
                 ) : (
-                  <label className="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer bg-[#FBFBF9] dark:bg-[#121113] transition text-center">
-                    <Upload className="w-5 h-5 text-[#E0533C]" />
+                  <label className="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] dark:hover:border-[#D17A68] rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer bg-[#FBFBF9] dark:bg-[#121113] transition text-center">
+                    <Upload className="w-5 h-5 text-[#E0533C] dark:text-[#D17A68]" />
                     <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Upload Promotional Poster</span>
                     <span className="text-[10px] text-slate-400">Select promo flyer or banner from device</span>
                     <input 
@@ -6011,7 +5946,7 @@ isSpotFormOpen && (
 
               <button 
                 type="submit"
-                className="w-full bg-[#E0533C] text-white font-black text-sm py-3 rounded-2xl shadow-lg mt-4 cursor-pointer"
+                className="w-full bg-[#E0533C] dark:bg-[#A94F3E] text-white font-black text-sm py-3 rounded-2xl shadow-lg mt-4 cursor-pointer"
               >
                 {editingOfferId ? 'Update Promotion' : 'Publish Offer Live'}
               </button>
@@ -6060,7 +5995,7 @@ isSpotFormOpen && (
                 <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Target Listing</span>
                 <h4 className="font-extrabold text-sm truncate text-slate-900 dark:text-slate-100">{claimTargetSpot.title}</h4>
                 <p className="text-xs text-slate-500 truncate flex items-center gap-1">
-                  <MapPin className="w-3 h-3 text-[#E0533C]" />
+                  <MapPin className="w-3 h-3 text-[#E0533C] dark:text-[#D17A68]" />
                   <span>{claimTargetSpot.neighborhood} • {claimTargetSpot.address}</span>
                 </p>
               </div>
@@ -6087,7 +6022,7 @@ isSpotFormOpen && (
                   <select
                     value={claimantRole}
                     onChange={(e) => setClaimantRole(e.target.value)}
-                    className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#E0533C]"
+                    className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#E0533C] dark:focus:ring-[#D17A68]"
                     required
                   >
                     <option value="Owner / Founder">Owner / Founder</option>
@@ -6107,7 +6042,7 @@ isSpotFormOpen && (
                     value={claimantPhone}
                     onChange={(e) => setClaimantPhone(e.target.value)}
                     placeholder="+254 7XX XXX XXX"
-                    className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#E0533C]"
+                    className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#E0533C] dark:focus:ring-[#D17A68]"
                     required
                   />
                 </div>
@@ -6123,7 +6058,7 @@ isSpotFormOpen && (
                     value={claimantEmail}
                     onChange={(e) => setClaimantEmail(e.target.value)}
                     placeholder="management@venue.ke"
-                    className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#E0533C]"
+                    className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#E0533C] dark:focus:ring-[#D17A68]"
                     required
                   />
                 </div>
@@ -6137,7 +6072,7 @@ isSpotFormOpen && (
                     value={claimantSocialUrl}
                     onChange={(e) => setClaimantSocialUrl(e.target.value)}
                     placeholder="https://instagram.com/venue"
-                    className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#E0533C]"
+                    className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#E0533C] dark:focus:ring-[#D17A68]"
                   />
                 </div>
               </div>
@@ -6151,7 +6086,7 @@ isSpotFormOpen && (
                   value={claimProofNote}
                   onChange={(e) => setClaimProofNote(e.target.value)}
                   placeholder="Explain your connection to this venue (e.g. 'We are the founding operators of this cocktail lounge located at XYZ building. Attached is our Nairobi County Single Business Permit and exterior signage with staff.')..."
-                  className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#E0533C]"
+                  className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#E0533C] dark:focus:ring-[#D17A68]"
                   required
                 />
               </div>
@@ -6170,7 +6105,7 @@ isSpotFormOpen && (
                   {claimProofDocs.length < 5 && (
                     <label
                       htmlFor="claim-proof-docs-input"
-                      className="px-3 py-1.5 bg-[#E0533C]/10 hover:bg-[#E0533C]/20 text-[#E0533C] text-xs font-extrabold rounded-xl cursor-pointer transition flex items-center gap-1 shrink-0"
+                      className="px-3 py-1.5 bg-[#E0533C]/10 dark:bg-[#A94F3E]/10 hover:bg-[#E0533C]/20 dark:hover:bg-[#A94F3E]/20 text-[#E0533C] dark:text-[#D17A68] text-xs font-extrabold rounded-xl cursor-pointer transition flex items-center gap-1 shrink-0"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       <span>Attach Proof</span>
@@ -6253,7 +6188,7 @@ isSpotFormOpen && (
                 <button
                   type="submit"
                   disabled={isSubmittingClaim}
-                  className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-[#E0533C] hover:opacity-95 text-white text-xs font-black shadow-lg shadow-orange-500/20 transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-[#E0533C] dark:to-[#A94F3E] hover:opacity-95 text-white text-xs font-black shadow-lg shadow-orange-500/20 transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {isSubmittingClaim ? (
                     <>
@@ -6301,7 +6236,7 @@ export const AdminSpotPublisher: React.FC<{
   adminUserId: string;
   onPublish: (spot: SpotItem) => Promise<string | null> | string | null;
   onClose: () => void;
-  showToast: (msg: string) => void;
+  showToast: (msg: string, options?: ToastOptions) => void;
 }> = ({ adminUserId, onPublish, onClose, showToast }) => {
   const noop = () => {};
   return (

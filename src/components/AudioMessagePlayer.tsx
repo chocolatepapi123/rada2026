@@ -179,8 +179,8 @@ export const AudioMessagePlayer: React.FC<AudioMessagePlayerProps> = ({
             disabled={isLoading}
             className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition shadow-xs cursor-pointer ${
               isMyMessage 
-                ? 'bg-white text-[#E0533C] hover:bg-white/90' 
-                : 'bg-[#E0533C] text-white hover:bg-orange-700'
+                ? 'bg-white text-[#E0533C] dark:text-[#D17A68] hover:bg-white/90' 
+                : 'bg-[#E0533C] dark:bg-[#A94F3E] text-white hover:bg-orange-700'
             }`}
             title={isPlaying ? 'Pause voice note' : 'Play voice note'}
             aria-label={isPlaying ? 'Pause voice note' : 'Play voice note'}
@@ -205,7 +205,7 @@ export const AudioMessagePlayer: React.FC<AudioMessagePlayerProps> = ({
                   onClick={(e) => handleSeek(e, idx, waveformHeights.length)}
                   className={`flex-1 rounded-full transition-all duration-150 hover:opacity-100 ${
                     isPassed
-                      ? isMyMessage ? 'bg-white' : 'bg-[#E0533C]'
+                      ? isMyMessage ? 'bg-white' : 'bg-[#E0533C] dark:bg-[#A94F3E]'
                       : isMyMessage ? 'bg-white/40' : 'bg-slate-300 dark:bg-slate-700'
                   }`}
                   style={{ height: `${h}px`, minWidth: '2px' }}

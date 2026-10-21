@@ -37,6 +37,8 @@ import { EmojiPicker } from './EmojiPicker.tsx';
 import { AudioMessagePlayer } from './AudioMessagePlayer.tsx';
 import { VideoMessagePlayer } from './VideoMessagePlayer.tsx';
 import { generatePlayableWavDataUrl, generateFallbackVideoBlobUrl, formatMediaDuration, deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
+import type { ToastOptions } from './Toast.tsx';
+import { readJSON, writeJSON } from '../lib/storage.ts';
 
 interface SocialsTabProps {
   discoveryProfiles: DatingProfile[];
@@ -47,7 +49,7 @@ interface SocialsTabProps {
   onAcceptRequest: (name: string, avatar: string) => void;
   onViewUserProfile: (profile: UserProfile) => void;
   onOpenVerificationModal?: () => void;
-  showToast: (msg: string) => void;
+  showToast: (msg: string, options?: ToastOptions) => void;
   targetChatId?: string | null;
   onClearTargetChatId?: () => void;
 }
@@ -118,10 +120,14 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   const [attachedPhotos, setAttachedPhotos] = useState<string[]>([]);
 
   // Pending and sent requests
-  const [pendingRequests, setPendingRequests] = useState([
-    { id: 'req-1', name: 'Brian Kiprop', loc: 'Wants to meet at Ink & Drink', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&auto=format&fit=crop' }
-  ]);
-  const [sentRequests, setSentRequests] = useState<{ id: string; name: string; avatar: string; handle: string }[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<{ id: string; name: string; loc: string; avatar: string }[]>(
+    () => readJSON('rada_pending_requests', [], Array.isArray)
+  );
+  const [sentRequests, setSentRequests] = useState<{ id: string; name: string; avatar: string; handle: string }[]>(
+    () => readJSON('rada_sent_requests', [], Array.isArray)
+  );
+  React.useEffect(() => { writeJSON('rada_pending_requests', pendingRequests); }, [pendingRequests]);
+  React.useEffect(() => { writeJSON('rada_sent_requests', sentRequests); }, [sentRequests]);
 
   // Search filter
   const [userSearchQuery, setUserSearchQuery] = useState('');
@@ -149,7 +155,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
       if (action === 'like') {
         const likedPerson = currentProfile;
         if (likedPerson.relationshipStatus !== 'single') {
-          showToast(`${likedPerson.name.split(',')[0]} is Not single. Match requests are for single members.`);
+          showToast(`${likedPerson.name.split(',')[0]} is Not single. Match requests are for single members.`, { type: 'error' });
         } else {
           setSentRequests(prev => [{
             id: `sent-${Date.now()}`,
@@ -157,10 +163,8 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             avatar: likedPerson.img,
             handle: likedPerson.handle
           }, ...prev]);
-          showToast(`Hangout & Match request sent to ${likedPerson.name.split(',')[0]}!`);
+          showToast(`Hangout & Match request sent to ${likedPerson.name.split(',')[0]}!`, { category: 'match' });
         }
-      } else {
-        showToast('Passed.');
       }
       setSwipeAnimation(null);
       setProfileIndex(prev => prev + 1);
@@ -170,7 +174,6 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   const handleAcceptPending = (req: { id: string; name: string; avatar: string }) => {
     setPendingRequests(prev => prev.filter(r => r.id !== req.id));
     onAcceptRequest(req.name, req.avatar);
-    showToast(`Matched with ${req.name}! Chat unlocked.`);
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -178,7 +181,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
     if (!files || files.length === 0) return;
 
     if (attachedPhotos.length >= 5) {
-      showToast('Maximum 5 photos allowed per message.');
+      showToast('Maximum 5 photos allowed per message.', { type: 'error' });
       e.target.value = '';
       return;
     }
@@ -186,14 +189,8 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
     const dataUrls = await readFilesAsDataUrls(files);
     const result = deduplicateAndLimitPhotos(attachedPhotos, dataUrls, 5);
 
-    if (result.duplicateCount > 0 && result.addedCount === 0) {
-      showToast('Duplicate photo(s) skipped — already attached.');
-    } else if (result.duplicateCount > 0 && result.addedCount > 0) {
-      showToast(`Attached ${result.addedCount} photo(s). Skipped ${result.duplicateCount} duplicate(s).`);
-    } else if (result.exceededLimit) {
-      showToast('Maximum 5 photos limit reached.');
-    } else if (result.addedCount > 0) {
-      showToast(`Attached ${result.addedCount} photo(s).`);
+    if (result.exceededLimit) {
+      showToast('Maximum 5 photos limit reached.', { type: 'error' });
     }
 
     setAttachedPhotos(result.updatedList);
@@ -202,7 +199,6 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
 
   const handleRemoveAttachedPhoto = (indexToRemove: number) => {
     setAttachedPhotos(prev => prev.filter((_, idx) => idx !== indexToRemove));
-    showToast('Attached photo removed.');
   };
 
   // Multiline chat input: grows downward with the text, up to 4 lines, then scrolls
@@ -327,7 +323,6 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
       activeChat.messages.push(newMsg);
       activeChat.lastMessage = `🎙️ Voice note (${formatMediaDuration(dur)})`;
       setReplyingTo(null);
-      showToast('Voice Note Sent');
     }
 
     audioChunksRef.current = [];
@@ -426,7 +421,6 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
       activeChat.messages.push(newMsg);
       activeChat.lastMessage = `📹 Video note (${dur}s)`;
       setReplyingTo(null);
-      showToast('Video Note Sent');
     }
 
     videoChunksRef.current = [];
@@ -456,7 +450,6 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
     activeChat.messages.push(newMsg);
     activeChat.lastMessage = `🎥 Video: ${file.name}`;
     setReplyingTo(null);
-    showToast('Video attachment sent!');
     e.target.value = '';
   };
 
@@ -482,14 +475,12 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
     activeChat.messages.push(newMsg);
     activeChat.lastMessage = `🎙️ Audio: ${file.name}`;
     setReplyingTo(null);
-    showToast('Audio attachment sent!');
     e.target.value = '';
   };
 
   const handleAcceptDateInvite = (msg: ChatMessage) => {
     if (msg.dateInvite) {
       msg.dateInvite.accepted = true;
-      showToast(`Date accepted for ${msg.dateInvite.spotTitle}! Synced to your Vault Calendar 📅`);
     }
   };
 
@@ -504,9 +495,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
     terracotta: {
       bg: 'bg-[#FBFBF9] dark:bg-[#121113]',
       header: 'bg-[#FBFBF9]/95 dark:bg-[#121113]/95',
-      myBubble: 'bg-[#E0533C] text-white',
+      myBubble: 'bg-[#E0533C] dark:bg-[#A94F3E] text-white',
       theirBubble: 'bg-[#F1F1EE] dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800',
-      accent: 'text-[#E0533C]'
+      accent: 'text-[#E0533C] dark:text-[#D17A68]'
     },
     midnight: {
       bg: 'bg-[#0B0F19]',
@@ -600,10 +591,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                       onClick={() => {
                         setCurrentTheme(thm);
                         setShowThemePicker(false);
-                        showToast(`Chat theme changed to ${thm.toUpperCase()}`);
                       }}
                       className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-bold capitalize flex items-center justify-between ${
-                        currentTheme === thm ? 'bg-[#E0533C] text-white' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200'
+                        currentTheme === thm ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200'
                       }`}
                     >
                       <span>{thm}</span>
@@ -616,7 +606,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
 
             <button
               onClick={onOpenPlanDateModal}
-              className="px-3 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition"
+              className="px-3 py-1.5 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition"
             >
               <Calendar className="w-3.5 h-3.5" />
               <span>Plan a Date</span>
@@ -628,9 +618,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
         <div className="flex-1 p-4 space-y-3 overflow-y-auto max-w-lg mx-auto w-full">
           {/* Outing Squad Banner for Outing Group Chats */}
           {activeChat.isTemporary && (
-            <div className="p-3 bg-gradient-to-r from-orange-500/15 via-rose-500/15 to-amber-500/15 border border-[#E0533C]/30 rounded-2xl shadow-xs text-xs space-y-2 backdrop-blur-xs">
+            <div className="p-3 bg-gradient-to-r from-orange-500/15 via-rose-500/15 to-amber-500/15 border border-[#E0533C]/30 dark:border-[#D17A68]/30 rounded-2xl shadow-xs text-xs space-y-2 backdrop-blur-xs">
               <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#E0533C] text-white text-[10px] font-black uppercase tracking-wider">
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#E0533C] dark:bg-[#A94F3E] text-white text-[10px] font-black uppercase tracking-wider">
                   <Sparkles className="w-3 h-3" />
                   <span>Temporary Outing Squad Chat</span>
                 </span>
@@ -672,17 +662,16 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                     <button
                       onClick={() => {
                         setReplyingTo(msg);
-                        showToast(`Replying to ${activeChat.name}`);
                       }}
                       title="Swipe or click to reply"
-                      className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-[#E0533C] transition"
+                      className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-[#E0533C] dark:hover:text-[#D17A68] transition"
                     >
                       <Reply className="w-3.5 h-3.5" />
                     </button>
                   )}
 
                 {msg.dateInvite ? (
-                  <div className="w-full bg-gradient-to-r from-[#E0533C] to-orange-600 text-white p-3.5 rounded-2xl shadow-md space-y-2">
+                  <div className="w-full bg-gradient-to-r from-[#E0533C] dark:from-[#A94F3E] to-orange-600 text-white p-3.5 rounded-2xl shadow-md space-y-2">
                     <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider border-b border-white/20 pb-1">
                       <Calendar className="w-3.5 h-3.5" /> Date Invitation
                     </div>
@@ -772,10 +761,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                   <button
                     onClick={() => {
                       setReplyingTo(msg);
-                      showToast('Replying to your message');
                     }}
                     title="Swipe or click to reply"
-                    className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-[#E0533C] transition"
+                    className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-[#E0533C] dark:hover:text-[#D17A68] transition"
                   >
                     <Reply className="w-3.5 h-3.5" />
                   </button>
@@ -789,9 +777,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
         {/* Swipe-to-reply Preview Banner */}
         {replyingTo && (
           <div className="max-w-lg mx-auto w-full px-4">
-            <div className="bg-slate-100 dark:bg-slate-800 border-l-4 border-[#E0533C] p-2 rounded-r-xl flex items-center justify-between text-xs">
+            <div className="bg-slate-100 dark:bg-slate-800 border-l-4 border-[#E0533C] dark:border-[#D17A68] p-2 rounded-r-xl flex items-center justify-between text-xs">
               <div className="min-w-0 pr-2">
-                <span className="font-extrabold text-[10px] text-[#E0533C]">
+                <span className="font-extrabold text-[10px] text-[#E0533C] dark:text-[#D17A68]">
                   Replying to {replyingTo.sender === 'me' ? 'Yourself' : activeChat.name}
                 </span>
                 <p className="text-[11px] text-slate-600 dark:text-slate-300 truncate">{replyingTo.text}</p>
@@ -894,7 +882,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           <div className="max-w-lg mx-auto w-full px-3 py-2 bg-slate-100/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-800 backdrop-blur-md">
             <div className="flex items-center justify-between pb-1.5 text-[10px] font-bold text-slate-500">
               <span className="flex items-center gap-1">
-                <ImageIcon className="w-3 h-3 text-[#E0533C]" />
+                <ImageIcon className="w-3 h-3 text-[#E0533C] dark:text-[#D17A68]" />
                 <span>Photos ({attachedPhotos.length}/5)</span>
                 {attachedPhotos.length >= 5 && (
                   <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold">• Max limit reached</span>
@@ -904,7 +892,6 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                 type="button"
                 onClick={() => {
                   setAttachedPhotos([]);
-                  showToast('Cleared attached photos.');
                 }}
                 className="text-[10px] text-slate-400 hover:text-red-500 transition cursor-pointer"
               >
@@ -944,7 +931,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                 <button
                   type="button"
                   onClick={() => photoFileInputRef.current?.click()}
-                  className="w-14 h-14 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] flex flex-col items-center justify-center text-slate-400 hover:text-[#E0533C] transition shrink-0 cursor-pointer"
+                  className="w-14 h-14 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] dark:hover:border-[#D17A68] flex flex-col items-center justify-center text-slate-400 hover:text-[#E0533C] dark:hover:text-[#D17A68] transition shrink-0 cursor-pointer"
                   title="Add more photos"
                 >
                   <Plus className="w-4 h-4" />
@@ -983,7 +970,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
 
           <button
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-slate-500 hover:text-[#E0533C] flex-shrink-0 transition cursor-pointer"
+            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-slate-500 hover:text-[#E0533C] dark:hover:text-[#D17A68] flex-shrink-0 transition cursor-pointer"
             title="Emoji Panel"
             aria-label="Emoji Panel"
           >
@@ -995,7 +982,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             type="button"
             onClick={() => photoFileInputRef.current?.click()}
             className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center flex-shrink-0 transition cursor-pointer ${
-              attachedPhotos.length > 0 ? 'text-[#E0533C]' : 'text-slate-500 hover:text-[#E0533C]'
+              attachedPhotos.length > 0 ? 'text-[#E0533C] dark:text-[#D17A68]' : 'text-slate-500 hover:text-[#E0533C] dark:hover:text-[#D17A68]'
             }`}
             title="Attach Photos (up to 5)"
             aria-label="Attach Photos"
@@ -1007,7 +994,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           <button
             type="button"
             onClick={() => videoFileInputRef.current?.click()}
-            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-slate-500 hover:text-[#E0533C] flex-shrink-0 transition cursor-pointer"
+            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-slate-500 hover:text-[#E0533C] dark:hover:text-[#D17A68] flex-shrink-0 transition cursor-pointer"
             title="Attach Video from Device"
             aria-label="Attach Video"
           >
@@ -1029,7 +1016,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             }}
             placeholder="Type a message..."
             enterKeyHint="send"
-            className="flex-1 min-w-0 px-3 py-2 sm:py-2.5 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl sm:rounded-2xl text-xs leading-[18px] resize-none whitespace-pre-wrap break-words [overflow-wrap:anywhere] focus:outline-none focus:ring-1 focus:ring-[#E0533C] text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+            className="flex-1 min-w-0 px-3 py-2 sm:py-2.5 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl sm:rounded-2xl text-xs leading-[18px] resize-none whitespace-pre-wrap break-words [overflow-wrap:anywhere] focus:outline-none focus:ring-1 focus:ring-[#E0533C] dark:focus:ring-[#D17A68] text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
           />
 
           {/* Circular Video Note Button */}
@@ -1044,7 +1031,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             className={`w-9 h-9 rounded-xl sm:rounded-2xl flex items-center justify-center transition flex-shrink-0 cursor-pointer ${
               isRecordingVideo
                 ? 'bg-purple-600 text-white animate-pulse'
-                : 'bg-[#F1F1EE] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 hover:bg-[#E0533C] hover:text-white'
+                : 'bg-[#F1F1EE] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 hover:bg-[#E0533C] dark:hover:bg-[#A94F3E] hover:text-white'
             }`}
           >
             <Video className="w-4 h-4" />
@@ -1062,7 +1049,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             className={`w-9 h-9 rounded-xl sm:rounded-2xl flex items-center justify-center transition flex-shrink-0 cursor-pointer ${
               isRecordingAudio
                 ? 'bg-red-600 text-white animate-pulse'
-                : 'bg-slate-100 dark:bg-[#14171F] text-slate-700 dark:text-slate-300 hover:bg-[#FF5733] hover:text-white'
+                : 'bg-slate-100 dark:bg-[#14171F] text-slate-700 dark:text-slate-300 hover:bg-[#FF5733] dark:hover:bg-[#A94F3E] hover:text-white'
             }`}
           >
             <Mic className="w-4 h-4" />
@@ -1072,7 +1059,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           <button
             type="button"
             onClick={handleSendMessage}
-            className="w-9 h-9 rounded-xl sm:rounded-2xl bg-[#FF5733] text-white flex items-center justify-center shadow-md hover:bg-[#FF6B4A] transition flex-shrink-0 cursor-pointer"
+            className="w-9 h-9 rounded-xl sm:rounded-2xl bg-[#FF5733] dark:bg-[#A94F3E] text-white flex items-center justify-center shadow-md hover:bg-[#FF6B4A] dark:hover:bg-[#B85A48] transition flex-shrink-0 cursor-pointer"
             title="Send Message"
             aria-label="Send Message"
           >
@@ -1105,7 +1092,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             }}
             className={`py-2 rounded-xl transition cursor-pointer ${
               subtab === tab.id
-                ? 'font-black bg-white dark:bg-[#0A0C10] text-[#FF5733] shadow-xs'
+                ? 'font-black bg-white dark:bg-[#0A0C10] text-[#FF5733] dark:text-[#D17A68] shadow-xs'
                 : 'font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
@@ -1163,9 +1150,8 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                 type="button"
                 onClick={() => {
                   if (onOpenVerificationModal) onOpenVerificationModal();
-                  else showToast('Opening verification modal...');
                 }}
-                className="w-full py-3.5 px-4 bg-[#FF5733] hover:bg-[#FF6B4A] text-white font-black rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3.5 px-4 bg-[#FF5733] dark:bg-[#A94F3E] hover:bg-[#FF6B4A] dark:hover:bg-[#B85A48] text-white font-black rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Camera className="w-4 h-4" />
                 <span>Verify Single Profile (Camera Liveness Check)</span>
@@ -1176,7 +1162,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                 onClick={() => setSubtab('chats')}
                 className="w-full py-2.5 px-4 bg-white dark:bg-[#0A0C10] hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-[#222735] text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer"
               >
-                <Users className="w-4 h-4 text-[#FF5733]" />
+                <Users className="w-4 h-4 text-[#FF5733] dark:text-[#D17A68]" />
                 <span>Explore & Join Group Chats</span>
               </button>
             </div>
@@ -1194,7 +1180,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
               }`}
             >
               {/* Photo Area with Rose to Sunset Coral Ring for verified single profile */}
-              <div className="p-[3px] bg-gradient-to-tr from-[#F43F5E] to-[#FF5733] rounded-[22px] mb-4 shadow-md">
+              <div className="p-[3px] bg-gradient-to-tr from-[#F43F5E] to-[#FF5733] dark:to-[#A94F3E] rounded-[22px] mb-4 shadow-md">
                 <div
                   className="h-96 rounded-[19px] bg-cover bg-center relative cursor-pointer group overflow-hidden"
                   style={{ backgroundImage: `url('${currentProfile.img}')` }}
@@ -1210,7 +1196,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                 >
                   {/* Status Badge: Single with Rose to Coral gradient */}
                   <div className="absolute top-3 left-3">
-                    <span className="backdrop-blur-md text-white text-[11px] font-black px-3 py-1 rounded-full shadow-sm bg-gradient-to-r from-[#F43F5E] to-[#FF5733]">
+                    <span className="backdrop-blur-md text-white text-[11px] font-black px-3 py-1 rounded-full shadow-sm bg-gradient-to-r from-[#F43F5E] to-[#FF5733] dark:to-[#A94F3E]">
                       Verified Single
                     </span>
                   </div>
@@ -1243,11 +1229,11 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                   <h3 className="font-black text-lg text-slate-900 dark:text-slate-100">
                     {currentProfile.name}
                   </h3>
-                  <span className="text-xs text-[#FF5733] font-bold">{currentProfile.handle}</span>
+                  <span className="text-xs text-[#FF5733] dark:text-[#D17A68] font-bold">{currentProfile.handle}</span>
                 </div>
 
                 <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 font-semibold">
-                  <MapPin className="w-3.5 h-3.5 text-[#FF5733]" />
+                  <MapPin className="w-3.5 h-3.5 text-[#FF5733] dark:text-[#D17A68]" />
                   <span>{cleanLocation(currentProfile.loc)}</span>
                 </p>
 
@@ -1280,7 +1266,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
 
                 <button
                   onClick={() => handleSwipe('like')}
-                  className="w-14 h-14 rounded-full bg-gradient-to-r from-[#F43F5E] to-[#FF5733] text-white flex items-center justify-center text-xl shadow-lg hover:scale-105 active:scale-95 transition cursor-pointer"
+                  className="w-14 h-14 rounded-full bg-gradient-to-r from-[#F43F5E] to-[#FF5733] dark:to-[#A94F3E] text-white flex items-center justify-center text-xl shadow-lg hover:scale-105 active:scale-95 transition cursor-pointer"
                   title="Send Match Request"
                 >
                   <Heart className="w-7 h-7 fill-white" />
@@ -1289,12 +1275,12 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             </div>
           ) : (
             <div className="py-12 text-center bg-[#F1F1EE] dark:bg-[#1C1A1E] rounded-3xl p-6 border border-slate-200 dark:border-slate-800 space-y-3">
-              <Sparkles className="w-8 h-8 text-[#E0533C] mx-auto" />
+              <Sparkles className="w-8 h-8 text-[#E0533C] dark:text-[#D17A68] mx-auto" />
               <h4 className="font-black text-sm">You've reached the end of the profile queue!</h4>
               <p className="text-xs text-slate-500">Check back later for new members joining RADA.</p>
               <button
                 onClick={() => setProfileIndex(0)}
-                className="px-4 py-2 bg-[#E0533C] text-white rounded-xl text-xs font-bold shadow"
+                className="px-4 py-2 bg-[#E0533C] dark:bg-[#A94F3E] text-white rounded-xl text-xs font-bold shadow"
               >
                 Reset Queue
               </button>
@@ -1330,7 +1316,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                   </div>
                   <button
                     onClick={() => handleAcceptPending(req)}
-                    className="px-4 py-2 bg-[#E0533C] hover:bg-orange-700 text-white font-bold rounded-xl text-xs shadow-xs transition"
+                    className="px-4 py-2 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white font-bold rounded-xl text-xs shadow-xs transition"
                   >
                     Accept Match
                   </button>
@@ -1380,7 +1366,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             </h3>
             <button
               onClick={onOpenCreateGroupModal}
-              className="text-[#FF5733] font-bold text-xs hover:underline flex items-center gap-1 cursor-pointer"
+              className="text-[#FF5733] dark:text-[#D17A68] font-bold text-xs hover:underline flex items-center gap-1 cursor-pointer"
             >
               <Users className="w-3.5 h-3.5" />
               <span>+ New Group</span>
@@ -1392,7 +1378,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
               <div
                 key={conv.id}
                 onClick={() => setActiveChat(conv)}
-                className="p-3 bg-white dark:bg-[#14171F] border border-slate-200/90 dark:border-[#222735] rounded-2xl flex items-center justify-between gap-3 shadow-xs hover:border-[#FF5733] transition cursor-pointer"
+                className="p-3 bg-white dark:bg-[#14171F] border border-slate-200/90 dark:border-[#222735] rounded-2xl flex items-center justify-between gap-3 shadow-xs hover:border-[#FF5733] dark:hover:border-[#D17A68] transition cursor-pointer"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="relative shrink-0">
@@ -1408,7 +1394,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                         {conv.name}
                       </h4>
                       {conv.isTemporary ? (
-                        <span className="px-1.5 py-0.2 rounded bg-orange-100 dark:bg-orange-950/80 text-[#E0533C] text-[9px] font-black uppercase tracking-wider shrink-0">
+                        <span className="px-1.5 py-0.2 rounded bg-orange-100 dark:bg-orange-950/80 text-[#E0533C] dark:text-[#D17A68] text-[9px] font-black uppercase tracking-wider shrink-0">
                           Outing Group
                         </span>
                       ) : (
@@ -1423,9 +1409,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                 <div className="text-right shrink-0">
                   <span className="text-[9px] text-slate-400 block">Just now</span>
                   {conv.isTemporary ? (
-                    <span className="text-[9px] font-extrabold text-[#E0533C] block mt-0.5">Unlocked</span>
+                    <span className="text-[9px] font-extrabold text-[#E0533C] dark:text-[#D17A68] block mt-0.5">Unlocked</span>
                   ) : (
-                    <span className="w-2 h-2 rounded-full bg-[#FF5733] inline-block mt-1" />
+                    <span className="w-2 h-2 rounded-full bg-[#FF5733] dark:bg-[#A94F3E] inline-block mt-1" />
                   )}
                 </div>
               </div>
@@ -1444,7 +1430,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
               value={userSearchQuery}
               onChange={(e) => setUserSearchQuery(e.target.value)}
               placeholder="Search community members by name, vibe or area..."
-              className="w-full pl-10 pr-4 py-3 bg-[#FAFAFC] dark:bg-[#14171F] border border-slate-200 dark:border-[#222735] rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#FF5733] text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+              className="w-full pl-10 pr-4 py-3 bg-[#FAFAFC] dark:bg-[#14171F] border border-slate-200 dark:border-[#222735] rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#FF5733] dark:focus:ring-[#D17A68] text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
             />
           </div>
 
@@ -1467,10 +1453,10 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                     relationshipStatus: p.relationshipStatus,
                     vibes: p.vibes
                   })}
-                  className="p-3 bg-white dark:bg-[#14171F] border border-slate-200/90 dark:border-[#222735] rounded-2xl flex items-center justify-between cursor-pointer hover:border-[#FF5733] transition"
+                  className="p-3 bg-white dark:bg-[#14171F] border border-slate-200/90 dark:border-[#222735] rounded-2xl flex items-center justify-between cursor-pointer hover:border-[#FF5733] dark:hover:border-[#D17A68] transition"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="p-[2px] bg-gradient-to-tr from-[#F43F5E] to-[#FF5733] rounded-full shrink-0 shadow-xs">
+                    <div className="p-[2px] bg-gradient-to-tr from-[#F43F5E] to-[#FF5733] dark:to-[#A94F3E] rounded-full shrink-0 shadow-xs">
                       <div
                         className="w-10 h-10 rounded-full bg-cover bg-center border border-white dark:border-[#14171F]"
                         style={{ backgroundImage: `url('${p.img}')` }}
@@ -1482,7 +1468,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                     </div>
                   </div>
                   {/* Verified Single Badge */}
-                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-gradient-to-r from-[#F43F5E]/15 to-[#FF5733]/15 text-[#FF5733] border border-[#FF5733]/30 flex items-center gap-1">
+                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-gradient-to-r from-[#F43F5E]/15 to-[#FF5733]/15 dark:to-[#A94F3E]/15 text-[#FF5733] dark:text-[#D17A68] border border-[#FF5733]/30 dark:border-[#D17A68]/30 flex items-center gap-1">
                     <UserCheck className="w-3 h-3" />
                     <span>Single</span>
                   </span>
@@ -1535,7 +1521,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                   setShowGateModal(false);
                   if (onOpenVerificationModal) onOpenVerificationModal();
                 }}
-                className="w-full py-3 px-4 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3 px-4 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Camera className="w-4 h-4" />
                 <span>Verify Single Profile Now</span>

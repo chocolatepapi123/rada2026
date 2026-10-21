@@ -32,6 +32,8 @@ import { BusinessBadge } from './BusinessBadge.tsx';
 import { supabase } from '../lib/supabase.ts';
 import { LocationCombobox } from './LocationCombobox.tsx';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
+import type { ToastOptions } from './Toast.tsx';
+import { toBudget } from '../lib/budget.ts';
 
 interface SpotsTabProps {
   spots: SpotItem[];
@@ -44,7 +46,7 @@ interface SpotsTabProps {
   onOpenSuggestSpot?: () => void;
   onPostReview?: (spotId: number, review: Review) => void;
   onNavigateToCalendar?: (dateStr?: string, eventId?: number | string) => void;
-  showToast?: (msg: string) => void;
+  showToast?: (msg: string, options?: ToastOptions) => void;
 }
 
 // Persistent filter state across unmounts and calendar/modal navigations
@@ -125,7 +127,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     if (!files || files.length === 0) return;
 
     if (reviewPhotos.length >= 5) {
-      showToast?.('Maximum 5 photos allowed per review.');
+      showToast?.('Maximum 5 photos allowed per review.', { type: 'error' });
       e.target.value = '';
       return;
     }
@@ -133,14 +135,8 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     const dataUrls = await readFilesAsDataUrls(files);
     const result = deduplicateAndLimitPhotos(reviewPhotos, dataUrls, 5);
 
-    if (result.duplicateCount > 0 && result.addedCount === 0) {
-      showToast?.('Duplicate photo(s) skipped — already added.');
-    } else if (result.duplicateCount > 0 && result.addedCount > 0) {
-      showToast?.(`Added ${result.addedCount} photo(s). Skipped ${result.duplicateCount} duplicate(s).`);
-    } else if (result.exceededLimit) {
-      showToast?.('Maximum 5 photos limit reached.');
-    } else if (result.addedCount > 0) {
-      showToast?.(`Added ${result.addedCount} photo(s) to review.`);
+    if (result.exceededLimit) {
+      showToast?.('Maximum 5 photos limit reached.', { type: 'error' });
     }
 
     setReviewPhotos(result.updatedList);
@@ -149,14 +145,13 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
 
   const handleRemoveReviewPhoto = (indexToRemove: number) => {
     setReviewPhotos(prev => prev.filter((_, idx) => idx !== indexToRemove));
-    showToast?.('Photo removed from review.');
   };
 
   const handleSubmitReview = (e: React.FormEvent) => {
     e.preventDefault();
     if (!reviewModalSpot) return;
     if (!reviewComment.trim()) {
-      showToast?.('Please write a short review.');
+      showToast?.('Please write a short review.', { type: 'error' });
       return;
     }
 
@@ -181,7 +176,6 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
       [sid]: [newRev, ...(prev[sid] || [])]
     }));
 
-    showToast?.('Review Submitted');
     setReviewModalSpot(null);
     setReviewComment('');
     setReviewPhotos([]);
@@ -299,7 +293,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   const handleToggleVoiceSearch = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      if (showToast) showToast('Voice search not supported in this browser. Try Chrome/Edge!');
+      if (showToast) showToast('Voice search not supported in this browser. Try Chrome/Edge!', { type: 'error' });
       return;
     }
 
@@ -316,14 +310,12 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
 
       recognition.onstart = () => {
         setIsListening(true);
-        if (showToast) showToast('Listening... Speak a spot or location');
       };
 
       recognition.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript;
         setSearchQuery(transcript);
         setIsListening(false);
-        if (showToast) showToast(`Searching for: "${transcript}"`);
       };
 
       recognition.onerror = () => {
@@ -357,7 +349,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         category: d.category || 'restaurants',
         neighborhood: d.neighborhood || 'Nairobi',
         address: d.address || '',
-        price: d.price || 'KES $$',
+        price: toBudget(d.price) ?? 'Mid',
         lat: d.lat ?? -1.2921,
         lng: d.lng ?? 36.8219,
         img: d.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
@@ -476,7 +468,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
       selectedNeighborhood.toLowerCase().includes(s.neighborhood.toLowerCase());
 
     // Price Tier filter
-    const matchesPrice = selectedPriceTier === 'all' || s.price === selectedPriceTier;
+    const matchesPrice = selectedPriceTier === 'all' || toBudget(s.price) === selectedPriceTier;
 
     if (!matchesCategory || !matchesNeigh || !matchesPrice) return false;
 
@@ -560,7 +552,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
       <div
         key={spot.id}
         onClick={handleOpenDetails}
-        className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-[#E0533C] transition group"
+        className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-[#E0533C] dark:hover:border-[#D17A68] transition group"
       >
         <div>
           {/* Multiple Image Carousel Area */}
@@ -579,7 +571,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               }}
               className={`absolute top-2.5 left-2.5 z-10 transition-all cursor-pointer backdrop-blur-md shadow-sm flex items-center gap-1.5 ${
                 saved
-                  ? 'bg-[#E0533C] text-white px-2.5 py-1 rounded-full ring-2 ring-white/50'
+                  ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white px-2.5 py-1 rounded-full ring-2 ring-white/50'
                   : 'w-7 h-7 rounded-full bg-black/60 text-white hover:bg-black/85 justify-center'
               }`}
               title={saved ? 'In Your Plans (Tap to remove)' : 'Add to Your Plans'}
@@ -594,7 +586,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
 
             {/* Price Badge */}
             <span className="absolute top-2.5 right-2.5 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
-              {spot.price}
+              {toBudget(spot.price) ?? spot.price}
             </span>
 
             {/* Image Counter Badge if multiple images */}
@@ -643,7 +635,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 min-w-0">
-                <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] truncate transition">
+                <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] dark:group-hover:text-[#D17A68] truncate transition">
                   {spot.title}
                 </h4>
                 <BusinessBadge
@@ -685,7 +677,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
 
             {/* Special offer preview badge */}
             {spot.specialOffers && spot.specialOffers.length > 0 && (
-              <div className="mt-1 inline-flex items-center gap-1 text-[10px] font-black bg-red-50 dark:bg-red-950/40 text-[#E0533C] border border-red-200 dark:border-red-900 px-2 py-0.5 rounded-md">
+              <div className="mt-1 inline-flex items-center gap-1 text-[10px] font-black bg-red-50 dark:bg-red-950/40 text-[#E0533C] dark:text-[#D17A68] border border-red-200 dark:border-red-900 px-2 py-0.5 rounded-md">
                 🔥 {spot.specialOffers[0].title} ({spot.specialOffers[0].discount})
               </div>
             )}
@@ -702,7 +694,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
             }}
             className="flex-1 py-2 bg-white dark:bg-[#121113] hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 border border-slate-200 dark:border-slate-800"
           >
-            <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
+            <MapPin className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
             <span>Map</span>
           </button>
 
@@ -725,7 +717,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               e.stopPropagation();
               onOpenSpotFullView(spot);
             }}
-            className="flex-1 py-2 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 shadow-xs"
+            className="flex-1 py-2 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 shadow-xs"
           >
             <span>Details</span>
           </button>
@@ -743,16 +735,13 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
             <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
               Hangouts & Experiences
             </h2>
-            <span className="text-[10px] text-[#475569] dark:text-slate-300 font-bold">
-              {filteredSpots.length} venues found
-            </span>
           </div>
 
           {onOpenSuggestSpot && (
             <button
               type="button"
               onClick={onOpenSuggestSpot}
-              className="px-3 py-1.5 bg-[#E0533C] hover:bg-orange-700 active:scale-95 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+              className="px-3 py-1.5 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 active:scale-95 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
               title="Suggest a new venue or hangout spot"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -769,17 +758,17 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search spots, activities, or locations..."
-            className="w-full pl-10 pr-24 py-3 bg-white dark:bg-[#1C1A1E] border border-slate-300 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 shadow-xs"
+            className="w-full pl-10 pr-24 py-3 bg-white dark:bg-[#1C1A1E] border border-slate-300 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] dark:focus:ring-[#D17A68] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 shadow-xs"
           />
 
           <div className="absolute right-2.5 flex items-center gap-1.5">
             {/* Listening Waveform Animation */}
             {isListening && (
               <div className="flex items-center gap-0.5 px-2 py-1 bg-red-100 dark:bg-red-950/80 rounded-full">
-                <span className="w-1 h-3 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1 h-4 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1 h-2 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                <span className="text-[9px] font-black text-[#E0533C] ml-1">Listening</span>
+                <span className="w-1 h-3 bg-[#E0533C] dark:bg-[#A94F3E] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1 h-4 bg-[#E0533C] dark:bg-[#A94F3E] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1 h-2 bg-[#E0533C] dark:bg-[#A94F3E] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                <span className="text-[9px] font-black text-[#E0533C] dark:text-[#D17A68] ml-1">Listening</span>
               </div>
             )}
 
@@ -790,8 +779,8 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               title={isListening ? 'Stop Listening' : 'Voice Search with Web Speech API'}
               className={`p-2 rounded-xl transition ${
                 isListening 
-                  ? 'bg-[#E0533C] text-white shadow-md' 
-                  : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-[#E0533C] hover:text-white'
+                  ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white shadow-md' 
+                  : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-[#E0533C] dark:hover:bg-[#A94F3E] hover:text-white'
               }`}
             >
               <Mic className="w-3.5 h-3.5" />
@@ -822,7 +811,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                 onClick={() => setSelectedCategory(cat.id)}
                 className={`px-3 py-1.5 rounded-full text-xs shrink-0 transition-all flex items-center gap-1.5 ${
                   isSelected
-                    ? 'bg-[#E0533C] text-white font-black shadow-xs'
+                    ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white font-black shadow-xs'
                     : 'bg-white dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-800 hover:border-slate-300'
                 }`}
               >
@@ -833,14 +822,14 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           })}
         </div>
 
-        {/* Price Tier Selector Filter */}
+        {/* Budget Selector Filter */}
         <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-1">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider shrink-0 mr-1">Price:</span>
+          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider shrink-0 mr-1">Budget:</span>
           {[
-            { id: 'all', label: 'All Prices' },
-            { id: '$', label: '$ Budget' },
-            { id: '$$', label: '$$ Mid-Range' },
-            { id: '$$$', label: '$$$ Fine & Luxury' }
+            { id: 'all', label: 'All' },
+            { id: 'Low', label: 'Low' },
+            { id: 'Mid', label: 'Mid' },
+            { id: 'High', label: 'High' }
           ].map((tier) => (
             <button
               key={tier.id}
@@ -864,7 +853,6 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
             spots={displaySpots}
             placeholder="Filter by neighborhood, area, or location..."
             allowAll={true}
-            showSelectedChip={true}
           />
         </div>
       </div>
@@ -872,7 +860,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
       {/* Empty Search Result State with "Create" button */}
       {filteredSpots.length === 0 && (
         <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-dashed border-slate-300 dark:border-slate-800 rounded-3xl p-6 text-center space-y-3 shadow-xs">
-          <div className="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] mx-auto flex items-center justify-center font-black">
+          <div className="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] dark:text-[#D17A68] mx-auto flex items-center justify-center font-black">
             <Compass className="w-6 h-6" />
           </div>
           <div className="space-y-1">
@@ -884,8 +872,8 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
             </p>
           </div>
           <button
-            onClick={() => onOpenCreateSpot ? onOpenCreateSpot(searchQuery) : showToast?.('Open Business Hub from menu to add a spot')}
-            className="px-5 py-2.5 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5"
+            onClick={() => onOpenCreateSpot ? onOpenCreateSpot(searchQuery) : undefined}
+            className="px-5 py-2.5 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5"
           >
             <Plus className="w-4 h-4" />
             <span>Create Spot "{searchQuery || 'New Venue'}"</span>
@@ -900,12 +888,12 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <UtensilsCrossed className="w-3.5 h-3.5 text-[#E0533C]" />
+                <UtensilsCrossed className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
                 <span>Restaurants and dining</span>
               </h3>
               <button
                 onClick={() => onOpenDedicatedViewAll('Restaurants and dining', 'restaurants_dining')}
-                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
               >
                 View All ({restaurants.length})
               </button>
@@ -927,7 +915,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               </h3>
               <button
                 onClick={() => onOpenDedicatedViewAll('Nature Trails & Outdoors', 'nature')}
-                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
               >
                 View All ({natureSpots.length})
               </button>
@@ -949,7 +937,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               </h3>
               <button
                 onClick={() => onOpenDedicatedViewAll('Creative and leisure', 'creative_leisure')}
-                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
               >
                 View All ({creativeSpots.length})
               </button>
@@ -971,7 +959,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               </h3>
               <button
                 onClick={() => onOpenDedicatedViewAll('Tech and Gaming', 'tech_gaming')}
-                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
               >
                 View All ({techGamingSpots.length})
               </button>
@@ -993,7 +981,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               </h3>
               <button
                 onClick={() => onOpenDedicatedViewAll('Action and sports', 'action_sports')}
-                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
               >
                 View All ({actionSportsSpots.length})
               </button>
@@ -1010,12 +998,12 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <Heart className="w-3.5 h-3.5 text-[#E0533C]" />
+                <Heart className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
                 <span>Date spots</span>
               </h3>
               <button
                 onClick={() => onOpenDedicatedViewAll('Date spots', 'date_spots')}
-                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
               >
                 View All ({dateSpots.length})
               </button>
@@ -1037,7 +1025,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               </h3>
               <button
                 onClick={() => onOpenDedicatedViewAll('Clubs and lounges', 'clubs_lounges')}
-                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
               >
                 View All ({clubsLounges.length})
               </button>
@@ -1054,12 +1042,12 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <Coffee className="w-3.5 h-3.5 text-[#E9C46A]" />
+                <Coffee className="w-3.5 h-3.5 text-[#E9C46A] dark:text-[#BFA25F]" />
                 <span>Cafes and Bakeries</span>
               </h3>
               <button
                 onClick={() => onOpenDedicatedViewAll('Cafes and Bakeries', 'cafes_bakeries')}
-                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
               >
                 View All ({cafesBakeries.length})
               </button>
@@ -1081,7 +1069,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               </h3>
               <button
                 onClick={() => onOpenDedicatedViewAll('Hotels and luxury stays', 'hotels_luxury')}
-                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
               >
                 View All ({hotelsLuxury.length})
               </button>
@@ -1098,12 +1086,12 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <Palmtree className="w-3.5 h-3.5 text-[#E9C46A]" />
+                <Palmtree className="w-3.5 h-3.5 text-[#E9C46A] dark:text-[#BFA25F]" />
                 <span>Vacation spots and escapes</span>
               </h3>
               <button
                 onClick={() => onOpenDedicatedViewAll('Vacation spots and escapes', 'vacation_escapes')}
-                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
               >
                 View All ({vacationEscapes.length})
               </button>
@@ -1134,7 +1122,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           >
             <div className="flex items-start justify-between">
               <div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-[#E0533C]">
+                <span className="text-[10px] font-black uppercase tracking-wider text-[#E0533C] dark:text-[#D17A68]">
                   Rate & Review
                 </span>
                 <h3 className="text-base font-extrabold text-slate-900 dark:text-slate-100">
@@ -1196,7 +1184,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                   onChange={(e) => setReviewComment(e.target.value)}
                   placeholder="Share your thoughts on the ambiance, food, cocktails, and service..."
                   rows={3}
-                  className="w-full p-3 bg-[#F8F8F6] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#E0533C] resize-none"
+                  className="w-full p-3 bg-[#F8F8F6] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#E0533C] dark:focus:ring-[#D17A68] resize-none"
                   required
                 />
               </div>
@@ -1205,7 +1193,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs font-bold">
                   <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                    <ImageIcon className="w-3.5 h-3.5 text-[#E0533C]" />
+                    <ImageIcon className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
                     <span>Photos ({reviewPhotos.length}/5)</span>
                   </span>
                   <span className="text-[10px] text-slate-400 font-semibold">
@@ -1248,8 +1236,8 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
 
                 {/* Upload Trigger (Only if < 5 photos) */}
                 {reviewPhotos.length < 5 && (
-                  <label className="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] rounded-2xl p-3 flex items-center justify-center gap-2 cursor-pointer transition text-center bg-[#F8F8F6] dark:bg-[#121113] group">
-                    <Plus className="w-4 h-4 text-[#E0533C] group-hover:scale-110 transition" />
+                  <label className="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] dark:hover:border-[#D17A68] rounded-2xl p-3 flex items-center justify-center gap-2 cursor-pointer transition text-center bg-[#F8F8F6] dark:bg-[#121113] group">
+                    <Plus className="w-4 h-4 text-[#E0533C] dark:text-[#D17A68] group-hover:scale-110 transition" />
                     <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
                       {reviewPhotos.length === 0 ? 'Select or Upload Photos' : 'Add More Photos'}
                     </span>
@@ -1279,7 +1267,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition shadow cursor-pointer"
+                  className="flex-1 py-2.5 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition shadow cursor-pointer"
                 >
                   Publish Review
                 </button>

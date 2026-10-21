@@ -14,6 +14,7 @@ import {
   fetchUnclaimedSpots, deleteListing, reviewBusiness, fetchSpotClaims, reviewSpotClaim,
   fetchPendingUserSpots, approveCommunitySpot, rejectCommunitySpot,
 } from '../lib/cloudSync';
+import type { ToastOptions } from './Toast.tsx';
 
 type VerificationStatus = 'pending' | 'approved' | 'rejected';
 type TabId = 'overview' | 'pending_spots' | 'claims' | 'verification' | 'spots' | 'users';
@@ -22,7 +23,7 @@ export interface AdminDashboardProps {
   businesses: BusinessAccount[];
   onClose: () => void;
   onRefresh?: () => void;
-  showToast?: (message: string) => void;
+  showToast?: (message: string, options?: ToastOptions) => void;
   /** Persist a business update (the app's existing handler). Falls back to cloudSync.reviewBusiness. */
   onUpdateBusiness?: (businessId: string, updates: Partial<BusinessAccount>) => void;
   /** Called after an unclaimed spot is saved, so the app can add it to local state straight away. */
@@ -72,7 +73,7 @@ export function AdminDashboardModal({
   onSpotPublished, onSpotDeleted, spotsCount, eventsCount,
   spotClaims = [], onApproveClaim, onRejectClaim,
 }: AdminDashboardProps) {
-  const toast = useCallback((m: string) => showToast?.(m), [showToast]);
+  const toast = useCallback((m: string, options?: ToastOptions) => showToast?.(m, options), [showToast]);
 
   const [tab, setTab] = useState<TabId>('overview');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -128,7 +129,6 @@ export function AdminDashboardModal({
     setIsRefreshing(true);
     onRefresh?.();
     await loadAll();
-    toast('Admin data refreshed.');
     setIsRefreshing(false);
   };
 
@@ -140,14 +140,13 @@ export function AdminDashboardModal({
     }
     setLiveClaims(prev => prev.map(c => c.id === claim.id ? { ...c, status: 'approved', reviewedAt: new Date().toISOString(), reviewedBy: 'admin' } : c));
     setSelectedClaim(null);
-    toast(`Claim approved! "${claim.spotTitle}" ownership transferred to ${claim.businessName}.`);
     onRefresh?.();
   };
 
   const handleAdminRejectClaim = async (claim: SpotClaimRequest) => {
     const reason = claimRejectNote.trim();
     if (!reason) {
-      toast('Please enter a rejection reason.');
+      toast('Please enter a rejection reason.', { type: 'error' });
       return;
     }
     if (onRejectClaim) {
@@ -158,7 +157,6 @@ export function AdminDashboardModal({
     setLiveClaims(prev => prev.map(c => c.id === claim.id ? { ...c, status: 'rejected', rejectionReason: reason, reviewedAt: new Date().toISOString(), reviewedBy: 'admin' } : c));
     setSelectedClaim(null);
     setClaimRejectNote('');
-    toast(`Claim for "${claim.spotTitle}" rejected.`);
     onRefresh?.();
   };
 
@@ -168,12 +166,11 @@ export function AdminDashboardModal({
   const handleApproveCommunitySpot = async (spot: SpotItem) => {
     const { spot: approved, error } = await approveCommunitySpot(spot.id);
     if (error || !approved) {
-      toast(error || 'Failed to approve spot');
+      toast(error || 'Failed to approve spot', { type: 'error' });
       return;
     }
     setPendingSpots(prev => prev.filter(s => String(s.id) !== String(spot.id)));
     onSpotPublished?.(approved);
-    toast(`"${spot.title}" approved & published to RADA!`);
     onRefresh?.();
   };
 
@@ -181,12 +178,11 @@ export function AdminDashboardModal({
     const reason = rejectSpotReason[spot.id]?.trim() || 'Did not meet listing standards or quality guidelines';
     const { error } = await rejectCommunitySpot(spot.id, reason);
     if (error) {
-      toast(error || 'Failed to reject spot');
+      toast(error || 'Failed to reject spot', { type: 'error' });
       return;
     }
     setPendingSpots(prev => prev.filter(s => String(s.id) !== String(spot.id)));
     setActiveRejectingSpotId(null);
-    toast(`"${spot.title}" rejected.`);
     onRefresh?.();
   };
 
@@ -237,12 +233,11 @@ export function AdminDashboardModal({
       onUpdateBusiness(b.id, updates);
     } else {
       const err = await reviewBusiness(b.id, updates);
-      if (err) { toast(err); return; }
+      if (err) { toast(err, { type: 'error' }); return; }
       onRefresh?.();
     }
     setSelectedBiz(null);
     setRejectReason('');
-    toast(msg);
   };
 
   const approve = (b: BusinessAccount) =>
@@ -253,7 +248,7 @@ export function AdminDashboardModal({
 
   const reject = (b: BusinessAccount) => {
     const reason = rejectReason.trim();
-    if (!reason) { toast('Please enter a rejection reason.'); return; }
+    if (!reason) { toast('Please enter a rejection reason.', { type: 'error' }); return; }
     return saveBusiness(b, {
       verified: false, verificationStatus: 'rejected', verificationNote: reason,
       verifiedAt: undefined, verifiedBy: 'admin',
@@ -270,9 +265,8 @@ export function AdminDashboardModal({
     const err = await setBusinessSubscription(b.id, {
       status, plan: b.subscriptionPlan, amount: b.subscriptionAmount, renewsAt: b.subscriptionRenewsAt,
     });
-    if (err) { toast(err); return; }
+    if (err) { toast(err, { type: 'error' }); return; }
     setSubOverride(o => ({ ...o, [b.id]: status }));
-    toast(`Subscription set to ${status.replace('_', ' ')}.`);
   };
 
   // =====================================================================
@@ -284,19 +278,19 @@ export function AdminDashboardModal({
 
   const onPickImage = (file?: File | null) => {
     if (!file) return;
-    if (file.size > 8 * 1024 * 1024) { toast('Image must be under 8MB.'); return; }
+    if (file.size > 8 * 1024 * 1024) {  return; }
     const reader = new FileReader();
     reader.onload = () => setF('img', String(reader.result || ''));
     reader.readAsDataURL(file);
   };
 
   const publishSpot = async () => {
-    if (!form.title.trim()) { toast('Spot name is required.'); return; }
-    if (!form.neighborhood.trim()) { toast('Neighborhood is required.'); return; }
+    if (!form.title.trim()) { toast('Spot name is required.', { type: 'error' }); return; }
+    if (!form.neighborhood.trim()) { toast('Neighborhood is required.', { type: 'error' }); return; }
     const lat = form.lat.trim() ? Number(form.lat) : undefined;
     const lng = form.lng.trim() ? Number(form.lng) : undefined;
     if ((lat !== undefined && !Number.isFinite(lat)) || (lng !== undefined && !Number.isFinite(lng))) {
-      toast('Latitude / longitude must be numbers.'); return;
+ return;
     }
     const input: UnclaimedSpotInput = {
       title: form.title, category: form.category, neighborhood: form.neighborhood, address: form.address,
@@ -306,21 +300,19 @@ export function AdminDashboardModal({
     setPublishing(true);
     const { error, spot } = await publishUnclaimedSpot(input);
     setPublishing(false);
-    if (error || !spot) { toast(error || 'Could not publish spot.'); return; }
+    if (error || !spot) { toast(error || 'Could not publish spot.', { type: 'error' }); return; }
     onSpotPublished?.(spot);
     setUnclaimed(list => [spot, ...list]);
     setForm(emptyForm);
-    toast(`"${spot.title}" published as unclaimed. Merchants can now claim it.`);
     void fetchPlatformStats().then(setStats);
   };
 
   const removeSpot = async (s: any) => {
     if (!window.confirm(`Delete "${s.title}"? This cannot be undone.`)) return;
     const err = await deleteListing('spot', s.id);
-    if (err) { toast(err); return; }
+    if (err) { toast(err, { type: 'error' }); return; }
     setUnclaimed(list => list.filter(x => String(x.id) !== String(s.id)));
     onSpotDeleted?.(s.id);
-    toast('Spot deleted.');
   };
 
   // =====================================================================
@@ -347,7 +339,7 @@ export function AdminDashboardModal({
   const runAction = async () => {
     if (!action) return;
     const { kind, user } = action;
-    if (kind === 'delete' && actionText.trim() !== 'DELETE') { toast('Type DELETE to confirm.'); return; }
+    if (kind === 'delete' && actionText.trim() !== 'DELETE') {  return; }
     setBusy(true);
     let err: string | null = null;
     let msg = '';
@@ -377,8 +369,7 @@ export function AdminDashboardModal({
       if (!err) onRefresh?.();
     }
     setBusy(false);
-    if (err) { toast(err); return; }
-    toast(msg);
+    if (err) { toast(err, { type: 'error' }); return; }
     closeAction();
     setUsers(await fetchAdminUsers(businesses));
     void fetchPlatformStats().then(setStats);
@@ -469,7 +460,7 @@ export function AdminDashboardModal({
                 onClick={refresh}
                 disabled={isRefreshing}
                 className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-900 flex items-center gap-1.5 text-xs font-bold cursor-pointer"
-                title="Refresh from Supabase"
+                title="Refresh"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-purple-600' : ''}`} />
                 <span className="hidden sm:inline">Refresh</span>
@@ -537,7 +528,7 @@ export function AdminDashboardModal({
                     </div>
                     <button
                       onClick={() => setTab('pending_spots')}
-                      className="px-4 py-2 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-black shrink-0 transition cursor-pointer self-start sm:self-auto"
+                      className="px-4 py-2 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white rounded-xl text-xs font-black shrink-0 transition cursor-pointer self-start sm:self-auto"
                     >
                       Review Pending Spots ({pendingSpots.length}) ↗
                     </button>
@@ -633,7 +624,7 @@ export function AdminDashboardModal({
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <h2 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-[#E0533C]" />
+                      <MapPin className="w-4 h-4 text-[#E0533C] dark:text-[#D17A68]" />
                       <span>Pending User-Submitted Spots ({pendingSpots.length})</span>
                     </h2>
                     <p className="text-xs text-slate-500 mt-0.5">
@@ -647,7 +638,7 @@ export function AdminDashboardModal({
                       value={pendingSpotSearch}
                       onChange={(e) => setPendingSpotSearch(e.target.value)}
                       placeholder="Search pending spots..."
-                      className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#E0533C]"
+                      className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#E0533C] dark:focus:ring-[#D17A68]"
                     />
                   </div>
                 </div>
@@ -695,7 +686,7 @@ export function AdminDashboardModal({
 
                               <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
                                 <span className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
-                                  <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
+                                  <MapPin className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
                                   {spot.neighborhood} {spot.address ? `• ${spot.address}` : ''}
                                 </span>
                                 <span>•</span>
@@ -1366,7 +1357,7 @@ export function AdminDashboardModal({
                   </span>
                   <h3 className="font-black text-sm text-slate-900 dark:text-slate-100 mt-0.5 truncate">{selectedClaim.spotTitle}</h3>
                   <p className="text-xs text-slate-500 truncate flex items-center gap-1 mt-0.5">
-                    <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
+                    <MapPin className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
                     <span>{selectedClaim.spotNeighborhood} • {selectedClaim.spotAddress}</span>
                   </p>
                 </div>

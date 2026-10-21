@@ -20,6 +20,7 @@ import {
   Section,
   useOwnProfile,
 } from './ProfileSettingsKit';
+import type { ToastOptions } from './Toast.tsx';
 
 interface ProfessionalStats {
   profileViews?: number;
@@ -34,7 +35,7 @@ interface UserProfileModalProps {
   onClose: () => void;
   onSendMatchRequest?: (user: UserProfile) => void;
   onSendMessage?: (user: UserProfile) => void;
-  showToast: (msg: string) => void;
+  showToast: (msg: string, options?: ToastOptions) => void;
   onOpenSavedItems?: () => void;
   onOpenAccountSettings?: () => void;
   /** True when this modal shows the signed-in user's own profile (enables editing). */
@@ -99,7 +100,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onOpenAuth,
 }) => {
   const requireLogin = () => {
-    showToast('Please sign in first.');
+    showToast('Please sign in first.', { type: 'error' });
     onOpenAuth?.();
   };
 
@@ -146,7 +147,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               subtitle={
                 <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
                   <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                    <MapPin className="w-3 h-3 text-[#E0533C]" />
+                    <MapPin className="w-3 h-3 text-[#E0533C] dark:text-[#D17A68]" />
                     {cleanLoc(user.loc)}
                   </span>
                   <span
@@ -212,7 +213,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   onClose();
                   onOpenAccountSettings();
                 }}
-                className="w-full py-3 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-[13px] transition cursor-pointer"
+                className="w-full py-3 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white font-black rounded-xl text-[13px] transition cursor-pointer"
               >
                 Edit profile
               </button>
@@ -233,37 +234,35 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   const handleMatchClick = () => {
     if (!isSingle) {
-      showToast(`${handle} is Not Single. Matching requests are disabled for this profile.`);
+      showToast(`${handle} is Not Single. Matching requests are disabled for this profile.`, { type: 'error' });
       return;
     }
     if (onSendMatchRequest) {
       onSendMatchRequest(user);
     } else {
-      showToast(`Hangout & Match request sent to ${handle}!`);
+      showToast(`Hangout & Match request sent to ${handle}!`, { category: 'match' });
     }
   };
 
   const handleMessageClick = () => {
     if (!isMutualMatch) {
-      showToast(`Direct messaging requires a mutual match acceptance. Send a match request first!`);
+      showToast(`Direct messaging requires a mutual match acceptance. Send a match request first!`, { type: 'error' });
       return;
     }
     if (onSendMessage) {
       onSendMessage(user);
-    } else {
-      showToast(`Chat conversation opened with ${handle}!`);
     }
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] animate-in fade-in duration-200">
       <div
-        className="bg-white dark:bg-[#1C1A1E] text-slate-900 dark:text-slate-100 rounded-3xl max-w-md w-full overflow-hidden shadow-2xl flex flex-col max-h-[92vh]"
+        className="bg-white dark:bg-[#121113] text-slate-900 dark:text-slate-100 w-full h-full overflow-y-auto flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Full uncropped photo with ambient fill */}
-        <div className="relative h-80 sm:h-96 w-full bg-[#121113] shrink-0 overflow-hidden flex items-center justify-center">
+        <div className="relative h-[62vh] sm:h-[70vh] w-full bg-[#121113] shrink-0 overflow-hidden flex items-center justify-center">
           <div
             className="absolute inset-0 bg-cover bg-center filter blur-2xl scale-125 opacity-50 dark:opacity-40"
             style={{ backgroundImage: `url('${user.avatar}')` }}
@@ -275,9 +274,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             className="relative z-10 max-h-full max-w-full object-contain drop-shadow-2xl"
           />
 
-          <div className="absolute top-3 inset-x-3 z-20 flex items-center justify-between">
+          <div className="absolute inset-x-3 z-20 flex items-center justify-between" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}>
             <span className="bg-black/60 backdrop-blur-md text-white text-[11px] font-black px-3 py-1 rounded-full flex items-center gap-1.5 shadow-sm">
-              <Sparkles className="w-3.5 h-3.5 text-[#E9C46A]" />
+              <Sparkles className="w-3.5 h-3.5 text-[#E9C46A] dark:text-[#BFA25F]" />
               <span>RADA profile</span>
             </span>
             <button
@@ -306,16 +305,16 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           </div>
         </div>
 
-        <div className="p-4 sm:p-5 flex-1 overflow-y-auto space-y-3.5">
+        <div className="p-4 sm:p-5 pb-24 flex-1 space-y-3.5 w-full max-w-xl mx-auto">
           <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-semibold">
-            <MapPin className="w-3.5 h-3.5 text-[#E0533C] shrink-0" />
+            <MapPin className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68] shrink-0" />
             <span>{cleanLoc(user.loc)}</span>
           </p>
 
           {isVerifiedPro && (
-            <div className="p-3 rounded-2xl bg-[#E0533C]/10 flex items-center justify-between gap-3">
+            <div className="p-3 rounded-2xl bg-[#E0533C]/10 dark:bg-[#A94F3E]/10 flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[12px] font-black text-[#E0533C]">Verified host</p>
+                <p className="text-[12px] font-black text-[#E0533C] dark:text-[#D17A68]">Verified host</p>
                 {proCategory && <p className="text-xs font-bold truncate">{proCategory}</p>}
               </div>
               {proWebsite && (
@@ -323,7 +322,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   href={proWebsite.startsWith('http') ? proWebsite : `https://${proWebsite}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-[11px] font-black text-[#E0533C] shrink-0"
+                  className="text-[11px] font-black text-[#E0533C] dark:text-[#D17A68] shrink-0"
                 >
                   Website
                 </a>
@@ -364,7 +363,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               </p>
             ) : isSingle ? (
               <p className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                <Lock className="w-4 h-4 shrink-0 text-[#E0533C]" />
+                <Lock className="w-4 h-4 shrink-0 text-[#E0533C] dark:text-[#D17A68]" />
                 <span>Direct messaging requires mutual match acceptance. Send a request to connect!</span>
               </p>
             ) : (
@@ -382,7 +381,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <button
                 type="button"
                 onClick={handleMessageClick}
-                className="w-full py-3 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-2xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white font-black rounded-2xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
               >
                 <MessageSquare className="w-4 h-4" />
                 <span>Open direct message</span>
@@ -392,7 +391,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 <button
                   type="button"
                   onClick={handleMatchClick}
-                  className="flex-1 py-3 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-2xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+                  className="flex-1 py-3 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white font-black rounded-2xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Heart className="w-4 h-4 fill-white" />
                   <span>Send match request</span>
@@ -410,7 +409,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             ) : (
               <button
                 type="button"
-                onClick={() => showToast(`${handle} is Not Single. Matching requests are disabled.`)}
+                onClick={() => showToast(`${handle} is Not Single. Matching requests are disabled.`, { type: 'error' })}
                 className="w-full py-3 bg-slate-200 dark:bg-slate-800 text-slate-400 font-bold rounded-2xl text-xs cursor-not-allowed flex items-center justify-center gap-2"
               >
                 <Heart className="w-4 h-4 opacity-40" />

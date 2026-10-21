@@ -12,6 +12,8 @@ import {
   X
 } from 'lucide-react';
 
+export type ToastFn = (message: string, options?: ToastOptions) => void;
+
 export type ToastType =
   | 'success'
   | 'bookmark'
@@ -24,6 +26,8 @@ export type ToastType =
 
 export interface ToastOptions {
   type?: ToastType;
+  /** Only these categories (plus type 'error') are ever displayed. */
+  category?: 'profile' | 'match';
   duration?: number;
   position?: 'top' | 'bottom';
   icon?: React.ReactNode;
@@ -103,7 +107,7 @@ function getToastIcon(type: ToastType, customIcon?: React.ReactNode) {
   if (customIcon) return customIcon;
   switch (type) {
     case 'bookmark':
-      return <Bookmark className="w-4 h-4 text-[#E0533C] fill-[#E0533C] shrink-0" />;
+      return <Bookmark className="w-4 h-4 text-[#E0533C] dark:text-[#D17A68] fill-[#E0533C] dark:fill-[#D17A68] shrink-0" />;
     case 'review':
       return <Star className="w-4 h-4 text-amber-400 fill-amber-400 shrink-0" />;
     case 'verified':
@@ -146,10 +150,13 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const showToastInternal = useCallback((message: string, options?: ToastOptions) => {
     if (!message || typeof message !== 'string') return;
+    // Toast policy: errors, profile-settings updates and sent match requests only.
+    const allowed = options?.type === 'error' || options?.category === 'profile' || options?.category === 'match';
+    if (!allowed) return;
     clearTimers();
 
     const duration = options?.duration || 2500; // Standard 2.5s auto-dismiss
-    const type = resolveToastType(message, options?.type);
+    const type = options?.type ?? 'success';
     const position = options?.position || 'top'; // Top-center so it never covers bottom nav or chat input
 
     const newToast: ToastItem = {

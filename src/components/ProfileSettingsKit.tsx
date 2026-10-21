@@ -31,6 +31,7 @@ import {
   uploadAvatar,
   validateUsernameFormat,
 } from '../lib/cloudSync';
+import type { ToastOptions } from './Toast.tsx';
 
 /* ------------------------------------------------------------------ */
 /* Shared state: one hook, used by BOTH UserProfileModal and           */
@@ -52,7 +53,7 @@ interface UseOwnProfileArgs {
   /** Only hydrate/fetch while the modal is actually open for the owner. */
   active: boolean;
   onProfileChange?: (patch: Partial<UserProfile>) => void;
-  showToast: (msg: string) => void;
+  showToast: (msg: string, options?: ToastOptions) => void;
   onRequireLogin: () => void;
   /** Optional numbers passed down by the app; used only when the server has none. */
   statsFallback?: { profileViews?: number; joinRequests?: number };
@@ -177,7 +178,7 @@ export function useOwnProfile({
       return false;
     }
     if (usernameState.state === 'taken' || usernameState.state === 'invalid') {
-      showToast(usernameState.message || 'Pick a different username.');
+      showToast(usernameState.message || 'Pick a different username.', { type: 'error' });
       return false;
     }
     setSaving(true);
@@ -191,7 +192,7 @@ export function useOwnProfile({
       const res = await saveUnifiedProfile(userId, { name, username, ...(bioChanged ? { bio } : {}) });
       if (res.error || !res.username || res.name === undefined) {
         setSaving(false);
-        showToast(res.error || 'Could not save profile.');
+        showToast(res.error || 'Could not save profile.', { type: 'error' });
         return false;
       }
       patch.name = res.name;
@@ -208,7 +209,7 @@ export function useOwnProfile({
       if (r.error) {
         setSaving(false);
         if (Object.keys(patch).length) onProfileChange?.(patch);
-        showToast(`Relationship status could not be saved: ${r.error}`);
+        showToast(`Relationship status could not be saved: ${r.error}`, { type: 'error' });
         return false;
       }
       patch.relationshipStatus = status;
@@ -218,7 +219,7 @@ export function useOwnProfile({
     savedAtRef.current = Date.now();
     // Dispatch what Supabase returned straight into the app store (the single shared user object)
     if (Object.keys(patch).length) onProfileChange?.(patch);
-    showToast(bioFailed ? 'Saved, but your bio could not be stored yet.' : 'Profile saved.');
+    showToast(bioFailed ? 'Saved, but your bio could not be stored yet.' : 'Profile saved.', { category: 'profile' });
     return true;
   };
 
@@ -229,9 +230,9 @@ export function useOwnProfile({
     setUploading(true);
     const res = await uploadAvatar(userId, file);
     setUploading(false);
-    if (res.error || !res.url) return showToast(res.error || 'Could not upload photo.');
+    if (res.error || !res.url) return showToast(res.error || 'Could not upload photo.', { type: 'error' });
     onProfileChange?.({ avatar: res.url });
-    showToast('Profile photo updated.');
+    showToast('Profile photo updated.', { category: 'profile' });
   };
 
   // ---- professional switch (instant, no approval)
@@ -250,14 +251,14 @@ export function useOwnProfile({
     setSwitching(false);
     if (res.error) {
       setOptimisticPro(null);
-      return showToast(res.error);
+      return showToast(res.error, { type: 'error' });
     }
     onProfileChange?.({
       is_creator: next,
       account_type: next ? 'professional' : 'personal',
       professional_since: next ? res.since : undefined,
     });
-    showToast(next ? 'You are now a professional account.' : 'Switched back to a personal account.');
+    showToast(next ? 'You are now a professional account.' : 'Switched back to a personal account.', { category: 'profile' });
   };
 
   // ---- hub data
@@ -292,9 +293,9 @@ export function useOwnProfile({
     setControlBusy(null);
     if (res.error) {
       setControls(prev);
-      return showToast(res.error);
+      return showToast(res.error, { type: 'error' });
     }
-    showToast(next[key] ? 'Turned on.' : 'Turned off.');
+    showToast(next[key] ? 'Turned on.' : 'Turned off.', { category: 'profile' });
   };
 
   const stats: HostAnalytics = {
@@ -341,7 +342,7 @@ export type OwnProfile = ReturnType<typeof useOwnProfile>;
 /* ------------------------------------------------------------------ */
 
 const inputCls =
-  'w-full px-3.5 py-2.5 text-[13px] bg-slate-100 dark:bg-[#121113] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E0533C]/40 text-slate-900 dark:text-slate-100 placeholder:text-slate-400';
+  'w-full px-3.5 py-2.5 text-[13px] bg-slate-100 dark:bg-[#121113] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E0533C]/40 dark:focus:ring-[#D17A68]/40 text-slate-900 dark:text-slate-100 placeholder:text-slate-400';
 const labelCls = 'block text-[12px] font-semibold text-slate-600 dark:text-slate-300 mb-1';
 
 export const Section: React.FC<{ title: string; description?: string; children: React.ReactNode }> = ({
@@ -374,7 +375,7 @@ export const Toggle: React.FC<{
     disabled={busy}
     onClick={onChange}
     className={`relative w-11 h-6 rounded-full shrink-0 cursor-pointer transition-colors motion-reduce:transition-none disabled:cursor-wait focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E0533C] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#1C1A1E] ${
-      checked ? 'bg-[#E0533C]' : 'bg-slate-300 dark:bg-slate-700'
+      checked ? 'bg-[#E0533C] dark:bg-[#A94F3E]' : 'bg-slate-300 dark:bg-slate-700'
     }`}
   >
     <span
@@ -421,7 +422,7 @@ export const AvatarHero: React.FC<{ p: OwnProfile; subtitle?: React.ReactNode; e
           type="button"
           onClick={() => (p.userId ? fileRef.current?.click() : p.requireLogin())}
           disabled={p.uploading}
-          className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#E0533C] hover:bg-orange-700 text-white flex items-center justify-center shadow-lg cursor-pointer disabled:opacity-60"
+          className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white flex items-center justify-center shadow-lg cursor-pointer disabled:opacity-60"
           aria-label="Change profile photo"
           title="Change profile photo"
         >
@@ -548,7 +549,7 @@ export const IdentityFields: React.FC<{ p: OwnProfile; showSave?: boolean; saveL
           type="button"
           onClick={p.save}
           disabled={!p.dirty || p.saving}
-          className="w-full py-3 bg-[#E0533C] hover:bg-orange-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black rounded-xl text-[13px] transition flex items-center justify-center gap-2 cursor-pointer"
+          className="w-full py-3 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black rounded-xl text-[13px] transition flex items-center justify-center gap-2 cursor-pointer"
         >
           {p.saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>{saveLabel}</span>}
         </button>
@@ -559,8 +560,8 @@ export const IdentityFields: React.FC<{ p: OwnProfile; showSave?: boolean; saveL
 
 /** The prominent instant switch. */
 export const ProfessionalSwitchCard: React.FC<{ p: OwnProfile }> = ({ p }) => (
-  <div className={`p-4 flex items-center gap-3.5 ${p.isPro ? 'bg-[#E0533C]/10' : ''}`}>
-    <span className="w-11 h-11 rounded-full bg-[#E0533C]/10 flex items-center justify-center shrink-0">
+  <div className={`p-4 flex items-center gap-3.5 ${p.isPro ? 'bg-[#E0533C]/10 dark:bg-[#A94F3E]/10' : ''}`}>
+    <span className="w-11 h-11 rounded-full bg-[#E0533C]/10 dark:bg-[#A94F3E]/10 flex items-center justify-center shrink-0">
       <VerifiedBadge status="approved" size="lg" />
     </span>
     <div className="flex-1 min-w-0">
@@ -600,7 +601,7 @@ export const RelationshipStatusField: React.FC<{ p: OwnProfile }> = ({ p }) => (
           onClick={() => p.setStatus(value)}
           className={`py-2 rounded-lg text-[13px] font-bold transition cursor-pointer motion-reduce:transition-none ${
             p.status === value
-              ? 'bg-white dark:bg-[#1C1A1E] shadow-sm text-[#E0533C]'
+              ? 'bg-white dark:bg-[#1C1A1E] shadow-sm text-[#E0533C] dark:text-[#D17A68]'
               : 'text-slate-500 dark:text-slate-400'
           }`}
         >
@@ -638,7 +639,7 @@ export const ProfessionalHub: React.FC<{ p: OwnProfile }> = ({ p }) => {
       {/* Host benefits & badges */}
       <div className="px-4 pt-3">
         <p className="text-[12px] font-semibold text-slate-600 dark:text-slate-300 mb-2">Host benefits & badges</p>
-        <div className="rounded-xl bg-[#E0533C]/10 p-3 space-y-2">
+        <div className="rounded-xl bg-[#E0533C]/10 dark:bg-[#A94F3E]/10 p-3 space-y-2">
           <div className="flex items-center gap-2">
             <VerifiedBadge status="approved" size="lg" />
             <span className="text-[13px] font-bold">Verified host</span>
@@ -649,7 +650,7 @@ export const ProfessionalHub: React.FC<{ p: OwnProfile }> = ({ p }) => {
             'Featured spots and priority listing controls',
           ].map((t) => (
             <p key={t} className="text-[12px] text-slate-700 dark:text-slate-200 flex items-start gap-2">
-              <Check className="w-3.5 h-3.5 text-[#E0533C] mt-0.5 shrink-0" />
+              <Check className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68] mt-0.5 shrink-0" />
               <span>{t}</span>
             </p>
           ))}
@@ -665,7 +666,7 @@ export const ProfessionalHub: React.FC<{ p: OwnProfile }> = ({ p }) => {
               key={label}
               className="rounded-xl bg-slate-100 dark:bg-[#121113] p-3"
             >
-              <div className="flex items-center gap-1.5 text-[#E0533C]">{icon}</div>
+              <div className="flex items-center gap-1.5 text-[#E0533C] dark:text-[#D17A68]">{icon}</div>
               {p.hubLoading ? (
                 <div className="mt-2 h-6 w-12 rounded bg-slate-200 dark:bg-slate-800 animate-pulse motion-reduce:animate-none" />
               ) : (
@@ -693,7 +694,7 @@ export const ProfessionalHub: React.FC<{ p: OwnProfile }> = ({ p }) => {
             ] as [keyof HostControls, string, string, React.ReactNode][]
           ).map(([key, title, desc, icon]) => (
             <div key={key} className="py-3 flex items-center gap-3">
-              <span className="w-8 h-8 rounded-full bg-[#E0533C]/10 text-[#E0533C] flex items-center justify-center shrink-0">
+              <span className="w-8 h-8 rounded-full bg-[#E0533C]/10 dark:bg-[#A94F3E]/10 text-[#E0533C] dark:text-[#D17A68] flex items-center justify-center shrink-0">
                 {icon}
               </span>
               <div className="flex-1 min-w-0">

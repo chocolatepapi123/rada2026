@@ -6,8 +6,7 @@ import {
   UserCheck, 
   MoreVertical, 
   MapPin,
-  Sun,
-  Moon,
+  User,
   Bookmark,
   LogIn,
   Crown
@@ -22,8 +21,10 @@ interface HeaderProps {
   onUpdateLocation?: (newLocation: string, isGps: boolean) => void;
   hasBusinessAccount: boolean;
   businessName?: string;
-  isDarkMode: boolean;
-  onToggleTheme: () => void;
+  /** @deprecated Theme is toggled from Settings only; kept so existing callers still compile. */
+  isDarkMode?: boolean;
+  /** @deprecated See isDarkMode. */
+  onToggleTheme?: () => void;
   isGuestMode?: boolean;
   onOpenAuth?: () => void;
 
@@ -48,8 +49,6 @@ export const Header: React.FC<HeaderProps> = ({
   isGpsActive = true,
   hasBusinessAccount,
   businessName,
-  isDarkMode,
-  onToggleTheme,
   isGuestMode,
   onOpenAuth,
   onOpenAdmin,
@@ -109,14 +108,14 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center gap-1.5 cursor-pointer hover:opacity-90 active:scale-95 transition-all focus:outline-none shrink-0"
             title="RADA Home"
           >
-            <div className="w-7 h-7 rounded-lg bg-[#E0533C] text-white flex items-center justify-center shadow-xs shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-[#E0533C] dark:bg-[#A94F3E] text-white flex items-center justify-center shadow-xs shrink-0">
               <svg viewBox="0 0 100 130" className="w-4.5 h-4.5 fill-none stroke-white" strokeLinejoin="round">
                 <path d="M50 6 C26 6 10 26 10 50 C10 76 45 116 48.5 120 C49.3 121 50.7 121 51.5 120 C55 116 90 76 90 50 C90 26 74 6 50 6 Z" strokeWidth="8" />
                 <path d="M22 35 C15 45 16 58 25 74 C34 90 46 106 50 112" strokeWidth="6" strokeLinecap="round" />
                 <circle cx="50" cy="48" r="17" strokeWidth="8" />
               </svg>
             </div>
-            <span className="text-xl sm:text-2xl font-black tracking-tighter text-[#E0533C] shrink-0">
+            <span className="text-xl sm:text-2xl font-black tracking-tighter text-[#E0533C] dark:text-[#D17A68] shrink-0">
               RADA
             </span>
           </button>
@@ -127,7 +126,7 @@ export const Header: React.FC<HeaderProps> = ({
               className="min-w-0 shrink text-xs bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 font-semibold px-2 sm:px-2.5 py-1 rounded-full flex items-center gap-1 sm:gap-1.5 border border-slate-200 dark:border-slate-800 select-none max-w-[42vw] sm:max-w-[220px] cursor-default shadow-2xs overflow-hidden"
               title={`Location: ${singleLocality}`}
             >
-              <MapPin className="w-3.5 h-3.5 shrink-0 text-[#E05328]" />
+              <MapPin className="w-3.5 h-3.5 shrink-0 text-[#E05328] dark:text-[#D17A68]" />
               <span className="whitespace-nowrap truncate text-[11px] font-bold min-w-0">{singleLocality}</span>
             </div>
           )}
@@ -198,13 +197,13 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={() => handleMenuClick('businessHub')}
                   className="w-full text-left px-4 py-3 text-xs font-bold hover:bg-amber-50/70 dark:hover:bg-amber-950/30 flex items-start gap-3 text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800/80 group transition"
                 >
-                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#E0533C] to-[#E9C46A] text-white flex items-center justify-center shrink-0 shadow-sm">
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#E0533C] dark:from-[#A94F3E] to-[#E9C46A] dark:to-[#A68B4B] text-white flex items-center justify-center shrink-0 shadow-sm">
                     <Building2 className="w-4 h-4" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <span className="font-extrabold text-[#E0533C]">Business & Merchant Hub</span>
-                      <span className="text-[9px] bg-red-100 dark:bg-red-950/80 text-[#E0533C] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider">
+                      <span className="font-extrabold text-[#E0533C] dark:text-[#D17A68]">Business & Merchant Hub</span>
+                      <span className="text-[9px] bg-red-100 dark:bg-red-950/80 text-[#E0533C] dark:text-[#D17A68] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider">
                         Merchant
                       </span>
                     </div>
@@ -230,17 +229,17 @@ export const Header: React.FC<HeaderProps> = ({
                   className="w-full text-left px-4 py-2.5 text-xs font-bold hover:bg-orange-50/80 dark:hover:bg-orange-950/20 flex items-center justify-between text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800/80 transition group cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
-                    <Bookmark className="w-4 h-4 text-[#E0533C] fill-[#E0533C]/20 group-hover:fill-[#E0533C] transition" />
+                    <Bookmark className="w-4 h-4 text-[#E0533C] dark:text-[#D17A68] fill-[#E0533C]/20 dark:fill-[#D17A68]/20 group-hover:fill-[#E0533C] dark:group-hover:fill-[#D17A68] transition" />
                     <span>Saved Items</span>
                   </div>
                   {savedCount !== undefined && savedCount > 0 && (
-                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#E0533C]/10 text-[#E0533C]">
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#E0533C]/10 dark:bg-[#A94F3E]/10 text-[#E0533C] dark:text-[#D17A68]">
                       {savedCount}
                     </span>
                   )}
                 </button>
 
-                {/* Settings & Appearance */}
+                {/* Settings (theme lives here) */}
                 <button
                   onClick={() => handleMenuClick('settingsOverlay')}
                   className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-3 text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
@@ -249,21 +248,13 @@ export const Header: React.FC<HeaderProps> = ({
                   <span>Settings</span>
                 </button>
 
-                {/* Theme Mode Option (Moved exclusively to menu/settings) */}
+                {/* My Profile */}
                 <button
-                  onClick={() => {
-                    onToggleTheme();
-                    setMenuOpen(false);
-                  }}
-                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center justify-between text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
+                  onClick={() => handleMenuClick('profileOverlay')}
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-3 text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
                 >
-                  <div className="flex items-center gap-3">
-                    {isDarkMode ? <Moon className="w-4 h-4 text-amber-400" /> : <Sun className="w-4 h-4 text-amber-500" />}
-                    <span>Theme: {isDarkMode ? 'Dark Mode' : 'Light Mode'}</span>
-                  </div>
-                  <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
-                    Toggle
-                  </span>
+                  <User className="w-4 h-4 text-[#E0533C] dark:text-[#D17A68]" />
+                  <span>My Profile</span>
                 </button>
 
                 {/* Account & Security */}
@@ -278,7 +269,7 @@ export const Header: React.FC<HeaderProps> = ({
                   }}
                   className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-3 text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
                 >
-                  <UserCheck className="w-4 h-4 text-[#E9C46A]" />
+                  <UserCheck className="w-4 h-4 text-[#E9C46A] dark:text-[#BFA25F]" />
                   <span>Account & Security</span>
                 </button>
 
@@ -287,7 +278,7 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={() => handleMenuClick('sosOverlay')}
                   className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-3 text-red-600 dark:text-red-400 transition"
                 >
-                  <ShieldAlert className="w-4 h-4 text-[#E0533C]" />
+                  <ShieldAlert className="w-4 h-4 text-[#E0533C] dark:text-[#D17A68]" />
                   <span>Emergency & SOS Hub</span>
                 </button>
                 {isGuestMode && onOpenAuth ? (

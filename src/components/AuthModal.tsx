@@ -240,7 +240,7 @@ export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, custo
           <button
             type="submit"
             disabled={loading || googleLoading}
-            className="w-full mt-2 py-3 bg-gradient-to-r from-amber-500 to-[#E0533C] hover:opacity-90 font-black text-white rounded-xl flex items-center justify-center gap-2 transition shadow-lg shadow-orange-500/20 disabled:opacity-50 cursor-pointer text-sm"
+            className="w-full mt-2 py-3 bg-gradient-to-r from-amber-500 to-[#E0533C] dark:to-[#A94F3E] hover:opacity-90 font-black text-white rounded-xl flex items-center justify-center gap-2 transition shadow-lg shadow-orange-500/20 disabled:opacity-50 cursor-pointer text-sm"
           >
             {loading ? (
               <>

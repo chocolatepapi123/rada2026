@@ -113,7 +113,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
                 title={cat.name}
                 className={`p-1.5 rounded-lg transition text-xs flex items-center justify-center cursor-pointer ${
                   isSelected
-                    ? 'bg-[#E0533C] text-white shadow-xs'
+                    ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white shadow-xs'
                     : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >

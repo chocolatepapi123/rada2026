@@ -17,12 +17,13 @@ import {
 import { SpotCategory, SpotItem } from '../types.ts';
 import { submitCommunitySpot } from '../lib/cloudSync.ts';
 import { LocationCombobox } from './LocationCombobox.tsx';
+import type { ToastOptions } from './Toast.tsx';
 
 interface SuggestSpotModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmitSuccess?: (spot: SpotItem) => void;
-  showToast: (msg: string) => void;
+  showToast: (msg: string, options?: ToastOptions) => void;
   currentUserId?: string;
   currentUserProfile?: {
     name?: string;
@@ -45,10 +46,9 @@ const CATEGORY_OPTIONS: { id: SpotCategory; label: string; icon: string }[] = [
 ];
 
 const PRICE_TIERS = [
-  { id: 'KES < 1,000', label: 'KES < 1,000', desc: 'Budget-friendly' },
-  { id: 'KES 1,000 - 2,500', label: 'KES 1,000 - 2,500', desc: 'Moderate' },
-  { id: 'KES 2,500 - 5,000', label: 'KES 2,500 - 5,000', desc: 'Upscale' },
-  { id: 'KES 5,000+', label: 'KES 5,000+', desc: 'Luxury / Splurge' },
+  { id: 'Low', label: 'Low', desc: 'Budget-friendly' },
+  { id: 'Mid', label: 'Mid', desc: 'Moderate' },
+  { id: 'High', label: 'High', desc: 'Upscale / Luxury' },
 ];
 
 const POPULAR_TAGS = [
@@ -82,7 +82,7 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
   const [neighborhood, setNeighborhood] = useState('Westlands');
   const [address, setAddress] = useState('');
   const [description, setDescription] = useState('');
-  const [price, setPrice] = useState('KES 1,000 - 2,500');
+  const [price, setPrice] = useState('Mid');
   const [selectedTags, setSelectedTags] = useState<string[]>(['Outdoor Seating', 'Cozy Vibe']);
   const [customTagInput, setCustomTagInput] = useState('');
 
@@ -100,11 +100,11 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
     // Filter valid images under 10MB
     const validFiles = newFiles.filter(file => {
       if (!file.type.startsWith('image/')) {
-        showToast(`Skipped ${file.name}: Not an image.`);
+        showToast(`Skipped ${file.name}: Not an image.`, { type: 'error' });
         return false;
       }
       if (file.size > 10 * 1024 * 1024) {
-        showToast(`Skipped ${file.name}: File is larger than 10MB.`);
+        showToast(`Skipped ${file.name}: File is larger than 10MB.`, { type: 'error' });
         return false;
       }
       return true;
@@ -173,17 +173,17 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
     e.preventDefault();
 
     if (!title.trim()) {
-      showToast('Please enter the spot name.');
+      showToast('Please enter the spot name.', { type: 'error' });
       return;
     }
 
     if (!neighborhood.trim()) {
-      showToast('Please select or specify a location / neighborhood.');
+      showToast('Please select or specify a location / neighborhood.', { type: 'error' });
       return;
     }
 
     if (!description.trim()) {
-      showToast('Please add a short description of the spot.');
+      showToast('Please add a short description of the spot.', { type: 'error' });
       return;
     }
 
@@ -206,12 +206,11 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
       );
 
       if (error) {
-        showToast(`Submission failed: ${error}`);
+        showToast(`Submission failed: ${error}`, { type: 'error' });
         setIsSubmitting(false);
         return;
       }
 
-      showToast('Spot submitted! It will appear on RADA once approved by an admin.');
       if (spot && onSubmitSuccess) {
         onSubmitSuccess(spot);
       }
@@ -219,7 +218,7 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
       onClose();
     } catch (err: any) {
       console.error('Error submitting spot:', err);
-      showToast(err?.message || 'Something went wrong submitting spot.');
+      showToast(err?.message || 'Something went wrong submitting spot.', { type: 'error' });
       setIsSubmitting(false);
     }
   };
@@ -231,7 +230,7 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/30">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-orange-500/10 dark:bg-orange-500/20 text-[#E0533C] flex items-center justify-center">
+            <div className="w-10 h-10 rounded-2xl bg-orange-500/10 dark:bg-orange-500/20 text-[#E0533C] dark:text-[#D17A68] flex items-center justify-center">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
@@ -259,7 +258,7 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
           {/* 1. Spot Name */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-              Spot Name <span className="text-[#E0533C]">*</span>
+              Spot Name <span className="text-[#E0533C] dark:text-[#D17A68]">*</span>
             </label>
             <input
               type="text"
@@ -267,14 +266,14 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Pallet Café, Alchemist, Karura Canopy Trail"
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#E0533C] transition"
+              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#E0533C] dark:focus:ring-[#D17A68] transition"
             />
           </div>
 
           {/* 2. Category Selector */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-              Category <span className="text-[#E0533C]">*</span>
+              Category <span className="text-[#E0533C] dark:text-[#D17A68]">*</span>
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {CATEGORY_OPTIONS.map((cat) => {
@@ -286,7 +285,7 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
                     onClick={() => setCategory(cat.id)}
                     className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border transition text-left ${
                       isSelected
-                        ? 'bg-orange-50 dark:bg-orange-950/40 border-[#E0533C] text-[#E0533C]'
+                        ? 'bg-orange-50 dark:bg-orange-950/40 border-[#E0533C] dark:border-[#D17A68] text-[#E0533C] dark:text-[#D17A68]'
                         : 'bg-slate-50 dark:bg-[#121113] border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700'
                     }`}
                   >
@@ -302,7 +301,7 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
           <div className="space-y-3">
             <div className="space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                Neighborhood / Area <span className="text-[#E0533C]">*</span>
+                Neighborhood / Area <span className="text-[#E0533C] dark:text-[#D17A68]">*</span>
               </label>
               <LocationCombobox
                 value={neighborhood}
@@ -322,7 +321,7 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder="e.g. Mpaka Road, near Sarit Centre"
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#E0533C] transition"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#E0533C] dark:focus:ring-[#D17A68] transition"
                 />
               </div>
             </div>
@@ -331,7 +330,7 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
           {/* 4. Description */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-              Description & Vibe <span className="text-[#E0533C]">*</span>
+              Description & Vibe <span className="text-[#E0533C] dark:text-[#D17A68]">*</span>
             </label>
             <textarea
               required
@@ -339,16 +338,16 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What makes this spot worth visiting? Describe the atmosphere, popular items, best time to go, or what to expect..."
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#E0533C] transition resize-none"
+              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#E0533C] dark:focus:ring-[#D17A68] transition resize-none"
             />
           </div>
 
-          {/* 5. Price Range */}
+          {/* 5. Budget */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-              Price Range
+              Budget
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {PRICE_TIERS.map((tier) => {
                 const isSelected = price === tier.id;
                 return (
@@ -358,7 +357,7 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
                     onClick={() => setPrice(tier.id)}
                     className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
                       isSelected
-                        ? 'bg-orange-50 dark:bg-orange-950/40 border-[#E0533C] text-[#E0533C]'
+                        ? 'bg-orange-50 dark:bg-orange-950/40 border-[#E0533C] dark:border-[#D17A68] text-[#E0533C] dark:text-[#D17A68]'
                         : 'bg-slate-50 dark:bg-[#121113] border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700'
                     }`}
                   >
@@ -404,7 +403,7 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
                 onChange={(e) => setCustomTagInput(e.target.value)}
                 onKeyDown={handleAddCustomTag}
                 placeholder="Add another tag (e.g. Rooftop, Sunset view)..."
-                className="flex-1 px-3 py-1.5 bg-slate-50 dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-[#E0533C]"
+                className="flex-1 px-3 py-1.5 bg-slate-50 dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-[#E0533C] dark:focus:ring-[#D17A68]"
               />
               <button
                 type="button"
@@ -440,9 +439,9 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
             {/* Upload Click Area */}
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-[#E0533C] dark:hover:border-[#E0533C] rounded-2xl p-4 text-center cursor-pointer transition bg-slate-50/50 dark:bg-[#121113]/50 flex flex-col items-center justify-center gap-2 group"
+              className="border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-[#E0533C] dark:hover:border-[#D17A68] rounded-2xl p-4 text-center cursor-pointer transition bg-slate-50/50 dark:bg-[#121113]/50 flex flex-col items-center justify-center gap-2 group"
             >
-              <div className="w-10 h-10 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] flex items-center justify-center group-hover:scale-105 transition">
+              <div className="w-10 h-10 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] dark:text-[#D17A68] flex items-center justify-center group-hover:scale-105 transition">
                 <Upload className="w-5 h-5" />
               </div>
               <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
@@ -498,7 +497,7 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-3.5 px-4 bg-[#E0533C] hover:bg-orange-700 active:scale-[0.99] text-white rounded-2xl font-bold text-sm transition shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3.5 px-4 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 active:scale-[0.99] text-white rounded-2xl font-bold text-sm transition shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <>

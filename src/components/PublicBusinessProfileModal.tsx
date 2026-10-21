@@ -28,6 +28,7 @@ import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
 import { isBusinessApproved } from './BusinessBadge.tsx';
 
 import { shareContent } from '../utils/shareUtils.ts';
+import type { ToastOptions } from './Toast.tsx';
 
 interface PublicBusinessProfileModalProps {
   business: BusinessAccount | null;
@@ -37,7 +38,7 @@ interface PublicBusinessProfileModalProps {
   events: EventItem[];
   onOpenSpotDetails?: (spot: SpotItem) => void;
   onOpenEventDetails?: (event: EventItem) => void;
-  showToast: (msg: string) => void;
+  showToast: (msg: string, options?: ToastOptions) => void;
 }
 
 export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProps> = ({
@@ -64,7 +65,6 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
     if (!code) return;
     navigator.clipboard.writeText(code);
     setCopiedCodeId(offerId);
-    showToast(`Claim code "${code}" copied to clipboard!`);
     setTimeout(() => setCopiedCodeId(null), 2500);
   };
 
@@ -73,17 +73,16 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
       title: `${business.name} on RADA`,
       text: `Check out ${business.name} in ${business.neighborhood}, Nairobi! ${business.bio}`,
       url: window.location.href,
-      onSuccess: showToast,
-      onError: showToast
+      onError: (m: string) => showToast?.(m, { type: 'error' })
     });
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150">
-      <div className="bg-white dark:bg-[#1C1A1E] text-slate-900 dark:text-slate-100 w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 animate-in slide-in-from-bottom duration-200 overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] animate-in fade-in duration-150">
+      <div className="bg-white dark:bg-[#121113] text-slate-900 dark:text-slate-100 w-full h-full flex flex-col overflow-y-auto animate-in slide-in-from-bottom duration-200">
         
         {/* Cover Photo & Header Buttons */}
-        <div className="relative h-44 w-full bg-slate-900 shrink-0">
+        <div className="relative h-72 sm:h-96 w-full bg-slate-900 shrink-0">
           <img 
             src={business.coverImage || business.logo} 
             alt={business.name} 
@@ -91,7 +90,7 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
           
-          <div className="absolute top-3 right-3 flex items-center gap-2">
+          <div className="absolute right-3 flex items-center gap-2" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}>
             <button 
               type="button"
               onClick={handleShareProfile}
@@ -112,7 +111,7 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
           </div>
 
           {/* Business Type Badge */}
-          <div className="absolute top-3 left-3">
+          <div className="absolute left-3" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}>
             {isBusinessApproved(business) && (
               <MerchantVerificationBadge category={business.category} size="sm" />
             )}
@@ -120,7 +119,7 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
         </div>
 
         {/* Scrollable Profile Body */}
-        <div className="p-5 overflow-y-auto space-y-6 flex-1">
+        <div className="p-5 pb-24 space-y-6 flex-1 w-full max-w-2xl mx-auto">
           {/* Main Info */}
           <div className="relative -mt-12 flex items-end gap-3.5">
             <img 
@@ -133,7 +132,7 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
                 {business.name}
               </h2>
               <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
-                <MapPin className="w-3 h-3 text-[#E0533C] shrink-0" />
+                <MapPin className="w-3 h-3 text-[#E0533C] dark:text-[#D17A68] shrink-0" />
                 <span className="truncate">{business.address || `${business.neighborhood}, Nairobi`}</span>
               </div>
             </div>
@@ -190,7 +189,7 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                  <Percent className="w-3.5 h-3.5 text-[#E0533C]" />
+                  <Percent className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
                   <span>Running Offers & Deals ({businessOffers.length})</span>
                 </h3>
                 <span className="text-[10px] font-bold text-rose-500">Live Promotions</span>
@@ -206,7 +205,7 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
                       <div className="h-32 w-full relative">
                         <img src={offer.posterUrl} alt={offer.title} className="w-full h-full object-cover" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                        <span className="absolute top-2 left-2 bg-[#E0533C] text-white text-[9px] font-black px-2 py-0.5 rounded-md shadow-xs">
+                        <span className="absolute top-2 left-2 bg-[#E0533C] dark:bg-[#A94F3E] text-white text-[9px] font-black px-2 py-0.5 rounded-md shadow-xs">
                           {offer.discount}
                         </span>
                         <span className="absolute top-2 right-2 bg-black/60 text-white text-[9px] font-bold px-2 py-0.5 rounded-md">
@@ -231,7 +230,7 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
 
                         <button
                           onClick={() => handleCopyCode(offer.id, offer.claimCode || 'RADADEAL')}
-                          className="px-3 py-1 bg-[#E0533C] hover:bg-[#c9432d] text-white text-xs font-bold rounded-lg flex items-center gap-1 transition"
+                          className="px-3 py-1 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-[#c9432d] dark:hover:bg-[#8F4334] text-white text-xs font-bold rounded-lg flex items-center gap-1 transition"
                         >
                           {copiedCodeId === offer.id ? (
                             <>
@@ -281,7 +280,7 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
                         <p className="text-[10px] text-amber-600 font-bold">★ {spot.rating} • {spot.menuItems?.length || 0} menu items</p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-bold text-[#E0533C] shrink-0">View Spot →</span>
+                    <span className="text-[10px] font-bold text-[#E0533C] dark:text-[#D17A68] shrink-0">View Spot →</span>
                   </div>
                 ))}
               </div>
