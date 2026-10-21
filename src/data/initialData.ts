@@ -3,7 +3,6 @@ import {
   BusinessOffer,
   SpotItem, 
   EventItem, 
-  CinemaMovie, 
   StatusPost, 
   DatingProfile, 
   ChatConversation, 
@@ -1008,109 +1007,8 @@ export const initialEvents: EventItem[] = [
   }
 ];
 
-export const cinemaMovies: CinemaMovie[] = [
-  {
-    id: 101,
-    title: 'Dune: Part Two',
-    genre: 'Sci-Fi / Adventure',
-    location: 'gardencity',
-    locationName: 'Garden City IMAX',
-    date: '2026-10-14',
-    times: '12:00, 15:30, 18:30, 21:45',
-    format: 'IMAX 3D / ATMOS',
-    img: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop',
-    url: 'https://centurycinemax.co.ke/movies/garden-city'
-  },
-  {
-    id: 102,
-    title: 'Gladiator II',
-    genre: 'Action / Epic',
-    location: 'sarit',
-    locationName: 'Sarit Centre',
-    date: '2026-10-14',
-    times: '13:00, 16:15, 19:15, 22:00',
-    format: '2D DOLBY ATMOS',
-    img: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=600&auto=format&fit=crop',
-    url: 'https://centurycinemax.co.ke/movies/sarit'
-  },
-  {
-    id: 103,
-    title: 'Deadpool & Wolverine',
-    genre: 'Action / Comedy',
-    location: 'tworivers',
-    locationName: 'Two Rivers Mall',
-    date: '2026-10-14',
-    times: '14:30, 17:45, 21:00',
-    format: 'IMAX 2D',
-    img: 'https://images.unsplash.com/photo-1635805737707-575885ab0820?w=600&auto=format&fit=crop',
-    url: 'https://centurycinemax.co.ke/movies/two-rivers'
-  },
-  {
-    id: 104,
-    title: 'Wicked',
-    genre: 'Fantasy / Musical',
-    location: 'junction',
-    locationName: 'Junction Mall',
-    date: '2026-10-14',
-    times: '14:00, 17:15, 20:30',
-    format: '2D ATMOS',
-    img: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop',
-    url: 'https://centurycinemax.co.ke/movies/junction'
-  },
-  {
-    id: 105,
-    title: 'Inside Out 2',
-    genre: 'Animation / Family',
-    location: 'sarit',
-    locationName: 'Sarit Centre',
-    date: '2026-10-14',
-    times: '11:30, 14:00, 16:45',
-    format: '2D DOLBY',
-    img: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=600&auto=format&fit=crop',
-    url: 'https://centurycinemax.co.ke/movies/sarit'
-  }
-];
 
-export const initialStatuses: StatusPost[] = [
-  {
-    id: 's-1',
-    author: 'Alex Moringa',
-    handle: '@alex_moringa',
-    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop',
-    timeAgo: '3 mins ago',
-    text: 'Landed at The Alchemist for Amapiano night! Vibe is already 10/10 🔥 Catch me by the back food truck.',
-    locationName: 'Westlands, Nairobi',
-    replies: [
-      {
-        id: 'rep-1',
-        author: 'Jane Doe',
-        handle: '@jane_d',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop',
-        timeAgo: '1 min ago',
-        text: 'Save us a table near the stage! We are on our way.'
-      }
-    ]
-  },
-  {
-    id: 's-2',
-    author: 'Sharon Wanjiku',
-    handle: '@sharon_w',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop',
-    timeAgo: '28 mins ago',
-    text: 'Cocktails at Ink & Drink are elite 🍹 Who is around Westlands for dinner?',
-    locationName: 'Kilimani, Nairobi',
-    replies: [
-      {
-        id: 'rep-2',
-        author: 'Brian Kiprop',
-        handle: '@brian_k',
-        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop',
-        timeAgo: '15 mins ago',
-        text: 'Order the brisket sliders, you will not regret it!'
-      }
-    ]
-  }
-];
+export const initialStatuses: StatusPost[] = [];
 
 export const discoveryProfiles: DatingProfile[] = [
   {
@@ -1145,43 +1043,7 @@ export const discoveryProfiles: DatingProfile[] = [
   }
 ];
 
-export const initialConversations: ChatConversation[] = [
-  {
-    id: 'c-1',
-    name: 'Jane Doe',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop',
-    type: 'direct',
-    theme: 'terracotta',
-    lastMessage: 'Let\'s lock in that coffee date for Ink & Drink!',
-    messages: [
-      { id: 'm-1', sender: 'them', text: 'Hey Alex! Saw your profile on RADA. How\'s your week going?', time: '18:20' },
-      { id: 'm-2', sender: 'me', text: 'Wagwan Jane! Going great, just checking out spots for the weekend.', time: '18:22' },
-      { 
-        id: 'm-voice', 
-        sender: 'them', 
-        text: 'Voice note (0:14)', 
-        audioUrl: generatePlayableWavDataUrl(14),
-        audioDuration: 14,
-        time: '18:24' 
-      },
-      {
-        id: 'm-video-note',
-        sender: 'them',
-        text: 'Circular video note (6s)',
-        videoNoteUrl: 'https://assets.mixkit.co/videos/preview/mixkit-friends-walking-together-in-the-city-40742-large.mp4',
-        videoDuration: 6,
-        time: '18:24'
-      },
-      { 
-        id: 'm-3', 
-        sender: 'them', 
-        text: 'Let\'s lock in that coffee date for Ink & Drink!', 
-        time: '18:25',
-        replyTo: { id: 'm-2', sender: 'Alex', text: 'Wagwan Jane! Going great, just checking out spots for the weekend.' }
-      }
-    ]
-  }
-];
+export const initialConversations: ChatConversation[] = [];
 
 export const initialTickets: VaultTicket[] = [
   {
@@ -1219,138 +1081,7 @@ export const initialFolders: CollectionFolder[] = [
   { id: 'folder-3', name: 'Date Ideas', emoji: '✨', createdAt: '2026-10-14T12:00:00Z', description: 'Romantic dinners, sunsets and cozy spots' }
 ];
 
-export const initialOutings: OutingPlan[] = [
-  {
-    id: 'out-1',
-    hostId: 'current-user',
-    hostName: 'Wayne Waweru',
-    hostAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop',
-    hostHandle: '@lowk3yFX',
-    isHostVerified: true,
-    spotId: 1,
-    spotTitle: 'The Alchemist Bar',
-    spotAddress: 'Parklands Rd, Westlands, Nairobi',
-    spotImage: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
-    spotCategory: 'clubs_lounges',
-    date: '2026-10-24',
-    time: '17:30',
-    maxAttendees: 6,
-    currentAttendeesCount: 2,
-    description: 'Heading to Alchemist for the Saturday sundowner DJ set and woodfired tacos. Looking for easygoing music lovers to hang with!',
-    accessType: 'open',
-    tags: ['All Plans', 'Group Hangouts', 'Weekend'],
-    status: 'active',
-    createdAt: '2026-10-18T10:00:00Z',
-    attendees: [
-      { id: 'att-1', outingId: 'out-1', userId: 'usr-1', userName: 'Brian Omondi', userAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop', userHandle: '@brian_o', status: 'joined', requestedAt: '2026-10-18T11:00:00Z' },
-      { id: 'att-2', outingId: 'out-1', userId: 'usr-2', userName: 'Amina Abdi', userAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop', userHandle: '@amina_a', status: 'pending', requestedAt: '2026-10-18T12:00:00Z' },
-      { id: 'att-3', outingId: 'out-1', userId: 'usr-3', userName: 'Joy Muthoni', userAvatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&auto=format&fit=crop', userHandle: '@joy_m', status: 'pending', requestedAt: '2026-10-18T13:00:00Z' }
-    ]
-  },
-  {
-    id: 'out-2',
-    hostId: 'host-2',
-    hostName: 'Kevin Mwangi',
-    hostAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=500&auto=format&fit=crop',
-    hostHandle: '@kevmwangi',
-    isHostVerified: true,
-    spotId: 5,
-    spotTitle: 'Unseen Nairobi',
-    spotAddress: 'Wood Avenue, Kilimani, Nairobi',
-    spotImage: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=800&auto=format&fit=crop',
-    spotCategory: 'date_spots',
-    date: '2026-10-23',
-    time: '19:00',
-    maxAttendees: 8,
-    currentAttendeesCount: 4,
-    description: 'Casual rooftop wine night & indie screening for Nairobi singles. Zero pressure, relaxed vibes, good laughter & wine.',
-    accessType: 'singles_only',
-    tags: ['All Plans', 'Singles Only', 'Weekend'],
-    status: 'active',
-    createdAt: '2026-10-18T14:00:00Z',
-    attendees: [
-      { id: 'att-4', outingId: 'out-2', userId: 'usr-4', userName: 'Faith Chebet', userAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop', userHandle: '@faith_c', status: 'joined', requestedAt: '2026-10-18T15:00:00Z' },
-      { id: 'att-5', outingId: 'out-2', userId: 'usr-5', userName: 'Ian Kipchumba', userAvatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=200&auto=format&fit=crop', userHandle: '@ian_k', status: 'joined', requestedAt: '2026-10-18T16:00:00Z' },
-      { id: 'att-w1', outingId: 'out-2', userId: 'current-user', userName: 'Wayne Waweru', userAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop', userHandle: '@lowk3yFX', status: 'approved', requestedAt: '2026-10-18T16:30:00Z' }
-    ]
-  },
-  {
-    id: 'out-3',
-    hostId: 'host-3',
-    hostName: 'Sarah Wanjiku',
-    hostAvatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&auto=format&fit=crop',
-    hostHandle: '@sarahw',
-    isHostVerified: true,
-    spotId: 4,
-    spotTitle: 'Karura Forest Trails',
-    spotAddress: 'Limuru Road, Gate A, Nairobi',
-    spotImage: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&auto=format&fit=crop',
-    spotCategory: 'nature_outdoors',
-    date: '2026-10-25',
-    time: '09:00',
-    maxAttendees: 10,
-    currentAttendeesCount: 6,
-    description: 'Morning 7km scenic hike to the waterfalls, followed by iced coffee & pastries at The River Cafe. Let us get some fresh air!',
-    accessType: 'open',
-    tags: ['All Plans', 'Group Hangouts', 'Weekend'],
-    status: 'active',
-    createdAt: '2026-10-17T08:00:00Z',
-    attendees: [
-      { id: 'att-6', outingId: 'out-3', userId: 'usr-6', userName: 'David Njoroge', userAvatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&auto=format&fit=crop', userHandle: '@d_njoroge', status: 'joined', requestedAt: '2026-10-17T09:00:00Z' },
-      { id: 'att-7', outingId: 'out-3', userId: 'usr-7', userName: 'Mercy Achieng', userAvatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&auto=format&fit=crop', userHandle: '@mercy_a', status: 'joined', requestedAt: '2026-10-17T10:00:00Z' }
-    ]
-  },
-  {
-    id: 'out-4',
-    hostId: 'host-4',
-    hostName: 'Dennis Otieno',
-    hostAvatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=500&auto=format&fit=crop',
-    hostHandle: '@denno_eats',
-    isHostVerified: false,
-    spotId: 2,
-    spotTitle: 'Nairobi Street Kitchen',
-    spotAddress: 'Mpaka Rd, Westlands, Nairobi',
-    spotImage: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop',
-    spotCategory: 'restaurants',
-    date: '2026-10-22',
-    time: '18:30',
-    maxAttendees: 6,
-    currentAttendeesCount: 4,
-    description: 'Tasting the artisan street food trucks & craft IPAs at NSK. Come hungry and ready for lively conversations!',
-    accessType: 'open',
-    tags: ['All Plans', 'Group Hangouts'],
-    status: 'active',
-    createdAt: '2026-10-18T18:00:00Z',
-    attendees: [
-      { id: 'att-8', outingId: 'out-4', userId: 'usr-8', userName: 'Brenda Kerubo', userAvatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=200&auto=format&fit=crop', userHandle: '@brenda_k', status: 'joined', requestedAt: '2026-10-18T19:00:00Z' }
-    ]
-  },
-  {
-    id: 'out-5',
-    hostId: 'host-5',
-    hostName: 'Chloe Njeri',
-    hostAvatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=500&auto=format&fit=crop',
-    hostHandle: '@chloenjeri',
-    isHostVerified: true,
-    spotId: 8,
-    spotTitle: 'Geco Cafe',
-    spotAddress: 'Mbaazi Ave, Lavington, Nairobi',
-    spotImage: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?w=800&auto=format&fit=crop',
-    spotCategory: 'clubs_lounges',
-    date: '2026-10-23',
-    time: '20:00',
-    maxAttendees: 5,
-    currentAttendeesCount: 3,
-    description: 'Live jazz & wood-fired pizza session for singles. Come unwind after a long week with soulful music.',
-    accessType: 'singles_only',
-    tags: ['All Plans', 'Singles Only', 'Weekend'],
-    status: 'active',
-    createdAt: '2026-10-19T08:00:00Z',
-    attendees: [
-      { id: 'att-10', outingId: 'out-5', userId: 'usr-10', userName: 'Martin Mutua', userAvatar: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=200&auto=format&fit=crop', userHandle: '@martin_m', status: 'joined', requestedAt: '2026-10-19T09:00:00Z' }
-    ]
-  }
-];
+export const initialOutings: OutingPlan[] = [];
 
 export const initialSpotClaims: SpotClaimRequest[] = [
   {
