@@ -35,6 +35,44 @@ import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUt
 import type { ToastOptions } from './Toast.tsx';
 import { toBudget } from '../lib/budget.ts';
 
+/** Maps a Google-style category label from the `unclaimedspots` table to a RADA SpotCategory. */
+function mapUnclaimedCategory(raw?: string | null, name?: string | null): string {
+  const c = (raw || '').toLowerCase();
+  const n = (name || '').toLowerCase();
+  if (/night ?club|lounge|^bar|\bbar\b|pub|liquor|sports bar|casino/.test(c) || /lounge|liquor|club/.test(n)) return 'clubs_lounges';
+  if (/cafe|café|coffee|bakery|dessert|ice cream/.test(c)) return 'cafes_bakeries';
+  if (/hotel|lodging|guest house|resort|accommodation|apartment|villa|hostel|inn\b|motel|extended stay/.test(c)) return 'hotels_luxury';
+  if (/restaurant|food|grill|diner|eatery|pizza|fast food/.test(c)) return 'restaurants_dining';
+  if (/park|forest|garden|hiking|trail|wildlife|national|woods|nature|tourist|attraction|tour|travel agency|outdoor|cycling/.test(c)) return 'nature';
+  if (/game|gaming|arcade/.test(c)) return 'tech_gaming';
+  if (/sport|fitness|gym|kart|bowling/.test(c)) return 'action_sports';
+  return 'activities';
+}
+
+/** Converts a row from `unclaimedspots` into the SpotItem shape the feed expects. */
+function unclaimedRowToSpot(r: any) {
+  const gallery = Array.isArray(r.gallery) ? r.gallery.filter((g: any) => typeof g === 'string') : [];
+  const img = r.thumbnail || gallery[0] || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop';
+  return {
+    id: `unclaimed-${r.id}`,
+    title: r.name || 'Untitled Spot',
+    category: mapUnclaimedCategory(r.category, r.name),
+    subcategory: r.category || undefined,
+    neighborhood: 'Nairobi',
+    address: r.address || '',
+    lat: r.latitude ?? -1.2921,
+    lng: r.longitude ?? 36.8219,
+    price: 'Mid',
+    img,
+    images: gallery.length ? gallery : [img],
+    phone: r.phone || undefined,
+    is_claimed: false,
+    status: 'approved',
+    isUnclaimedImport: true,
+    reviews: [],
+  };
+}
+
 interface SpotsTabProps {
   spots: SpotItem[];
   savedItems?: SavedItem[];
@@ -182,6 +220,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   };
 
   const [dbSpots, setDbSpots] = useState<any[]>([]);
+  const [unclaimedSpots, setUnclaimedSpots] = useState<any[]>([]);
   const [liveReviews, setLiveReviews] = useState<Record<string, any[]>>({});
 
 
@@ -189,14 +228,21 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     async function fetchLiveReviewsAndSpots() {
       try {
         if (!supabase) return;
-        const [spotsRes, reviewsRes, radaReviewsRes] = await Promise.all([
+        const [spotsRes, reviewsRes, radaReviewsRes, unclaimedRes] = await Promise.all([
           supabase.from('spots').select('*').order('created_at', { ascending: false }),
           supabase.from('reviews').select('*').order('created_at', { ascending: false }),
           supabase.from('rada_reviews').select('*').order('created_at', { ascending: false }),
+          supabase.from('unclaimedspots').select('*').order('created_at', { ascending: false }).limit(2000),
         ]);
 
         if (spotsRes.data && spotsRes.data.length > 0) {
           setDbSpots(spotsRes.data);
+        }
+
+        if (unclaimedRes.error) {
+          console.warn('unclaimedspots fetch error:', unclaimedRes.error.message);
+        } else if (unclaimedRes.data) {
+          setUnclaimedSpots(unclaimedRes.data);
         }
 
         const revMap: Record<string, any[]> = {};
@@ -355,7 +401,12 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         img: d.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
       }));
 
-    const allCombined = [...spots, ...extraDbSpots];
+    const seenIds = new Set<string>([...localIds, ...extraDbSpots.map(s => String(s.id))]);
+    const extraUnclaimed = unclaimedSpots
+      .map(unclaimedRowToSpot)
+      .filter(u => !seenIds.has(String(u.id)));
+
+    const allCombined = [...spots, ...extraDbSpots, ...extraUnclaimed];
 
     // Compute live review counts and ratings from actual reviews only (no mock reviews or fake 4.8)
     return allCombined.map(sp => {
@@ -384,7 +435,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         rating: calculatedRating
       };
     });
-  }, [spots, dbSpots, liveReviews]);
+  }, [spots, dbSpots, unclaimedSpots, liveReviews]);
 
   const isNatureSpot = (s: SpotItem) =>
     s.category === 'nature' ||
