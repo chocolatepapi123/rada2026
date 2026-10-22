@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   X, Search, ShieldCheck, Clock, XCircle, RefreshCw, LayoutDashboard, MapPinPlus, Users,
   BadgeCheck, Crown, Trash2, Ban, UserX, Store, Sparkles, ImagePlus, CircleDollarSign,
-  ExternalLink, FileText, CheckCircle2, AlertCircle, MapPin, Phone, Mail, Globe, Image as ImageIcon,
+  Film, ExternalLink, FileText, CheckCircle2, AlertCircle, MapPin, Phone, Mail, Globe, Image as ImageIcon,
 } from 'lucide-react';
 import type {
   BusinessAccount, SpotCategory, SpotItem, AdminUserRecord, PlatformStats,
@@ -14,11 +14,12 @@ import { fetchBusinesses,
   fetchUnclaimedSpots, deleteListing, reviewBusiness, fetchSpotClaims, reviewSpotClaim,
   fetchPendingUserSpots, approveCommunitySpot, rejectCommunitySpot,
 } from '../lib/cloudSync';
+import { CinemaAdminPanel } from './CinemaAdminPanel.tsx';
 import { initialBusinesses } from '../data/initialData.ts';
 import type { ToastOptions } from './Toast.tsx';
 
 type VerificationStatus = 'pending' | 'approved' | 'rejected';
-type TabId = 'overview' | 'pending_spots' | 'claims' | 'verification' | 'spots' | 'users';
+type TabId = 'overview' | 'pending_spots' | 'claims' | 'verification' | 'spots' | 'cinema' | 'users';
 
 export interface AdminDashboardProps {
   businesses: BusinessAccount[];
@@ -442,6 +443,7 @@ export function AdminDashboardModal({
     { id: 'claims', label: 'Spot Claims', icon: <ShieldCheck className="w-4 h-4" />, badge: pendingClaimsCount },
     { id: 'verification', label: 'Businesses', icon: <BadgeCheck className="w-4 h-4" />, badge: counts.pending },
     { id: 'spots', label: 'Add Unclaimed Spot', icon: <MapPinPlus className="w-4 h-4" /> },
+    { id: 'cinema', label: 'Cinema', icon: <Film className="w-4 h-4" /> },
     { id: 'users', label: 'Users', icon: <Users className="w-4 h-4" /> },
   ];
 
@@ -1179,6 +1181,8 @@ export function AdminDashboardModal({
             )}
 
             {/* ================= USERS ================= */}
+            {tab === 'cinema' && <CinemaAdminPanel toast={toast} />}
+
             {tab === 'users' && (
               <div className="p-4 space-y-3">
                 <SearchBox value={userSearch} onChange={setUserSearch} placeholder="Search name, @username, email or ID..." />
