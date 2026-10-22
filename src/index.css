@@ -100,3 +100,5 @@ html.dark {
   --color-amber-600: #8F7340;
 }
 html.dark .spot-title { color: #D17A68 !important; }
+
+.rada-osm-dark { filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9); }
