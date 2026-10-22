@@ -29,7 +29,7 @@ import { readJSON, writeJSON, writeJSONDebounced, purgeSeedData } from './lib/st
 purgeSeedData();
 
 // ---- Code splitting: heavy screens and modals load on demand instead of in the first bundle ----
-const lazyNamed = (loader: () => Promise<any>, name: string) =>
+const lazyNamed = (loader: () => Promise<any>, name: string): React.ComponentType<any> =>
   lazy(() => loader().then((m) => ({ default: m[name] })));
 
 const AuthModal = lazyNamed(() => import('./components/AuthModal'), 'AuthModal');
@@ -105,11 +105,11 @@ const GUEST_PROFILE: UserProfile = {
 };
 
 const DEFAULT_PROFILE: UserProfile = {
-  name: 'Wayne Waweru',
-  handle: '@lowk3yFX',
+  name: '',
+  handle: '@explorer',
   avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop',
-  bio: 'Exploring Nairobi spots, amapiano vibes, and fashion setups. Hit me up for hangouts! ✨',
-  loc: 'Westlands, Nairobi',
+  bio: 'Exploring Nairobi spots, events, and fashion setups. Hit me up for hangouts! ✨',
+  loc: 'Nairobi',
   relationshipStatus: 'single',
   relationship_status: 'single',
   isLivenessVerified: false,

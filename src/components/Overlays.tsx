@@ -1,5 +1,5 @@
 
-import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending } from '../lib/spotsFeed.ts';
+import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending, formatOpeningHours } from '../lib/spotsFeed.ts';
 import React, { useState, useEffect } from 'react';
 import { 
   X, 
@@ -238,9 +238,9 @@ export const Overlays: React.FC<OverlaysProps> = ({
     const result = deduplicateAndLimitPhotos(reviewPhotos, dataUrls, 5);
 
     if (result.duplicateCount > 0 && result.addedCount === 0) {
-      showToast('Duplicate photo(s) skipped — already added.');
+      showToast('Photo already selected.');
     } else if (result.duplicateCount > 0 && result.addedCount > 0) {
-      showToast(`Added ${result.addedCount} photo(s). Skipped ${result.duplicateCount} duplicate(s).`);
+      showToast(`Added ${result.addedCount} photo(s).`);
     } else if (result.exceededLimit) {
       showToast('Maximum 5 photos limit reached.');
     } else if (result.addedCount > 0) {
@@ -267,7 +267,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
     const review: Review = {
       id: `rev-${Date.now()}`,
       userName: currentUserProfile?.name || 'RADA member',
-      userHandle: currentUserProfile?.handle || '@lowk3yFX',
+      userHandle: currentUserProfile?.handle || '@explorer',
       userAvatar: currentUserProfile?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop',
       rating: newReviewRating,
       date: 'Just now',
@@ -501,7 +501,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
               {selectedSpot.openingHours && (
                 <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
                   <Clock className="w-3.5 h-3.5" />
-                  <span>Hours: {selectedSpot.openingHours}</span>
+                  <span>Hours: {typeof selectedSpot.openingHours === 'string' ? selectedSpot.openingHours : (formatOpeningHours(selectedSpot.openingHours) || 'Open Daily')}</span>
                 </p>
               )}
               {selectedSpot.description && (
@@ -2063,7 +2063,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   <label className="font-bold text-slate-600 dark:text-slate-300">Email Address</label>
                   <input
                     type="email"
-                    defaultValue="wayne.waititu@student.jkuat.ac.ke"
+                    placeholder="name@example.com"
                     className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
                   />
                 </div>
@@ -2071,7 +2071,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   <label className="font-bold text-slate-600 dark:text-slate-300">Phone Number</label>
                   <input
                     type="tel"
-                    defaultValue="+254 712 345 678"
+                    placeholder="07XX XXX XXX"
                     className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
                   />
                 </div>
@@ -2124,7 +2124,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
                 <div>
                   <h4 className="font-black text-base">{currentUserProfile?.name || 'RADA member'}</h4>
-                  <p className="text-slate-500 font-bold text-[11px]">{currentUserProfile?.handle || '@lowk3yFX'} • Nairobi, Kenya</p>
+                  <p className="text-slate-500 font-bold text-[11px]">{currentUserProfile?.handle || '@explorer'} • Nairobi, Kenya</p>
                 </div>
 
                 {/* Relationship Status: Strictly Single or Not single without emojis */}

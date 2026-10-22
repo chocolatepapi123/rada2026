@@ -136,8 +136,12 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     const dataUrls = await readFilesAsDataUrls(files);
     const result = deduplicateAndLimitPhotos(reviewPhotos, dataUrls, 5);
 
-    if (result.exceededLimit) {
+    if (result.duplicateCount > 0 && result.addedCount === 0) {
+      showToast?.('Photo already selected.');
+    } else if (result.exceededLimit) {
       showToast?.('Maximum 5 photos limit reached.', { type: 'error' });
+    } else if (result.addedCount > 0) {
+      showToast?.(`Added ${result.addedCount} photo(s).`);
     }
 
     setReviewPhotos(result.updatedList);

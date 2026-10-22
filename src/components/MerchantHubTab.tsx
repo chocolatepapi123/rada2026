@@ -1214,7 +1214,7 @@ interface MerchantHubTabProps {
   onUpdateBusiness: (updatedBiz: BusinessAccount) => void;
   spots: SpotItem[];
   onAddOrUpdateSpot: (spot: SpotItem) => void;
-  onDeleteListing: (type: 'spot' | 'event', id: number) => void;
+  onDeleteListing: (type: 'spot' | 'event', id: string | number) => void;
   events: EventItem[];
   onAddEvent: (event: EventItem) => void;
   /** @deprecated Luku/thrift removed. Delete these two props from the <MerchantHubTab/> call site. */
@@ -2063,7 +2063,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   // EVENT ORGANIZER WORKFLOW STATE (Full-Screen + Multi-Image + Dynamic Locations)
   // ----------------------------------------------------
   const [isEventFormOpen, setIsEventFormOpen] = useState(false);
-  const [editingEventId, setEditingEventId] = useState<number | null>(null);
+  const [editingEventId, setEditingEventId] = useState<string | number | null>(null);
   const [eventTitle, setEventTitle] = useState('');
   const [eventCategory, setEventCategory] = useState<'concerts' | 'nightlife' | 'art' | 'cinemas' | 'tech' | 'sports'>('concerts');
   const [eventGenre, setEventGenre] = useState('Afrobeats & Amapiano');
@@ -2295,10 +2295,10 @@ isSpotFormOpen && (
                 </button>
                 <div>
                   <h2 className="font-black text-base sm:text-lg tracking-tight text-slate-900 dark:text-slate-100">
-                    {editingSpotId ? 'Edit Spot & Menu' : adminMode ? 'Publish Unclaimed Spot' : 'Publish New Spot Listing'}
+                    {editingSpotId ? 'Edit Spot & Menu' : adminMode ? 'Publish Community Spot' : 'Publish New Spot Listing'}
                   </h2>
                   <p className="text-[11px] text-slate-500 font-medium">
-                    {adminMode ? 'Publishing as RADA Admin • listed as unclaimed' : `Managing ${currentBiz.name} official spot profile`}
+                    {adminMode ? 'Publishing as RADA Admin • Community listing' : `Managing ${currentBiz.name} official spot profile`}
                   </p>
                 </div>
               </div>
@@ -4930,7 +4930,7 @@ isSpotFormOpen && (
                 )}
                 <input 
                   type="text"
-                  placeholder="Search unclaimed spots by title, estate (e.g. Westlands, Kilimani, Lavington)..."
+                  placeholder="Search spots by title, estate (e.g. Westlands, Kilimani, Lavington)..."
                   value={claimSearchQuery}
                   onChange={(e) => setClaimSearchQuery(e.target.value)}
                   className="w-full text-xs bg-white dark:bg-[#1C1A1E] border border-amber-500/40 rounded-2xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
@@ -5020,10 +5020,10 @@ isSpotFormOpen && (
             <div className="space-y-3">
               <div className="flex items-center justify-between px-1">
                 <span className="text-xs font-bold text-slate-500">
-                  Unclaimed Listings ({claimableCommunitySpots.length})
+                  Available Listings ({claimableCommunitySpots.length})
                 </span>
                 <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1">
-                  {isSearchingUnclaimed ? 'Searching database…' : 'Available for Merchant Claim'}
+                  {isSearchingUnclaimed ? 'Searching database…' : 'Available for Verification'}
                 </span>
               </div>
 
@@ -5031,10 +5031,10 @@ isSpotFormOpen && (
                 <div className="text-center py-8 bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-6">
                   <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
                   <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                    {claimSearchQuery.trim() ? `No unclaimed spots matching "${claimSearchQuery}"` : 'No unclaimed spots waiting for claim'}
+                    {claimSearchQuery.trim() ? `No spots matching "${claimSearchQuery}"` : 'No spots waiting for verification'}
                   </p>
                   <p className="text-[10px] text-slate-400 mt-0.5">
-                    All matching listings are currently claimed or verified by business owners.
+                    All matching listings are currently verified by business owners.
                   </p>
                 </div>
               ) : (
@@ -5054,9 +5054,6 @@ isSpotFormOpen && (
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <h4 className="font-extrabold text-xs truncate text-slate-900 dark:text-slate-100">{spot.title}</h4>
-                            <span className="text-[9px] bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded font-bold">
-                              Unclaimed
-                            </span>
                             {(spot.hasPendingClaim || pendingClaim) && (
                               <span className="text-[9px] bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded font-bold">
                                 Proof Pending

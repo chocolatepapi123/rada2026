@@ -1,7 +1,16 @@
-import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending } from '../lib/spotsFeed.ts';
+import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending, formatOpeningHours } from '../lib/spotsFeed.ts';
 import { resolveSpotBudget, budgetBadge } from '../lib/spotBudget.ts';
 import { useLocationPreference, sortByProximity, NEIGHBORHOOD_COORDS, formatDistance } from '../lib/geo.ts';
 import React, { useState, useMemo, useEffect } from 'react';
+
+const getDisplayHours = (hours: any, fallback = 'Open Daily'): string => {
+  if (typeof hours === 'string' && hours.trim()) return hours;
+  if (hours) {
+    const formatted = formatOpeningHours(hours);
+    if (formatted) return formatted;
+  }
+  return fallback;
+};
 import { supabase } from '../lib/supabase';
 import { 
   Search, 
@@ -441,7 +450,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     const q = searchQuery.toLowerCase().trim();
     return (
       m.title.toLowerCase().includes(q) ||
-      m.locationName.toLowerCase().includes(q) ||
+      (m.locationName && m.locationName.toLowerCase().includes(q)) ||
+      (m.location && m.location.toLowerCase().includes(q)) ||
       (m.genre && m.genre.toLowerCase().includes(q))
     );
   });
@@ -1358,7 +1368,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
                   <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                     <span className="text-[10px] text-[#E0533C] font-bold">
-                      {spot.openingHours || 'Open Daily'}
+                      {getDisplayHours(spot.openingHours, 'Open Daily')}
                     </span>
                     <button
                       type="button"
@@ -1463,7 +1473,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
                   <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                     <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
-                      {spot.openingHours || 'Open Daily'}
+                      {getDisplayHours(spot.openingHours, 'Open Daily')}
                     </span>
                     <button
                       type="button"
@@ -1568,7 +1578,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
                   <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                     <span className="text-[10px] text-orange-600 dark:text-orange-400 font-bold">
-                      {spot.openingHours || 'Open Daily'}
+                      {getDisplayHours(spot.openingHours, 'Open Daily')}
                     </span>
                     <button
                       type="button"
@@ -1674,7 +1684,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
                   <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                     <span className="text-[10px] text-cyan-600 dark:text-cyan-400 font-bold">
-                      {spot.openingHours || 'Open Daily'}
+                      {getDisplayHours(spot.openingHours, 'Open Daily')}
                     </span>
                     <button
                       type="button"
@@ -1779,7 +1789,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
                   <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                     <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold">
-                      {spot.openingHours || 'Open Weekend'}
+                      {getDisplayHours(spot.openingHours, 'Open Weekend')}
                     </span>
                     <button
                       type="button"

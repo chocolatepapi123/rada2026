@@ -90,13 +90,16 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
         const map = L.map(mapContainerRef.current, { zoomControl: false, attributionControl: true }).setView([placeLat, placeLng], 15);
         mapInstanceRef.current = map;
 
-        // Minimal 2D vector-style basemap: flat light/dark line map, no 3D buildings or satellite
+        // Clean, fast vector-raster basemap: free, public CARTO basemaps (no API key required)
         const isDark = document.documentElement.classList.contains('dark');
-        // OpenStreetMap standard tiles: free, no API key. Dark mode inverts them via CSS.
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; OpenStreetMap contributors',
-          maxZoom: 19,
-          className: isDark ? 'rada-osm-dark' : ''
+        const tileUrl = isDark
+          ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+          : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+
+        L.tileLayer(tileUrl, {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+          subdomains: 'abcd',
+          maxZoom: 20,
         }).addTo(map);
 
         const pinIcon = L.divIcon({

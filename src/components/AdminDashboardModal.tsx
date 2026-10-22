@@ -476,7 +476,7 @@ export function AdminDashboardModal({
     { id: 'pending_spots', label: 'Pending Spots', icon: <MapPin className="w-4 h-4" />, badge: pendingSpots.length },
     { id: 'claims', label: 'Spot Claims', icon: <ShieldCheck className="w-4 h-4" />, badge: pendingClaimsCount },
     { id: 'verification', label: 'Businesses', icon: <BadgeCheck className="w-4 h-4" />, badge: counts.pending },
-    { id: 'spots', label: 'Add Unclaimed Spot', icon: <MapPinPlus className="w-4 h-4" /> },
+    { id: 'spots', label: 'Add Community Spot', icon: <MapPinPlus className="w-4 h-4" /> },
     { id: 'cinema', label: 'Cinema', icon: <Film className="w-4 h-4" /> },
     { id: 'users', label: 'Users', icon: <Users className="w-4 h-4" /> },
     { id: 'subscriptions', label: 'Subscriptions', icon: <CircleDollarSign className="w-4 h-4" /> },
@@ -555,7 +555,7 @@ export function AdminDashboardModal({
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-8 gap-3">
                     <StatCard label="Total users" value={num(stats?.totalUsers)} icon={<Users className="w-5 h-5" />} />
                     <StatCard label="Total spots" value={num(stats?.totalSpots, spotsCount)} icon={<MapPinPlus className="w-5 h-5" />} />
-                    <StatCard label="Unclaimed spots" value={unclaimed.length} icon={<MapPinPlus className="w-5 h-5 text-emerald-600" />} />
+                    <StatCard label="Community spots" value={unclaimed.length} icon={<MapPinPlus className="w-5 h-5 text-emerald-600" />} />
                     <StatCard label="Pending spots" value={pendingSpots.length} icon={<MapPin className="w-5 h-5 text-orange-500" />} />
                     <StatCard label="Total events" value={num(stats?.totalEvents, eventsCount)} icon={<Sparkles className="w-5 h-5" />} />
                     <StatCard label="Businesses" value={num(stats?.totalBusinesses, businesses.length)} icon={<Store className="w-5 h-5" />} />
@@ -943,7 +943,7 @@ export function AdminDashboardModal({
                     </p>
                     <p className="text-xs text-slate-500 max-w-sm mx-auto">
                       {claimStatusFilter === 'pending'
-                        ? 'When merchants claim an unclaimed spot and upload proof of ownership, they will appear here for verification.'
+                        ? 'When merchants claim a spot and upload proof of ownership, they will appear here for verification.'
                         : 'No claims match your current filter query.'}
                     </p>
                   </div>
@@ -1113,7 +1113,7 @@ export function AdminDashboardModal({
               <div className="p-4 grid lg:grid-cols-2 gap-6">
                 <div className="space-y-3">
                   <div>
-                    <h2 className="text-sm font-black">Publish an unclaimed spot</h2>
+                    <h2 className="text-sm font-black">Publish a community spot</h2>
                     <p className="text-xs text-slate-500 mt-0.5">
                       Goes live immediately with no business account. Merchants can search for it and claim it later.
                     </p>
@@ -1190,15 +1190,15 @@ export function AdminDashboardModal({
                     disabled={publishing}
                     className="w-full rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white py-3 font-bold"
                   >
-                    {publishing ? 'Publishing…' : 'Publish unclaimed spot'}
+                    {publishing ? 'Publishing…' : 'Publish community spot'}
                   </button>
                 </div>
 
                 <div className="space-y-3">
-                  <h2 className="text-sm font-black">Waiting to be claimed ({unclaimed.length})</h2>
+                  <h2 className="text-sm font-black">Community listings ({unclaimed.length})</h2>
                   {unclaimed.length === 0 ? (
                     <p className="text-sm text-slate-500 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-4">
-                      No unclaimed spots yet.
+                      No community listings yet.
                     </p>
                   ) : unclaimed.map(s => (
                     <div key={String(s.id)} className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-800 p-3">
@@ -1610,7 +1610,7 @@ export function AdminDashboardModal({
                           Claim Rejected
                         </p>
                         <p className="text-[11px] text-red-700 dark:text-red-300">
-                          Spot remains unclaimed and open for valid verification.
+                          Spot remains open for valid merchant verification.
                         </p>
                       </div>
                     </div>
