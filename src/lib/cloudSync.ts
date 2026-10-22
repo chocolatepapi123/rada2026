@@ -2605,7 +2605,12 @@ export async function publishUnclaimedSpot(
 
 /** Spots still waiting for a merchant. Used by the admin list and by the merchant "Claim" search. */
 export async function fetchUnclaimedSpots(query = ''): Promise<any[] | null> {
-  const listings = await fetchListings();
+  let listings: CloudListings | null = null;
+  try {
+    listings = await fetchListings();
+  } catch (e) {
+    console.warn('fetchUnclaimedSpots: listings load failed', e);
+  }
   const q = query.trim().toLowerCase();
   const matches = (s: any) =>
     !q || [s.title, s.neighborhood, s.address, s.category, s.subcategory, s.description]

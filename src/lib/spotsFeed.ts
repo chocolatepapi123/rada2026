@@ -73,6 +73,13 @@ export function mapUnclaimedCategory(raw?: string | null, name?: string | null):
   return 'activities';
 }
 
+/** Best-effort area name from a Google-style address ("Street, Area, City, Country"). */
+export function neighborhoodFromAddress(address?: string | null): string {
+  const parts = String(address || '').split(',').map(p => p.trim()).filter(Boolean)
+    .filter(p => !/^(nairobi|kenya|\d[\d\s-]*|.*\bcounty\b|\d{5}.*)$/i.test(p));
+  return parts.length > 1 ? parts[parts.length - 1] : '';
+}
+
 export function unclaimedRowToSpot(r: any) {
   const gallery = Array.isArray(r.gallery) ? r.gallery.filter((g: any) => typeof g === 'string' && g) : [];
   const cover = r.thumbnail || gallery[0] || '';
@@ -82,7 +89,7 @@ export function unclaimedRowToSpot(r: any) {
     title: r.name || 'Untitled Spot',
     category: mapUnclaimedCategory(r.category, r.name),
     subcategory: r.category || undefined,
-    neighborhood: 'Nairobi',
+    neighborhood: neighborhoodFromAddress(r.address),
     address: r.address || '',
     description: r.description || r.category || '',
     lat: r.latitude ?? -1.2921,
@@ -114,6 +121,7 @@ export async function loadUnclaimedSpots(force = false): Promise<any[]> {
   if (inflight) return inflight;
   inflight = (async () => {
     const rows: any[] = [];
+    let failed = false;
     try {
       // PostgREST caps a single response (usually 1000 rows), so page through the table.
       for (let from = 0; from < MAX_ROWS; from += PAGE) {
@@ -124,14 +132,18 @@ export async function loadUnclaimedSpots(force = false): Promise<any[]> {
           .range(from, from + PAGE - 1);
         if (error) {
           console.warn('unclaimedspots fetch error:', error.message);
+          failed = true;
           break;
         }
         if (!data || data.length === 0) break;
         rows.push(...data);
         if (data.length < PAGE) break;
       }
-      cache = rows.map(unclaimedRowToSpot);
-      listeners.forEach(l => l(cache!));
+      // A failed read must not be cached, or one blocked request leaves the list empty until reload.
+      if (!(failed && rows.length === 0)) {
+        cache = rows.map(unclaimedRowToSpot);
+        listeners.forEach(l => l(cache!));
+      }
     } finally {
       inflight = null;
     }
