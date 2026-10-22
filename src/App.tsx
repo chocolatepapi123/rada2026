@@ -2541,6 +2541,7 @@ export default function App() {
               onOpenAuth={() => setIsAuthModalOpen(true)}
               onSignOut={handleSignOut}
               onProfileChange={handleOwnProfileChange}
+              outings={outings}
             />
           )}
 
