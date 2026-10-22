@@ -244,12 +244,18 @@ export interface Artist {
 
 export interface TicketTier {
   name: string;
+  /** Display string, e.g. "KES 1,500", "Free" */
   price: string;
   perks?: string;
+  /** Numeric price (live events) – used for price filters and sorting */
+  priceValue?: number | null;
+  currency?: string;
+  /** available | upcoming | sold_out ... (live events) */
+  status?: string;
 }
 
 export interface EventItem {
-  id: number;
+  id: number | string;
   title: string;
   category: 'concerts' | 'nightlife' | 'art' | 'cinemas' | 'tech' | 'sports';
   genre?: string;
@@ -267,6 +273,22 @@ export interface EventItem {
   tiers: TicketTier[];
   description?: string;
   businessId?: string;
+  // ---- live events from public.external_events (all optional) ----
+  /** ISO timestamp (UTC) – drives date filters and sorting */
+  startAt?: string;
+  endAt?: string;
+  /** mookh | ticketsasa | tikiti */
+  source?: string;
+  host?: string;
+  address?: string;
+  currency?: string;
+  country?: string;
+  /** raw rada_category from the database (nightlife, concerts, arts, food, ...) */
+  radaCategory?: string;
+  /** Google Place ID when the scraper found one */
+  placeId?: string;
+  priceMin?: number | null;
+  tags?: string[];
 }
 
 export interface CinemaMovie {

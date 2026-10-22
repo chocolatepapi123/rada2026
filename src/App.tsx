@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import * as cloud from './lib/cloudSync';
+import { fetchExternalEvents } from './lib/externalEvents';
 import { BusinessesProvider } from './components/BusinessBadge.tsx';
 import { AuthModal } from './components/AuthModal';
 import { AdminDashboard } from './components/AdminDashboardModal.tsx';
@@ -428,16 +429,42 @@ export default function App() {
     return initialSpots;
   });
 
+  // Events created by RADA merchants (rada_listings). Live ticketing events live in `externalEvents`.
   const [events, setEvents] = useState<EventItem[]>(() => {
-    const saved = localStorage.getItem('rada_events');
+    try { localStorage.removeItem('rada_events'); } catch (e) {} // old cache that still held the mock events
+    const saved = localStorage.getItem('rada_events_v2');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length >= 10) return parsed;
+        if (Array.isArray(parsed)) return parsed.filter((e: any) => e && !e.source);
       } catch (e) {}
     }
     return initialEvents;
   });
+
+  // Live events from public.external_events (Mookh, Ticketsasa, Tikiti) – never cached locally
+  const [externalEvents, setExternalEvents] = useState<EventItem[]>([]);
+  const externalLoadedAtRef = useRef(0);
+  const loadExternalEvents = useCallback(async (force = false) => {
+    if (!force && Date.now() - externalLoadedAtRef.current < 5 * 60 * 1000) return;
+    const rows = await fetchExternalEvents();
+    if (rows) {
+      externalLoadedAtRef.current = Date.now();
+      setExternalEvents(rows);
+    }
+  }, []);
+  useEffect(() => {
+    loadExternalEvents(true);
+    const onVisible = () => { if (document.visibilityState === 'visible') loadExternalEvents(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [loadExternalEvents]);
+
+  // Everything the UI shows: merchant events first, then live ticketing events (already sorted by start time)
+  const allEvents = useMemo(
+    () => [...events.filter(e => !e.source), ...externalEvents],
+    [events, externalEvents]
+  );
 
   const [statuses, setStatuses] = useState<StatusPost[]>(() => {
     let base: StatusPost[] = initialStatuses;
@@ -499,6 +526,7 @@ export default function App() {
 
   // "View Location" Specific Spot Modal
   const [selectedLocationMapSpot, setSelectedLocationMapSpot] = useState<SpotItem | null>(null);
+  const [selectedLocationMapEvent, setSelectedLocationMapEvent] = useState<EventItem | null>(null);
 
   // Date planning workflow
   const [isPlanDateModalOpen, setIsPlanDateModalOpen] = useState(false);
@@ -567,7 +595,7 @@ export default function App() {
   useEffect(() => { writeJSON('rada_gps_broadcast', isGpsBroadcasting); }, [isGpsBroadcasting]);
 
   // Going Events Tracking (Only clickable once; click again to remove count)
-  const [goingEventIds, setGoingEventIds] = useState<number[]>(() => {
+  const [goingEventIds, setGoingEventIds] = useState<Array<number | string>>(() => {
     const saved = localStorage.getItem('rada_going_events');
     return saved ? JSON.parse(saved) : [];
   });
@@ -826,7 +854,8 @@ export default function App() {
         cloud.fetchStatuses()
       ]);
       if (remoteSpots && remoteSpots.length > 0) setSpots(stripMockSpots(remoteSpots));
-      if (remoteEvents && remoteEvents.length > 0) setEvents(remoteEvents);
+      if (remoteEvents && remoteEvents.length > 0) setEvents(remoteEvents.filter((e: any) => !e.source));
+      loadExternalEvents(true);
       if (remoteOffers && remoteOffers.length > 0) setOffers(remoteOffers);
       if (remoteStatuses) {
         setStatuses(prev => cleanStatuses(mergeRemoteStatuses(remoteStatuses, prev, initialStatuses)));
@@ -838,6 +867,7 @@ export default function App() {
 
   // Explicit refresh (header refresh icon). No pull-down gesture anywhere in the app.
   const handleHeaderRefresh = () => {
+    loadExternalEvents(true);
     setStatuses(prev => cleanStatuses(prev));
     syncRef.current?.();
     cloud.fetchOutings().then(res => {
@@ -859,7 +889,8 @@ export default function App() {
   }, [spots]);
 
   useEffect(() => {
-    localStorage.setItem('rada_events', JSON.stringify(events));
+    // only merchant-created events are cached; live ticketing events always come from Supabase
+    localStorage.setItem('rada_events_v2', JSON.stringify(events.filter(e => !e.source)));
   }, [events]);
 
   // The old Luku/thrift cache is no longer used
@@ -945,6 +976,7 @@ export default function App() {
     viewingProfile ||
     selectedPublicBusiness ||
     selectedLocationMapSpot ||
+    selectedLocationMapEvent ||
     qrPassTitle ||
     isPlanDateModalOpen ||
     isCreateGroupOpen ||
@@ -994,6 +1026,7 @@ export default function App() {
         if (viewingProfile) setViewingProfile(null);
         if (selectedPublicBusiness) setSelectedPublicBusiness(null);
         if (selectedLocationMapSpot) setSelectedLocationMapSpot(null);
+        if (selectedLocationMapEvent) setSelectedLocationMapEvent(null);
         if (qrPassTitle) setQrPassTitle(null);
         if (isPlanDateModalOpen) {
           setIsPlanDateModalOpen(false);
@@ -1057,6 +1090,7 @@ export default function App() {
     viewingProfile,
     selectedPublicBusiness,
     selectedLocationMapSpot,
+    selectedLocationMapEvent,
     qrPassTitle,
     isPlanDateModalOpen,
     isCreateGroupOpen,
@@ -1835,11 +1869,16 @@ export default function App() {
   // Event "I'm Going" Toggle: clickable once to go; if clicked again, remove count
   const handleToggleGoing = (event: EventItem) => {
     const isAlreadyGoing = goingEventIds.includes(event.id);
-    if (currentUserId) cloudWrite(() => cloud.setGoing(event.id, currentUserId, !isAlreadyGoing));
+    // rada_going is keyed by numeric listing ids; live (uuid) events are tracked on this device only
+    if (currentUserId && typeof event.id === 'number') {
+      const numericId = event.id;
+      cloudWrite(() => cloud.setGoing(numericId, currentUserId, !isAlreadyGoing));
+    }
     if (isAlreadyGoing) {
       // Untoggle: remove count
       setGoingEventIds(prev => prev.filter(id => id !== event.id));
       setEvents(prev => prev.map(e => e.id === event.id ? { ...e, goingCount: Math.max(0, e.goingCount - 1) } : e));
+      setExternalEvents(prev => prev.map(e => e.id === event.id ? { ...e, goingCount: Math.max(0, e.goingCount - 1) } : e));
       if (selectedEventModal && selectedEventModal.id === event.id) {
         setSelectedEventModal(prev => prev ? { ...prev, goingCount: Math.max(0, prev.goingCount - 1) } : null);
       }
@@ -1848,6 +1887,7 @@ export default function App() {
       // Toggle: add count
       setGoingEventIds(prev => [...prev, event.id]);
       setEvents(prev => prev.map(e => e.id === event.id ? { ...e, goingCount: e.goingCount + 1 } : e));
+      setExternalEvents(prev => prev.map(e => e.id === event.id ? { ...e, goingCount: e.goingCount + 1 } : e));
       if (selectedEventModal && selectedEventModal.id === event.id) {
         setSelectedEventModal(prev => prev ? { ...prev, goingCount: prev.goingCount + 1 } : null);
       }
@@ -2133,7 +2173,7 @@ export default function App() {
           <main className="flex-1 pb-24 max-w-lg mx-auto w-full relative px-0">
             {activeTab === 'home' && (
               <HomeTab
-                events={events}
+                events={allEvents}
                 cinemaMovies={cinemaMovies}
                 statuses={statuses}
                 offers={offers}
@@ -2251,7 +2291,7 @@ export default function App() {
             {activeTab === 'vault' && (
               <VaultTab
                 tickets={tickets}
-                events={events}
+                events={allEvents}
                 onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
                 onExploreTrendingEvents={() => {
                   setActiveTab('home');
@@ -2264,7 +2304,7 @@ export default function App() {
 
             {activeTab === 'calendar' && (
               <LukuEventsTab
-                events={events}
+                events={allEvents}
                 initialDate={calendarTargetDate}
                 highlightEventId={calendarTargetEventId}
                 onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
@@ -2339,7 +2379,8 @@ export default function App() {
 
           <LocationMapModal
             spot={selectedLocationMapSpot}
-            onClose={() => setSelectedLocationMapSpot(null)}
+            event={selectedLocationMapEvent}
+            onClose={() => { setSelectedLocationMapSpot(null); setSelectedLocationMapEvent(null); }}
             showToast={showToast}
           />
 
@@ -2361,7 +2402,7 @@ export default function App() {
               'Vacation Escapes'
             ]}
             spots={spots}
-            events={events}
+            events={allEvents}
             cinemaMovies={cinemaMovies}
             offers={offers}
             onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
@@ -2377,6 +2418,7 @@ export default function App() {
             onToggleGoing={handleToggleGoing}
             goingEventIds={goingEventIds}
             onBuyEventTicket={handleBuyEventTicket}
+            onOpenEventMap={(evt) => setSelectedLocationMapEvent(evt)}
             currentUserProfile={currentUserProfile}
             onUpdateCurrentUserProfile={handleUpdateCurrentUserProfile}
             onOpenVerificationModal={() => setIsLivenessModalOpen(true)}
@@ -2445,7 +2487,7 @@ export default function App() {
             onClose={() => setSelectedPublicBusiness(null)}
             offers={offers}
             spots={spots}
-            events={events}
+            events={allEvents}
             onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
             onOpenEventDetails={(event) => setSelectedEventModal(event)}
             showToast={showToast}
@@ -2471,7 +2513,7 @@ export default function App() {
             onDeleteFolder={handleDeleteFolder}
             onAssignItemFolder={handleAssignItemFolder}
             spots={spots}
-            events={events}
+            events={allEvents}
             offers={offers}
             onToggleSave={handleToggleSave}
             onOpenSpot={(spot) => setSelectedSpotModal(spot)}
