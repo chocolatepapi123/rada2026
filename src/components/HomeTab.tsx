@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import { 
   Search, 
   Calendar, 
@@ -7,30 +8,32 @@ import {
   ArrowRight, 
   Clock, 
   MapPin, 
-  X,
-  Ticket,
-  MessageCircle,
-  Send,
-  UserCheck,
-  Plus,
-  Sparkles,
-  Music,
-  ExternalLink,
-  Percent,
-  Flame,
-  Copy,
-  Check,
-  Store,
-  SlidersHorizontal,
-  Smile,
-  Bookmark,
-  Trees,
-  Palette,
-  Gamepad2,
-  RefreshCw,
-  Trash2,
-  Compass,
-  Star
+  X, 
+  Ticket, 
+  MessageCircle, 
+  Send, 
+  UserCheck, 
+  Mic, 
+  Plus, 
+  Sparkles, 
+  Music, 
+  ExternalLink, 
+  Percent, 
+  Flame, 
+  Copy, 
+  Check, 
+  Store, 
+  SlidersHorizontal, 
+  Smile, 
+  Bookmark, 
+  Trees, 
+  Palette, 
+  Gamepad2, 
+  RefreshCw, 
+  Trash2, 
+  Compass, 
+  Star,
+  UtensilsCrossed
 } from 'lucide-react';
 import { EventItem, CinemaMovie, StatusPost, UserProfile, BusinessOffer, OfferCategory, SpotItem, SavedItem } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
@@ -42,7 +45,6 @@ import {
   getCategoryBadgeStyle, 
   isDateToday 
 } from '../utils/calendarUtils.ts';
-import type { ToastOptions } from './Toast.tsx';
 
 interface HomeTabProps {
   events: EventItem[];
@@ -65,7 +67,7 @@ interface HomeTabProps {
   onOpenCreateEvent?: (initialTitle?: string) => void;
   onOpenSuggestSpot?: () => void;
   onOpenBusinessProfile?: (businessId: string) => void;
-  showToast: (msg: string, options?: ToastOptions) => void;
+  showToast: (msg: string) => void;
 }
 
 export const HomeTab: React.FC<HomeTabProps> = ({
@@ -94,6 +96,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedVibe, setSelectedVibe] = useState('all');
   const [selectedGenre, setSelectedGenre] = useState('all');
+  const [selectedCinemaLoc, setSelectedCinemaLoc] = useState('all');
+  const [isListening, setIsListening] = useState(false);
 
   // Events Streamlined Modal Filters
   const [isEventFilterModalOpen, setIsEventFilterModalOpen] = useState(false);
@@ -119,19 +123,167 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   // Explicit refresh only (Refresh Feed button). No pull-down gesture.
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Live Supabase Spots & Reviews Integration for Home Tab
+  const [dbSpots, setDbSpots] = useState<any[]>([]);
+  const [liveReviews, setLiveReviews] = useState<Record<string, any[]>>({});
+
+  useEffect(() => {
+    async function fetchLiveReviewsAndSpots() {
+      try {
+        if (!supabase) return;
+        const [spotsRes, reviewsRes, radaReviewsRes] = await Promise.all([
+          supabase.from('spots').select('*').order('created_at', { ascending: false }),
+          supabase.from('reviews').select('*').order('created_at', { ascending: false }),
+          supabase.from('rada_reviews').select('*').order('created_at', { ascending: false }),
+        ]);
+
+        if (spotsRes.data && spotsRes.data.length > 0) {
+          setDbSpots(spotsRes.data);
+        }
+
+        const revMap: Record<string, any[]> = {};
+        const seenRevIds = new Set<string>();
+
+        if (reviewsRes.data) {
+          for (const row of reviewsRes.data) {
+            const sid = String(row.spot_id ?? row.spotId ?? '');
+            if (sid) {
+              const rid = String(row.id);
+              seenRevIds.add(rid);
+              (revMap[sid] = revMap[sid] || []).push({
+                id: rid,
+                spotId: sid,
+                rating: Number(row.rating || 5),
+                comment: row.comment || row.content || '',
+                userName: row.user_name || row.userName || 'Anonymous',
+                userAvatar: row.user_avatar || row.userAvatar,
+                userHandle: row.user_handle || row.userHandle || '@explorer',
+                images: row.images || [],
+                createdAt: row.created_at,
+                ...(row.data || {})
+              });
+            }
+          }
+        }
+
+        if (radaReviewsRes.data) {
+          for (const row of radaReviewsRes.data) {
+            const sid = String(row.spot_id);
+            const rid = String(row.id);
+            if (sid && !seenRevIds.has(rid)) {
+              seenRevIds.add(rid);
+              (revMap[sid] = revMap[sid] || []).push({
+                ...row.data,
+                id: rid,
+                spotId: sid,
+                rating: Number(row.data?.rating || row.rating || 5)
+              });
+            }
+          }
+        }
+
+        setLiveReviews(revMap);
+      } catch (err) {
+        console.warn('Error connecting to Supabase spots/reviews for Home feed:', err);
+      }
+    }
+
+    fetchLiveReviewsAndSpots();
+
+    // Supabase Realtime listener on spots & listings
+    let channel: any = null;
+    try {
+      if (supabase && typeof supabase.channel === 'function') {
+        channel = supabase
+          .channel('home-spots-realtime')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'spots' }, () => {
+            fetchLiveReviewsAndSpots();
+          })
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'rada_listings' }, () => {
+            fetchLiveReviewsAndSpots();
+          })
+          .subscribe();
+      }
+    } catch (e) {
+      console.warn('Realtime subscription error on Home tab:', e);
+    }
+
+    return () => {
+      if (channel && typeof channel.unsubscribe === 'function') {
+        channel.unsubscribe();
+      }
+    };
+  }, []);
+
+  // Merged live spots combining Supabase database rows + props with verified reviews
+  const displaySpots = useMemo(() => {
+    const localIds = new Set(spots.map(s => String(s.id)));
+    const localTitles = new Set(spots.map(s => (s.title || '').trim().toLowerCase()));
+
+    const extraDbSpots = dbSpots
+      .filter(d =>
+        !localIds.has(String(d.id)) &&
+        !localTitles.has((d.title || '').trim().toLowerCase())
+      )
+      .map(d => ({
+        ...d,
+        title: d.title || 'Untitled Spot',
+        category: d.category || 'restaurants',
+        neighborhood: d.neighborhood || 'Nairobi',
+        address: d.address || '',
+        price: d.price || 'KES $$',
+        lat: d.lat ?? -1.2921,
+        lng: d.lng ?? 36.8219,
+        img: d.img || (d.images && d.images[0]) || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
+      }));
+
+    const allCombined = [...spots, ...extraDbSpots];
+
+    // Compute live review counts and ratings from actual Supabase reviews
+    return allCombined.map(sp => {
+      const sid = String(sp.id);
+      const dbRevs = liveReviews[sid] || [];
+      const propRevs = (sp.reviews || []).filter((r: any) => r.id !== 'rev-1');
+      const seenRids = new Set<string>();
+      const combinedRevs: any[] = [];
+      for (const r of [...propRevs, ...dbRevs]) {
+        const rid = String(r.id);
+        if (!seenRids.has(rid)) {
+          seenRids.add(rid);
+          combinedRevs.push(r);
+        }
+      }
+
+      const totalReviews = combinedRevs.length;
+      const calculatedRating = totalReviews > 0
+        ? (combinedRevs.reduce((sum, r) => sum + Number(r.rating || 0), 0) / totalReviews).toFixed(1)
+        : (sp.rating || 'New');
+
+      return {
+        ...sp,
+        reviews: combinedRevs,
+        reviewCount: totalReviews,
+        rating: calculatedRating
+      };
+    });
+  }, [spots, dbSpots, liveReviews]);
+
   // 1. Connect with Nature (Hiking, nature trails, waterfalls, mountains, and outdoor groups)
   const natureSpots = useMemo(() => {
-    return spots.filter(s => 
+    return displaySpots.filter(s => 
       s.category === 'connect_with_nature' || 
       s.category === 'outdoors' || 
+      s.category === 'nature' ||
       (s.category === 'activities' && (s.title.toLowerCase().includes('forest') || s.title.toLowerCase().includes('arboretum') || s.title.toLowerCase().includes('trail') || s.title.toLowerCase().includes('nature') || s.title.toLowerCase().includes('biking') || s.title.toLowerCase().includes('hike') || s.title.toLowerCase().includes('waterfall') || s.title.toLowerCase().includes('mountain') || s.title.toLowerCase().includes('hills')))
     );
-  }, [spots]);
+  }, [displaySpots]);
 
   // 2. Creative & Leisure (Paint & sip, crafting, pottery, hands-on social craft experiences)
   const creativeSpots = useMemo(() => {
-    return spots.filter(s => 
+    return displaySpots.filter(s => 
       s.category === 'creative_leisure' ||
+      s.category === 'creative_arts' ||
+      s.category === 'social_activities' ||
       s.title.toLowerCase().includes('paint') ||
       s.title.toLowerCase().includes('pottery') ||
       s.title.toLowerCase().includes('craft') ||
@@ -140,11 +292,11 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       s.description?.toLowerCase().includes('canvas') ||
       s.description?.toLowerCase().includes('painting')
     );
-  }, [spots]);
+  }, [displaySpots]);
 
   // 3. Tech & Gaming (VR, arcades, gaming lounges, tech-driven entertainment)
   const techGamingSpots = useMemo(() => {
-    return spots.filter(s => 
+    return displaySpots.filter(s => 
       s.category === 'tech_gaming' ||
       s.title.toLowerCase().includes('vr') ||
       s.title.toLowerCase().includes('gaming') ||
@@ -153,12 +305,13 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       s.description?.toLowerCase().includes('virtual reality') ||
       s.description?.toLowerCase().includes('gaming')
     );
-  }, [spots]);
+  }, [displaySpots]);
 
   // 4. Action & Sports (Go-karting, bowling, paintball, tactical games, high-energy competition)
   const actionSportsSpots = useMemo(() => {
-    return spots.filter(s => 
+    return displaySpots.filter(s => 
       s.category === 'action_sports' ||
+      s.category === 'outdoor_fitness' ||
       s.title.toLowerCase().includes('kart') ||
       s.title.toLowerCase().includes('paintball') ||
       s.title.toLowerCase().includes('bowling') ||
@@ -167,12 +320,11 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       s.description?.toLowerCase().includes('paintball') ||
       s.description?.toLowerCase().includes('racing')
     );
-  }, [spots]);
-
+  }, [displaySpots]);
 
   const handleVisitSpot = (offer: BusinessOffer) => {
-    // 1. Check if there is a corresponding spot in spots
-    const matchingSpot = spots.find(
+    // 1. Check if there is a corresponding spot in displaySpots
+    const matchingSpot = displaySpots.find(
       s => (s.businessId && s.businessId === offer.businessId) ||
            s.title.toLowerCase().trim() === offer.businessName.toLowerCase().trim() ||
            offer.businessName.toLowerCase().includes(s.title.toLowerCase()) ||
@@ -181,15 +333,18 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
     if (matchingSpot && onOpenSpotDetails) {
       onOpenSpotDetails(matchingSpot);
+      showToast(`Showing location & directions for ${matchingSpot.title}`);
       return;
     }
 
     // 2. Open merchant storefront profile (shows physical address, bus stop/directions, contact & catalog)
     if (onOpenBusinessProfile) {
       onOpenBusinessProfile(offer.businessId);
+      showToast(`Viewing venue details for ${offer.businessName}`);
       return;
     }
 
+    showToast(`Viewing details for ${offer.businessName}`);
   };
 
   // Status creation state
@@ -201,6 +356,51 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   const [activeReplyStatusId, setActiveReplyStatusId] = useState<string | null>(null);
   const [replyInputText, setReplyInputText] = useState('');
 
+  // Web Speech API Voice Search with pulsing waveform
+  const handleToggleVoiceSearch = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      showToast('Voice search not supported in this browser. Try Chrome/Edge!');
+      return;
+    }
+
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-KE';
+
+      recognition.onstart = () => {
+        setIsListening(true);
+        showToast('Listening... Speak an event, movie or artist');
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setSearchQuery(transcript);
+        setIsListening(false);
+        showToast(`Searching for: "${transcript}"`);
+      };
+
+      recognition.onerror = () => {
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.start();
+    } catch (err) {
+      setIsListening(false);
+    }
+  };
+
   const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -208,6 +408,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       reader.onload = (event) => {
         if (event.target?.result) {
           setStatusMediaUrl(event.target.result as string);
+          showToast('Photo attached to status!');
         }
       };
       reader.readAsDataURL(file);
@@ -216,6 +417,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
   const handlePublishStatus = () => {
     if (!statusText.trim() && !statusMediaUrl) {
+      showToast('Type a status or attach a photo.');
       return;
     }
     onPostStatus(statusText.trim(), statusMediaUrl || undefined, statusLocation);
@@ -313,14 +515,16 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
   // Filter cinema movies (Showtime by date removed, movie genre filter added)
   const filteredCinemaMovies = cinemaMovies.filter(m => {
+    const matchesLoc = selectedCinemaLoc === 'all' || m.location === selectedCinemaLoc;
     const matchesGenre = selectedGenre === 'all' || (m.genre && m.genre.toLowerCase().includes(selectedGenre.toLowerCase()));
     
-    if (!matchesGenre) return false;
+    if (!matchesLoc || !matchesGenre) return false;
 
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
     return (
       m.title.toLowerCase().includes(q) ||
+      m.locationName.toLowerCase().includes(q) ||
       (m.genre && m.genre.toLowerCase().includes(q))
     );
   });
@@ -341,7 +545,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
   return (
     <section className="px-4 py-4 space-y-6 relative">
-      {/* Search Bar */}
+      {/* Search Bar with Web Speech API & Waveform Animation */}
       <div className="space-y-3">
         <div className="relative flex items-center gap-2">
           <div className="relative flex-1 flex items-center">
@@ -351,9 +555,34 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search Kenyan events, venues, movies, or DJs..."
-              className="w-full pl-10 pr-4 py-3 bg-white dark:bg-[#1C1A1E] border border-slate-300 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] dark:focus:ring-[#D17A68] shadow-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+              className="w-full pl-10 pr-20 py-3 bg-white dark:bg-[#1C1A1E] border border-slate-300 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] shadow-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
             />
 
+            <div className="absolute right-2.5 flex items-center gap-1.5">
+              {/* Listening Waveform Animation */}
+              {isListening && (
+                <div className="flex items-center gap-0.5 px-2 py-1 bg-red-100 dark:bg-red-950/80 rounded-full">
+                  <span className="w-1 h-3 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-1 h-4 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-1 h-2 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <span className="text-[9px] font-black text-[#E0533C] ml-1">Listening</span>
+                </div>
+              )}
+
+              {/* Microphone Button */}
+              <button
+                type="button"
+                onClick={handleToggleVoiceSearch}
+                title={isListening ? 'Stop Listening' : 'Voice Search with Web Speech API'}
+                className={`p-2 rounded-xl transition ${
+                  isListening 
+                    ? 'bg-[#E0533C] text-white shadow-md' 
+                    : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-[#E0533C] hover:text-white'
+                }`}
+              >
+                <Mic className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
           {/* Clean Filter Icon Button (Replaces top genre pill row) */}
@@ -362,7 +591,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             onClick={() => setIsEventFilterModalOpen(true)}
             className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-xs ${
               selectedGenre !== 'all' || selectedEventDateRange !== 'all' || selectedEventPriceTier !== 'all'
-                ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white border-[#E0533C] dark:border-[#D17A68] shadow-md'
+                ? 'bg-[#E0533C] text-white border-[#E0533C] shadow-md'
                 : 'bg-white dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
             }`}
             title="Filter Events (Date, Price, Expanded Genres)"
@@ -384,16 +613,17 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 } else {
                   await new Promise(r => setTimeout(r, 600));
                 }
+                showToast('Feed refreshed ✨');
               } finally {
                 setIsRefreshing(false);
               }
             }}
-            className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-xs bg-white dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:text-[#E0533C] dark:hover:text-[#D17A68] hover:border-slate-300 ${
+            className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-xs bg-white dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:text-[#E0533C] hover:border-slate-300 ${
               isRefreshing ? 'opacity-80' : ''
             }`}
             title="Refresh Feed"
           >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-[#E0533C] dark:text-[#D17A68]' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-[#E0533C]' : ''}`} />
           </button>
 
           {/* Suggest a Spot Button for Regular Users */}
@@ -401,7 +631,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             <button
               type="button"
               onClick={onOpenSuggestSpot}
-              className="px-3.5 py-3 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 active:scale-95 text-white rounded-2xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer shrink-0"
+              className="px-3.5 py-3 bg-[#E0533C] hover:bg-orange-700 active:scale-95 text-white rounded-2xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer shrink-0"
               title="Suggest a new hangout spot or venue"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -416,7 +646,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pt-0.5">
             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Active:</span>
             {selectedGenre !== 'all' && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#E0533C] dark:bg-[#A94F3E] text-white">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#E0533C] text-white">
                 <span>{selectedGenre.toUpperCase()}</span>
                 <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedGenre('all')} />
               </span>
@@ -440,7 +670,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 setSelectedEventDateRange('all');
                 setSelectedEventPriceTier('all');
               }}
-              className="text-[10px] text-[#E0533C] dark:text-[#D17A68] font-bold underline ml-1 cursor-pointer"
+              className="text-[10px] text-[#E0533C] font-bold underline ml-1 cursor-pointer"
             >
               Reset
             </button>
@@ -453,14 +683,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             <div className="bg-white dark:bg-[#1C1A1E] w-full max-w-md rounded-3xl p-5 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 max-h-[88vh] overflow-y-auto">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-red-50 dark:bg-red-950/60 text-[#E0533C] dark:text-[#D17A68] flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-red-50 dark:bg-red-950/60 text-[#E0533C] flex items-center justify-center">
                     <SlidersHorizontal className="w-4 h-4" />
                   </div>
                   <div>
                     <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
                       Filter Events & Movies
                     </h3>
-                    <p className="text-[10px] text-slate-400">Date, budget & expanded genres</p>
+                    <p className="text-[10px] text-slate-400">Date, price tier & expanded genres</p>
                   </div>
                 </div>
                 <button
@@ -475,7 +705,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               {/* Date Filter Options */}
               <div className="space-y-2">
                 <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
+                  <Calendar className="w-3.5 h-3.5 text-[#E0533C]" />
                   <span>When:</span>
                 </span>
                 <div className="grid grid-cols-3 gap-1.5 text-xs">
@@ -490,7 +720,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                       onClick={() => setSelectedEventDateRange(d.id)}
                       className={`p-2 rounded-xl font-bold transition text-center cursor-pointer ${
                         selectedEventDateRange === d.id
-                          ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white shadow-xs'
+                          ? 'bg-[#E0533C] text-white shadow-xs'
                           : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
                       }`}
                     >
@@ -500,11 +730,11 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 </div>
               </div>
 
-              {/* Budget Options */}
+              {/* Price Tier Options */}
               <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
                 <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
                   <Ticket className="w-3.5 h-3.5 text-[#2D6A4F]" />
-                  <span>Budget:</span>
+                  <span>Price / Budget:</span>
                 </span>
                 <div className="grid grid-cols-2 gap-1.5 text-xs">
                   {[
@@ -583,7 +813,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsEventFilterModalOpen(false)}
-                  className="flex-1 py-2.5 bg-[#E0533C] dark:bg-[#A94F3E] text-white rounded-xl text-xs font-black shadow-md hover:bg-orange-700 transition cursor-pointer"
+                  className="flex-1 py-2.5 bg-[#E0533C] text-white rounded-xl text-xs font-black shadow-md hover:bg-orange-700 transition cursor-pointer"
                 >
                   Apply Filters ({filteredEvents.length} events)
                 </button>
@@ -596,7 +826,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       {/* Empty Search Result State for Home Tab */}
       {filteredEvents.length === 0 && filteredCinemaMovies.length === 0 && filteredOffers.length === 0 && (
         <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-dashed border-slate-300 dark:border-slate-800 rounded-3xl p-6 text-center space-y-3 shadow-xs">
-          <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/60 text-[#E0533C] dark:text-[#D17A68] mx-auto flex items-center justify-center font-black">
+          <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/60 text-[#E0533C] mx-auto flex items-center justify-center font-black">
             <Calendar className="w-6 h-6" />
           </div>
           <div className="space-y-1">
@@ -608,8 +838,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             </p>
           </div>
           <button
-            onClick={() => onOpenCreateEvent ? onOpenCreateEvent(searchQuery) : undefined}
-            className="px-5 py-2.5 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5"
+            onClick={() => onOpenCreateEvent ? onOpenCreateEvent(searchQuery) : showToast('Open Business Hub to publish an event')}
+            className="px-5 py-2.5 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5"
           >
             <Plus className="w-4 h-4" />
             <span>Create Event "{searchQuery || 'New Showcase'}"</span>
@@ -622,13 +852,21 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           ======================================================== */}
       {filteredOffers.length > 0 && (
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-[#E0533C] dark:from-[#A94F3E] to-amber-400 flex items-center justify-center text-white shadow-xs">
-              <Flame className="w-3 h-3 fill-white" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-[#E0533C] to-amber-400 flex items-center justify-center text-white shadow-xs">
+                <Flame className="w-3 h-3 fill-white" />
+              </div>
+              <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
+                Running Offers & Promotions
+              </h2>
             </div>
-            <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
-              Running Offers & Promotions
-            </h2>
+            <button
+              onClick={() => onOpenDedicatedViewAll('Running Offers & Promotions', 'offers')}
+              className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
+            >
+              View All ({filteredOffers.length})
+            </button>
           </div>
 
           {/* Offer Category Filter System */}
@@ -672,7 +910,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
                   
                   <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
-                    <span className="bg-[#E0533C] dark:bg-[#A94F3E] text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md uppercase tracking-wide">
+                    <span className="bg-[#E0533C] text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md uppercase tracking-wide">
                       {offer.discount}
                     </span>
                     <span className="bg-black/60 backdrop-blur-md text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-white/20">
@@ -688,7 +926,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     }}
                     className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer backdrop-blur-md z-10 shadow-sm ${
                       isSaved(offer.id, 'offer')
-                        ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white'
+                        ? 'bg-[#E0533C] text-white'
                         : 'bg-black/60 text-white hover:bg-black/80'
                     }`}
                     title={isSaved(offer.id, 'offer') ? 'Remove bookmark' : 'Bookmark this offer'}
@@ -710,7 +948,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                       onClick={() => onOpenBusinessProfile && onOpenBusinessProfile(offer.businessId)}
                       className="flex items-center justify-between cursor-pointer group/biz"
                     >
-                      <span className="text-xs font-black text-slate-900 dark:text-slate-100 group-hover/biz:text-[#E0533C] dark:biz:text-[#D17A68] transition truncate max-w-[150px]">
+                      <span className="text-xs font-black text-slate-900 dark:text-slate-100 group-hover/biz:text-[#E0533C] transition truncate max-w-[150px]">
                         {offer.businessName}
                       </span>
                       <BusinessBadge businessId={offer.businessId} category={offer.businessCategory} size="xs" />
@@ -756,7 +994,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         <button
                           type="button"
                           onClick={() => handleVisitSpot(offer)}
-                          className="flex-1 py-2 px-3 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98]"
+                          className="flex-1 py-2 px-3 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98]"
                           title={`Visit Spot: ${offer.businessName}`}
                         >
                           <MapPin className="w-3.5 h-3.5 shrink-0" />
@@ -786,7 +1024,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#E0533C] dark:bg-[#A94F3E]"></span>
+              <span className="w-2 h-2 rounded-full bg-[#E0533C]"></span>
               <span>Featured Trending Events</span>
             </h2>
             <div className="flex items-center gap-2">
@@ -801,7 +1039,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               )}
               <button
                 onClick={() => onOpenDedicatedViewAll('Featured Trending Events', 'events')}
-                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
+                className="text-[11px] font-bold text-[#E0533C] hover:underline"
               >
                 View All ({events.length})
               </button>
@@ -824,7 +1062,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 onClick={() => setSelectedEventCategory(cat.id)}
                 className={`px-3 py-1.5 rounded-full font-bold shrink-0 transition text-xs cursor-pointer ${
                   selectedEventCategory === cat.id
-                    ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white shadow-xs'
+                    ? 'bg-[#E0533C] text-white shadow-xs'
                     : 'bg-white dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
                 }`}
               >
@@ -838,7 +1076,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-1 text-[11px]">
               <span className="text-slate-400 font-bold uppercase text-[10px]">Active Filters:</span>
               {selectedEventCategory !== 'all' && (
-                <span className="bg-[#E0533C]/10 dark:bg-[#A94F3E]/10 text-[#E0533C] dark:text-[#D17A68] px-2.5 py-0.5 rounded-full font-bold">
+                <span className="bg-[#E0533C]/10 text-[#E0533C] px-2.5 py-0.5 rounded-full font-bold">
                   {selectedEventCategory === 'nightlife' && 'Parties & Nightlife'}
                   {selectedEventCategory === 'music' && 'Live Music'}
                   {selectedEventCategory === 'tech' && 'Tech & Gaming'}
@@ -887,7 +1125,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <div
                   key={evt.id}
                   onClick={() => onOpenEventDetails(evt)}
-                  className="event-card flex flex-col justify-between w-64 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm cursor-pointer hover:border-[#E0533C] dark:hover:border-[#D17A68] transition group"
+                  className="event-card flex flex-col justify-between w-64 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm cursor-pointer hover:border-[#E0533C] transition group"
                 >
                   <div>
                     <div
@@ -917,7 +1155,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                           }}
                           className={`w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer backdrop-blur-md shadow-xs ${
                             isSaved(evt.id, 'event')
-                              ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white'
+                              ? 'bg-[#E0533C] text-white'
                               : 'bg-black/60 text-white hover:bg-black/80'
                           }`}
                           title={isSaved(evt.id, 'event') ? 'Remove bookmark' : 'Bookmark this event'}
@@ -934,10 +1172,10 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                       </div>
                     </div>
 
-                    <h3 className="font-extrabold text-sm line-clamp-1 text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] dark:group-hover:text-[#D17A68] transition">
+                    <h3 className="font-extrabold text-sm line-clamp-1 text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition">
                       {evt.title}
                     </h3>
-                    <p className="text-[11px] font-semibold text-[#E0533C] dark:text-[#D17A68] mt-0.5 flex items-center gap-1">
+                    <p className="text-[11px] font-semibold text-[#E0533C] mt-0.5 flex items-center gap-1">
                       <Clock className="w-3 h-3 shrink-0" />
                       <span>{evt.date} • {evt.time || 'Evening'}</span>
                     </p>
@@ -956,7 +1194,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         e.stopPropagation();
                         onOpenEventDetails(evt);
                       }}
-                      className="px-3 py-1.5 bg-[#E0533C] dark:bg-[#A94F3E] text-white rounded-xl text-xs font-bold shadow-xs hover:bg-orange-700 transition"
+                      className="px-3 py-1.5 bg-[#E0533C] text-white rounded-xl text-xs font-bold shadow-xs hover:bg-orange-700 transition"
                     >
                       Get Tickets
                     </button>
@@ -968,7 +1206,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           ) : (
             /* Sleek Empty State Card for Day View */
             <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-dashed border-slate-300 dark:border-slate-800 rounded-3xl p-6 text-center space-y-3 shadow-2xs">
-              <div className="w-10 h-10 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] dark:text-[#D17A68] mx-auto flex items-center justify-center">
+              <div className="w-10 h-10 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] mx-auto flex items-center justify-center">
                 <Calendar className="w-5 h-5" />
               </div>
               <div className="space-y-1">
@@ -982,7 +1220,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               <button
                 type="button"
                 onClick={() => setSelectedEventCategory('all')}
-                className="px-4 py-2 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5 cursor-pointer"
               >
                 <Flame className="w-3.5 h-3.5" />
                 <span>Explore Trending Events</span>
@@ -992,22 +1230,45 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         </div>
       )}
 
-      {/* CINEMA SHOWINGS (live feed) */}
+      {/* CENTURY CINEMAX SHOWINGS (Official Posters, Showtime by Date removed, Movie Genre filter added) */}
       {(selectedVibe === 'all' || selectedVibe === 'cinemas') && filteredCinemaMovies.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Film className="w-4 h-4 text-[#2D6A4F]" />
               <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
-                Cinema Showings
+                Century Cinemax Showings
               </h2>
             </div>
             <button
-              onClick={() => onOpenDedicatedViewAll('Cinema Showings', 'cinemas')}
-              className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
+              onClick={() => onOpenDedicatedViewAll('Century Cinemax Movies', 'cinemas')}
+              className="text-[11px] font-bold text-[#E0533C] hover:underline"
             >
-              All Movies
+              All Movies ({filteredCinemaMovies.length})
             </button>
+          </div>
+
+          {/* Mall Location Pills */}
+          <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+            {[
+              { id: 'all', label: 'All Malls' },
+              { id: 'gardencity', label: 'Garden City IMAX' },
+              { id: 'sarit', label: 'Sarit Centre' },
+              { id: 'junction', label: 'Junction Mall' },
+              { id: 'tworivers', label: 'Two Rivers Mall' }
+            ].map((loc) => (
+              <button
+                key={loc.id}
+                onClick={() => setSelectedCinemaLoc(loc.id)}
+                className={`px-3 py-1.5 rounded-full text-xs shrink-0 transition ${
+                  selectedCinemaLoc === loc.id
+                    ? 'bg-[#2D6A4F] text-white font-black shadow-xs'
+                    : 'bg-white dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-800'
+                }`}
+              >
+                {loc.label}
+              </button>
+            ))}
           </div>
 
           {/* Movies Carousel with Official Posters & Genres */}
@@ -1035,6 +1296,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   <h3 className="font-extrabold text-xs line-clamp-1 text-slate-900 dark:text-slate-100 group-hover:text-[#2D6A4F] transition">
                     {movie.title}
                   </h3>
+                  <p className="text-[11px] font-semibold text-[#E0533C] mt-0.5 flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    <span>{movie.locationName}</span>
+                  </p>
+                  <p className="text-[10px] text-[#475569] dark:text-slate-300 mt-0.5 flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    <span className="truncate">{movie.times}</span>
+                  </p>
                 </div>
 
                 <button
@@ -1044,7 +1313,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   }}
                   className="mt-3 w-full py-2 bg-[#2D6A4F] hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center justify-center gap-1.5"
                 >
-                  <span>Book Tickets</span>
+                  <span>Book & Sync Vault</span>
                   <Ticket className="w-3 h-3" />
                 </button>
               </div>
@@ -1054,7 +1323,118 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       )}
 
       {/* ========================================================
-          4A. NATURE TRAILS & OUTDOORS
+          4A. TRENDING NAIROBI SPOTS & HANGOUTS (LIVE SUPABASE DATABASE)
+          ======================================================== */}
+      {displaySpots.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-orange-500/10 text-[#E0533C] flex items-center justify-center shadow-xs">
+                <Compass className="w-3.5 h-3.5" />
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
+                  Trending Nairobi Spots
+                </h2>
+                <span className="text-[9px] bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 font-extrabold px-1.5 py-0.5 rounded-full">
+                  Live Supabase
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={() => onOpenDedicatedViewAll('Trending Nairobi Spots', 'spots')}
+              className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
+            >
+              View All ({displaySpots.length})
+            </button>
+          </div>
+
+          <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+            {displaySpots.slice(0, 10).map((spot) => {
+              const saved = isSaved(spot.id, 'spot');
+              const reviewCount = spot.reviews?.length ?? (spot.reviewCount || 0);
+              const hasReviews = reviewCount > 0;
+              return (
+                <div
+                  key={spot.id}
+                  onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
+                  className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-[#E0533C] transition group"
+                >
+                  <div>
+                    <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
+                      <div
+                        className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-all duration-300"
+                        style={{ backgroundImage: `url('${spot.img}')` }}
+                      />
+                      <span className="absolute top-2.5 left-2.5 bg-black/70 backdrop-blur-md text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
+                        <Compass className="w-2.5 h-2.5 text-orange-400" />
+                        <span className="capitalize">{spot.category?.replace(/_/g, ' ') || 'Hangout'}</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleSave?.(spot, 'spot');
+                        }}
+                        className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer backdrop-blur-md shadow-xs z-10 ${
+                          saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
+                        }`}
+                        title={saved ? 'Remove from saved' : 'Save experience'}
+                      >
+                        <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
+                      </button>
+                      <span className="absolute bottom-2.5 right-2.5 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
+                        {spot.price}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-[#E0533C] transition">
+                          {spot.title}
+                        </h4>
+                        <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
+                          <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
+                          <span>{hasReviews ? spot.rating : 'New'}</span>
+                        </div>
+                      </div>
+
+                      <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
+                        <MapPin className="w-3 h-3 text-[#E0533C] shrink-0" />
+                        <span className="truncate">{spot.address || spot.neighborhood}</span>
+                      </p>
+
+                      <p className="text-[11px] text-[#475569] dark:text-slate-300 line-clamp-2 mt-1 leading-relaxed font-medium">
+                        {spot.description}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <span className="text-[10px] text-[#E0533C] font-bold">
+                      {spot.openingHours || 'Open Daily'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenSpotDetails && onOpenSpotDetails(spot);
+                      }}
+                      className="px-3 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>Explore</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          4B. NATURE TRAILS & OUTDOORS
           (Hiking, nature trails, waterfalls, mountains, and outdoor groups)
           ======================================================== */}
       {natureSpots.length > 0 && (
@@ -1070,7 +1450,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             </div>
             <button
               onClick={() => onOpenDedicatedViewAll('Nature Trails & Outdoors', 'connect_with_nature')}
-              className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline cursor-pointer"
+              className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
             >
               View All ({natureSpots.length})
             </button>
@@ -1102,7 +1482,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                           onToggleSave?.(spot, 'spot');
                         }}
                         className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer backdrop-blur-md shadow-xs z-10 ${
-                          saved ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white' : 'bg-black/60 text-white hover:bg-black/80'
+                          saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
                         }`}
                         title={saved ? 'Remove from saved' : 'Save experience'}
                       >
@@ -1175,7 +1555,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             </div>
             <button
               onClick={() => onOpenDedicatedViewAll('Creative & Leisure', 'creative_leisure')}
-              className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline cursor-pointer"
+              className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
             >
               View All ({creativeSpots.length})
             </button>
@@ -1207,7 +1587,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                           onToggleSave?.(spot, 'spot');
                         }}
                         className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer backdrop-blur-md shadow-xs z-10 ${
-                          saved ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white' : 'bg-black/60 text-white hover:bg-black/80'
+                          saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
                         }`}
                         title={saved ? 'Remove from saved' : 'Save experience'}
                       >
@@ -1280,7 +1660,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             </div>
             <button
               onClick={() => onOpenDedicatedViewAll('Tech & Gaming', 'tech_gaming')}
-              className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline cursor-pointer"
+              className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
             >
               View All ({techGamingSpots.length})
             </button>
@@ -1312,7 +1692,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                           onToggleSave?.(spot, 'spot');
                         }}
                         className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer backdrop-blur-md shadow-xs z-10 ${
-                          saved ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white' : 'bg-black/60 text-white hover:bg-black/80'
+                          saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
                         }`}
                         title={saved ? 'Remove from saved' : 'Save experience'}
                       >
@@ -1385,7 +1765,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             </div>
             <button
               onClick={() => onOpenDedicatedViewAll('Action & Sports', 'action_sports')}
-              className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline cursor-pointer"
+              className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
             >
               View All ({actionSportsSpots.length})
             </button>
@@ -1417,7 +1797,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                           onToggleSave?.(spot, 'spot');
                         }}
                         className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer backdrop-blur-md shadow-xs z-10 ${
-                          saved ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white' : 'bg-black/60 text-white hover:bg-black/80'
+                          saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
                         }`}
                         title={saved ? 'Remove from saved' : 'Save experience'}
                       >
@@ -1460,7 +1840,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         e.stopPropagation();
                         onOpenSpotDetails && onOpenSpotDetails(spot);
                       }}
-                      className="px-3 py-1.5 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
+                      className="px-3 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
                     >
                       <span>Action</span>
                       <ArrowRight className="w-3 h-3" />
@@ -1480,7 +1860,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-            <MapPin className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
+            <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
             <span>Where Are You At?</span>
           </h2>
           <span className="text-[10px] text-slate-600 dark:text-slate-300 font-bold bg-white dark:bg-slate-800 px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-700/60 flex items-center gap-1.5">
@@ -1492,7 +1872,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         {/* Post Creation Box */}
         <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3.5 shadow-sm space-y-3">
           <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#E0533C] dark:from-[#A94F3E] to-[#E9C46A] dark:to-[#A68B4B] text-white flex items-center justify-center font-black text-xs shrink-0">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] text-white flex items-center justify-center font-black text-xs shrink-0">
               W
             </div>
             <textarea
@@ -1524,7 +1904,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
           <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800/80">
             <div className="flex items-center gap-1.5">
-              <label className="cursor-pointer p-1.5 text-slate-500 hover:text-[#E0533C] dark:hover:text-[#D17A68] transition" title="Attach Photo">
+              <label className="cursor-pointer p-1.5 text-slate-500 hover:text-[#E0533C] transition" title="Attach Photo">
                 <Camera className="w-4 h-4" />
                 <input type="file" accept="image/*" className="hidden" onChange={handleMediaUpload} />
               </label>
@@ -1533,7 +1913,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 type="button"
                 onClick={() => setShowStatusEmojiPicker(!showStatusEmojiPicker)}
                 className={`p-1.5 rounded-lg transition cursor-pointer ${
-                  showStatusEmojiPicker ? 'text-[#E0533C] dark:text-[#D17A68] bg-orange-50 dark:bg-orange-950/40' : 'text-slate-500 hover:text-[#E0533C] dark:hover:text-[#D17A68]'
+                  showStatusEmojiPicker ? 'text-[#E0533C] bg-orange-50 dark:bg-orange-950/40' : 'text-slate-500 hover:text-[#E0533C]'
                 }`}
                 title="Pick Emoji"
               >
@@ -1547,7 +1927,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
             <button
               onClick={handlePublishStatus}
-              className="px-4 py-1.5 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center gap-1.5 cursor-pointer"
             >
               <span>Broadcast</span>
               <Send className="w-3 h-3" />
@@ -1590,7 +1970,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     style={{ backgroundImage: `url('${post.avatar}')` }}
                   />
                   <div>
-                    <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] dark:group-hover:text-[#D17A68] transition">
+                    <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition">
                       {post.author}
                     </h4>
                     <span className="text-[10px] text-slate-500">
@@ -1621,7 +2001,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800 text-xs">
                 <button
                   onClick={() => setActiveReplyStatusId(activeReplyStatusId === post.id ? null : post.id)}
-                  className="text-slate-500 hover:text-[#E0533C] dark:hover:text-[#D17A68] font-bold text-[11px] flex items-center gap-1 transition"
+                  className="text-slate-500 hover:text-[#E0533C] font-bold text-[11px] flex items-center gap-1 transition"
                 >
                   <MessageCircle className="w-3.5 h-3.5" />
                   <span>{post.replies?.length || 0} Replies</span>
@@ -1673,7 +2053,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     />
                     <button
                       onClick={() => handleSendReply(post.id)}
-                      className="px-3 py-2 bg-[#E0533C] dark:bg-[#A94F3E] text-white rounded-xl text-xs font-bold"
+                      className="px-3 py-2 bg-[#E0533C] text-white rounded-xl text-xs font-bold"
                     >
                       Reply
                     </button>

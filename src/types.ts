@@ -161,6 +161,7 @@ export interface SpotItem {
   submitted_by_email?: string;
   submittedAt?: string;
   tags?: string[];
+  vibes?: string[];
   /**
    * false = published by an admin on behalf of a venue; no merchant owns it yet and any verified
    * business may claim it. undefined/true = owned (all pre-existing spots).

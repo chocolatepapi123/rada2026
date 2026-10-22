@@ -14,7 +14,7 @@ import {
 } from '../types.ts';
 import { generatePlayableWavDataUrl } from '../utils/mediaUtils.ts';
 
-// 8 Detailed Realistic Running Offers & Promotions spanning Tickets, Food, and Drinks
+// 10 Detailed Realistic Running Offers & Promotions directly linked to real spots from the Spots Tab
 export const initialOffers: BusinessOffer[] = [
   {
     id: 'off-1',
@@ -39,30 +39,43 @@ export const initialOffers: BusinessOffer[] = [
     description: 'Order any 2 artisanal brisket sliders and get 20% off craft beer buckets and hand-cut truffle parmesan fries.',
     category: 'Food',
     discount: '20% OFF',
-    posterUrl: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=800&auto=format&fit=crop',
+    posterUrl: 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=800&auto=format&fit=crop',
     validUntil: 'Every Sunday all day',
     claimCode: 'RADA-BRISKET20',
     createdAt: '2026-10-11'
   },
   {
     id: 'off-3',
-    businessId: 'biz-3',
-    businessName: 'VibeCraft Events KE',
-    businessCategory: 'event_organizer',
-    title: 'Blankets & Wine VIP Early Bird Crew Pass',
-    description: 'Group booking of 4+ tickets gets VIP fast-track entry plus complimentary welcome wine cocktail & reserved picnic pod.',
-    category: 'Tickets',
-    discount: '15% OFF VIP',
-    posterUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop',
-    validUntil: 'Valid until 24 Oct 2026',
-    claimCode: 'CREWPACK26',
-    actionUrl: 'https://hustlesasa.com/',
+    businessId: 'spot-17',
+    businessName: 'MadMax Karting & Two Rivers Grand Prix',
+    businessCategory: 'hospitality',
+    title: 'Adrenaline Squad Sprint 25% OFF',
+    description: 'Book a 25-lap Grand Prix heat for a squad of 4 or more racers and receive 25% off with live telemetry timing.',
+    category: 'Special Deals',
+    discount: '25% OFF SQUAD',
+    posterUrl: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800&auto=format&fit=crop',
+    validUntil: 'Valid Tue - Thu 2PM - 8PM',
+    claimCode: 'MADMAX-SQUAD25',
+    createdAt: '2026-10-12'
+  },
+  {
+    id: 'off-4',
+    businessId: 'spot-4',
+    businessName: "CJ's Koinange Street",
+    businessCategory: 'hospitality',
+    title: 'CBD Power Breakfast & Free Caramel Macchiato',
+    description: 'Order the loaded CJ Big Breakfast platter between 7AM and 10AM and receive a complimentary Double Caramel Macchiato.',
+    category: 'Food',
+    discount: 'FREE COFFEE',
+    posterUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800&auto=format&fit=crop',
+    validUntil: 'Mon - Fri 7:00 AM - 10:00 AM',
+    claimCode: 'CJS-POWERAM',
     createdAt: '2026-10-12'
   },
   {
     id: 'off-5',
     businessId: 'biz-5',
-    businessName: 'The Talisman Restaurant',
+    businessName: 'The Talisman Restaurant & Gardens',
     businessCategory: 'hospitality',
     title: 'Midweek Candlelit Date Night 3-Course Special',
     description: 'Complimentary dessert platter & artisanal sparkling spritz when you reserve a table for two on Wednesdays in Karen.',
@@ -75,17 +88,16 @@ export const initialOffers: BusinessOffer[] = [
   },
   {
     id: 'off-6',
-    businessId: 'biz-6',
-    businessName: 'Nairobi Raves Syndicate',
-    businessCategory: 'event_organizer',
-    title: 'Amapiano Rave Squad Pack: Buy 4 Get 1 Free',
-    description: 'Lock in your party squad for the Carnivore Amapiano & Chill blowout. Includes free glowbands & fast-track gate entrance.',
-    category: 'Tickets',
-    discount: 'BUY 4 GET 1',
-    posterUrl: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&auto=format&fit=crop',
-    validUntil: 'Valid until 23 Oct 2026',
-    claimCode: 'PIANO-SQUAD',
-    actionUrl: 'https://tikiti.co.ke/',
+    businessId: 'spot-18',
+    businessName: 'Pins & Strikes Luxury Bowling Alley',
+    businessCategory: 'hospitality',
+    title: 'Strike Night VIP Lane & Shoe Rental Special',
+    description: 'Book 1 hour of VIP glow bowling for up to 6 players and get complimentary shoe rentals plus 20% off signature platters.',
+    category: 'Special Deals',
+    discount: '20% OFF VIP',
+    posterUrl: 'https://images.unsplash.com/photo-1538388177566-72d3663b85d4?w=800&auto=format&fit=crop',
+    validUntil: 'Mon - Wed 4PM - 10PM',
+    claimCode: 'PINS-STRIKE20',
     createdAt: '2026-10-14'
   },
   {
@@ -103,15 +115,29 @@ export const initialOffers: BusinessOffer[] = [
     createdAt: '2026-10-14'
   },
   {
+    id: 'off-8',
+    businessId: 'spot-6',
+    businessName: 'Diamond Plaza Street Food Bazaar',
+    businessCategory: 'hospitality',
+    title: 'Late-Night Tandoori Chicken Tikka Feast',
+    description: '15% discount on double charcoal-grilled chicken tikka platters with hot garlic naan and masala chips after 9 PM.',
+    category: 'Food',
+    discount: '15% OFF LATE',
+    posterUrl: 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=800&auto=format&fit=crop',
+    validUntil: 'Daily 9:00 PM - 1:30 AM',
+    claimCode: 'DP-TIKKA15',
+    createdAt: '2026-10-14'
+  },
+  {
     id: 'off-9',
     businessId: 'biz-9',
-    businessName: 'Rainbow Ruiru Resort',
+    businessName: 'Rainbow Ruiru Resort & Choma Terrace',
     businessCategory: 'hospitality',
     title: 'Friday Choma Platter & Cold Tusker Bucket for 4',
     description: 'Get 1.5kg prime tender mbuzi choma, ugali, kachumbari, and a bucket of 5 ice-cold Tuskers at a group deal price.',
     category: 'Food',
     discount: 'GROUP SPECIAL',
-    posterUrl: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=800&auto=format&fit=crop',
+    posterUrl: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=800&auto=format&fit=crop',
     validUntil: 'Every Friday from 4PM',
     claimCode: 'RUIRU-CHOMA4',
     createdAt: '2026-10-14'
@@ -128,6 +154,34 @@ export const initialOffers: BusinessOffer[] = [
     posterUrl: 'https://images.unsplash.com/photo-1574096079513-d8259312b785?w=800&auto=format&fit=crop',
     validUntil: 'Sundays 4PM - 7:30PM',
     claimCode: 'OLE-SAFARI30',
+    createdAt: '2026-10-14'
+  },
+  {
+    id: 'off-11',
+    businessId: 'spot-13',
+    businessName: 'Paint & Sip Nairobi Studio',
+    businessCategory: 'hospitality',
+    title: 'Weekend Canvas, Wine & Pottery Creative Duo',
+    description: 'Book 1 Canvas & Wine session and get the 2nd pass 50% off! Includes canvas, acrylic paints, brushes and complimentary wine.',
+    category: 'Special Deals',
+    discount: 'BUY 1 GET 2ND 50%',
+    posterUrl: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=800&auto=format&fit=crop',
+    validUntil: 'Saturday & Sunday Sessions',
+    claimCode: 'PAINT-DUO50',
+    createdAt: '2026-10-14'
+  },
+  {
+    id: 'off-12',
+    businessId: 'spot-11',
+    businessName: 'Karura Forest Canopy & Biking Trails',
+    businessCategory: 'hospitality',
+    title: 'Weekday Mountain Bike 2-For-1 Rental',
+    description: 'Rent a front-suspension mountain bike for 2 hours and get the 2nd hour free with helmet and forest trail map included.',
+    category: 'Special Deals',
+    discount: '2-FOR-1 BIKING',
+    posterUrl: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&auto=format&fit=crop',
+    validUntil: 'Tue - Fri 8AM - 3PM',
+    claimCode: 'KARURA-BIKE241',
     createdAt: '2026-10-14'
   }
 ];

@@ -449,13 +449,14 @@ export default function App() {
     return readJSON<EmergencyContact[]>('rada_contacts', initialContacts, Array.isArray);
   });
 
-  // Independent Offers & Promotions State (10 items)
+  // Independent Offers & Promotions State (12 items)
   const [offers, setOffers] = useState<BusinessOffer[]>(() => {
     const saved = localStorage.getItem('rada_offers');
     if (saved) {
       try {
         const parsed = (JSON.parse(saved) as any[]).filter(o => o?.businessCategory !== 'thrift_store');
-        if (Array.isArray(parsed) && parsed.length >= initialOffers.length) return parsed;
+        const hasLegacyMock = parsed.some((o: any) => o?.businessName === 'VibeCraft Events KE' || o?.businessName === 'Nairobi Raves Syndicate');
+        if (!hasLegacyMock && Array.isArray(parsed) && parsed.length >= initialOffers.length) return parsed;
       } catch (e) {}
     }
     return initialOffers;
@@ -2115,6 +2116,7 @@ export default function App() {
             onOpenSaved={() => requireAuth('view saved collections', () => setIsSavedModalOpen(true))}
             savedCount={savedItems.length}
             onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
+            onOpenSuggestSpot={() => setIsSuggestSpotModalOpen(true)}
             onRefresh={handleHeaderRefresh}
           />
 
@@ -2352,6 +2354,7 @@ export default function App() {
             spots={spots}
             events={events}
             cinemaMovies={cinemaMovies}
+            offers={offers}
             onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
             onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
             onBookCinema={handleBookCinema}

@@ -6,10 +6,13 @@ import {
   UserCheck, 
   MoreVertical, 
   MapPin,
-  User,
+  Sun,
+  Moon,
   Bookmark,
   LogIn,
-  Crown
+  Crown,
+  HelpCircle,
+  Sparkles
 } from 'lucide-react';
 import { isPlatformAdmin } from '../types';
 
@@ -21,10 +24,8 @@ interface HeaderProps {
   onUpdateLocation?: (newLocation: string, isGps: boolean) => void;
   hasBusinessAccount: boolean;
   businessName?: string;
-  /** @deprecated Theme is toggled from Settings only; kept so existing callers still compile. */
-  isDarkMode?: boolean;
-  /** @deprecated See isDarkMode. */
-  onToggleTheme?: () => void;
+  isDarkMode: boolean;
+  onToggleTheme: () => void;
   isGuestMode?: boolean;
   onOpenAuth?: () => void;
 
@@ -36,6 +37,7 @@ interface HeaderProps {
   onOpenSaved?: () => void;
   savedCount?: number;
   onOpenAccountSettings?: () => void;
+  onOpenSuggestSpot?: () => void;
   /** @deprecated The header no longer renders a refresh button. Accepted so existing callers still compile. */
   onRefresh?: () => void;
   /** @deprecated See onRefresh. */
@@ -49,6 +51,8 @@ export const Header: React.FC<HeaderProps> = ({
   isGpsActive = true,
   hasBusinessAccount,
   businessName,
+  isDarkMode,
+  onToggleTheme,
   isGuestMode,
   onOpenAuth,
   onOpenAdmin,
@@ -57,7 +61,8 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
   onOpenSaved,
   savedCount,
-  onOpenAccountSettings
+  onOpenAccountSettings,
+  onOpenSuggestSpot,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -108,14 +113,14 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center gap-1.5 cursor-pointer hover:opacity-90 active:scale-95 transition-all focus:outline-none shrink-0"
             title="RADA Home"
           >
-            <div className="w-7 h-7 rounded-lg bg-[#E0533C] dark:bg-[#A94F3E] text-white flex items-center justify-center shadow-xs shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-[#E0533C] text-white flex items-center justify-center shadow-xs shrink-0">
               <svg viewBox="0 0 100 130" className="w-4.5 h-4.5 fill-none stroke-white" strokeLinejoin="round">
                 <path d="M50 6 C26 6 10 26 10 50 C10 76 45 116 48.5 120 C49.3 121 50.7 121 51.5 120 C55 116 90 76 90 50 C90 26 74 6 50 6 Z" strokeWidth="8" />
                 <path d="M22 35 C15 45 16 58 25 74 C34 90 46 106 50 112" strokeWidth="6" strokeLinecap="round" />
                 <circle cx="50" cy="48" r="17" strokeWidth="8" />
               </svg>
             </div>
-            <span className="text-xl sm:text-2xl font-black tracking-tighter text-[#E0533C] dark:text-[#D17A68] shrink-0">
+            <span className="text-xl sm:text-2xl font-black tracking-tighter text-[#E0533C] shrink-0">
               RADA
             </span>
           </button>
@@ -126,7 +131,7 @@ export const Header: React.FC<HeaderProps> = ({
               className="min-w-0 shrink text-xs bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 font-semibold px-2 sm:px-2.5 py-1 rounded-full flex items-center gap-1 sm:gap-1.5 border border-slate-200 dark:border-slate-800 select-none max-w-[42vw] sm:max-w-[220px] cursor-default shadow-2xs overflow-hidden"
               title={`Location: ${singleLocality}`}
             >
-              <MapPin className="w-3.5 h-3.5 shrink-0 text-[#E05328] dark:text-[#D17A68]" />
+              <MapPin className="w-3.5 h-3.5 shrink-0 text-[#E05328]" />
               <span className="whitespace-nowrap truncate text-[11px] font-bold min-w-0">{singleLocality}</span>
             </div>
           )}
@@ -197,13 +202,13 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={() => handleMenuClick('businessHub')}
                   className="w-full text-left px-4 py-3 text-xs font-bold hover:bg-amber-50/70 dark:hover:bg-amber-950/30 flex items-start gap-3 text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800/80 group transition"
                 >
-                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#E0533C] dark:from-[#A94F3E] to-[#E9C46A] dark:to-[#A68B4B] text-white flex items-center justify-center shrink-0 shadow-sm">
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#E0533C] to-[#E9C46A] text-white flex items-center justify-center shrink-0 shadow-sm">
                     <Building2 className="w-4 h-4" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <span className="font-extrabold text-[#E0533C] dark:text-[#D17A68]">Business & Merchant Hub</span>
-                      <span className="text-[9px] bg-red-100 dark:bg-red-950/80 text-[#E0533C] dark:text-[#D17A68] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider">
+                      <span className="font-extrabold text-[#E0533C]">Business & Merchant Hub</span>
+                      <span className="text-[9px] bg-red-100 dark:bg-red-950/80 text-[#E0533C] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider">
                         Merchant
                       </span>
                     </div>
@@ -229,17 +234,40 @@ export const Header: React.FC<HeaderProps> = ({
                   className="w-full text-left px-4 py-2.5 text-xs font-bold hover:bg-orange-50/80 dark:hover:bg-orange-950/20 flex items-center justify-between text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800/80 transition group cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
-                    <Bookmark className="w-4 h-4 text-[#E0533C] dark:text-[#D17A68] fill-[#E0533C]/20 dark:fill-[#D17A68]/20 group-hover:fill-[#E0533C] dark:group-hover:fill-[#D17A68] transition" />
+                    <Bookmark className="w-4 h-4 text-[#E0533C] fill-[#E0533C]/20 group-hover:fill-[#E0533C] transition" />
                     <span>Saved Items</span>
                   </div>
                   {savedCount !== undefined && savedCount > 0 && (
-                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#E0533C]/10 dark:bg-[#A94F3E]/10 text-[#E0533C] dark:text-[#D17A68]">
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#E0533C]/10 text-[#E0533C]">
                       {savedCount}
                     </span>
                   )}
                 </button>
 
-                {/* Settings (theme lives here) */}
+                {/* Suggest a Spot (Community Contribution) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    if (onOpenSuggestSpot) {
+                      onOpenSuggestSpot();
+                    }
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-orange-50/80 dark:hover:bg-orange-950/20 flex items-center justify-between text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800/80 transition group cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <MapPin className="w-4 h-4 text-[#E0533C] group-hover:scale-110 transition shrink-0" />
+                    <div>
+                      <span className="font-bold">Suggest a Spot</span>
+                      <p className="text-[10px] text-slate-400 font-normal">Recommend a hangout or venue</p>
+                    </div>
+                  </div>
+                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-orange-100 dark:bg-orange-950/80 text-[#E0533C]">
+                    + Add
+                  </span>
+                </button>
+
+                {/* Settings & Appearance */}
                 <button
                   onClick={() => handleMenuClick('settingsOverlay')}
                   className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-3 text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
@@ -248,13 +276,21 @@ export const Header: React.FC<HeaderProps> = ({
                   <span>Settings</span>
                 </button>
 
-                {/* My Profile */}
+                {/* Theme Mode Option (Moved exclusively to menu/settings) */}
                 <button
-                  onClick={() => handleMenuClick('profileOverlay')}
-                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-3 text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
+                  onClick={() => {
+                    onToggleTheme();
+                    setMenuOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center justify-between text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
                 >
-                  <User className="w-4 h-4 text-[#E0533C] dark:text-[#D17A68]" />
-                  <span>My Profile</span>
+                  <div className="flex items-center gap-3">
+                    {isDarkMode ? <Moon className="w-4 h-4 text-amber-400" /> : <Sun className="w-4 h-4 text-amber-500" />}
+                    <span>Theme: {isDarkMode ? 'Dark Mode' : 'Light Mode'}</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                    Toggle
+                  </span>
                 </button>
 
                 {/* Account & Security */}
@@ -269,8 +305,26 @@ export const Header: React.FC<HeaderProps> = ({
                   }}
                   className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-3 text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
                 >
-                  <UserCheck className="w-4 h-4 text-[#E9C46A] dark:text-[#BFA25F]" />
+                  <UserCheck className="w-4 h-4 text-[#E9C46A]" />
                   <span>Account & Security</span>
+                </button>
+
+                {/* Platform Support & Help Desk */}
+                <button
+                  type="button"
+                  onClick={() => handleMenuClick('sosOverlay')}
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-emerald-50/80 dark:hover:bg-emerald-950/20 flex items-center justify-between text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <HelpCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <div>
+                      <span className="font-bold">Support & Help Desk</span>
+                      <p className="text-[10px] text-slate-400 font-normal">Assistance, FAQ & platform safety</p>
+                    </div>
+                  </div>
+                  <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded">
+                    24/7
+                  </span>
                 </button>
 
                 {/* Emergency & SOS */}
@@ -278,7 +332,7 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={() => handleMenuClick('sosOverlay')}
                   className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-3 text-red-600 dark:text-red-400 transition"
                 >
-                  <ShieldAlert className="w-4 h-4 text-[#E0533C] dark:text-[#D17A68]" />
+                  <ShieldAlert className="w-4 h-4 text-[#E0533C]" />
                   <span>Emergency & SOS Hub</span>
                 </button>
                 {isGuestMode && onOpenAuth ? (

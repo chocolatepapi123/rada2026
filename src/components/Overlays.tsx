@@ -65,7 +65,8 @@ import {
   EmergencyContact,
   Review,
   UserProfile,
-  SavedItem
+  SavedItem,
+  BusinessOffer
 } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { shareContent } from '../utils/shareUtils.ts';
@@ -78,7 +79,6 @@ import {
   isDateToday 
 } from '../utils/calendarUtils.ts';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
-import type { ToastOptions } from './Toast.tsx';
 
 interface OverlaysProps {
   // Overlays state
@@ -88,6 +88,7 @@ interface OverlaysProps {
   spots: SpotItem[];
   events?: EventItem[];
   cinemaMovies?: CinemaMovie[];
+  offers?: BusinessOffer[];
   onOpenSpotDetails: (spot: SpotItem) => void;
   onOpenEventDetails?: (event: EventItem) => void;
   onBookCinema?: (movie: CinemaMovie) => void;
@@ -143,7 +144,7 @@ interface OverlaysProps {
   isDarkMode: boolean;
   onToggleTheme: () => void;
 
-  showToast: (msg: string, options?: ToastOptions) => void;
+  showToast: (msg: string) => void;
   selectedLocation?: string;
   activeCategory?: string;
   activeCategories?: string[];
@@ -164,6 +165,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
   spots,
   events = [],
   cinemaMovies = [],
+  offers = [],
   savedItems = [],
   onToggleSave,
   onNavigateToCalendar,
@@ -222,7 +224,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
     if (!files || files.length === 0) return;
 
     if (reviewPhotos.length >= 5) {
-      showToast('Maximum 5 photos allowed per review.', { type: 'error' });
+      showToast('Maximum 5 photos allowed per review.');
       e.target.value = '';
       return;
     }
@@ -230,8 +232,14 @@ export const Overlays: React.FC<OverlaysProps> = ({
     const dataUrls = await readFilesAsDataUrls(files);
     const result = deduplicateAndLimitPhotos(reviewPhotos, dataUrls, 5);
 
-    if (result.exceededLimit) {
-      showToast('Maximum 5 photos limit reached.', { type: 'error' });
+    if (result.duplicateCount > 0 && result.addedCount === 0) {
+      showToast('Duplicate photo(s) skipped — already added.');
+    } else if (result.duplicateCount > 0 && result.addedCount > 0) {
+      showToast(`Added ${result.addedCount} photo(s). Skipped ${result.duplicateCount} duplicate(s).`);
+    } else if (result.exceededLimit) {
+      showToast('Maximum 5 photos limit reached.');
+    } else if (result.addedCount > 0) {
+      showToast(`Added ${result.addedCount} photo(s) to review.`);
     }
 
     setReviewPhotos(result.updatedList);
@@ -240,13 +248,14 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
   const handleRemoveReviewPhoto = (indexToRemove: number) => {
     setReviewPhotos(prev => prev.filter((_, idx) => idx !== indexToRemove));
+    showToast('Photo removed from review.');
   };
 
   const handleSubmitReview = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSpot) return;
     if (!newReviewText.trim()) {
-      showToast('Please type your review experience.', { type: 'error' });
+      showToast('Please type your review experience.');
       return;
     }
 
@@ -265,6 +274,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
     setNewReviewText('');
     setReviewPhotos([]);
     setShowReviewForm(false);
+    showToast('Review Submitted');
   };
 
 
@@ -275,6 +285,11 @@ export const Overlays: React.FC<OverlaysProps> = ({
   const [planDateCategory, setPlanDateCategory] = useState<string>('all');
   const [planDateSearch, setPlanDateSearch] = useState('');
   const [eventsCategoryFilter, setEventsCategoryFilter] = useState<'all' | 'nightlife' | 'music' | 'tech' | 'art' | 'sports'>('all');
+  const [localCategoryOverride, setLocalCategoryOverride] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLocalCategoryOverride(null);
+  }, [viewAllCategory]);
 
   // Create Group State
   const [newGroupName, setNewGroupName] = useState('');
@@ -311,7 +326,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
       reader.onload = (event) => {
         if (event.target?.result) {
           setProfileAvatar(event.target.result as string);
-          showToast('Profile photo updated!', { category: 'profile' });
+          showToast('Profile photo updated!');
         }
       };
       reader.readAsDataURL(file);
@@ -342,11 +357,12 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       type="button"
                       onClick={() => {
                         onToggleSave?.(selectedSpot, 'spot');
+                        showToast(isSpotSaved ? 'Removed from Vault' : 'Saved to Vault');
                       }}
                       className={`w-9 h-9 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs ${
                         isSpotSaved
-                          ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white ring-2 ring-orange-400/40'
-                          : 'bg-[#F8F8F6] hover:bg-slate-200 dark:bg-[#1C1A1E] dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 hover:text-[#E0533C] dark:hover:text-[#D17A68]'
+                          ? 'bg-[#E0533C] text-white ring-2 ring-orange-400/40'
+                          : 'bg-[#F8F8F6] hover:bg-slate-200 dark:bg-[#1C1A1E] dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 hover:text-[#E0533C]'
                       }`}
                       title={isSpotSaved ? 'Saved to Vault (Tap to remove)' : 'Save to Vault'}
                     >
@@ -362,11 +378,12 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       title: `RADA Spot: ${selectedSpot.title}`,
                       text: `Check out ${selectedSpot.title} (${selectedSpot.category}) in ${selectedSpot.address} on RADA Nairobi! Rating: ★${selectedSpot.rating}.`,
                       url: window.location.href,
-                      onError: (m: string) => showToast?.(m, { type: 'error' })
+                      onSuccess: showToast,
+                      onError: showToast
                     });
                   }}
                   title="Share Spot Link"
-                  className="w-9 h-9 rounded-full bg-[#F8F8F6] dark:bg-[#1C1A1E] flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-[#E0533C] dark:hover:text-[#D17A68] transition cursor-pointer"
+                  className="w-9 h-9 rounded-full bg-[#F8F8F6] dark:bg-[#1C1A1E] flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-[#E0533C] transition cursor-pointer"
                 >
                   <Share2 className="w-4 h-4" />
                 </button>
@@ -396,10 +413,11 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       onClick={(e) => {
                         e.stopPropagation();
                         onToggleSave?.(selectedSpot, 'spot');
+                        showToast(isSpotSaved ? 'Removed from Vault' : 'Saved to Vault');
                       }}
                       className={`absolute top-3 left-3 z-10 w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-md transition shadow-md cursor-pointer ${
                         isSpotSaved
-                          ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white ring-2 ring-white/50'
+                          ? 'bg-[#E0533C] text-white ring-2 ring-white/50'
                           : 'bg-black/60 hover:bg-black/85 text-white'
                       }`}
                       title={isSpotSaved ? 'Saved to Vault (Tap to remove)' : 'Save to Vault'}
@@ -437,7 +455,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                           key={i}
                           onClick={() => setActiveSpotImgIndex(i)}
                           className={`w-14 h-14 rounded-xl bg-cover bg-center shrink-0 cursor-pointer border-2 transition ${
-                            i === safeIndex ? 'border-[#E0533C] dark:border-[#D17A68] scale-105' : 'border-transparent opacity-70'
+                            i === safeIndex ? 'border-[#E0533C] scale-105' : 'border-transparent opacity-70'
                           }`}
                           style={{ backgroundImage: `url('${imgUrl}')` }}
                         />
@@ -464,17 +482,17 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       Unclaimed
                     </span>
                   ) : null}
-                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-red-100 dark:bg-red-950/60 text-[#E0533C] dark:text-[#D17A68]">
+                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-red-100 dark:bg-red-950/60 text-[#E0533C]">
                     {selectedSpot.category}
                   </span>
                 </div>
               </div>
               <p className="text-xs text-slate-500 flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
+                <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
                 <span>{selectedSpot.address}</span>
               </p>
               {selectedSpot.exactLocationTag && (
-                <p className="text-xs text-[#E0533C] dark:text-[#D17A68] font-semibold flex items-center gap-1">
+                <p className="text-xs text-[#E0533C] font-semibold flex items-center gap-1">
                   <span>📍 Tag: {selectedSpot.exactLocationTag}</span>
                   {selectedSpot.landmark && <span className="text-slate-400">• Near {selectedSpot.landmark}</span>}
                 </p>
@@ -498,6 +516,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 <button
                   type="button"
                   onClick={() => {
+                    showToast(`Opening Uber to ${selectedSpot.title}...`);
                     window.open(`https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${encodeURIComponent(selectedSpot.address)}`, '_blank');
                   }}
                   className="py-3 bg-black text-white hover:bg-slate-800 font-black rounded-2xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
@@ -508,6 +527,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 <button
                   type="button"
                   onClick={() => {
+                    showToast(`Opening Bolt to ${selectedSpot.title}...`);
                     window.open('https://bolt.eu/', '_blank');
                   }}
                   className="py-3 bg-emerald-600 text-white hover:bg-emerald-700 font-black rounded-2xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
@@ -528,7 +548,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 return (
                   <div className="p-3 bg-orange-50/60 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/40 rounded-2xl space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-black uppercase tracking-wider text-[#E0533C] dark:text-[#D17A68] flex items-center gap-1.5">
+                      <span className="text-[11px] font-black uppercase tracking-wider text-[#E0533C] flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5" />
                         <span>Upcoming Events Here ({spotEvents.length})</span>
                       </span>
@@ -546,7 +566,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                                   onCloseSpotModal();
                                   onNavigateToCalendar?.(evt.date, evt.id);
                                 }}
-                                className="text-[10px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline flex items-center gap-1 mt-0.5 cursor-pointer"
+                                className="text-[10px] font-bold text-[#E0533C] hover:underline flex items-center gap-1 mt-0.5 cursor-pointer"
                               >
                                 <Calendar className="w-3 h-3" />
                                 <span>{evt.date} {evt.time ? `• ${evt.time}` : ''}</span>
@@ -558,7 +578,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                                 onClick={() => onToggleSave?.(evt, 'event')}
                                 className={`p-1.5 rounded-lg border text-xs transition cursor-pointer ${
                                   isEvtSaved 
-                                    ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white border-[#E0533C] dark:border-[#D17A68]' 
+                                    ? 'bg-[#E0533C] text-white border-[#E0533C]' 
                                     : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
                                 }`}
                                 title={isEvtSaved ? 'In Your Plans' : 'Add to Plan'}
@@ -587,7 +607,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
               <button
                 type="button"
                 onClick={() => onPlanDateFromSpot(selectedSpot)}
-                className="w-full py-3.5 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white font-black rounded-2xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3.5 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-2xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Calendar className="w-4 h-4" />
                 <span>Plan Hangout / Date at This Spot</span>
@@ -602,9 +622,9 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   {selectedSpot.phone && (
                     <a
                       href={`tel:${selectedSpot.phone}`}
-                      className="px-2.5 py-1 rounded-xl bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-800 dark:text-slate-200 hover:text-[#E0533C] dark:hover:text-[#D17A68] flex items-center gap-1.5 transition"
+                      className="px-2.5 py-1 rounded-xl bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-800 dark:text-slate-200 hover:text-[#E0533C] flex items-center gap-1.5 transition"
                     >
-                      <Phone className="w-3 h-3 text-[#E0533C] dark:text-[#D17A68]" />
+                      <Phone className="w-3 h-3 text-[#E0533C]" />
                       <span>{selectedSpot.phone}</span>
                     </a>
                   )}
@@ -613,7 +633,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       href={selectedSpot.website || selectedSpot.socialLinks?.website}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-2.5 py-1 rounded-xl bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-800 dark:text-slate-200 hover:text-[#E0533C] dark:hover:text-[#D17A68] flex items-center gap-1.5 transition"
+                      className="px-2.5 py-1 rounded-xl bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-800 dark:text-slate-200 hover:text-[#E0533C] flex items-center gap-1.5 transition"
                     >
                       <Globe className="w-3 h-3 text-blue-500" />
                       <span>Website</span>
@@ -640,7 +660,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Cuisine & Flavors</span>
                 <div className="flex flex-wrap gap-1.5">
                   {selectedSpot.cuisineTypes.map((c, i) => (
-                    <span key={i} className="px-2.5 py-1 rounded-full bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] dark:text-[#D17A68] text-[11px] font-bold">
+                    <span key={i} className="px-2.5 py-1 rounded-full bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] text-[11px] font-bold">
                       {c}
                     </span>
                   ))}
@@ -651,7 +671,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
             {/* Featured Dishes / Signature Drinks */}
             {selectedSpot.featuredDishes && selectedSpot.featuredDishes.length > 0 && (
               <div className="p-3 bg-orange-50/70 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/40 rounded-2xl space-y-2">
-                <span className="font-black text-xs text-[#E0533C] dark:text-[#D17A68] flex items-center gap-1.5 uppercase tracking-wider">
+                <span className="font-black text-xs text-[#E0533C] flex items-center gap-1.5 uppercase tracking-wider">
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Featured Dishes & Signature Drinks</span>
                 </span>
@@ -669,7 +689,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
             {(selectedSpot.menuUploadUrl || (selectedSpot.menuImages && selectedSpot.menuImages.length > 0)) && (
               <div className="p-3 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-xl bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] dark:text-[#D17A68] flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-xl bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] flex items-center justify-center shrink-0">
                     <FileText className="w-4 h-4" />
                   </div>
                   <div className="min-w-0">
@@ -689,7 +709,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       window.open(url, '_blank');
                     }
                   }}
-                  className="px-3 py-1.5 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-[#c9432d] dark:hover:bg-[#8F4334] text-white text-xs font-bold rounded-xl shrink-0 transition flex items-center gap-1 cursor-pointer"
+                  className="px-3 py-1.5 bg-[#E0533C] hover:bg-[#c9432d] text-white text-xs font-bold rounded-xl shrink-0 transition flex items-center gap-1 cursor-pointer"
                 >
                   <Eye className="w-3.5 h-3.5" />
                   <span>View Menu</span>
@@ -700,7 +720,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
             {/* Special Offers Section if present */}
             {selectedSpot.specialOffers && selectedSpot.specialOffers.length > 0 && (
               <div className="p-3 bg-red-50/70 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-2xl space-y-2">
-                <span className="font-black text-xs text-[#E0533C] dark:text-[#D17A68] flex items-center gap-1 uppercase tracking-wider">
+                <span className="font-black text-xs text-[#E0533C] flex items-center gap-1 uppercase tracking-wider">
                   <Percent className="w-3.5 h-3.5" /> Special Offers & Promos
                 </span>
                 <div className="space-y-1">
@@ -710,7 +730,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                         <strong className="text-slate-900 dark:text-slate-100">{o.title}</strong>
                         <p className="text-[11px] text-slate-500">{o.description}</p>
                       </div>
-                      <span className="bg-[#E0533C] dark:bg-[#A94F3E] text-white text-[9px] font-black px-2 py-0.5 rounded shrink-0">
+                      <span className="bg-[#E0533C] text-white text-[9px] font-black px-2 py-0.5 rounded shrink-0">
                         {o.discount}
                       </span>
                     </div>
@@ -747,7 +767,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                           <span className="font-bold text-xs block truncate">{item.name}</span>
                           <p className="text-[10px] text-slate-400 truncate">{item.description}</p>
                         </div>
-                        <span className="font-extrabold text-xs text-[#E0533C] dark:text-[#D17A68] shrink-0">{item.price}</span>
+                        <span className="font-extrabold text-xs text-[#E0533C] shrink-0">{item.price}</span>
                       </div>
                     ))}
                   </div>
@@ -761,14 +781,14 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <h4 className="font-black text-slate-900 dark:text-slate-100 uppercase text-[11px] tracking-wider flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
+                      <Sparkles className="w-3.5 h-3.5 text-[#E0533C]" />
                       <span>Activities & Pricing</span>
                     </h4>
                     <p className="text-[10px] text-slate-400 font-medium mt-0.5">
                       Available experiences, gear & activity rates
                     </p>
                   </div>
-                  <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-red-500/10 text-[#E0533C] dark:text-[#D17A68] shrink-0">
+                  <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-red-500/10 text-[#E0533C] shrink-0">
                     {selectedSpot.activitiesList.length} Options
                   </span>
                 </div>
@@ -783,7 +803,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                               ⏱ {item.duration}
                             </span>
                           )}
-                          <span className="font-extrabold text-xs text-[#E0533C] dark:text-[#D17A68]">{item.price}</span>
+                          <span className="font-extrabold text-xs text-[#E0533C]">{item.price}</span>
                         </div>
                       </div>
                       <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">{item.description}</p>
@@ -879,7 +899,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
             {(selectedSpot.bookingSlots || selectedSpot.groupSizeMin || selectedSpot.groupSizeMax) && (
               <div className="p-3 bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-1.5 text-xs">
                 <span className="font-black text-slate-900 dark:text-slate-100 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
-                  <Clock className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
+                  <Clock className="w-3.5 h-3.5 text-[#E0533C]" />
                   <span>Booking Slots & Group Sizes</span>
                 </span>
                 {selectedSpot.bookingSlots && (
@@ -973,7 +993,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
               <div className="flex items-center justify-between">
                 <div>
                   <h4 className="font-black text-slate-900 dark:text-slate-100 uppercase text-[11px] tracking-wider flex items-center gap-1.5">
-                    <MessageSquare className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
+                    <MessageSquare className="w-3.5 h-3.5 text-[#E0533C]" />
                     <span>Customer Reviews ({selectedSpot.reviews?.length || 0})</span>
                   </h4>
                   <p className="text-[10px] text-slate-400">
@@ -986,7 +1006,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowReviewForm(!showReviewForm)}
-                  className="px-3 py-1.5 bg-[#E0533C] dark:bg-[#A94F3E] text-white font-bold rounded-xl text-xs hover:bg-orange-700 transition cursor-pointer"
+                  className="px-3 py-1.5 bg-[#E0533C] text-white font-bold rounded-xl text-xs hover:bg-orange-700 transition cursor-pointer"
                 >
                   {showReviewForm ? 'Cancel Review' : '+ Write Review'}
                 </button>
@@ -996,10 +1016,10 @@ export const Overlays: React.FC<OverlaysProps> = ({
               {showReviewForm && (
                 <form
                   onSubmit={handleSubmitReview}
-                  className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border-2 border-[#E0533C]/40 dark:border-[#D17A68]/40 rounded-3xl p-4 space-y-3 shadow-md"
+                  className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border-2 border-[#E0533C]/40 rounded-3xl p-4 space-y-3 shadow-md"
                 >
                   <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
-                    <span className="font-black text-xs text-[#E0533C] dark:text-[#D17A68]">Share Your Experience</span>
+                    <span className="font-black text-xs text-[#E0533C]">Share Your Experience</span>
                     <div className="flex items-center gap-1">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <button
@@ -1026,14 +1046,14 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     value={newReviewText}
                     onChange={(e) => setNewReviewText(e.target.value)}
                     placeholder="Tell everyone about the food, drinks, service, and vibe..."
-                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] dark:focus:ring-[#D17A68] resize-none"
+                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] resize-none"
                   />
 
                   {/* Photo attachment for review with 5-photo gallery & deduplication */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-[11px]">
                       <label className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                        <ImageIcon className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
+                        <ImageIcon className="w-3.5 h-3.5 text-[#E0533C]" />
                         <span>Photos ({reviewPhotos.length}/5)</span>
                       </label>
                       <span className="text-[10px] text-slate-400">
@@ -1077,9 +1097,9 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
                     {/* Upload button (only if < 5 photos) */}
                     {reviewPhotos.length < 5 && (
-                      <label className="cursor-pointer py-2 px-3 bg-white dark:bg-[#121113] border border-dashed border-slate-300 dark:border-slate-700 rounded-xl hover:border-[#E0533C] dark:hover:border-[#D17A68] flex items-center justify-center gap-1.5 transition">
-                        <Plus className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
-                        <span className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68]">
+                      <label className="cursor-pointer py-2 px-3 bg-white dark:bg-[#121113] border border-dashed border-slate-300 dark:border-slate-700 rounded-xl hover:border-[#E0533C] flex items-center justify-center gap-1.5 transition">
+                        <Plus className="w-3.5 h-3.5 text-[#E0533C]" />
+                        <span className="text-[11px] font-bold text-[#E0533C]">
                           {reviewPhotos.length === 0 ? 'Upload Review Photos (up to 5)' : '+ Add More Photos'}
                         </span>
                         <input
@@ -1096,7 +1116,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
                   <button
                     type="submit"
-                    className="w-full py-2.5 bg-[#E0533C] dark:bg-[#A94F3E] text-white font-black rounded-xl text-xs hover:bg-orange-700 transition shadow"
+                    className="w-full py-2.5 bg-[#E0533C] text-white font-black rounded-xl text-xs hover:bg-orange-700 transition shadow"
                   >
                     Submit Review
                   </button>
@@ -1132,7 +1152,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   ))
                 ) : (
                   <div className="py-8 px-4 text-center rounded-3xl bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-dashed border-slate-300 dark:border-slate-800 space-y-2.5">
-                    <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-950/60 text-[#E0533C] dark:text-[#D17A68] flex items-center justify-center mx-auto shadow-2xs">
+                    <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-950/60 text-[#E0533C] flex items-center justify-center mx-auto shadow-2xs">
                       <Star className="w-6 h-6 fill-amber-400 text-amber-500" />
                     </div>
                     <div className="space-y-1">
@@ -1146,7 +1166,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowReviewForm(true)}
-                      className="mt-1 px-4 py-2 bg-[#E0533C] dark:bg-[#A94F3E] text-white font-bold rounded-xl text-xs hover:bg-orange-700 transition inline-flex items-center gap-1.5 shadow-xs cursor-pointer"
+                      className="mt-1 px-4 py-2 bg-[#E0533C] text-white font-bold rounded-xl text-xs hover:bg-orange-700 transition inline-flex items-center gap-1.5 shadow-xs cursor-pointer"
                     >
                       <Plus className="w-4 h-4" />
                       <span>Be the first to review this spot!</span>
@@ -1178,11 +1198,12 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       type="button"
                       onClick={() => {
                         onToggleSave?.(selectedEvent, 'event');
+                        showToast(isEventSaved ? 'Removed from Vault' : 'Saved to Vault');
                       }}
                       className={`w-9 h-9 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs ${
                         isEventSaved
-                          ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white ring-2 ring-orange-400/40'
-                          : 'bg-[#F8F8F6] hover:bg-slate-200 dark:bg-[#1C1A1E] dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 hover:text-[#E0533C] dark:hover:text-[#D17A68]'
+                          ? 'bg-[#E0533C] text-white ring-2 ring-orange-400/40'
+                          : 'bg-[#F8F8F6] hover:bg-slate-200 dark:bg-[#1C1A1E] dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 hover:text-[#E0533C]'
                       }`}
                       title={isEventSaved ? 'Saved to Vault (Tap to remove)' : 'Save to Vault'}
                     >
@@ -1197,11 +1218,12 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       title: `RADA Event: ${selectedEvent.title}`,
                       text: `Check out ${selectedEvent.title} on ${selectedEvent.date} at ${selectedEvent.location} on RADA Nairobi!`,
                       url: window.location.href,
-                      onError: (m: string) => showToast?.(m, { type: 'error' })
+                      onSuccess: showToast,
+                      onError: showToast
                     });
                   }}
                   title="Share Event Link"
-                  className="w-9 h-9 rounded-full bg-[#F8F8F6] dark:bg-[#1C1A1E] flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-[#E0533C] dark:hover:text-[#D17A68] transition cursor-pointer"
+                  className="w-9 h-9 rounded-full bg-[#F8F8F6] dark:bg-[#1C1A1E] flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-[#E0533C] transition cursor-pointer"
                 >
                   <Share2 className="w-4 h-4" />
                 </button>
@@ -1221,10 +1243,11 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   e.stopPropagation();
                   const isEventSaved = savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event');
                   onToggleSave?.(selectedEvent, 'event');
+                  showToast(isEventSaved ? 'Removed from Vault' : 'Saved to Vault');
                 }}
                 className={`absolute top-3 left-3 z-10 w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-md transition shadow-md cursor-pointer ${
                   savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event')
-                    ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white ring-2 ring-white/50'
+                    ? 'bg-[#E0533C] text-white ring-2 ring-white/50'
                     : 'bg-black/60 hover:bg-black/85 text-white'
                 }`}
                 title={savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event') ? 'Saved to Vault (Tap to remove)' : 'Save to Vault'}
@@ -1233,11 +1256,11 @@ export const Overlays: React.FC<OverlaysProps> = ({
               </button>
 
               <div className="absolute top-3 right-3 bg-black/75 backdrop-blur-md text-white text-[11px] font-black px-3 py-1.5 rounded-full flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
+                <Users className="w-3.5 h-3.5 text-[#E0533C]" />
                 <span>{selectedEvent.goingCount} people going</span>
               </div>
               {selectedEvent.genre && (
-                <div className="absolute bottom-3 left-3 bg-[#E0533C] dark:bg-[#A94F3E] text-white text-[10px] font-black px-3 py-1 rounded-full shadow">
+                <div className="absolute bottom-3 left-3 bg-[#E0533C] text-white text-[10px] font-black px-3 py-1 rounded-full shadow">
                   {selectedEvent.genre}
                 </div>
               )}
@@ -1258,12 +1281,12 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   onCloseEventModal();
                   onNavigateToCalendar?.(selectedEvent.date, selectedEvent.id);
                 }}
-                className="text-xs text-[#E0533C] dark:text-[#D17A68] hover:text-orange-700 font-bold flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/60 transition group cursor-pointer w-fit shadow-2xs mt-1"
+                className="text-xs text-[#E0533C] hover:text-orange-700 font-bold flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/60 transition group cursor-pointer w-fit shadow-2xs mt-1"
                 title="View on Calendar (Pre-selects this date)"
               >
-                <Calendar className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68] group-hover:scale-110 transition-transform" />
+                <Calendar className="w-3.5 h-3.5 text-[#E0533C] group-hover:scale-110 transition-transform" />
                 <span>{selectedEvent.date} {selectedEvent.time ? `• ${selectedEvent.time}` : ''}</span>
-                <span className="text-[9px] font-black uppercase tracking-wider bg-[#E0533C] dark:bg-[#A94F3E] text-white px-1.5 py-0.5 rounded ml-1.5 group-hover:bg-orange-700 transition">
+                <span className="text-[9px] font-black uppercase tracking-wider bg-[#E0533C] text-white px-1.5 py-0.5 rounded ml-1.5 group-hover:bg-orange-700 transition">
                   View on Calendar ↗
                 </span>
               </button>
@@ -1283,6 +1306,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => {
+                  showToast(`Opening Uber to ${selectedEvent.title}...`);
                   window.open(`https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${encodeURIComponent(selectedEvent.location)}`, '_blank');
                 }}
                 className="py-2.5 bg-black text-white hover:bg-slate-800 font-black rounded-2xl shadow-md transition flex items-center justify-center gap-2"
@@ -1292,6 +1316,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
               </button>
               <button
                 onClick={() => {
+                  showToast(`Opening Bolt to ${selectedEvent.title}...`);
                   window.open('https://bolt.eu/', '_blank');
                 }}
                 className="py-2.5 bg-emerald-600 text-white hover:bg-emerald-700 font-black rounded-2xl shadow-md transition flex items-center justify-center gap-2"
@@ -1343,7 +1368,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                         <span className="font-bold text-xs block">{t.name}</span>
                         {t.perks && <span className="text-[9px] text-slate-400 block">{t.perks}</span>}
                       </div>
-                      <span className="font-black text-xs text-[#E0533C] dark:text-[#D17A68]">{t.price}</span>
+                      <span className="font-black text-xs text-[#E0533C]">{t.price}</span>
                     </div>
                   ))}
                 </div>
@@ -1365,7 +1390,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 </button>
                 <button
                   onClick={() => onBuyEventTicket(selectedEvent)}
-                  className="flex-1 py-3 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white font-black rounded-2xl shadow-md transition text-xs flex items-center justify-center gap-1.5"
+                  className="flex-1 py-3 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-2xl shadow-md transition text-xs flex items-center justify-center gap-1.5"
                 >
                   <span>Get Primary Ticket</span>
                   <ExternalLink className="w-3.5 h-3.5" />
@@ -1382,7 +1407,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
           <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-[#E0533C] dark:text-[#D17A68]" />
+                <Calendar className="w-4 h-4 text-[#E0533C]" />
                 <h3 className="font-black text-sm uppercase tracking-wider">Plan a Date: Pick Any Venue</h3>
               </div>
               <button onClick={onClosePlanDateModal} className="p-1">
@@ -1411,7 +1436,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     onClick={() => setPlanDateCategory(c.id)}
                     className={`px-3 py-1.5 rounded-full font-bold shrink-0 transition text-xs ${
                       planDateCategory === c.id
-                        ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white shadow-xs'
+                        ? 'bg-[#E0533C] text-white shadow-xs'
                         : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
                     }`}
                   >
@@ -1428,17 +1453,17 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     <div
                       key={spot.id}
                       onClick={() => onSelectSpotForDate(spot)}
-                      className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 shadow-sm cursor-pointer hover:border-[#E0533C] dark:hover:border-[#D17A68] transition flex flex-col justify-between"
+                      className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 shadow-sm cursor-pointer hover:border-[#E0533C] transition flex flex-col justify-between"
                     >
                       <div>
                         <div
                           className="h-28 rounded-xl mb-2 bg-cover bg-center"
                           style={{ backgroundImage: `url('${spot.img}')` }}
                         />
-                        <h4 className="font-black text-xs text-[#E0533C] dark:text-[#D17A68] truncate">{spot.title}</h4>
+                        <h4 className="font-black text-xs text-[#E0533C] truncate">{spot.title}</h4>
                         <p className="text-[10px] text-slate-500">{spot.neighborhood} • {spot.price}</p>
                       </div>
-                      <button className="w-full mt-2 py-1.5 bg-[#E0533C] dark:bg-[#A94F3E] text-white font-bold rounded-lg text-[10px]">
+                      <button className="w-full mt-2 py-1.5 bg-[#E0533C] text-white font-bold rounded-lg text-[10px]">
                         Select for Date
                       </button>
                     </div>
@@ -1455,7 +1480,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
           <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-[#E0533C] dark:text-[#D17A68]" />
+                <Calendar className="w-4 h-4 text-[#E0533C]" />
                 <h3 className="font-black text-sm uppercase tracking-wider">Set Date & Time</h3>
               </div>
               <button onClick={onClosePlanDateModal} className="p-1">
@@ -1469,7 +1494,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   style={{ backgroundImage: `url('${datePlanningSpot.img}')` }}
                 />
                 <div>
-                  <h4 className="font-black text-sm text-[#E0533C] dark:text-[#D17A68]">{datePlanningSpot.title}</h4>
+                  <h4 className="font-black text-sm text-[#E0533C]">{datePlanningSpot.title}</h4>
                   <p className="text-[11px] text-slate-500">{datePlanningSpot.address}</p>
                 </div>
               </div>
@@ -1497,7 +1522,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
               <button
                 onClick={() => onConfirmDateInvite(datePlanningSpot, chosenDate, chosenTime)}
-                className="w-full py-3.5 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white font-black rounded-2xl shadow-lg transition"
+                className="w-full py-3.5 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-2xl shadow-lg transition"
               >
                 Send Date Invitation to Chat
               </button>
@@ -1526,7 +1551,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   value={newGroupName}
                   onChange={(e) => setNewGroupName(e.target.value)}
                   placeholder="e.g. Weekend Hangout Crew"
-                  className="w-full p-3 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E0533C] dark:focus:ring-[#D17A68]"
+                  className="w-full p-3 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E0533C]"
                 />
               </div>
 
@@ -1557,7 +1582,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                             if (e.target.checked) setSelectedGroupMemberNames(prev => [...prev, p.name]);
                             else setSelectedGroupMemberNames(prev => prev.filter(n => n !== p.name));
                           }}
-                          className="w-4 h-4 accent-[#E0533C] dark:accent-[#D17A68]"
+                          className="w-4 h-4 accent-[#E0533C]"
                         />
                       </label>
                     );
@@ -1568,11 +1593,11 @@ export const Overlays: React.FC<OverlaysProps> = ({
               <button
                 onClick={() => {
                   if (!newGroupName.trim()) {
-                    showToast('Enter a group name.', { type: 'error' });
+                    showToast('Enter a group name.');
                     return;
                   }
                   if (selectedGroupMemberNames.length === 0) {
-                    showToast('Select at least one member.', { type: 'error' });
+                    showToast('Select at least one member.');
                     return;
                   }
                   onCreateGroup(newGroupName.trim(), selectedGroupMemberNames);
@@ -1643,12 +1668,12 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   </button>
                 </div>
 
-                <a
-                  href="tel:999"
-                  className="block w-full py-2.5 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl shadow transition text-center"
+                <button
+                  onClick={() => showToast('🚨 EMERGENCY SOS BROADCAST SENT TO ALL TRUSTED CONTACTS & SECURITY')}
+                  className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl shadow transition"
                 >
-                  🚨 Call Emergency Services (999)
-                </a>
+                  🚨 Broadcast SOS Panic Alert Now
+                </button>
               </div>
 
               {/* Hotlines */}
@@ -1757,7 +1782,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
           <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
-                <Sliders className="w-5 h-5 text-[#E0533C] dark:text-[#D17A68]" />
+                <Sliders className="w-5 h-5 text-[#E0533C]" />
                 <h3 className="font-black text-sm uppercase tracking-wider">Settings</h3>
               </div>
               <button onClick={onCloseOverlay} className="p-1">
@@ -1782,7 +1807,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     </div>
                     <button
                       onClick={onToggleTheme}
-                      className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${isDarkMode ? 'bg-[#E0533C] dark:bg-[#A94F3E]' : 'bg-slate-300'}`}
+                      className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${isDarkMode ? 'bg-[#E0533C]' : 'bg-slate-300'}`}
                     >
                       <div className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${isDarkMode ? 'translate-x-6' : 'translate-x-0'}`} />
                     </button>
@@ -1790,7 +1815,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
                   <div className="p-3.5 flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                      <Bell className="w-4 h-4 text-[#E0533C] dark:text-[#D17A68]" />
+                      <Bell className="w-4 h-4 text-[#E0533C]" />
                       <div>
                         <h4 className="font-bold">Push Notifications</h4>
                         <p className="text-[10px] text-slate-400">Match alerts, event drops & ticket passes</p>
@@ -1799,7 +1824,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     <button
                       onClick={() => {
                         setPushNotifications(!pushNotifications);
-                        showToast(pushNotifications ? 'Push notifications paused.' : 'Push notifications enabled!', { category: 'profile' });
+                        showToast(pushNotifications ? 'Push notifications paused.' : 'Push notifications enabled!');
                       }}
                       className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${pushNotifications ? 'bg-[#2D6A4F]' : 'bg-slate-300'}`}
                     >
@@ -1819,9 +1844,9 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       value={languageSetting}
                       onChange={(e) => {
                         setLanguageSetting(e.target.value);
-                        showToast(`Language set to ${e.target.value}`, { category: 'profile' });
+                        showToast(`Language set to ${e.target.value}`);
                       }}
-                      className="bg-transparent font-bold text-xs text-[#E0533C] dark:text-[#D17A68] focus:outline-none"
+                      className="bg-transparent font-bold text-xs text-[#E0533C] focus:outline-none"
                     >
                       <option value="English (Kenya)">English (KE)</option>
                       <option value="Kiswahili">Kiswahili</option>
@@ -1848,7 +1873,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     <button
                       onClick={() => {
                         setDatingDiscoverable(!datingDiscoverable);
-                        showToast(datingDiscoverable ? 'Hidden from Discover.' : 'Visible in Discover.', { category: 'profile' });
+                        showToast(datingDiscoverable ? 'Hidden from Discover.' : 'Visible in Discover.');
                       }}
                       className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${datingDiscoverable ? 'bg-[#2D6A4F]' : 'bg-slate-300'}`}
                     >
@@ -1880,7 +1905,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     <button
                       onClick={() => {
                         setIs2FAEnabled(!is2FAEnabled);
-                        showToast(is2FAEnabled ? '2FA disabled.' : '2FA enabled.', { category: 'profile' });
+                        showToast(is2FAEnabled ? '2FA disabled.' : '2FA enabled.');
                       }}
                       className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${is2FAEnabled ? 'bg-[#2D6A4F]' : 'bg-slate-300'}`}
                     >
@@ -1904,14 +1929,14 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     className="w-full p-3.5 flex items-center justify-between text-left hover:bg-slate-100 dark:hover:bg-slate-800/50 transition cursor-pointer"
                   >
                     <div className="flex items-center gap-2.5">
-                      <Bookmark className="w-4 h-4 text-[#E0533C] dark:text-[#D17A68]" />
+                      <Bookmark className="w-4 h-4 text-[#E0533C]" />
                       <div>
                         <h4 className="font-bold">My Saved Items & Moves</h4>
                         <p className="text-[10px] text-slate-400">View bookmarked spots, raves, fits & offers</p>
                       </div>
                     </div>
                     {savedCount !== undefined && savedCount > 0 ? (
-                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#E0533C]/10 dark:bg-[#A94F3E]/10 text-[#E0533C] dark:text-[#D17A68]">
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#E0533C]/10 text-[#E0533C]">
                         {savedCount}
                       </span>
                     ) : (
@@ -1945,7 +1970,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 </span>
                 <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden divide-y divide-slate-200/60 dark:divide-slate-800/80">
                   <button
-                    onClick={() => { window.location.href = 'mailto:hello.rada.app@gmail.com?subject=RADA%20Help'; }}
+                    onClick={() => showToast('Opening RADA Nairobi Help Center & FAQ...')}
                     className="w-full p-3.5 flex items-center justify-between text-left hover:bg-slate-100 dark:hover:bg-slate-800/50 transition"
                   >
                     <div className="flex items-center gap-2.5">
@@ -1955,8 +1980,9 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     <ChevronRight className="w-4 h-4 text-slate-400" />
                   </button>
 
-                  <div
-                                        className="w-full p-3.5 flex items-center justify-between text-left hover:bg-slate-100 dark:hover:bg-slate-800/50 transition"
+                  <button
+                    onClick={() => showToast('RADA Nairobi Hangouts v2026.4.2')}
+                    className="w-full p-3.5 flex items-center justify-between text-left hover:bg-slate-100 dark:hover:bg-slate-800/50 transition"
                   >
                     <div className="flex items-center gap-2.5">
                       <FileText className="w-4 h-4 text-slate-500" />
@@ -1966,7 +1992,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       </div>
                     </div>
                     <span className="text-[10px] font-mono text-slate-400">Up to date</span>
-                  </div>
+                  </button>
                 </div>
               </div>
             </div>
@@ -1979,7 +2005,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
         <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-2 text-[#E9C46A] dark:text-[#BFA25F]">
+              <div className="flex items-center gap-2 text-[#E9C46A]">
                 <ShieldCheck className="w-5 h-5" />
                 <h3 className="font-black text-sm uppercase tracking-wider text-slate-900 dark:text-slate-100">
                   Account & Security
@@ -2017,7 +2043,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       onCloseOverlay();
                       if (onOpenAccountSettings) onOpenAccountSettings();
                     }}
-                    className="w-full py-2.5 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white font-black rounded-xl shadow transition flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full py-2.5 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl shadow transition flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <KeyRound className="w-4 h-4" />
                     <span>Security & Change Password</span>
@@ -2034,7 +2060,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
         <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-2 text-[#E0533C] dark:text-[#D17A68]">
+              <div className="flex items-center gap-2 text-[#E0533C]">
                 <User className="w-5 h-5" />
                 <h3 className="font-black text-sm uppercase tracking-wider text-slate-900 dark:text-slate-100">
                   Profile
@@ -2049,10 +2075,10 @@ export const Overlays: React.FC<OverlaysProps> = ({
               <div className="p-4 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl space-y-4 text-center">
                 <div className="relative w-24 h-24 mx-auto">
                   <div
-                    className="w-24 h-24 rounded-full bg-cover bg-center border-2 border-[#E0533C] dark:border-[#D17A68] shadow-md"
+                    className="w-24 h-24 rounded-full bg-cover bg-center border-2 border-[#E0533C] shadow-md"
                     style={{ backgroundImage: `url('${profileAvatar}')` }}
                   />
-                  <label className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#E0533C] dark:bg-[#A94F3E] text-white flex items-center justify-center cursor-pointer shadow-lg hover:bg-orange-700 transition">
+                  <label className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#E0533C] text-white flex items-center justify-center cursor-pointer shadow-lg hover:bg-orange-700 transition">
                     <Upload className="w-3.5 h-3.5" />
                     <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
                   </label>
@@ -2069,7 +2095,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     <label className="font-extrabold text-[11px] text-slate-700 dark:text-slate-300">
                       Relationship Status
                     </label>
-                    <span className="text-[10px] font-bold text-[#E0533C] dark:text-[#D17A68]">
+                    <span className="text-[10px] font-bold text-[#E0533C]">
                       {profileRelationshipStatus === 'single' ? 'Single' : 'Not single'}
                     </span>
                   </div>
@@ -2079,7 +2105,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       onClick={() => {
                         setProfileRelationshipStatus('single');
                         if (!currentUserProfile?.isLivenessVerified) {
-                          showToast('Single status requires photo & camera liveness verification to unlock Discover.', { type: 'error' });
+                          showToast('Single status requires photo & camera liveness verification to unlock Discover.');
                           if (onOpenVerificationModal) onOpenVerificationModal();
                         }
                       }}
@@ -2133,7 +2159,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                           onClick={() => {
                             if (onOpenVerificationModal) onOpenVerificationModal();
                           }}
-                          className="w-full py-2 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                          className="w-full py-2 bg-[#E0533C] hover:bg-orange-700 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                         >
                           <Camera className="w-3.5 h-3.5" />
                           <span>Complete Camera Liveness Check</span>
@@ -2155,12 +2181,12 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     value={profileBio}
                     onChange={(e) => setProfileBio(e.target.value)}
                     placeholder="Tell everyone what you're into..."
-                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E0533C] dark:focus:ring-[#D17A68] resize-none text-xs"
+                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E0533C] resize-none text-xs"
                   />
                   <button
                     onClick={() => {
                       if (profileRelationshipStatus === 'single' && !currentUserProfile?.isLivenessVerified) {
-                        showToast('Please complete liveness verification to unlock Discover as Single.', { type: 'error' });
+                        showToast('Please complete liveness verification to unlock Discover as Single.');
                         if (onOpenVerificationModal) onOpenVerificationModal();
                       }
                       onUpdateCurrentUserProfile({
@@ -2168,7 +2194,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                         avatar: profileAvatar,
                         relationshipStatus: profileRelationshipStatus
                       });
-                      showToast(`Profile saved! Status set to ${profileRelationshipStatus === 'single' ? 'Single' : 'Not single'}.`, { category: 'profile' });
+                      showToast(`Profile saved! Status set to ${profileRelationshipStatus === 'single' ? 'Single' : 'Not single'}.`);
                     }}
                     className="w-full py-2.5 bg-[#2D6A4F] hover:bg-emerald-800 text-white font-bold rounded-xl text-xs shadow mt-1 transition cursor-pointer"
                   >
@@ -2187,7 +2213,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
           <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
-                <Compass className="w-5 h-5 text-[#E0533C] dark:text-[#D17A68]" />
+                <Compass className="w-5 h-5 text-[#E0533C]" />
                 <h3 className="font-black text-sm uppercase tracking-wider">{viewAllTitle}</h3>
               </div>
               <button onClick={onCloseViewAll} className="p-1">
@@ -2204,14 +2230,14 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                        <Flame className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
+                        <Flame className="w-3.5 h-3.5 text-[#E0533C]" />
                         <span>Filter by Event Category</span>
                       </span>
                       {eventsCategoryFilter !== 'all' && (
                         <button
                           type="button"
                           onClick={() => setEventsCategoryFilter('all')}
-                          className="text-[10px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline cursor-pointer"
+                          className="text-[10px] font-bold text-[#E0533C] hover:underline cursor-pointer"
                         >
                           Show All Events
                         </button>
@@ -2233,7 +2259,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                           onClick={() => setEventsCategoryFilter(item.id)}
                           className={`px-3 py-1.5 rounded-full font-bold shrink-0 transition text-xs cursor-pointer ${
                             eventsCategoryFilter === item.id
-                              ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white shadow-xs'
+                              ? 'bg-[#E0533C] text-white shadow-xs'
                               : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
                           }`}
                         >
@@ -2278,7 +2304,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       <div className="space-y-3">
                         <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
                           <h4 className="font-black text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-[#E0533C] dark:bg-[#A94F3E]" />
+                            <span className="w-2 h-2 rounded-full bg-[#E0533C]" />
                             <span>{headerText}</span>
                           </h4>
                           <span className="text-[10px] text-slate-400 font-bold">
@@ -2299,7 +2325,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                                     onCloseViewAll();
                                     if (onOpenEventDetails) onOpenEventDetails(evt);
                                   }}
-                                  className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs cursor-pointer hover:border-[#E0533C] dark:hover:border-[#D17A68] transition group"
+                                  className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs cursor-pointer hover:border-[#E0533C] transition group"
                                 >
                                   <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
                                     <div
@@ -2312,11 +2338,11 @@ export const Overlays: React.FC<OverlaysProps> = ({
                                     </div>
                                     <div className="min-w-0 flex-1">
                                       <div className="flex items-center gap-1.5 flex-wrap">
-                                        <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] dark:group-hover:text-[#D17A68] transition truncate">
+                                        <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition truncate">
                                           {evt.title}
                                         </h4>
                                       </div>
-                                      <p className="text-[10px] text-[#E0533C] dark:text-[#D17A68] font-semibold flex items-center gap-1 mt-0.5">
+                                      <p className="text-[10px] text-[#E0533C] font-semibold flex items-center gap-1 mt-0.5">
                                         <Clock className="w-3 h-3 shrink-0" />
                                         <span>{evt.date} • {evt.time || 'Evening'}</span>
                                       </p>
@@ -2338,7 +2364,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                                         onCloseViewAll();
                                         if (onOpenEventDetails) onOpenEventDetails(evt);
                                       }}
-                                      className="px-3 py-1.5 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white rounded-xl text-xs font-black shadow-xs transition flex items-center gap-1 cursor-pointer"
+                                      className="px-3 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-black shadow-xs transition flex items-center gap-1 cursor-pointer"
                                     >
                                       <span>Event Details</span>
                                       <ChevronRight className="w-3 h-3" />
@@ -2351,7 +2377,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                         ) : (
                           /* Sleek Empty State Card */
                           <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-dashed border-slate-300 dark:border-slate-800 rounded-3xl p-6 text-center space-y-3 shadow-2xs">
-                            <div className="w-10 h-10 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] dark:text-[#D17A68] mx-auto flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] mx-auto flex items-center justify-center">
                               <Calendar className="w-5 h-5" />
                             </div>
                             <div className="space-y-1">
@@ -2365,7 +2391,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                             <button
                               type="button"
                               onClick={() => setEventsCategoryFilter('all')}
-                              className="px-4 py-2 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5 cursor-pointer"
+                              className="px-4 py-2 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5 cursor-pointer"
                             >
                               <Sparkles className="w-3.5 h-3.5" />
                               <span>Show All Events</span>
@@ -2391,7 +2417,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       <div>
                         <div className="h-44 rounded-xl bg-cover bg-center mb-2" style={{ backgroundImage: `url('${movie.img}')` }} />
                         <h4 className="font-bold text-xs truncate">{movie.title}</h4>
-                        <p className="text-[10px] text-[#2D6A4F] font-semibold">{movie.genre}</p>
+                        <p className="text-[10px] text-[#2D6A4F] font-semibold">{movie.locationName}</p>
                         <p className="text-[9px] text-slate-400">{movie.format}</p>
                       </div>
                       <button className="w-full mt-2 py-1.5 bg-[#2D6A4F] text-white rounded-lg text-[10px] font-bold">
@@ -2400,47 +2426,182 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     </div>
                   ))}
                 </div>
-              ) : (
-                /* STRICTLY DISPLAY MATCHING SPOTS */
-                <div className="grid grid-cols-2 gap-3">
-                  {spots
-                    .filter(s => {
-                      if (!viewAllCategory || viewAllCategory === 'spots') return true;
-                      if (viewAllCategory === 'connect_with_nature' || viewAllCategory === 'nature' || viewAllCategory === 'outdoors') {
-                        return s.category === 'connect_with_nature' || s.category === 'outdoors' || (s.category === 'activities' && (s.title.toLowerCase().includes('forest') || s.title.toLowerCase().includes('arboretum') || s.title.toLowerCase().includes('trail') || s.title.toLowerCase().includes('nature') || s.title.toLowerCase().includes('biking') || s.title.toLowerCase().includes('hike') || s.title.toLowerCase().includes('waterfall') || s.title.toLowerCase().includes('mountain') || s.title.toLowerCase().includes('hills')));
-                      }
-                      if (viewAllCategory === 'creative_leisure' || viewAllCategory === 'social_activities') {
-                        return s.category === 'creative_leisure' || s.category === 'social_activities' || s.title.toLowerCase().includes('paint') || s.title.toLowerCase().includes('pottery') || s.title.toLowerCase().includes('craft') || s.title.toLowerCase().includes('clay') || s.description?.toLowerCase().includes('pottery') || s.description?.toLowerCase().includes('canvas') || s.description?.toLowerCase().includes('painting');
-                      }
-                      if (viewAllCategory === 'tech_gaming') {
-                        return s.category === 'tech_gaming' || s.title.toLowerCase().includes('vr') || s.title.toLowerCase().includes('gaming') || s.title.toLowerCase().includes('arcade') || s.title.toLowerCase().includes('simulator') || s.description?.toLowerCase().includes('virtual reality') || s.description?.toLowerCase().includes('gaming');
-                      }
-                      if (viewAllCategory === 'action_sports') {
-                        return s.category === 'action_sports' || s.title.toLowerCase().includes('kart') || s.title.toLowerCase().includes('paintball') || s.title.toLowerCase().includes('bowling') || s.title.toLowerCase().includes('archery') || s.title.toLowerCase().includes('tactical') || s.description?.toLowerCase().includes('paintball') || s.description?.toLowerCase().includes('racing');
-                      }
-                      return s.category === viewAllCategory;
-                    })
-                    .map((s, idx) => (
-                      <div
-                        key={idx}
-                        onClick={() => {
-                          onCloseViewAll();
-                          onOpenSpotDetails(s);
-                        }}
-                        className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 shadow-sm space-y-1.5 cursor-pointer hover:border-[#E0533C] dark:hover:border-[#D17A68] transition"
-                      >
+              ) : (viewAllCategory === 'offers' || viewAllCategory === 'promotions') ? (
+                /* DISPLAY ALL RUNNING OFFERS & PROMOTIONS */
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {offers.map((offer) => (
+                    <div
+                      key={offer.id}
+                      className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 shadow-xs space-y-2 flex flex-col justify-between hover:border-[#E0533C] transition"
+                    >
+                      <div className="space-y-2">
                         <div
-                          className="h-28 rounded-xl bg-cover bg-center"
-                          style={{ backgroundImage: `url('${s.img}')` }}
-                        />
-                        <h4 className="font-bold text-xs truncate text-[#E0533C] dark:text-[#D17A68]">{s.title}</h4>
-                        <p className="text-[10px] text-slate-500">{s.neighborhood} • ★{s.rating}</p>
-                        <button className="w-full py-1.5 bg-[#E0533C] dark:bg-[#A94F3E] text-white rounded-lg text-[11px] font-bold">
-                          View Details
+                          className="h-32 rounded-xl bg-cover bg-center relative overflow-hidden"
+                          style={{ backgroundImage: `url('${offer.posterUrl}')` }}
+                        >
+                          <span className="absolute top-2 left-2 bg-[#E0533C] text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide">
+                            {offer.discount}
+                          </span>
+                          <span className="absolute top-2 right-2 bg-black/60 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
+                            {offer.category}
+                          </span>
+                          <span className="absolute bottom-2 left-2 right-2 text-[10px] text-amber-300 font-bold drop-shadow-md truncate">
+                            {offer.validUntil}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{offer.businessName}</p>
+                          <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 line-clamp-1">{offer.title}</h4>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">{offer.description}</p>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-700 dark:text-slate-300">
+                          {offer.claimCode || 'RADA-DEAL'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (offer.claimCode) {
+                              navigator.clipboard?.writeText?.(offer.claimCode);
+                              showToast(`Copied promo code: "${offer.claimCode}"!`);
+                            }
+                            const matched = spots.find(
+                              s => (s.businessId && s.businessId === offer.businessId) ||
+                                   s.title.toLowerCase().trim() === offer.businessName.toLowerCase().trim() ||
+                                   offer.businessName.toLowerCase().includes(s.title.toLowerCase()) ||
+                                   s.title.toLowerCase().includes(offer.businessName.toLowerCase())
+                            );
+                            if (matched) {
+                              onCloseViewAll();
+                              onOpenSpotDetails(matched);
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-[#E0533C] text-white rounded-lg text-[10px] font-bold hover:bg-orange-700 transition"
+                        >
+                          Claim / View Spot
                         </button>
                       </div>
-                    ))}
+                    </div>
+                  ))}
                 </div>
+              ) : (
+                /* STRICTLY DISPLAY MATCHING SPOTS */
+                (() => {
+                  const effectiveCat = (localCategoryOverride || viewAllCategory || '').toLowerCase().trim();
+                  const matchedSpots = spots.filter(s => {
+                    if (!effectiveCat || effectiveCat === 'spots' || effectiveCat === 'all' || effectiveCat === 'trending') return true;
+
+                    const cat = (s.category || '').toLowerCase().trim();
+                    const title = (s.title || '').toLowerCase();
+                    const desc = (s.description || '').toLowerCase();
+                    const vibes = Array.isArray(s.vibes) ? s.vibes.map((v: string) => v.toLowerCase()) : [];
+
+                    // 1. Restaurants & Dining
+                    if (effectiveCat === 'restaurants_dining' || effectiveCat === 'restaurants' || effectiveCat === 'dining') {
+                      return cat === 'restaurants' || cat === 'restaurants_dining' || cat === 'dining' || cat === 'cafes' || title.includes('restaurant') || title.includes('grill') || title.includes('bistro') || title.includes('burger') || title.includes('tandoori');
+                    }
+
+                    // 2. Clubs & Lounges
+                    if (effectiveCat === 'clubs_lounges' || effectiveCat === 'nightlife' || effectiveCat === 'clubs' || effectiveCat === 'lounges') {
+                      return cat === 'nightlife' || cat === 'clubs_lounges' || cat === 'clubs' || cat === 'lounges' || cat === 'bars' || title.includes('lounge') || title.includes('club') || title.includes('nightspot') || title.includes('bar');
+                    }
+
+                    // 3. Cafes & Bakeries
+                    if (effectiveCat === 'cafes_bakeries' || effectiveCat === 'cafes' || effectiveCat === 'bakeries') {
+                      return cat === 'cafes' || cat === 'cafes_bakeries' || cat === 'bakeries' || title.includes('cafe') || title.includes('coffee') || title.includes('bakery');
+                    }
+
+                    // 4. Hotels & Luxury stays
+                    if (effectiveCat === 'hotels_luxury' || effectiveCat === 'hotels' || effectiveCat === 'luxury') {
+                      return cat === 'hotels' || cat === 'hotels_luxury' || cat === 'luxury' || cat === 'stays' || title.includes('hotel') || title.includes('resort');
+                    }
+
+                    // 5. Vacation spots & escapes
+                    if (effectiveCat === 'vacation_escapes' || effectiveCat === 'vacation' || effectiveCat === 'escapes') {
+                      return cat === 'vacation' || cat === 'vacation_escapes' || cat === 'escapes' || cat === 'resort' || title.includes('resort') || title.includes('club & gardens') || title.includes('retreat');
+                    }
+
+                    // 6. Date spots
+                    if (effectiveCat === 'date_spots' || effectiveCat === 'date') {
+                      return cat === 'date_spots' || vibes.some((v: string) => v.includes('romantic') || v.includes('date') || v.includes('cocktails')) || title.includes('talisman') || title.includes('garden') || cat === 'restaurants';
+                    }
+
+                    // 7. Nature Trails & Outdoors
+                    if (effectiveCat === 'connect_with_nature' || effectiveCat === 'nature' || effectiveCat === 'outdoors') {
+                      return cat === 'connect_with_nature' || cat === 'nature' || cat === 'outdoors' || (cat === 'activities' && (title.includes('forest') || title.includes('arboretum') || title.includes('trail') || title.includes('nature') || title.includes('biking') || title.includes('hike') || title.includes('waterfall') || title.includes('mountain') || title.includes('hills')));
+                    }
+
+                    // 8. Creative & Leisure
+                    if (effectiveCat === 'creative_leisure' || effectiveCat === 'creative_arts' || effectiveCat === 'social_activities' || effectiveCat === 'creative') {
+                      return cat === 'creative_leisure' || cat === 'creative_arts' || cat === 'social_activities' || title.includes('paint') || title.includes('pottery') || title.includes('craft') || title.includes('clay') || desc.includes('pottery') || desc.includes('canvas') || desc.includes('painting');
+                    }
+
+                    // 9. Tech & Gaming
+                    if (effectiveCat === 'tech_gaming' || effectiveCat === 'tech' || effectiveCat === 'gaming') {
+                      return cat === 'tech_gaming' || cat === 'gaming' || title.includes('vr') || title.includes('gaming') || title.includes('arcade') || title.includes('simulator') || desc.includes('virtual reality') || desc.includes('gaming');
+                    }
+
+                    // 10. Action & Sports
+                    if (effectiveCat === 'action_sports' || effectiveCat === 'action' || effectiveCat === 'sports' || effectiveCat === 'outdoor_fitness') {
+                      return cat === 'action_sports' || cat === 'outdoor_fitness' || cat === 'sports' || title.includes('kart') || title.includes('paintball') || title.includes('bowling') || title.includes('archery') || title.includes('tactical') || desc.includes('paintball') || desc.includes('racing');
+                    }
+
+                    return cat === effectiveCat || cat.includes(effectiveCat) || effectiveCat.includes(cat) || title.includes(effectiveCat);
+                  });
+
+                  if (matchedSpots.length === 0) {
+                    return (
+                      <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-dashed border-slate-300 dark:border-slate-800 rounded-3xl p-6 text-center space-y-3 shadow-2xs">
+                        <div className="w-10 h-10 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] mx-auto flex items-center justify-center">
+                          <Compass className="w-5 h-5" />
+                        </div>
+                        <div className="space-y-1">
+                          <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">
+                            No venues found in this category
+                          </h4>
+                          <p className="text-[11px] text-slate-500 max-w-xs mx-auto leading-relaxed">
+                            Discover all top trending venues and experiences across Nairobi!
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setLocalCategoryOverride('all')}
+                          className="px-4 py-2 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>Show All Spots</span>
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="grid grid-cols-2 gap-3">
+                      {matchedSpots.map((s, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => {
+                            onCloseViewAll();
+                            onOpenSpotDetails(s);
+                          }}
+                          className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 shadow-sm space-y-1.5 cursor-pointer hover:border-[#E0533C] transition"
+                        >
+                          <div
+                            className="h-28 rounded-xl bg-cover bg-center"
+                            style={{ backgroundImage: `url('${s.img}')` }}
+                          />
+                          <h4 className="font-bold text-xs truncate text-[#E0533C]">{s.title}</h4>
+                          <p className="text-[10px] text-slate-500">{s.neighborhood} • ★{s.rating}</p>
+                          <button className="w-full py-1.5 bg-[#E0533C] text-white rounded-lg text-[11px] font-bold">
+                            View Details
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()
               )}
             </div>
           </div>
