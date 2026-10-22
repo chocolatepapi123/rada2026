@@ -79,6 +79,9 @@ import {
   isDateToday 
 } from '../utils/calendarUtils.ts';
 import { EventsExplorer } from './EventsExplorer.tsx';
+import { CinemaExplorer } from './CinemaExplorer.tsx';
+import { SpotsExplorer } from './SpotsExplorer.tsx';
+import { useLocationPreference } from '../lib/geo.ts';
 import { getSourceLabel } from '../utils/eventUtils.ts';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 
@@ -291,6 +294,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
   const [planDateSearch, setPlanDateSearch] = useState('');
   const [localCategoryOverride, setLocalCategoryOverride] = useState<string | null>(null);
   const { spots: unclaimedFeed } = useUnclaimedSpots();
+  const { origin } = useLocationPreference();
 
   useEffect(() => {
     setLocalCategoryOverride(null);
@@ -2245,16 +2249,15 @@ export const Overlays: React.FC<OverlaysProps> = ({
         </div>
       )}
 
-      {/* 12. DEDICATED VIEW ALL MODAL (SPEC 3: Strictly display items matching that category only) */}
       {viewAllTitle && (
-        <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
+        <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
+          <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <Compass className="w-5 h-5 text-[#E0533C]" />
                 <h3 className="font-black text-sm uppercase tracking-wider">{viewAllTitle}</h3>
               </div>
-              <button onClick={onCloseViewAll} className="p-1">
+              <button onClick={onCloseViewAll} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -2273,29 +2276,15 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   }}
                 />
               ) : viewAllCategory === 'cinemas' ? (
-                /* STRICTLY DISPLAY CINEMA MOVIES */
-                <div className="grid grid-cols-2 gap-3">
-                  {cinemaMovies.map((movie) => (
-                    <div
-                      key={movie.id}
-                      onClick={() => {
-                        onCloseViewAll();
-                        if (onBookCinema) onBookCinema(movie);
-                      }}
-                      className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 shadow-xs cursor-pointer hover:border-[#2D6A4F] transition flex flex-col justify-between"
-                    >
-                      <div>
-                        <div className="h-44 rounded-xl bg-cover bg-center mb-2" style={{ backgroundImage: `url('${movie.img}')` }} />
-                        <h4 className="font-bold text-xs truncate">{movie.title}</h4>
-                        <p className="text-[10px] text-[#2D6A4F] font-semibold">{movie.locationName}</p>
-                        <p className="text-[9px] text-slate-400">{movie.format}</p>
-                      </div>
-                      <button className="w-full mt-2 py-1.5 bg-[#2D6A4F] text-white rounded-lg text-[10px] font-bold">
-                        Book Movie
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                /* WHOLE CINEMA EXPLORER (LIKE EVENTS) */
+                <CinemaExplorer
+                  movies={cinemaMovies || []}
+                  onBookMovie={(movie) => {
+                    onCloseViewAll();
+                    if (onBookCinema) onBookCinema(movie);
+                  }}
+                  userCoords={origin}
+                />
               ) : (viewAllCategory === 'offers' || viewAllCategory === 'promotions') ? (
                 /* DISPLAY ALL RUNNING OFFERS & PROMOTIONS */
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2357,64 +2346,19 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   ))}
                 </div>
               ) : (
-                /* STRICTLY DISPLAY MATCHING SPOTS */
-                (() => {
-                  const effectiveCat = (localCategoryOverride || viewAllCategory || '').toLowerCase().trim();
-                  const matchedSpots = sortTrending(
-                    mergeSpots(spots, unclaimedFeed).filter(s => spotInCategory(s, effectiveCat))
-                  );
-
-                  if (matchedSpots.length === 0) {
-                    return (
-                      <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-dashed border-slate-300 dark:border-slate-800 rounded-3xl p-6 text-center space-y-3 shadow-2xs">
-                        <div className="w-10 h-10 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] mx-auto flex items-center justify-center">
-                          <Compass className="w-5 h-5" />
-                        </div>
-                        <div className="space-y-1">
-                          <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">
-                            No venues found in this category
-                          </h4>
-                          <p className="text-[11px] text-slate-500 max-w-xs mx-auto leading-relaxed">
-                            Discover all top trending venues and experiences across Nairobi!
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setLocalCategoryOverride('all')}
-                          className="px-4 py-2 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <Sparkles className="w-3.5 h-3.5" />
-                          <span>Show All Spots</span>
-                        </button>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div className="grid grid-cols-2 gap-3">
-                      {matchedSpots.map((s) => (
-                        <div
-                          key={String(s.id)}
-                          onClick={() => {
-                            onCloseViewAll();
-                            onOpenSpotDetails(s);
-                          }}
-                          className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 shadow-sm space-y-1.5 cursor-pointer hover:border-[#E0533C] transition"
-                        >
-                          <div
-                            className="h-28 rounded-xl bg-cover bg-center"
-                            style={{ backgroundImage: `url('${s.img}')` }}
-                          />
-                          <h4 className="font-bold text-xs truncate text-[#E0533C]">{s.title}</h4>
-                          <p className="text-[10px] text-slate-500">{s.neighborhood} • {s.rating && s.rating !== 'New' ? `★${s.rating}` : 'New'}</p>
-                          <button className="w-full py-1.5 bg-[#E0533C] text-white rounded-lg text-[11px] font-bold">
-                            View Details
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()
+                /* WHOLE SPOTS CATEGORY EXPLORER (LIKE EVENTS) */
+                <SpotsExplorer
+                  categoryKey={localCategoryOverride || viewAllCategory}
+                  categoryTitle={viewAllTitle}
+                  spots={mergeSpots(spots, unclaimedFeed)}
+                  savedItems={savedItems}
+                  onToggleSave={onToggleSave}
+                  onOpenSpot={(spot) => {
+                    onCloseViewAll();
+                    onOpenSpotDetails(spot);
+                  }}
+                  userCoords={origin}
+                />
               )}
             </div>
           </div>

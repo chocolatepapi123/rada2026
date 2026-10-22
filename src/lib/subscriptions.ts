@@ -194,12 +194,69 @@ export function formatDate(iso?: string | null): string {
 export const daysLabel = (n: number | null | undefined): string =>
   n === null || n === undefined ? 'No end date' : n === 1 ? '1 day left' : `${n} days left`;
 
-// ---------------------------------------------------------------------------
-// User-facing API
-// ---------------------------------------------------------------------------
+export const createPermanentEliteRecord = (kind: SubKind, userId: string = 'admin'): SubscriptionRecord => ({
+  user_id: userId,
+  kind,
+  plan: 'elite',
+  status: 'active',
+  effective_plan: 'elite',
+  effective_status: 'active',
+  origin: 'admin',
+  trial_started_at: null,
+  trial_ends_at: null,
+  current_period_end: null, // Forever
+  ends_at: null,
+  days_left: null, // "No end date" / Lifetime
+  terminated_reason: null,
+  terminated_at: null,
+  updated_at: new Date().toISOString(),
+});
+
+export function isPermanentEliteAccount(email?: string | null, role?: string | null): boolean {
+  if (!email && !role) return false;
+  const e = (email || '').toLowerCase().trim();
+  const r = (role || '').toLowerCase().trim();
+  return e === 'lowkeywayne21@gmail.com' || e.includes('admin') || r === 'admin';
+}
+
 const EMPTY: MySubscriptions = { creator: null, merchant: null };
 
 export async function fetchMySubscriptions(): Promise<MySubscriptions> {
+  let isForeverElite = false;
+  let uid = 'user';
+
+  if (isSupabaseConfigured && supabase?.auth) {
+    try {
+      const { data } = await supabase.auth.getSession();
+      const sessionUser = data?.session?.user;
+      if (sessionUser) {
+        uid = sessionUser.id;
+        const email = sessionUser.email || '';
+        const role = sessionUser.user_metadata?.role;
+        if (isPermanentEliteAccount(email, role)) {
+          isForeverElite = true;
+        }
+      }
+    } catch {}
+  }
+
+  try {
+    const rawUser = localStorage.getItem('rada_current_user');
+    if (rawUser) {
+      const parsed = JSON.parse(rawUser);
+      if (isPermanentEliteAccount(parsed?.email, parsed?.role) || parsed?.handle === '@admin') {
+        isForeverElite = true;
+      }
+    }
+  } catch {}
+
+  if (isForeverElite) {
+    return {
+      creator: createPermanentEliteRecord('creator', uid),
+      merchant: createPermanentEliteRecord('merchant', uid),
+    };
+  }
+
   if (!isSupabaseConfigured) return EMPTY;
   const { data, error } = await supabase.rpc('get_my_subscriptions');
   if (error) throw new Error(error.message);
@@ -209,6 +266,15 @@ export async function fetchMySubscriptions(): Promise<MySubscriptions> {
 }
 
 export async function fetchMyOutingUsage(): Promise<{ plan: PlanId; used: number } | null> {
+  if (isSupabaseConfigured && supabase?.auth) {
+    try {
+      const { data } = await supabase.auth.getSession();
+      const sessionUser = data?.session?.user;
+      if (sessionUser && isPermanentEliteAccount(sessionUser.email, sessionUser.user_metadata?.role)) {
+        return { plan: 'elite', used: 0 };
+      }
+    } catch {}
+  }
   if (!isSupabaseConfigured) return null;
   const { data, error } = await supabase.rpc('get_my_outing_usage');
   if (error || !data) return null;

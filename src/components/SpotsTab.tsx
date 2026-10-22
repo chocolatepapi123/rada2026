@@ -35,6 +35,8 @@ import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUt
 import type { ToastOptions } from './Toast.tsx';
 import { resolveSpotBudget, budgetBadge } from '../lib/spotBudget.ts';
 import { useUnclaimedSpots, spotInCategory, mergeSpots } from '../lib/spotsFeed.ts';
+import { useLocationPreference, sortByProximity } from '../lib/geo.ts';
+import { spotMatchesSearchWithTags } from '../utils/spotTags.ts';
 
 interface SpotsTabProps {
   spots: SpotItem[];
@@ -79,6 +81,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   const [selectedPriceTier, setSelectedPriceTier] = useState<string>(cachedSpotsFilters.selectedPriceTier);
   const [activeImageIndices, setActiveImageIndices] = useState<Record<number, number>>({});
   const [isListening, setIsListening] = useState(false);
+  const { origin: userLocation } = useLocationPreference();
 
   // Sync back to cache so filters are never lost when viewing details or calendar
   useEffect(() => {
@@ -361,7 +364,9 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         img: d.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
       }));
 
-    const allCombined = mergeSpots([...spots, ...extraDbSpots], unclaimedSpots);
+    const merged = mergeSpots([...spots, ...extraDbSpots], unclaimedSpots);
+    const effectiveOrigin = userLocation || { lat: -1.2864, lng: 36.8219 };
+    const allCombined = sortByProximity(merged, effectiveOrigin);
 
     // Compute live review counts and ratings from actual reviews only (no mock reviews or fake 4.8)
     return allCombined.map(sp => {
@@ -391,10 +396,9 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         price: resolveSpotBudget(sp)
       };
     });
-  }, [spots, dbSpots, unclaimedSpots, liveReviews]);
+  }, [spots, dbSpots, unclaimedSpots, liveReviews, userLocation]);
 
-  // Real-time fuzzy natural query search
-  // e.g. "Sushi in Westlands" parses "sushi" and "westlands"
+  // Real-time fuzzy natural query search with in-app hidden tags
   const filteredSpots = displaySpots.filter(s => {
     // Category filter: strictly the spot's own category vs the 10 RADA categories
     const matchesCategory = spotInCategory(s, selectedCategory);
@@ -409,50 +413,10 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
 
     if (!matchesCategory || !matchesNeigh || !matchesPrice) return false;
 
-    if (!searchQuery.trim()) return true;
+    // Use enhanced in-app tags search matching (invisible to users)
+    if (!spotMatchesSearchWithTags(s, searchQuery)) return false;
 
-    const q = searchQuery.toLowerCase().trim();
-    // Check if query has natural language "in <neighborhood>"
-    const words = q.split(/\s+/).filter(w => w.length > 1 && !['in', 'at', 'near', 'the', 'for', 'and'].includes(w));
-    
-    // Check full query first
-    const fullTextMatch = 
-      s.title.toLowerCase().includes(q) ||
-      s.neighborhood.toLowerCase().includes(q) ||
-      s.address.toLowerCase().includes(q) ||
-      (s.exactLocationTag && s.exactLocationTag.toLowerCase().includes(q)) ||
-      (s.landmark && s.landmark.toLowerCase().includes(q)) ||
-      (s.description && s.description.toLowerCase().includes(q)) ||
-      (s.cuisineTypes && s.cuisineTypes.some((c: string) => c.toLowerCase().includes(q))) ||
-      (s.featuredDishes && s.featuredDishes.some((d: string) => d.toLowerCase().includes(q))) ||
-      (s.equipmentProvided && s.equipmentProvided.toLowerCase().includes(q)) ||
-      (s.equipmentNeeded && s.equipmentNeeded.toLowerCase().includes(q)) ||
-      (s.whatToBring && (Array.isArray(s.whatToBring) ? s.whatToBring.some((w: string) => w.toLowerCase().includes(q)) : s.whatToBring.toLowerCase().includes(q))) ||
-      (s.amenitiesAV && s.amenitiesAV.some((a: string) => a.toLowerCase().includes(q))) ||
-      (s.menuItems && s.menuItems.some((m: MenuItem) => m.name.toLowerCase().includes(q) || m.description.toLowerCase().includes(q)));
-
-    if (fullTextMatch) return true;
-
-    // Fuzzy check: all non-stop words must match some spot attribute
-    const allWordsMatch = words.every(word => {
-      return (
-        s.title.toLowerCase().includes(word) ||
-        s.neighborhood.toLowerCase().includes(word) ||
-        s.category.toLowerCase().includes(word) ||
-        s.address.toLowerCase().includes(word) ||
-        (s.exactLocationTag && s.exactLocationTag.toLowerCase().includes(word)) ||
-        (s.landmark && s.landmark.toLowerCase().includes(word)) ||
-        (s.description && s.description.toLowerCase().includes(word)) ||
-        (s.cuisineTypes && s.cuisineTypes.some((c: string) => c.toLowerCase().includes(word))) ||
-        (s.featuredDishes && s.featuredDishes.some((d: string) => d.toLowerCase().includes(word))) ||
-        (s.equipmentProvided && s.equipmentProvided.toLowerCase().includes(word)) ||
-        (s.equipmentNeeded && s.equipmentNeeded.toLowerCase().includes(word)) ||
-        (s.amenitiesAV && s.amenitiesAV.some((a: string) => a.toLowerCase().includes(word))) ||
-        (s.menuItems && s.menuItems.some((m: MenuItem) => m.name.toLowerCase().includes(word) || m.description.toLowerCase().includes(word)))
-      );
-    });
-
-    return allWordsMatch;
+    return true;
   });
 
   const restaurants = filteredSpots.filter(s => spotInCategory(s, 'restaurants_dining'));

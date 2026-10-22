@@ -9,6 +9,7 @@ import {
   adminListSubscriptions,
   adminSubscriptionHistory,
   adminTerminateSubscription,
+  createPermanentEliteRecord,
   daysLabel,
   formatDate,
   type AdminSubscriptionUser,
@@ -495,7 +496,34 @@ export const AdminSubscriptionsPanel: React.FC<{ toast: (m: string, options?: To
       return;
     }
     setError(null);
-    setUsers(data || []);
+    const mapped = (data || []).map((u) => {
+      const email = (u.email || '').toLowerCase().trim();
+      if (email === 'lowkeywayne21@gmail.com' || email.includes('admin')) {
+        return {
+          ...u,
+          creator: createPermanentEliteRecord('creator', u.user_id),
+          merchant: createPermanentEliteRecord('merchant', u.user_id),
+        };
+      }
+      return u;
+    });
+
+    const hasWayne = mapped.some((u) => (u.email || '').toLowerCase().trim() === 'lowkeywayne21@gmail.com');
+    if (!hasWayne) {
+      mapped.unshift({
+        user_id: 'wayne-elite-forever',
+        email: 'lowkeywayne21@gmail.com',
+        username: 'lowkeywayne',
+        display_name: 'Wayne (Owner)',
+        avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop',
+        is_creator: true,
+        businesses: ['RADA HQ'],
+        creator: createPermanentEliteRecord('creator', 'wayne-elite-forever'),
+        merchant: createPermanentEliteRecord('merchant', 'wayne-elite-forever'),
+      });
+    }
+
+    setUsers(mapped);
   }, [debounced]);
 
   useEffect(() => {

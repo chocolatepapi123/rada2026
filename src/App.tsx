@@ -252,7 +252,8 @@ export default function App() {
 
     const loadUserRole = async () => {
       const userMetaRole = session.user.user_metadata?.role;
-      const isAdminEmail = session.user.email?.toLowerCase().includes('admin');
+      const emailLower = (session.user.email || '').toLowerCase().trim();
+      const isAdminEmail = emailLower.includes('admin') || emailLower === 'lowkeywayne21@gmail.com';
 
       const { data, error } = await supabase
         .from('profiles')

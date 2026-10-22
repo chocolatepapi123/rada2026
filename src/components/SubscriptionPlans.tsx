@@ -253,6 +253,12 @@ export const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({
             <span className="font-bold text-slate-800 dark:text-slate-100">{formatDate(record.ends_at)}</span>.
           </p>
         )}
+        {current === 'elite' && !record?.ends_at && (
+          <p className="text-[13px] text-amber-600 dark:text-amber-400 font-extrabold mt-4 flex items-center gap-1.5">
+            <Crown className="w-4 h-4 fill-amber-400" />
+            <span>Permanent Elite Tier Active (Forever)</span>
+          </p>
+        )}
         {error && (
           <p className="mt-4 text-[12px] text-red-500 flex items-start gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />

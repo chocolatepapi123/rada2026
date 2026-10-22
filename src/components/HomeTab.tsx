@@ -1,6 +1,6 @@
 import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending, formatOpeningHours } from '../lib/spotsFeed.ts';
 import { resolveSpotBudget, budgetBadge } from '../lib/spotBudget.ts';
-import { useLocationPreference, sortByProximity, NEIGHBORHOOD_COORDS, formatDistance } from '../lib/geo.ts';
+import { useLocationPreference, sortByProximity, NEIGHBORHOOD_COORDS, formatDistance, distanceKm } from '../lib/geo.ts';
 import React, { useState, useMemo, useEffect } from 'react';
 
 const getDisplayHours = (hours: any, fallback = 'Open Daily'): string => {
@@ -264,7 +264,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       }));
 
     const merged = mergeSpots([...spots, ...extraDbSpots], unclaimedFeed);
-    const allCombined = feedOrigin ? sortByProximity(merged, feedOrigin) : sortTrending(merged);
+    const effectiveFeedOrigin = feedOrigin || { lat: -1.2864, lng: 36.8172 };
+    const allCombined = sortByProximity(merged, effectiveFeedOrigin);
 
     // Compute live review counts and ratings from actual Supabase reviews
     return allCombined.map(sp => {
@@ -439,22 +440,46 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     });
   }, [filteredEvents, eventSortBy]);
 
-  // Filter cinema movies (Showtime by date removed, movie genre filter added)
-  const filteredCinemaMovies = cinemaMovies.filter(m => {
-    const matchesLoc = selectedCinemaLoc === 'all' || m.location === selectedCinemaLoc;
-    const matchesGenre = selectedGenre === 'all' || (m.genre && m.genre.toLowerCase().includes(selectedGenre.toLowerCase()));
-    
-    if (!matchesLoc || !matchesGenre) return false;
+  // Filter and sort cinema movies from near you silently
+  const filteredCinemaMovies = useMemo(() => {
+    const effectiveOrigin = feedOrigin || { lat: -1.2864, lng: 36.8172 };
+    const getCinemaCoords = (m: CinemaMovie) => {
+      const loc = (m.location || m.locationName || '').toLowerCase();
+      if (loc.includes('sarit')) return { lat: -1.2635, lng: 36.8028 };
+      if (loc.includes('westgate')) return { lat: -1.2582, lng: 36.8041 };
+      if (loc.includes('two rivers')) return { lat: -1.2057, lng: 36.7745 };
+      if (loc.includes('garden city')) return { lat: -1.2322, lng: 36.8778 };
+      if (loc.includes('junction')) return { lat: -1.2989, lng: 36.7618 };
+      if (loc.includes('prestige')) return { lat: -1.2982, lng: 36.7865 };
+      if (loc.includes('diamond')) return { lat: -1.2612, lng: 36.8208 };
+      if (loc.includes('panari')) return { lat: -1.3324, lng: 36.8576 };
+      return { lat: -1.2864, lng: 36.8172 };
+    };
 
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase().trim();
-    return (
-      m.title.toLowerCase().includes(q) ||
-      (m.locationName && m.locationName.toLowerCase().includes(q)) ||
-      (m.location && m.location.toLowerCase().includes(q)) ||
-      (m.genre && m.genre.toLowerCase().includes(q))
-    );
-  });
+    const res = cinemaMovies.filter(m => {
+      const matchesLoc = selectedCinemaLoc === 'all' || m.location === selectedCinemaLoc;
+      const matchesGenre = selectedGenre === 'all' || (m.genre && m.genre.toLowerCase().includes(selectedGenre.toLowerCase()));
+      
+      if (!matchesLoc || !matchesGenre) return false;
+
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase().trim();
+      return (
+        m.title.toLowerCase().includes(q) ||
+        (m.locationName && m.locationName.toLowerCase().includes(q)) ||
+        (m.location && m.location.toLowerCase().includes(q)) ||
+        (m.genre && m.genre.toLowerCase().includes(q))
+      );
+    });
+
+    res.sort((a, b) => {
+      const distA = distanceKm(effectiveOrigin, getCinemaCoords(a));
+      const distB = distanceKm(effectiveOrigin, getCinemaCoords(b));
+      return distA - distB;
+    });
+
+    return res;
+  }, [cinemaMovies, selectedCinemaLoc, selectedGenre, searchQuery, feedOrigin]);
 
   // Filter offers by category and search query
   const filteredOffers = (offers || []).filter(o => {
@@ -1261,45 +1286,16 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               </div>
               <div className="flex items-center gap-1.5 flex-wrap">
                 <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
-                  {feedOrigin ? 'Spots Near You' : 'Trending Spots'}
+                  Trending Spots
                 </h2>
               </div>
             </div>
             <button
-              onClick={() => onOpenDedicatedViewAll(feedOrigin ? 'Spots Near You' : 'Trending Spots', 'spots')}
+              onClick={() => onOpenDedicatedViewAll('Trending Spots', 'spots')}
               className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
             >
               View All ({displaySpots.length})
             </button>
-          </div>
-
-
-          {/* Location for the feed: device GPS or a chosen neighborhood */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 dark:text-slate-300">
-              <MapPin className="w-3 h-3 text-[#E0533C]" />
-              <span>Near</span>
-              <select
-                value={locPref}
-                onChange={(e) => setLocPref(e.target.value)}
-                className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-lg px-2 py-1 text-[11px] font-bold"
-              >
-                <option value="gps">My location</option>
-                {Object.keys(NEIGHBORHOOD_COORDS).map((n) => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-              </select>
-            </label>
-            {locPref === 'gps' && locStatus === 'asking' && (
-              <span className="text-[10px] text-slate-400">Finding you…</span>
-            )}
-            {locPref === 'gps' && (locStatus === 'denied' || locStatus === 'unavailable') && (
-              <span className="text-[10px] text-slate-500">
-                Location is off.{' '}
-                <button type="button" onClick={requestGps} className="font-bold text-[#E0533C] hover:underline cursor-pointer">Try again</button>
-                {' '}or pick an area.
-              </span>
-            )}
           </div>
 
           <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
@@ -1355,9 +1351,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                       <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
                         <MapPin className="w-3 h-3 text-[#E0533C] shrink-0" />
                         <span className="truncate">{spot.address || spot.neighborhood}</span>
-                        {spot.distanceKm != null && (
-                          <span className="shrink-0 font-bold text-[#E0533C]">• {formatDistance(spot.distanceKm)}</span>
-                        )}
                       </p>
 
                       <p className="text-[11px] text-[#475569] dark:text-slate-300 line-clamp-2 mt-1 leading-relaxed font-medium">
