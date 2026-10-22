@@ -81,9 +81,14 @@ export interface FeatureRow {
 export const PLAN_FEATURES: Record<SubKind, FeatureRow[]> = {
   creator: [
     { label: 'Outings you can host', hint: 'Per calendar month', free: '4 / month', pro: '10 / month', elite: 'Unlimited' },
-    { label: 'Attendees per outing', free: 'Up to 10', pro: 'Up to 30', elite: 'Unlimited' },
+    { label: 'Attendees per outing', hint: 'Venue capacity and safety rules still apply', free: 'Up to 10', pro: 'Up to 30', elite: 'No standard cap' },
+    { label: 'Waitlist tools', hint: 'Where available', free: false, pro: true, elite: true },
     { label: 'Professional host profile', free: true, pro: true, elite: true },
     { label: 'Profile badge', hint: 'Shown on your public profile', free: false, pro: 'Creator', elite: 'Golden Creator' },
+    { label: 'Profile personalization', free: 'Standard', pro: 'Expanded', elite: 'Advanced layouts' },
+    { label: 'Analytics', hint: 'Estimates from available platform data', free: 'Basic view counts', pro: 'Profile views & link clicks', elite: 'Expanded suite' },
+    { label: 'Broadcasts', hint: 'Subject to consent, permissions and delivery settings', free: false, pro: 'To subscribed users', elite: 'To push-enabled users' },
+    { label: 'Media', free: 'Photos', pro: 'Photos & video', elite: 'Photos & video' },
   ],
   merchant: [
     { label: 'Business storefront', free: true, pro: true, elite: true },
