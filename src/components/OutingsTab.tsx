@@ -684,7 +684,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       const newPlan: OutingPlan = {
         id: `out-${Date.now()}`,
         hostId: currentUserId || `host-${Date.now()}`,
-        hostName: currentUserProfile.name || 'Wayne Waweru',
+        hostName: currentUserProfile.name || 'RADA member',
         hostAvatar: currentUserProfile.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop',
         hostHandle: currentUserProfile.handle || '@host',
         isHostVerified: currentUserProfile.is_creator === true,

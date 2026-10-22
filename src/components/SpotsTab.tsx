@@ -583,11 +583,6 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                     Proof Under Review
                   </span>
                 )}
-                {spot.is_claimed === false && !spot.hasPendingClaim && (
-                  <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded font-bold shrink-0">
-                    Unclaimed
-                  </span>
-                )}
               </div>
               <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[11px] shrink-0">
                 <Star className={`w-3 h-3 ${hasReviews ? 'fill-amber-500 text-amber-500' : 'text-slate-400'}`} />
@@ -1126,7 +1121,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                     <span>Photos ({reviewPhotos.length}/5)</span>
                   </span>
                   <span className="text-[10px] text-slate-400 font-semibold">
-                    {reviewPhotos.length >= 5 ? 'Max limit reached' : 'Up to 5 • Deduplicated'}
+                    {reviewPhotos.length >= 5 ? 'Max limit reached' : 'Up to 5'}
                   </span>
                 </div>
 

@@ -266,7 +266,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
     const review: Review = {
       id: `rev-${Date.now()}`,
-      userName: currentUserProfile?.name || 'Wayne Waweru',
+      userName: currentUserProfile?.name || 'RADA member',
       userHandle: currentUserProfile?.handle || '@lowk3yFX',
       userAvatar: currentUserProfile?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop',
       rating: newReviewRating,
@@ -481,10 +481,6 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   {selectedSpot.hasPendingClaim ? (
                     <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-800">
                       Proof Under Review
-                    </span>
-                  ) : selectedSpot.is_claimed === false ? (
-                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                      Unclaimed
                     </span>
                   ) : null}
                   <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-red-100 dark:bg-red-950/60 text-[#E0533C]">
@@ -1062,7 +1058,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                         <span>Photos ({reviewPhotos.length}/5)</span>
                       </label>
                       <span className="text-[10px] text-slate-400">
-                        {reviewPhotos.length >= 5 ? 'Limit reached (max 5)' : 'Max 5 photos • No duplicates'}
+                        {reviewPhotos.length >= 5 ? 'Limit reached (max 5)' : 'Max 5 photos'}
                       </span>
                     </div>
 
@@ -2127,7 +2123,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 </div>
 
                 <div>
-                  <h4 className="font-black text-base">{currentUserProfile?.name || 'Wayne Waweru'}</h4>
+                  <h4 className="font-black text-base">{currentUserProfile?.name || 'RADA member'}</h4>
                   <p className="text-slate-500 font-bold text-[11px]">{currentUserProfile?.handle || '@lowk3yFX'} • Nairobi, Kenya</p>
                 </div>
 

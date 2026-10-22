@@ -184,7 +184,7 @@ export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, custo
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="e.g. Wayne Waititu"
+                    placeholder="Your full name"
                     className="w-full pl-9 pr-4 py-2.5 bg-stone-800/80 rounded-xl text-sm border border-stone-700/80 text-white placeholder-stone-500 focus:outline-none focus:border-amber-500 transition"
                   />
                 </div>
