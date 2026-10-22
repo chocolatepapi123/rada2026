@@ -18,7 +18,8 @@ import {
   UserCog,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { UserProfile } from '../types';
+import { UserProfile, OutingPlan } from '../types';
+import { CreatorHubTab } from './CreatorHubTab';
 import {
   AvatarHero,
   IdentityFields,
@@ -43,6 +44,8 @@ interface AccountSettingsModalProps {
   onUpdateProfessional?: (data: any) => Promise<void> | void;
   /** Optional numbers from the app. Used only when the server has none. */
   professionalStats?: { profileViews?: number; outingsHosted?: number; joinRequests?: number };
+  /** All outings; the Creator Hub filters to the ones this user hosts. */
+  outings?: OutingPlan[];
 }
 
 type Screen = 'main' | 'password' | 'professional';
@@ -86,8 +89,10 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
   onSignOut,
   onProfileChange,
   professionalStats,
+  outings = [],
 }) => {
   const [screen, setScreen] = useState<Screen>('main');
+  const [hubOpen, setHubOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Password
@@ -371,8 +376,33 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
                   Log in to switch to a professional account.
                 </p>
               )}
+              {isLoggedIn && (
+                <button
+                  type="button"
+                  onClick={() => setHubOpen(true)}
+                  className="mx-3 mt-4 w-[calc(100%-1.5rem)] p-4 rounded-2xl bg-[#E0533C] dark:bg-[#A94F3E] text-white flex items-center gap-3 text-left cursor-pointer shadow-md shadow-orange-500/20"
+                >
+                  <Briefcase className="w-5 h-5 shrink-0" />
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-[14px] font-black">Open Creator Hub</span>
+                    <span className="block text-[11px] opacity-90">Outings, analytics, broadcasts, badge and plan</span>
+                  </span>
+                  <ChevronRight className="w-4 h-4 shrink-0" />
+                </button>
+              )}
               <ProfessionalDashboard p={own} />
             </div>
+          )}
+
+          {hubOpen && (
+            <CreatorHubTab
+              own={own}
+              outings={outings}
+              userId={user?.id}
+              onClose={() => setHubOpen(false)}
+              onOpenAuth={onOpenAuth}
+              showToast={showToast}
+            />
           )}
 
           {/* ===================== PASSWORD ===================== */}

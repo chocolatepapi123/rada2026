@@ -602,6 +602,13 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               </span>
             </p>
 
+            {/* Fills the row when a neighbouring card is taller (carousel cards share one height) */}
+            {(spot.description || (spot.vibes && spot.vibes.length > 0) || (spot.tags && spot.tags.length > 0)) && (
+              <p className="text-[11px] leading-snug text-slate-500 dark:text-slate-400 line-clamp-2 pt-0.5">
+                {spot.description || (spot.vibes?.length ? spot.vibes : spot.tags || []).slice(0, 4).join(' • ')}
+              </p>
+            )}
+
             {spot.exactLocationTag && (
               <p className="text-[10px] text-[#2D6A4F] font-semibold flex items-center gap-1 truncate">
                 <Compass className="w-3 h-3 shrink-0" />
