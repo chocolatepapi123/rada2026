@@ -287,38 +287,8 @@ export const initialEvents: EventItem[] = [];
 
 export const initialStatuses: StatusPost[] = [];
 
-export const discoveryProfiles: DatingProfile[] = [
-  {
-    id: 1,
-    name: 'Jane Doe, 24',
-    handle: '@jane_d',
-    loc: 'Westlands',
-    img: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop',
-    bio: 'Art director & coffee enthusiast. Looking for someone who knows good playlists and hidden Nairobi restaurants.',
-    relationshipStatus: 'single',
-    vibes: ['Amapiano', 'Art Galleries', 'Brunch', 'Matcha']
-  },
-  {
-    id: 2,
-    name: 'Amina Mwangi, 22',
-    handle: '@amina_m',
-    loc: 'Kilimani',
-    img: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop',
-    bio: 'Architecture student at UoN. Loves rooftop sunsets, live gigs and thrift market hunts.',
-    relationshipStatus: 'single',
-    vibes: ['Thrifting', 'Afrobeats', 'Rooftops', 'Photography']
-  },
-  {
-    id: 3,
-    name: 'Chloe Ouma, 25',
-    handle: '@chloe_o',
-    loc: 'Lavington',
-    img: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=600&auto=format&fit=crop',
-    bio: 'UX designer & foodie. In a happy relationship, down for hangout groups and cinema runs with friends.',
-    relationshipStatus: 'not_single',
-    vibes: ['Cinema', 'Late Night Drives', 'House Music']
-  }
-];
+/** Real registered members from Supabase profiles are used. No fake mock accounts. */
+export const discoveryProfiles: DatingProfile[] = [];
 
 export const initialConversations: ChatConversation[] = [];
 

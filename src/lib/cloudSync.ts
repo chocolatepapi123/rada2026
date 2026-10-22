@@ -1,6 +1,6 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import type { BusinessAccount, SavedItem, CollectionFolder, OutingPlan, OutingAttendee, ChatConversation, HostAnalytics, HostControls, UserProfile, AdminUserRecord, PlatformStats, SpotItem, SubscriptionStatus, UnclaimedSpotInput, SpotClaimRequest, CommunitySpotInput } from '../types';
-import { isPlatformAdmin } from '../types';
+import type { BusinessAccount, SavedItem, CollectionFolder, OutingPlan, OutingAttendee, ChatConversation, HostAnalytics, HostControls, UserProfile, AdminUserRecord, PlatformStats, SpotItem, SubscriptionStatus, UnclaimedSpotInput, SpotClaimRequest, CommunitySpotInput, AdminPermissions } from '../types';
+import { isPlatformAdmin, isOfficialAdmin, DEFAULT_DELEGATED_PERMISSIONS, SUPER_ADMIN_PERMISSIONS } from '../types';
 import { STATUS_TTL_MS } from '../utils/statusLifecycle';
 import { loadUnclaimedSpots } from './spotsFeed';
 
@@ -2402,7 +2402,15 @@ export async function fetchAdminUsers(businesses: BusinessAccount[] = []): Promi
     const id = String(row.id);
     const businessIds = bizByOwner.get(id) || [];
     const email = row.email ? String(row.email) : undefined;
+    const isOfficial = isOfficialAdmin(email);
     const isAdmin = isPlatformAdmin({ email, role: row.role });
+    let permissions = row.admin_permissions || row.adminPermissions;
+    if (typeof permissions === 'string') {
+      try { permissions = JSON.parse(permissions); } catch (_) {}
+    }
+    if (isAdmin && !permissions) {
+      permissions = isOfficial ? SUPER_ADMIN_PERMISSIONS : DEFAULT_DELEGATED_PERMISSIONS;
+    }
     return {
       id,
       name: cleanDisplayName(row.display_name || row.full_name || row.name || ''),
@@ -2417,8 +2425,36 @@ export async function fetchAdminUsers(businesses: BusinessAccount[] = []): Promi
       suspendedReason: row.suspended_reason || undefined,
       suspendedAt: row.suspended_at || undefined,
       createdAt: row.created_at || undefined,
+      isOfficialAdmin: isOfficial,
+      adminPermissions: permissions,
     };
   });
+}
+
+/** Set or update a user's admin role and granular permission limits. */
+export async function setUserAdminRole(
+  uid: string,
+  role: 'admin' | 'user',
+  permissions?: AdminPermissions
+): Promise<string | null> {
+  const guard = await requireAdmin();
+  if (guard.error) return guard.error;
+  if (guard.uid === uid && role !== 'admin') {
+    return 'You cannot revoke your own admin account.';
+  }
+
+  const now = new Date().toISOString();
+  return upsertProfileFields(uid, [
+    {
+      role,
+      admin_permissions: role === 'admin' ? (permissions || DEFAULT_DELEGATED_PERMISSIONS) : null,
+      updated_at: now,
+    },
+    {
+      role,
+      updated_at: now,
+    },
+  ]);
 }
 
 /** Block / unblock an account. Enforce it in the app by calling fetchSuspensionState() after sign-in. */

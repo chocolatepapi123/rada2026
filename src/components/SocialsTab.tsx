@@ -38,6 +38,7 @@ import { AudioMessagePlayer } from './AudioMessagePlayer.tsx';
 import { VideoMessagePlayer } from './VideoMessagePlayer.tsx';
 import { generatePlayableWavDataUrl, generateFallbackVideoBlobUrl, formatMediaDuration, deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 import type { ToastOptions } from './Toast.tsx';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { readJSON, writeJSON } from '../lib/storage.ts';
 
 interface SocialsTabProps {
@@ -78,8 +79,6 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   const [activeChat, setActiveChat] = useState<ChatConversation | null>(null);
   const [chatInputText, setChatInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [showThemePicker, setShowThemePicker] = useState(false);
-  const [currentTheme, setCurrentTheme] = useState<ChatTheme>('terracotta');
 
   // Auto-open target chat if requested (e.g. from Outings Feed)
   React.useEffect(() => {
@@ -142,10 +141,70 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
       .trim();
   };
 
-  // Filter out all non-single users from appearing in the Discover candidate list or browse grids
-  const singleDiscoveryProfiles = discoveryProfiles.filter(p => p.relationshipStatus === 'single');
-  const currentProfile = singleDiscoveryProfiles.length > 0 
-    ? singleDiscoveryProfiles[profileIndex % singleDiscoveryProfiles.length]
+  const isMockMatchProfile = (p: DatingProfile) => {
+    const nameLower = (p.name || '').toLowerCase();
+    const handleLower = (p.handle || '').toLowerCase();
+    return (
+      nameLower.includes('jane doe') ||
+      nameLower.includes('amina mwangi') ||
+      nameLower.includes('chloe ouma') ||
+      handleLower.includes('jane_d') ||
+      handleLower.includes('amina_m') ||
+      handleLower.includes('chloe_o')
+    );
+  };
+
+  const [communitySingles, setCommunitySingles] = useState<DatingProfile[]>([]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const loadCommunity = async () => {
+      if (!isSupabaseConfigured || !supabase) return;
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, name, username, avatar_url, bio, relationship_status, is_liveness_verified')
+          .order('updated_at', { ascending: false })
+          .limit(50);
+
+        if (!error && data && !cancelled) {
+          const currentId = currentUserProfile?.id;
+          const currentHandle = currentUserProfile?.handle?.toLowerCase();
+          const clean: DatingProfile[] = data
+            .filter((row: any) => {
+              if (row.id === currentId) return false;
+              if (currentHandle && row.username && `@${row.username.toLowerCase()}` === currentHandle) return false;
+              const isSingle = String(row.relationship_status || '').toLowerCase() === 'single';
+              return isSingle && Boolean(row.is_liveness_verified);
+            })
+            .map((row: any, i: number) => ({
+              id: row.id || `c-${i}`,
+              name: row.name || row.username || 'Nairobi Single',
+              handle: row.username ? `@${row.username.replace('@', '')}` : '@single',
+              loc: 'Nairobi',
+              img: row.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop',
+              bio: row.bio || 'Exploring Nairobi hangouts, food, and culture.',
+              relationshipStatus: 'single',
+              vibes: ['Nairobi Hangouts', 'Music', 'Outings']
+            }));
+          setCommunitySingles(clean);
+        }
+      } catch (err) {
+        console.warn('Community singles load notice:', err);
+      }
+    };
+    loadCommunity();
+    return () => { cancelled = true; };
+  }, [currentUserProfile?.id, currentUserProfile?.handle]);
+
+  // Filter out any mock accounts and only show real verified single members
+  const candidatePool = React.useMemo(() => {
+    const combined = [...discoveryProfiles, ...communitySingles];
+    return combined.filter(p => p.relationshipStatus === 'single' && !isMockMatchProfile(p));
+  }, [discoveryProfiles, communitySingles]);
+
+  const currentProfile = candidatePool.length > 0 
+    ? candidatePool[profileIndex % candidatePool.length]
     : null;
 
   const handleSwipe = (action: 'like' | 'pass') => {
@@ -484,63 +543,24 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
     }
   };
 
-  // Theme styling definitions
-  const themeStyles: Record<ChatTheme, {
-    bg: string;
-    header: string;
-    myBubble: string;
-    theirBubble: string;
-    accent: string;
-  }> = {
-    terracotta: {
-      bg: 'bg-[#FBFBF9] dark:bg-[#121113]',
-      header: 'bg-[#FBFBF9]/95 dark:bg-[#121113]/95',
-      myBubble: 'bg-[#E0533C] dark:bg-[#A94F3E] text-white',
-      theirBubble: 'bg-[#F1F1EE] dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800',
-      accent: 'text-[#E0533C] dark:text-[#D17A68]'
-    },
-    midnight: {
-      bg: 'bg-[#0B0F19]',
-      header: 'bg-[#0F172A]/95 text-white',
-      myBubble: 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-cyan-900/30',
-      theirBubble: 'bg-[#1E293B] text-slate-100 border border-slate-700',
-      accent: 'text-cyan-400'
-    },
-    emerald: {
-      bg: 'bg-[#062419] dark:bg-[#03150E]',
-      header: 'bg-[#083323]/95 text-white',
-      myBubble: 'bg-[#2D6A4F] text-white',
-      theirBubble: 'bg-[#0F3E2E] text-emerald-100 border border-emerald-900',
-      accent: 'text-emerald-400'
-    },
-    sunset: {
-      bg: 'bg-gradient-to-b from-[#2B1055] via-[#4A154B] to-[#1F0826]',
-      header: 'bg-[#2B1055]/95 text-white',
-      myBubble: 'bg-gradient-to-r from-orange-500 to-pink-600 text-white shadow-pink-900/40',
-      theirBubble: 'bg-[#3D1444] text-pink-100 border border-pink-950',
-      accent: 'text-pink-400'
-    },
-    cyberpunk: {
-      bg: 'bg-[#12072B]',
-      header: 'bg-[#1D0C42]/95 text-white',
-      myBubble: 'bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white shadow-fuchsia-900/40',
-      theirBubble: 'bg-[#271057] text-purple-100 border border-purple-800',
-      accent: 'text-yellow-400'
-    }
+  // Clean standard chat styles matching app theme
+  const chatStyles = {
+    bg: 'bg-white dark:bg-[#121113]',
+    header: 'bg-white/95 dark:bg-[#121113]/95 text-slate-900 dark:text-slate-100',
+    myBubble: 'bg-[#E0533C] dark:bg-[#A94F3E] text-white',
+    theirBubble: 'bg-slate-100 dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800',
   };
-
-  const activeThemeStyle = themeStyles[currentTheme] || themeStyles.terracotta;
 
   // If in chat room
   if (activeChat) {
     return (
-      <div className={`fixed inset-0 z-50 flex flex-col ${activeThemeStyle.bg} transition-colors duration-300`}>
+      <div className={`fixed inset-0 z-50 flex flex-col ${chatStyles.bg} transition-colors duration-200`}>
         {/* Chat Room Header */}
-        <div className={`sticky top-0 z-10 backdrop-blur-md px-4 py-3 border-b border-slate-200/40 dark:border-slate-800/60 flex items-center justify-between ${activeThemeStyle.header}`}>
+        <div className={`sticky top-0 z-10 backdrop-blur-md px-4 py-3 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between ${chatStyles.header}`}>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setActiveChat(null)}
-              className="w-8 h-8 rounded-full bg-black/10 dark:bg-white/10 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:scale-105 transition"
+              className="w-8 h-8 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:scale-105 transition cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
@@ -572,41 +592,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Theme switcher */}
-            <div className="relative">
-              <button
-                onClick={() => setShowThemePicker(!showThemePicker)}
-                title="Change Chat Theme"
-                className="w-8 h-8 rounded-full bg-black/10 dark:bg-white/10 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:scale-105 transition"
-              >
-                <Palette className="w-4 h-4" />
-              </button>
-
-              {showThemePicker && (
-                <div className="absolute right-0 mt-2 w-44 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-2 shadow-2xl z-50 space-y-1 animate-in zoom-in-95 duration-150">
-                  <span className="text-[10px] font-black uppercase text-slate-400 px-2 block">Select Chat Theme</span>
-                  {(['terracotta', 'midnight', 'emerald', 'sunset', 'cyberpunk'] as ChatTheme[]).map((thm) => (
-                    <button
-                      key={thm}
-                      onClick={() => {
-                        setCurrentTheme(thm);
-                        setShowThemePicker(false);
-                      }}
-                      className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-bold capitalize flex items-center justify-between ${
-                        currentTheme === thm ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200'
-                      }`}
-                    >
-                      <span>{thm}</span>
-                      {currentTheme === thm && <Check className="w-3 h-3" />}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
             <button
               onClick={onOpenPlanDateModal}
-              className="px-3 py-1.5 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition"
+              className="px-3 py-1.5 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition cursor-pointer"
             >
               <Calendar className="w-3.5 h-3.5" />
               <span>Plan a Date</span>
@@ -716,8 +704,8 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                   /* Voice Note Bubble with functional player & scrubbable waveform */
                   <div className={`p-3 rounded-2xl text-xs shadow-xs min-w-[220px] ${
                     msg.sender === 'me'
-                      ? `${activeThemeStyle.myBubble} rounded-tr-none`
-                      : `${activeThemeStyle.theirBubble} rounded-tl-none`
+                      ? `${chatStyles.myBubble} rounded-tr-none`
+                      : `${chatStyles.theirBubble} rounded-tl-none`
                   }`}>
                     <AudioMessagePlayer
                       audioUrl={msg.audioUrl}
@@ -732,8 +720,8 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                   <div
                     className={`p-3 rounded-2xl text-xs shadow-xs ${
                       msg.sender === 'me'
-                        ? `${activeThemeStyle.myBubble} rounded-tr-none`
-                        : `${activeThemeStyle.theirBubble} rounded-tl-none`
+                        ? `${chatStyles.myBubble} rounded-tr-none`
+                        : `${chatStyles.theirBubble} rounded-tl-none`
                     }`}
                   >
                     {msg.replyTo && (
@@ -1276,14 +1264,22 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           ) : (
             <div className="py-12 text-center bg-[#F1F1EE] dark:bg-[#1C1A1E] rounded-3xl p-6 border border-slate-200 dark:border-slate-800 space-y-3">
               <Sparkles className="w-8 h-8 text-[#E0533C] dark:text-[#D17A68] mx-auto" />
-              <h4 className="font-black text-sm">You've reached the end of the profile queue!</h4>
-              <p className="text-xs text-slate-500">Check back later for new members joining RADA.</p>
-              <button
-                onClick={() => setProfileIndex(0)}
-                className="px-4 py-2 bg-[#E0533C] dark:bg-[#A94F3E] text-white rounded-xl text-xs font-bold shadow"
-              >
-                Reset Queue
-              </button>
+              <h4 className="font-black text-sm text-slate-900 dark:text-slate-100">
+                {candidatePool.length === 0 ? 'No match profiles right now' : "You've reached the end of the profile queue!"}
+              </h4>
+              <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+                {candidatePool.length === 0 
+                  ? 'All mock demo profiles have been removed. Verified single Nairobi community members who complete the camera liveness check will appear here.'
+                  : 'Check back later for new single members joining RADA, or invite friends to take the liveness verification.'}
+              </p>
+              {candidatePool.length > 0 && (
+                <button
+                  onClick={() => setProfileIndex(0)}
+                  className="px-4 py-2 bg-[#E0533C] dark:bg-[#A94F3E] text-white rounded-xl text-xs font-bold shadow cursor-pointer"
+                >
+                  Reset Queue
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -1435,7 +1431,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           </div>
 
           <div className="space-y-2">
-            {singleDiscoveryProfiles
+            {candidatePool
               .filter(p => !userSearchQuery.trim() || 
                 p.name.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
                 p.loc.toLowerCase().includes(userSearchQuery.toLowerCase()) ||

@@ -24,6 +24,7 @@ import {
 
 import { fetchCinemaShowings, CINEMA_UPDATED_EVENT } from './lib/cinema.ts';
 import { readJSON, writeJSON, writeJSONDebounced, purgeSeedData } from './lib/storage.ts';
+import { useUnclaimedSpots, mergeSpots } from './lib/spotsFeed.ts';
 
 // One-time removal of the old demo content cached on this device
 purgeSeedData();
@@ -479,6 +480,13 @@ export default function App() {
     [events, externalEvents]
   );
 
+  // Load real unclaimed & scraped spots from database/cache and merge with merchant spots
+  const unclaimedFeed = useUnclaimedSpots();
+  const allMergedSpots = useMemo(
+    () => mergeSpots(spots, unclaimedFeed.spots),
+    [spots, unclaimedFeed.spots]
+  );
+
   const [statuses, setStatuses] = useState<StatusPost[]>(() => {
     let base: StatusPost[] = initialStatuses;
     base = readJSON<StatusPost[]>('rada_statuses', initialStatuses, Array.isArray);
@@ -613,8 +621,24 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
-  // Current logged in user profile with Single / Not Single status (clean Guest profile by default)
+  // Current logged in user profile with Single / Not Single status (loads saved profile from localStorage)
   const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile>(() => {
+    try {
+      const saved = localStorage.getItem('rada_current_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          return {
+            ...GUEST_PROFILE,
+            ...parsed,
+            relationshipStatus: parsed.relationshipStatus || parsed.relationship_status || 'single',
+            relationship_status: parsed.relationship_status || parsed.relationshipStatus || 'single',
+            isLivenessVerified: Boolean(parsed.isLivenessVerified || parsed.is_liveness_verified),
+            is_liveness_verified: Boolean(parsed.is_liveness_verified || parsed.isLivenessVerified),
+          };
+        }
+      }
+    } catch (_) {}
     return GUEST_PROFILE;
   });
 
@@ -690,20 +714,20 @@ export default function App() {
   };
 
   const handleToggleSave = (item: any, kind: 'spot' | 'event' | 'offer' | 'thrift') => {
-    requireAuth('save items', () => {
-      setSavedItems(prev => {
-        const exists = prev.some(s => String(s.id) === String(item.id) && s.kind === kind);
-        let updated: SavedItem[];
-        if (exists) {
-          updated = prev.filter(s => !(String(s.id) === String(item.id) && s.kind === kind));
-        } else {
-          updated = [{ id: item.id, kind, savedAt: new Date().toISOString() }, ...prev];
-        }
-        if (session?.user?.id) {
-          cloud.syncSavedPlans(session.user.id, updated, savedFolders);
-        }
-        return updated;
-      });
+    setSavedItems(prev => {
+      const exists = prev.some(s => String(s.id) === String(item.id) && s.kind === kind);
+      let updated: SavedItem[];
+      if (exists) {
+        updated = prev.filter(s => !(String(s.id) === String(item.id) && s.kind === kind));
+        triggerToast('Removed from saved items', { type: 'info' });
+      } else {
+        updated = [{ id: item.id, kind, savedAt: new Date().toISOString() }, ...prev];
+        triggerToast('Saved to your collection! 🔖', { type: 'success' });
+      }
+      if (session?.user?.id) {
+        cloud.syncSavedPlans(session.user.id, updated, savedFolders);
+      }
+      return updated;
     });
   };
 
@@ -2194,7 +2218,7 @@ export default function App() {
             onOpenAdmin={() => setIsAdminOpen(true)}
             userRole={userRole}
             onLogout={handleSignOut}
-            onOpenSaved={() => requireAuth('view saved collections', () => setIsSavedModalOpen(true))}
+            onOpenSaved={() => setIsSavedModalOpen(true)}
             savedCount={savedItems.length}
             onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
             onOpenSuggestSpot={() => setIsSuggestSpotModalOpen(true)}
@@ -2438,7 +2462,7 @@ export default function App() {
               'Hotels & Luxury',
               'Vacation Escapes'
             ]}
-            spots={spots}
+            spots={allMergedSpots}
             events={allEvents}
             cinemaMovies={cinemaMovies}
             offers={offers}
@@ -2555,7 +2579,7 @@ export default function App() {
               onCreateFolder={handleCreateFolder}
               onDeleteFolder={handleDeleteFolder}
               onAssignItemFolder={handleAssignItemFolder}
-              spots={spots}
+              spots={allMergedSpots}
               events={allEvents}
               offers={offers}
               onToggleSave={handleToggleSave}
@@ -2610,6 +2634,9 @@ export default function App() {
               onApproveClaim={handleApproveClaim}
               onRejectClaim={handleRejectClaim}
               spotsCount={spots.length}
+              currentUserEmail={session?.user?.email || currentUserProfile?.email}
+              currentUserId={session?.user?.id || currentUserProfile?.id}
+              currentUserRole={userRole}
               onSpotPublished={(spot) => {
                 setSpots(prev => [spot, ...prev.filter(s => String(s.id) !== String(spot.id))]);
               }}

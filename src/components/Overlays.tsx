@@ -1443,74 +1443,38 @@ export const Overlays: React.FC<OverlaysProps> = ({
         </div>
       )}
 
-      {/* 4. PLAN A DATE MODAL (SPEC 5: Allow free browsing across ALL categories) */}
+      {/* 4. PLAN A DATE MODAL (View All Spots style explorer) */}
       {isPlanDateModalOpen && !datePlanningSpot && (
-        <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+        <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
+          <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-[#E0533C]" />
-                <h3 className="font-black text-sm uppercase tracking-wider">Plan a Date: Pick Any Venue</h3>
+                <Calendar className="w-5 h-5 text-[#E0533C]" />
+                <div>
+                  <h3 className="font-black text-sm uppercase tracking-wider text-slate-900 dark:text-slate-100">Plan a Date: Pick Any Venue</h3>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    Search and select any Nairobi spot or hangout to send as a date invite
+                  </p>
+                </div>
               </div>
-              <button onClick={onClosePlanDateModal} className="p-1">
+              <button 
+                onClick={onClosePlanDateModal} 
+                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="py-4 space-y-4 flex-1 text-xs">
-              <p className="text-slate-500 font-medium">
-                Browse freely across all Nairobi categories to pick the perfect date destination:
-              </p>
-
-              {/* Category Filter Pills for Plan a Date */}
-              <div className="flex gap-1.5 overflow-x-auto hide-scrollbar pb-1">
-                {[
-                  { id: 'all', label: 'All Venues' },
-                  { id: 'date_spots', label: 'Romantic Date Spots' },
-                  { id: 'restaurants', label: 'Restaurants' },
-                  { id: 'nightlife', label: 'Nightlife' },
-                  { id: 'cafes', label: 'Cafes & Bakeries' },
-                  { id: 'hotels', label: 'Hotels & Stays' },
-                  { id: 'vacation', label: 'Vacation Spots' }
-                ].map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => setPlanDateCategory(c.id)}
-                    className={`px-3 py-1.5 rounded-full font-bold shrink-0 transition text-xs ${
-                      planDateCategory === c.id
-                        ? 'bg-[#E0533C] text-white shadow-xs'
-                        : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
-                    }`}
-                  >
-                    {c.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Free Browsing Venue Grid */}
-              <div className="grid grid-cols-2 gap-3">
-                {spots
-                  .filter(s => planDateCategory === 'all' || s.category === planDateCategory)
-                  .map((spot) => (
-                    <div
-                      key={spot.id}
-                      onClick={() => onSelectSpotForDate(spot)}
-                      className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 shadow-sm cursor-pointer hover:border-[#E0533C] transition flex flex-col justify-between"
-                    >
-                      <div>
-                        <div
-                          className="h-28 rounded-xl mb-2 bg-cover bg-center"
-                          style={{ backgroundImage: `url('${spot.img}')` }}
-                        />
-                        <h4 className="font-black text-xs text-[#E0533C] truncate">{spot.title}</h4>
-                        <p className="text-[10px] text-slate-500">{spot.neighborhood} • {spot.price}</p>
-                      </div>
-                      <button className="w-full mt-2 py-1.5 bg-[#E0533C] text-white font-bold rounded-lg text-[10px]">
-                        Select for Date
-                      </button>
-                    </div>
-                  ))}
-              </div>
+            <div className="py-4 space-y-3 flex-1 text-xs">
+              <SpotsExplorer
+                categoryKey={planDateCategory || 'all'}
+                categoryTitle="Select Venue for Date"
+                spots={mergeSpots(spots, unclaimedFeed)}
+                savedItems={savedItems}
+                onToggleSave={onToggleSave}
+                onOpenSpot={(spot) => onSelectSpotForDate(spot)}
+                userCoords={origin}
+              />
             </div>
           </div>
         </div>

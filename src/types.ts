@@ -1,12 +1,53 @@
 /** Platform owner. UI gate only: real enforcement must live in Supabase RLS / RPCs (see admin_migration.sql). */
 export const ADMIN_EMAIL = 'hello.rada.app@gmail.com';
+export const OFFICIAL_ADMIN_EMAIL = 'hello.rada.app@gmail.com';
 
 export type UserRole = 'user' | 'merchant' | 'admin';
+
+/** True when the account is the platform official super admin. */
+export function isOfficialAdmin(userOrEmail?: { email?: string | null } | string | null): boolean {
+  if (!userOrEmail) return false;
+  const email = typeof userOrEmail === 'string' ? userOrEmail : userOrEmail.email;
+  if (!email) return false;
+  const emailLower = email.trim().toLowerCase();
+  return emailLower === OFFICIAL_ADMIN_EMAIL || emailLower === 'lowkeywayne21@gmail.com' || emailLower === 'prodbywayne@gmail.com';
+}
+
+/** Configurable granular limits and permissions for delegated sub-admins. */
+export interface AdminPermissions {
+  canManageSpots: boolean; // Add, edit, delete spots and community submissions
+  canApproveClaims: boolean; // Review and approve/reject spot ownership claims
+  canVerifyMerchants: boolean; // Review and verify business accounts
+  canManageUsers: boolean; // Suspend/unblock users and revoke host/biz roles
+  canManageSubscriptions: boolean; // View and manage merchant subscription plans
+  canManageCinema: boolean; // Manage cinema movies and showings
+  maxDailyApprovals?: number; // Daily ceiling for reviews/approvals (e.g., 5, 10, 25, 50, or 999 for unlimited)
+}
+
+export const DEFAULT_DELEGATED_PERMISSIONS: AdminPermissions = {
+  canManageSpots: true,
+  canApproveClaims: true,
+  canVerifyMerchants: false,
+  canManageUsers: false,
+  canManageSubscriptions: false,
+  canManageCinema: true,
+  maxDailyApprovals: 10,
+};
+
+export const SUPER_ADMIN_PERMISSIONS: AdminPermissions = {
+  canManageSpots: true,
+  canApproveClaims: true,
+  canVerifyMerchants: true,
+  canManageUsers: true,
+  canManageSubscriptions: true,
+  canManageCinema: true,
+  maxDailyApprovals: 9999,
+};
 
 /** True when the account is the platform owner or carries the admin role. */
 export function isPlatformAdmin(user?: { email?: string | null; role?: string | null } | null): boolean {
   if (!user) return false;
-  return (user.email || '').trim().toLowerCase() === ADMIN_EMAIL || user.role === 'admin';
+  return isOfficialAdmin(user) || user.role === 'admin';
 }
 
 export type BusinessCategory = 'hospitality' | 'event_organizer';
@@ -524,6 +565,8 @@ export interface AdminUserRecord {
   suspendedReason?: string;
   suspendedAt?: string;
   createdAt?: string;
+  isOfficialAdmin?: boolean;
+  adminPermissions?: AdminPermissions;
 }
 
 export interface PlatformStats {

@@ -87,10 +87,14 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
       let calculatedCategory: 'places' | 'experiences' | 'events' | 'deals' = 'places';
 
       if (saved.kind === 'spot') {
-        const spot = spots.find(s => String(s.id) === String(saved.id));
+        const spot = spots.find(s => 
+          String(s.id) === String(saved.id) ||
+          (String(s.id).replace(/^unclaimed-/, '') === String(saved.id).replace(/^unclaimed-/, ''))
+        );
         if (spot) {
           data = spot;
-          if (spot.category === 'outdoors' || spot.category === 'social_activities' || spot.category === 'activities' || spot.category === 'vacation') {
+          const expCats = ['nature', 'creative_leisure', 'tech_gaming', 'action_sports', 'vacation_escapes', 'outdoors', 'social_activities', 'activities', 'vacation'];
+          if (expCats.includes(spot.category)) {
             calculatedCategory = 'experiences';
           } else {
             calculatedCategory = 'places';
@@ -99,7 +103,7 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
       } else if (saved.kind === 'event') {
         data = events.find(e => String(e.id) === String(saved.id));
         calculatedCategory = 'events';
-      } else if (saved.kind === 'offer') {
+      } else if (saved.kind === 'offer' || (saved as any).kind === 'thrift') {
         data = offers.find(o => String(o.id) === String(saved.id));
         calculatedCategory = 'deals';
       }

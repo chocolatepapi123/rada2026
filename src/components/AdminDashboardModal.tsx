@@ -6,13 +6,15 @@ import {
 } from 'lucide-react';
 import type {
   BusinessAccount, SpotCategory, SpotItem, AdminUserRecord, PlatformStats,
-  SubscriptionStatus, UnclaimedSpotInput, SpotClaimRequest
+  SubscriptionStatus, UnclaimedSpotInput, SpotClaimRequest, AdminPermissions
 } from '../types';
+import { isOfficialAdmin, DEFAULT_DELEGATED_PERMISSIONS, SUPER_ADMIN_PERMISSIONS } from '../types';
 import { fetchBusinesses,
   fetchPlatformStats, fetchAdminUsers, setUserSuspension, revokeCreatorStatus,
   revokeBusinessStatus, deleteAccountAdmin, publishUnclaimedSpot,
   fetchUnclaimedSpots, deleteListing, reviewBusiness, fetchSpotClaims, reviewSpotClaim,
   fetchPendingUserSpots, approveCommunitySpot, rejectCommunitySpot,
+  setUserAdminRole
 } from '../lib/cloudSync';
 import { CinemaAdminPanel } from './CinemaAdminPanel.tsx';
 import { AdminSubscriptionsPanel } from './AdminSubscriptionsPanel';
@@ -40,6 +42,9 @@ export interface AdminDashboardProps {
   spotClaims?: SpotClaimRequest[];
   onApproveClaim?: (claim: SpotClaimRequest) => void;
   onRejectClaim?: (claimId: string, reason?: string) => void;
+  currentUserEmail?: string;
+  currentUserId?: string;
+  currentUserRole?: string;
 }
 
 const SPOT_CATEGORIES: { id: SpotCategory; label: string }[] = [
@@ -74,6 +79,7 @@ export function AdminDashboardModal({
   businesses: businessesProp, onClose, onRefresh, showToast, onUpdateBusiness,
   onSpotPublished, onSpotDeleted, spotsCount, eventsCount,
   spotClaims = [], onApproveClaim, onRejectClaim,
+  currentUserEmail, currentUserId, currentUserRole
 }: AdminDashboardProps) {
   const toast = useCallback((m: string, options?: ToastOptions) => showToast?.(m, options), [showToast]);
 
@@ -85,6 +91,18 @@ export function AdminDashboardModal({
   const [users, setUsers] = useState<AdminUserRecord[] | null>(null);
   const [usersError, setUsersError] = useState(false);
   const [unclaimed, setUnclaimed] = useState<any[]>([]);
+
+  // Current admin identity & permissions
+  const isOfficial = isOfficialAdmin(currentUserEmail);
+  const myUserRecord = users?.find(u => u.id === currentUserId || (currentUserEmail && u.email?.toLowerCase() === currentUserEmail.toLowerCase()));
+  const myPermissions: AdminPermissions = isOfficial
+    ? SUPER_ADMIN_PERMISSIONS
+    : (myUserRecord?.adminPermissions || DEFAULT_DELEGATED_PERMISSIONS);
+
+  // Admin permissions assignment modal state
+  const [adminModalUser, setAdminModalUser] = useState<AdminUserRecord | null>(null);
+  const [adminPermsForm, setAdminPermsForm] = useState<AdminPermissions>(DEFAULT_DELEGATED_PERMISSIONS);
+  const [savingAdminPerms, setSavingAdminPerms] = useState(false);
 
   // Businesses shown in admin = every real business in Supabase + any local real ones (demo seeds excluded).
   const [remoteBiz, setRemoteBiz] = useState<BusinessAccount[]>([]);
@@ -369,7 +387,7 @@ export function AdminDashboardModal({
   // USERS
   // =====================================================================
   const [userSearch, setUserSearch] = useState('');
-  const [userFilter, setUserFilter] = useState<'all' | 'merchants' | 'hosts' | 'suspended'>('all');
+  const [userFilter, setUserFilter] = useState<'all' | 'admins' | 'merchants' | 'hosts' | 'suspended'>('all');
   const [action, setAction] = useState<null | { kind: 'suspend' | 'unsuspend' | 'revokeHost' | 'revokeBiz' | 'delete'; user: AdminUserRecord }>(null);
   const [actionText, setActionText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -377,6 +395,7 @@ export function AdminDashboardModal({
   const filteredUsers = useMemo(() => {
     const q = userSearch.trim().toLowerCase();
     return (users || []).filter(u => {
+      if (userFilter === 'admins' && u.role !== 'admin') return false;
       if (userFilter === 'merchants' && !u.isMerchant) return false;
       if (userFilter === 'hosts' && !u.isCreator) return false;
       if (userFilter === 'suspended' && !u.isSuspended) return false;
@@ -471,16 +490,62 @@ export function AdminDashboardModal({
     });
   }, [liveClaims, claimStatusFilter, claimSearch]);
 
-  const tabs: { id: TabId; label: string; icon: React.ReactNode; badge?: number }[] = [
-    { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="w-4 h-4" /> },
-    { id: 'pending_spots', label: 'Pending Spots', icon: <MapPin className="w-4 h-4" />, badge: pendingSpots.length },
-    { id: 'claims', label: 'Spot Claims', icon: <ShieldCheck className="w-4 h-4" />, badge: pendingClaimsCount },
-    { id: 'verification', label: 'Businesses', icon: <BadgeCheck className="w-4 h-4" />, badge: counts.pending },
-    { id: 'spots', label: 'Add Community Spot', icon: <MapPinPlus className="w-4 h-4" /> },
-    { id: 'cinema', label: 'Cinema', icon: <Film className="w-4 h-4" /> },
-    { id: 'users', label: 'Users', icon: <Users className="w-4 h-4" /> },
-    { id: 'subscriptions', label: 'Subscriptions', icon: <CircleDollarSign className="w-4 h-4" /> },
+  const openAdminPermsModal = (u: AdminUserRecord) => {
+    setAdminModalUser(u);
+    setAdminPermsForm(u.adminPermissions || { ...DEFAULT_DELEGATED_PERMISSIONS });
+  };
+
+  const handleSaveAdminPerms = async () => {
+    if (!adminModalUser) return;
+    setSavingAdminPerms(true);
+    const err = await setUserAdminRole(adminModalUser.id, 'admin', adminPermsForm);
+    setSavingAdminPerms(false);
+    if (err) {
+      toast(err, { type: 'error' });
+      return;
+    }
+    toast(`${adminModalUser.name || adminModalUser.username || 'User'} is now an Admin with custom limits. 🛡️`, { type: 'success' });
+    setUsers(prev => prev ? prev.map(u => u.id === adminModalUser.id ? { ...u, role: 'admin', adminPermissions: adminPermsForm } : u) : null);
+    setAdminModalUser(null);
+    onRefresh?.();
+  };
+
+  const handleDemoteAdmin = async (user: AdminUserRecord) => {
+    if (isOfficialAdmin(user.email)) {
+      toast('The official super admin account cannot be demoted.', { type: 'error' });
+      return;
+    }
+    if (!window.confirm(`Revoke admin privileges for ${user.name || user.email}?`)) return;
+    setSavingAdminPerms(true);
+    const err = await setUserAdminRole(user.id, 'user');
+    setSavingAdminPerms(false);
+    if (err) {
+      toast(err, { type: 'error' });
+      return;
+    }
+    toast(`${user.name || user.username || 'User'} demoted to standard user.`, { type: 'info' });
+    setUsers(prev => prev ? prev.map(u => u.id === user.id ? { ...u, role: 'user', adminPermissions: undefined } : u) : null);
+    setAdminModalUser(null);
+    onRefresh?.();
+  };
+
+  const allTabs: { id: TabId; label: string; icon: React.ReactNode; badge?: number; enabled: boolean }[] = [
+    { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="w-4 h-4" />, enabled: true },
+    { id: 'pending_spots', label: 'Pending Spots', icon: <MapPin className="w-4 h-4" />, badge: pendingSpots.length, enabled: myPermissions.canManageSpots },
+    { id: 'claims', label: 'Spot Claims', icon: <ShieldCheck className="w-4 h-4" />, badge: pendingClaimsCount, enabled: myPermissions.canApproveClaims },
+    { id: 'verification', label: 'Businesses', icon: <BadgeCheck className="w-4 h-4" />, badge: counts.pending, enabled: myPermissions.canVerifyMerchants },
+    { id: 'spots', label: 'Add Community Spot', icon: <MapPinPlus className="w-4 h-4" />, enabled: myPermissions.canManageSpots },
+    { id: 'cinema', label: 'Cinema', icon: <Film className="w-4 h-4" />, enabled: myPermissions.canManageCinema },
+    { id: 'users', label: 'Users & Admins', icon: <Users className="w-4 h-4" />, enabled: isOfficial || myPermissions.canManageUsers },
+    { id: 'subscriptions', label: 'Subscriptions', icon: <CircleDollarSign className="w-4 h-4" />, enabled: isOfficial || myPermissions.canManageSubscriptions },
   ];
+  const tabs = allTabs.filter(t => t.enabled);
+
+  useEffect(() => {
+    if (tabs.length > 0 && !tabs.some(t => t.id === tab)) {
+      setTab('overview');
+    }
+  }, [tabs, tab]);
 
   const StatCard = ({ label, value, icon }: { label: string; value: React.ReactNode; icon: React.ReactNode }) => (
     <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
@@ -498,11 +563,22 @@ export function AdminDashboardModal({
           {/* HEADER */}
           <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-600 to-fuchsia-500 text-white flex items-center justify-center shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-600 to-fuchsia-500 text-white flex items-center justify-center shrink-0 shadow-sm">
                 <Crown className="w-5 h-5" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-bold text-purple-600">RADA Admin</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-bold text-purple-600">RADA Admin</p>
+                  {isOfficial ? (
+                    <span className="text-[10px] bg-gradient-to-r from-amber-500 to-purple-600 text-white font-extrabold px-1.5 py-0.5 rounded shadow-xs">
+                      👑 Official Super Admin
+                    </span>
+                  ) : (
+                    <span className="text-[10px] bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-300 font-extrabold px-1.5 py-0.5 rounded border border-purple-300 dark:border-purple-800">
+                      🛡️ Delegated Admin
+                    </span>
+                  )}
+                </div>
                 <h1 className="text-lg font-black leading-tight truncate">👑 Admin Control Hub</h1>
               </div>
             </div>
@@ -1226,7 +1302,7 @@ export function AdminDashboardModal({
               <div className="p-4 space-y-3">
                 <SearchBox value={userSearch} onChange={setUserSearch} placeholder="Search name, @username, email or ID..." />
                 <div className="flex gap-2 overflow-x-auto">
-                  {([['all', 'All'], ['merchants', 'Merchants'], ['hosts', 'Pro hosts'], ['suspended', 'Suspended']] as const).map(([id, label]) => (
+                  {([['all', 'All'], ['admins', '👑 Admins'], ['merchants', 'Merchants'], ['hosts', 'Pro hosts'], ['suspended', 'Suspended']] as const).map(([id, label]) => (
                     <button
                       key={id}
                       onClick={() => setUserFilter(id)}
@@ -1246,9 +1322,11 @@ export function AdminDashboardModal({
                 {users && filteredUsers.length === 0 && <p className="text-sm text-slate-500 py-8 text-center">No accounts match.</p>}
 
                 {filteredUsers.map(u => {
-                  const locked = u.role === 'admin';
+                  const isSuper = isOfficialAdmin(u.email);
+                  const isAdmin = u.role === 'admin';
+
                   return (
-                    <div key={u.id} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 space-y-2.5">
+                    <div key={u.id} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 space-y-2.5 bg-white dark:bg-slate-900/40">
                       <div className="flex items-center gap-3">
                         <Avatar user={u} />
                         <div className="min-w-0 flex-1">
@@ -1258,31 +1336,93 @@ export function AdminDashboardModal({
                           </p>
                         </div>
                         <div className="flex flex-wrap gap-1 justify-end">
-                          {u.role === 'admin' && <Pill tone="purple">Admin</Pill>}
+                          {isSuper ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-amber-500 to-purple-600 text-white shadow-2xs flex items-center gap-1">
+                              👑 Official Super Admin
+                            </span>
+                          ) : isAdmin ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-300 dark:border-purple-800 flex items-center gap-1">
+                              🛡️ Delegated Admin
+                            </span>
+                          ) : null}
                           {u.isMerchant && <Pill tone="amber">Merchant</Pill>}
                           {u.isCreator && <Pill tone="blue">Pro host</Pill>}
                           {u.isSuspended && <Pill tone="red">Suspended</Pill>}
                         </div>
                       </div>
+
+                      {/* Delegated Admin Operational Limits Badge */}
+                      {isAdmin && !isSuper && (
+                        <div className="bg-slate-50 dark:bg-slate-900/90 rounded-lg p-2.5 text-[11px] text-slate-600 dark:text-slate-400 border border-slate-200/70 dark:border-slate-800 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                              <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
+                              <span>Configured Permissions</span>
+                            </span>
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300">
+                              Limit: {u.adminPermissions?.maxDailyApprovals ? `${u.adminPermissions.maxDailyApprovals}/day` : 'Unlimited'}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px]">
+                            <span>Spots: {u.adminPermissions?.canManageSpots !== false ? '✅' : '❌'}</span>
+                            <span>Claims: {u.adminPermissions?.canApproveClaims !== false ? '✅' : '❌'}</span>
+                            <span>Merchants: {u.adminPermissions?.canVerifyMerchants ? '✅' : '❌'}</span>
+                            <span>Cinema: {u.adminPermissions?.canManageCinema !== false ? '✅' : '❌'}</span>
+                            <span>Users: {u.adminPermissions?.canManageUsers ? '✅' : '❌'}</span>
+                            <span>Subscriptions: {u.adminPermissions?.canManageSubscriptions ? '✅' : '❌'}</span>
+                          </div>
+                        </div>
+                      )}
+
                       {u.isSuspended && u.suspendedReason && (
                         <p className="text-xs text-red-600 dark:text-red-400">Reason: {u.suspendedReason}</p>
                       )}
-                      {!locked && (
-                        <div className="flex flex-wrap gap-2">
-                          <ActionBtn
-                            onClick={() => setAction({ kind: u.isSuspended ? 'unsuspend' : 'suspend', user: u })}
-                            icon={<Ban className="w-3.5 h-3.5" />}
-                            label={u.isSuspended ? 'Unblock' : 'Suspend / Block'}
-                          />
-                          {u.isCreator && (
-                            <ActionBtn onClick={() => setAction({ kind: 'revokeHost', user: u })} icon={<UserX className="w-3.5 h-3.5" />} label="Revoke creator" />
-                          )}
-                          {u.isMerchant && (
-                            <ActionBtn onClick={() => setAction({ kind: 'revokeBiz', user: u })} icon={<Store className="w-3.5 h-3.5" />} label="Revoke business" />
-                          )}
-                          <ActionBtn danger onClick={() => setAction({ kind: 'delete', user: u })} icon={<Trash2 className="w-3.5 h-3.5" />} label="Delete account" />
-                        </div>
-                      )}
+
+                      <div className="flex flex-wrap gap-2 pt-0.5">
+                        {isSuper ? (
+                          <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 py-1">
+                            ⭐️ Protected Account (Platform Owner)
+                          </span>
+                        ) : (
+                          <>
+                            {/* Make / Configure Admin Button (Official Admin Only) */}
+                            {isOfficial && (
+                              <ActionBtn
+                                onClick={() => openAdminPermsModal(u)}
+                                icon={<Crown className="w-3.5 h-3.5 text-purple-600" />}
+                                label={isAdmin ? 'Configure Limits ⚙️' : 'Make Admin 🛡️'}
+                              />
+                            )}
+
+                            {isAdmin && isOfficial && (
+                              <ActionBtn
+                                danger
+                                onClick={() => handleDemoteAdmin(u)}
+                                icon={<UserX className="w-3.5 h-3.5" />}
+                                label="Demote to User"
+                              />
+                            )}
+
+                            {/* Actions available to Official Admin or Sub-Admins with canManageUsers */}
+                            {(isOfficial || myPermissions.canManageUsers) && (
+                              <>
+                                <ActionBtn
+                                  onClick={() => setAction({ kind: u.isSuspended ? 'unsuspend' : 'suspend', user: u })}
+                                  icon={<Ban className="w-3.5 h-3.5" />}
+                                  label={u.isSuspended ? 'Unblock' : 'Suspend / Block'}
+                                />
+                                {u.isCreator && (
+                                  <ActionBtn onClick={() => setAction({ kind: 'revokeHost', user: u })} icon={<UserX className="w-3.5 h-3.5" />} label="Revoke creator" />
+                                )}
+                                {u.isMerchant && (
+                                  <ActionBtn onClick={() => setAction({ kind: 'revokeBiz', user: u })} icon={<Store className="w-3.5 h-3.5" />} label="Revoke business" />
+                                )}
+                                <ActionBtn danger onClick={() => setAction({ kind: 'delete', user: u })} icon={<Trash2 className="w-3.5 h-3.5" />} label="Delete account" />
+                              </>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -1731,6 +1871,173 @@ export function AdminDashboardModal({
               alt="Community Spot Photo"
               className="max-h-[82vh] w-auto object-contain mx-auto"
             />
+          </div>
+        </div>
+      )}
+
+      {/* ADMIN PERMISSIONS & LIMITS CONFIGURATION MODAL */}
+      {adminModalUser && (
+        <div className="absolute inset-0 z-[125] flex items-center justify-center p-3 sm:p-5 bg-slate-950/70 backdrop-blur-xs">
+          <div className="w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-3xl bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col p-5 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-600 flex items-center justify-center font-black">
+                  <Crown className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base">Configure Admin Limits</h3>
+                  <p className="text-xs text-slate-500">
+                    {adminModalUser.name || adminModalUser.username || adminModalUser.email}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAdminModalUser(null)}
+                className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-900 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="text-xs text-slate-600 dark:text-slate-400 bg-purple-50/50 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/40 p-3 rounded-xl">
+              Official Admin (Super Admin) sets granular operational privileges and approval caps for this account.
+            </div>
+
+            <div className="space-y-2.5">
+              <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                Functional Access
+              </h4>
+
+              <label className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/60 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={adminPermsForm.canManageSpots}
+                  onChange={e => setAdminPermsForm(p => ({ ...p, canManageSpots: e.target.checked }))}
+                  className="mt-0.5 rounded text-purple-600 focus:ring-purple-500"
+                />
+                <div className="text-xs">
+                  <span className="font-bold block">Manage Spots & Community Submissions</span>
+                  <span className="text-slate-500">Can add spots and inspect/approve pending user hangout submissions.</span>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/60 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={adminPermsForm.canApproveClaims}
+                  onChange={e => setAdminPermsForm(p => ({ ...p, canApproveClaims: e.target.checked }))}
+                  className="mt-0.5 rounded text-purple-600 focus:ring-purple-500"
+                />
+                <div className="text-xs">
+                  <span className="font-bold block">Review Spot Ownership Claims</span>
+                  <span className="text-slate-500">Can inspect ownership permits and transfer venue ownership to businesses.</span>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/60 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={adminPermsForm.canVerifyMerchants}
+                  onChange={e => setAdminPermsForm(p => ({ ...p, canVerifyMerchants: e.target.checked }))}
+                  className="mt-0.5 rounded text-purple-600 focus:ring-purple-500"
+                />
+                <div className="text-xs">
+                  <span className="font-bold block">Verify Businesses & Merchants</span>
+                  <span className="text-slate-500">Can review and award verified business checkmarks to merchants.</span>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/60 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={adminPermsForm.canManageCinema}
+                  onChange={e => setAdminPermsForm(p => ({ ...p, canManageCinema: e.target.checked }))}
+                  className="mt-0.5 rounded text-purple-600 focus:ring-purple-500"
+                />
+                <div className="text-xs">
+                  <span className="font-bold block">Manage Cinema & Movie Showings</span>
+                  <span className="text-slate-500">Can update movie listings, screening times, and theater details.</span>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/60 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={adminPermsForm.canManageSubscriptions}
+                  onChange={e => setAdminPermsForm(p => ({ ...p, canManageSubscriptions: e.target.checked }))}
+                  className="mt-0.5 rounded text-purple-600 focus:ring-purple-500"
+                />
+                <div className="text-xs">
+                  <span className="font-bold block">Manage Subscriptions & Billing</span>
+                  <span className="text-slate-500">Can view revenue, adjust subscription tiers, and audit payments.</span>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/60 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={adminPermsForm.canManageUsers}
+                  onChange={e => setAdminPermsForm(p => ({ ...p, canManageUsers: e.target.checked }))}
+                  className="mt-0.5 rounded text-purple-600 focus:ring-purple-500"
+                />
+                <div className="text-xs">
+                  <span className="font-bold block">Manage Users (Suspend / Revoke)</span>
+                  <span className="text-slate-500">Can suspend bad actors and revoke creator/business roles.</span>
+                </div>
+              </label>
+            </div>
+
+            {/* Daily Approval Ceiling */}
+            <div className="space-y-1 pt-1">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                Daily Approval Limit
+              </label>
+              <select
+                value={adminPermsForm.maxDailyApprovals ?? 10}
+                onChange={e => setAdminPermsForm(p => ({ ...p, maxDailyApprovals: Number(e.target.value) }))}
+                className={inputCls}
+              >
+                <option value={5}>5 approvals / day (Strict Trial)</option>
+                <option value={10}>10 approvals / day (Standard Sub-Admin)</option>
+                <option value={25}>25 approvals / day (Trusted Lead)</option>
+                <option value={50}>50 approvals / day (High Volume)</option>
+                <option value={9999}>Unlimited Approvals</option>
+              </select>
+              <p className="text-[10px] text-slate-400">Limits daily claims and community approvals this admin can perform.</p>
+            </div>
+
+            {/* Action buttons */}
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-2.5">
+              <button
+                type="button"
+                onClick={handleSaveAdminPerms}
+                disabled={savingAdminPerms}
+                className="flex-1 py-3 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs transition shadow-md shadow-purple-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+              >
+                <Crown className="w-4 h-4" />
+                <span>{savingAdminPerms ? 'Saving…' : 'Save Admin Permissions'}</span>
+              </button>
+
+              {adminModalUser.role === 'admin' && (
+                <button
+                  type="button"
+                  onClick={() => handleDemoteAdmin(adminModalUser)}
+                  disabled={savingAdminPerms}
+                  className="py-3 px-4 rounded-xl border border-red-200 dark:border-red-900/60 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 font-bold text-xs transition cursor-pointer"
+                >
+                  Demote to User
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setAdminModalUser(null)}
+                className="py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-800 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-900 cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
