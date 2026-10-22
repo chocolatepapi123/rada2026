@@ -2,6 +2,7 @@ import { supabase, isSupabaseConfigured } from './supabase';
 import type { BusinessAccount, SavedItem, CollectionFolder, OutingPlan, OutingAttendee, ChatConversation, HostAnalytics, HostControls, UserProfile, AdminUserRecord, PlatformStats, SpotItem, SubscriptionStatus, UnclaimedSpotInput, SpotClaimRequest, CommunitySpotInput } from '../types';
 import { isPlatformAdmin } from '../types';
 import { STATUS_TTL_MS } from '../utils/statusLifecycle';
+import { loadUnclaimedSpots } from './spotsFeed';
 
 
 export type ListingKind = 'spot' | 'event' | 'offer';
@@ -2606,17 +2607,26 @@ export async function publishUnclaimedSpot(
 export async function fetchUnclaimedSpots(query = ''): Promise<any[] | null> {
   const listings = await fetchListings();
   const q = query.trim().toLowerCase();
-  if (!listings || !listings.spot) {
-    return [];
-  }
-  return listings.spot.filter((s: any) => {
+  const matches = (s: any) =>
+    !q || [s.title, s.neighborhood, s.address, s.category, s.subcategory, s.description]
+      .some(v => String(v || '').toLowerCase().includes(q));
+
+  const listingSpots: any[] = listings?.spot || [];
+  const fromListings = listingSpots.filter((s: any) => {
     // Unclaimed = explicitly marked false or user-uploaded with no business
     const isUnclaimed = s.is_claimed === false || (s.isUserUploaded && !s.businessId);
-    if (!isUnclaimed) return false;
-    if (!q) return true;
-    return [s.title, s.neighborhood, s.address, s.category, s.description]
-      .some(v => String(v || '').toLowerCase().includes(q));
+    return isUnclaimed && matches(s);
   });
+
+  // Real imported places from the Supabase `unclaimedspots` table (skip ones already claimed via a listing row)
+  const knownIds = new Set(listingSpots.map((s: any) => String(s.id)));
+  let imported: any[] = [];
+  try {
+    imported = (await loadUnclaimedSpots()).filter(s => !knownIds.has(String(s.id)) && matches(s));
+  } catch (e) {
+    console.warn('fetchUnclaimedSpots: unclaimedspots load failed', e);
+  }
+  return [...fromListings, ...imported];
 }
 
 /** A merchant claims an unclaimed spot for one of their businesses. */
@@ -2639,6 +2649,38 @@ export async function claimUnclaimedSpot(
     .eq('id', rowId)
     .maybeSingle();
   if (readErr) return readErr.message;
+
+  // Imported places live in `unclaimedspots`; on first claim, copy into rada_listings as a claimed spot.
+  if (!row?.data && typeof spotId === 'string' && spotId.startsWith('unclaimed-')) {
+    const rawId = spotId.slice('unclaimed-'.length);
+    const { data: src, error: srcErr } = await supabase.from('unclaimedspots').select('*').eq('id', rawId).maybeSingle();
+    if (srcErr) return srcErr.message;
+    if (!src) return 'spot not found';
+    const base = (await loadUnclaimedSpots()).find(s => String(s.id) === spotId);
+    if (!base) return 'spot not found';
+    const { reviews, reviewCount, rating, hasRealPhoto, ...spotData } = base as any;
+    const claimedNew = {
+      ...spotData,
+      isUnclaimedImport: false,
+      importedFrom: 'unclaimedspots',
+      is_claimed: true,
+      businessId,
+      merchantId: safeOwner,
+      claimedByBusinessId: businessId,
+      claimedAt: now,
+    };
+    const { error: insErr } = await supabase.from('rada_listings').upsert({
+      id: rowId,
+      kind: 'spot',
+      owner_id: safeOwner,
+      business_id: safeBiz,
+      data: claimedNew,
+      created_at: now,
+      updated_at: now,
+    }, { onConflict: 'id' });
+    return insErr ? insErr.message : null;
+  }
+
   if (!row?.data) return 'spot not found';
   if (row.data.is_claimed !== false) return 'this spot has already been claimed';
 
