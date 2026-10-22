@@ -23,7 +23,7 @@ import {
 } from './utils/statusLifecycle';
 
 import { fetchCinemaShowings, CINEMA_UPDATED_EVENT } from './lib/cinema.ts';
-import { readJSON, writeJSON, purgeSeedData } from './lib/storage.ts';
+import { readJSON, writeJSON, writeJSONDebounced, purgeSeedData } from './lib/storage.ts';
 
 // One-time removal of the old demo content cached on this device
 purgeSeedData();
@@ -641,7 +641,7 @@ export default function App() {
   });
 
   useEffect(() => {
-    localStorage.setItem('rada_saved_items', JSON.stringify(savedItems));
+    writeJSONDebounced('rada_saved_items', savedItems);
   }, [savedItems]);
 
   // Saved Collection Folders State
@@ -661,7 +661,7 @@ export default function App() {
   });
 
   useEffect(() => {
-    localStorage.setItem('rada_saved_folders', JSON.stringify(savedFolders));
+    writeJSONDebounced('rada_saved_folders', savedFolders);
   }, [savedFolders]);
 
   const handleCreateFolder = (name: string, emoji?: string) => {
@@ -893,16 +893,16 @@ export default function App() {
 
   // Sync state to localStorage
   useEffect(() => {
-    localStorage.setItem('rada_businesses', JSON.stringify(businesses));
+    writeJSONDebounced('rada_businesses', businesses, { stripImages: true });
   }, [businesses]);
 
   useEffect(() => {
-    localStorage.setItem('rada_spots', JSON.stringify(spots));
+    writeJSONDebounced('rada_spots', spots, { stripImages: true });
   }, [spots]);
 
   useEffect(() => {
     // only merchant-created events are cached; live ticketing events always come from Supabase
-    localStorage.setItem('rada_events_v2', JSON.stringify(events.filter(e => !e.source)));
+    writeJSONDebounced('rada_events_v2', events.filter(e => !e.source), { stripImages: true });
   }, [events]);
 
   // The old Luku/thrift cache is no longer used
@@ -911,7 +911,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    writeJSON('rada_statuses', statuses);
+    writeJSONDebounced('rada_statuses', statuses);
   }, [statuses]);
 
   // Status lifecycle: every minute, and when the app comes back to the foreground,
@@ -930,20 +930,20 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    writeJSON('rada_tickets', tickets);
+    writeJSONDebounced('rada_tickets', tickets);
   }, [tickets]);
 
   // Chats and emergency contacts were never saved, so they vanished on every restart
   useEffect(() => {
-    writeJSON('rada_conversations', conversations);
+    writeJSONDebounced('rada_conversations', conversations);
   }, [conversations]);
 
   useEffect(() => {
-    writeJSON('rada_contacts', emergencyContacts);
+    writeJSONDebounced('rada_contacts', emergencyContacts);
   }, [emergencyContacts]);
 
   useEffect(() => {
-    localStorage.setItem('rada_going_events', JSON.stringify(goingEventIds));
+    writeJSONDebounced('rada_going_events', goingEventIds);
   }, [goingEventIds]);
 
   useEffect(() => {
@@ -953,11 +953,11 @@ export default function App() {
   }, [currentUserProfile, session, isGuestMode]);
 
   useEffect(() => {
-    localStorage.setItem('rada_offers', JSON.stringify(offers));
+    writeJSONDebounced('rada_offers', offers, { stripImages: true });
   }, [offers]);
 
   useEffect(() => {
-    localStorage.setItem('rada_spot_claims', JSON.stringify(spotClaims));
+    writeJSONDebounced('rada_spot_claims', spotClaims);
   }, [spotClaims]);
 
   // Lock body scroll and handle Escape key for Business Hub modal
