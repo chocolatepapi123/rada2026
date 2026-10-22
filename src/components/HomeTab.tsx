@@ -1,3 +1,4 @@
+import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending } from '../lib/spotsFeed.ts';
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
@@ -123,7 +124,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   // Explicit refresh only (Refresh Feed button). No pull-down gesture.
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Live Supabase Spots & Reviews Integration for Home Tab
+  // Real spots from Supabase (unclaimedspots + merchant-created) for the Home feed
+  const { spots: unclaimedFeed } = useUnclaimedSpots();
   const [dbSpots, setDbSpots] = useState<any[]>([]);
   const [liveReviews, setLiveReviews] = useState<Record<string, any[]>>({});
 
@@ -237,7 +239,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         img: d.img || (d.images && d.images[0]) || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
       }));
 
-    const allCombined = [...spots, ...extraDbSpots];
+    const allCombined = sortTrending(mergeSpots([...spots, ...extraDbSpots], unclaimedFeed));
 
     // Compute live review counts and ratings from actual Supabase reviews
     return allCombined.map(sp => {
@@ -266,61 +268,13 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         rating: calculatedRating
       };
     });
-  }, [spots, dbSpots, liveReviews]);
+  }, [spots, dbSpots, unclaimedFeed, liveReviews]);
 
-  // 1. Connect with Nature (Hiking, nature trails, waterfalls, mountains, and outdoor groups)
-  const natureSpots = useMemo(() => {
-    return displaySpots.filter(s => 
-      s.category === 'connect_with_nature' || 
-      s.category === 'outdoors' || 
-      s.category === 'nature' ||
-      (s.category === 'activities' && (s.title.toLowerCase().includes('forest') || s.title.toLowerCase().includes('arboretum') || s.title.toLowerCase().includes('trail') || s.title.toLowerCase().includes('nature') || s.title.toLowerCase().includes('biking') || s.title.toLowerCase().includes('hike') || s.title.toLowerCase().includes('waterfall') || s.title.toLowerCase().includes('mountain') || s.title.toLowerCase().includes('hills')))
-    );
-  }, [displaySpots]);
-
-  // 2. Creative & Leisure (Paint & sip, crafting, pottery, hands-on social craft experiences)
-  const creativeSpots = useMemo(() => {
-    return displaySpots.filter(s => 
-      s.category === 'creative_leisure' ||
-      s.category === 'creative_arts' ||
-      s.category === 'social_activities' ||
-      s.title.toLowerCase().includes('paint') ||
-      s.title.toLowerCase().includes('pottery') ||
-      s.title.toLowerCase().includes('craft') ||
-      s.title.toLowerCase().includes('clay') ||
-      s.description?.toLowerCase().includes('pottery') ||
-      s.description?.toLowerCase().includes('canvas') ||
-      s.description?.toLowerCase().includes('painting')
-    );
-  }, [displaySpots]);
-
-  // 3. Tech & Gaming (VR, arcades, gaming lounges, tech-driven entertainment)
-  const techGamingSpots = useMemo(() => {
-    return displaySpots.filter(s => 
-      s.category === 'tech_gaming' ||
-      s.title.toLowerCase().includes('vr') ||
-      s.title.toLowerCase().includes('gaming') ||
-      s.title.toLowerCase().includes('arcade') ||
-      s.title.toLowerCase().includes('simulator') ||
-      s.description?.toLowerCase().includes('virtual reality') ||
-      s.description?.toLowerCase().includes('gaming')
-    );
-  }, [displaySpots]);
-
-  // 4. Action & Sports (Go-karting, bowling, paintball, tactical games, high-energy competition)
-  const actionSportsSpots = useMemo(() => {
-    return displaySpots.filter(s => 
-      s.category === 'action_sports' ||
-      s.category === 'outdoor_fitness' ||
-      s.title.toLowerCase().includes('kart') ||
-      s.title.toLowerCase().includes('paintball') ||
-      s.title.toLowerCase().includes('bowling') ||
-      s.title.toLowerCase().includes('archery') ||
-      s.title.toLowerCase().includes('tactical') ||
-      s.description?.toLowerCase().includes('paintball') ||
-      s.description?.toLowerCase().includes('racing')
-    );
-  }, [displaySpots]);
+  // Category rows: strictly the 10 RADA categories (no keyword guessing)
+  const natureSpots = useMemo(() => displaySpots.filter(s => spotInCategory(s, 'nature')), [displaySpots]);
+  const creativeSpots = useMemo(() => displaySpots.filter(s => spotInCategory(s, 'creative_leisure')), [displaySpots]);
+  const techGamingSpots = useMemo(() => displaySpots.filter(s => spotInCategory(s, 'tech_gaming')), [displaySpots]);
+  const actionSportsSpots = useMemo(() => displaySpots.filter(s => spotInCategory(s, 'action_sports')), [displaySpots]);
 
   const handleVisitSpot = (offer: BusinessOffer) => {
     // 1. Check if there is a corresponding spot in displaySpots
@@ -625,20 +579,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-[#E0533C]' : ''}`} />
           </button>
-
-          {/* Suggest a Spot Button for Regular Users */}
-          {onOpenSuggestSpot && (
-            <button
-              type="button"
-              onClick={onOpenSuggestSpot}
-              className="px-3.5 py-3 bg-[#E0533C] hover:bg-orange-700 active:scale-95 text-white rounded-2xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer shrink-0"
-              title="Suggest a new hangout spot or venue"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Suggest a Spot</span>
-              <span className="sm:hidden">Suggest</span>
-            </button>
-          )}
         </div>
 
         {/* Active Filter Indicators */}
@@ -1336,9 +1276,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
                   Trending Nairobi Spots
                 </h2>
-                <span className="text-[9px] bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 font-extrabold px-1.5 py-0.5 rounded-full">
-                  Live Supabase
-                </span>
               </div>
             </div>
             <button
@@ -1350,7 +1287,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           </div>
 
           <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-            {displaySpots.slice(0, 10).map((spot) => {
+            {displaySpots.slice(0, 20).map((spot) => {
               const saved = isSaved(spot.id, 'spot');
               const reviewCount = spot.reviews?.length ?? (spot.reviewCount || 0);
               const hasReviews = reviewCount > 0;
@@ -1449,7 +1386,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               </h2>
             </div>
             <button
-              onClick={() => onOpenDedicatedViewAll('Nature Trails & Outdoors', 'connect_with_nature')}
+              onClick={() => onOpenDedicatedViewAll('Nature Trails & Outdoors', 'nature')}
               className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
             >
               View All ({natureSpots.length})

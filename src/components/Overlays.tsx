@@ -1,4 +1,5 @@
 
+import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending } from '../lib/spotsFeed.ts';
 import React, { useState, useEffect } from 'react';
 import { 
   X, 
@@ -286,6 +287,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
   const [planDateSearch, setPlanDateSearch] = useState('');
   const [eventsCategoryFilter, setEventsCategoryFilter] = useState<'all' | 'nightlife' | 'music' | 'tech' | 'art' | 'sports'>('all');
   const [localCategoryOverride, setLocalCategoryOverride] = useState<string | null>(null);
+  const { spots: unclaimedFeed } = useUnclaimedSpots();
 
   useEffect(() => {
     setLocalCategoryOverride(null);
@@ -2490,66 +2492,9 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 /* STRICTLY DISPLAY MATCHING SPOTS */
                 (() => {
                   const effectiveCat = (localCategoryOverride || viewAllCategory || '').toLowerCase().trim();
-                  const matchedSpots = spots.filter(s => {
-                    if (!effectiveCat || effectiveCat === 'spots' || effectiveCat === 'all' || effectiveCat === 'trending') return true;
-
-                    const cat = (s.category || '').toLowerCase().trim();
-                    const title = (s.title || '').toLowerCase();
-                    const desc = (s.description || '').toLowerCase();
-                    const vibes = Array.isArray(s.vibes) ? s.vibes.map((v: string) => v.toLowerCase()) : [];
-
-                    // 1. Restaurants & Dining
-                    if (effectiveCat === 'restaurants_dining' || effectiveCat === 'restaurants' || effectiveCat === 'dining') {
-                      return cat === 'restaurants' || cat === 'restaurants_dining' || cat === 'dining' || cat === 'cafes' || title.includes('restaurant') || title.includes('grill') || title.includes('bistro') || title.includes('burger') || title.includes('tandoori');
-                    }
-
-                    // 2. Clubs & Lounges
-                    if (effectiveCat === 'clubs_lounges' || effectiveCat === 'nightlife' || effectiveCat === 'clubs' || effectiveCat === 'lounges') {
-                      return cat === 'nightlife' || cat === 'clubs_lounges' || cat === 'clubs' || cat === 'lounges' || cat === 'bars' || title.includes('lounge') || title.includes('club') || title.includes('nightspot') || title.includes('bar');
-                    }
-
-                    // 3. Cafes & Bakeries
-                    if (effectiveCat === 'cafes_bakeries' || effectiveCat === 'cafes' || effectiveCat === 'bakeries') {
-                      return cat === 'cafes' || cat === 'cafes_bakeries' || cat === 'bakeries' || title.includes('cafe') || title.includes('coffee') || title.includes('bakery');
-                    }
-
-                    // 4. Hotels & Luxury stays
-                    if (effectiveCat === 'hotels_luxury' || effectiveCat === 'hotels' || effectiveCat === 'luxury') {
-                      return cat === 'hotels' || cat === 'hotels_luxury' || cat === 'luxury' || cat === 'stays' || title.includes('hotel') || title.includes('resort');
-                    }
-
-                    // 5. Vacation spots & escapes
-                    if (effectiveCat === 'vacation_escapes' || effectiveCat === 'vacation' || effectiveCat === 'escapes') {
-                      return cat === 'vacation' || cat === 'vacation_escapes' || cat === 'escapes' || cat === 'resort' || title.includes('resort') || title.includes('club & gardens') || title.includes('retreat');
-                    }
-
-                    // 6. Date spots
-                    if (effectiveCat === 'date_spots' || effectiveCat === 'date') {
-                      return cat === 'date_spots' || vibes.some((v: string) => v.includes('romantic') || v.includes('date') || v.includes('cocktails')) || title.includes('talisman') || title.includes('garden') || cat === 'restaurants';
-                    }
-
-                    // 7. Nature Trails & Outdoors
-                    if (effectiveCat === 'connect_with_nature' || effectiveCat === 'nature' || effectiveCat === 'outdoors') {
-                      return cat === 'connect_with_nature' || cat === 'nature' || cat === 'outdoors' || (cat === 'activities' && (title.includes('forest') || title.includes('arboretum') || title.includes('trail') || title.includes('nature') || title.includes('biking') || title.includes('hike') || title.includes('waterfall') || title.includes('mountain') || title.includes('hills')));
-                    }
-
-                    // 8. Creative & Leisure
-                    if (effectiveCat === 'creative_leisure' || effectiveCat === 'creative_arts' || effectiveCat === 'social_activities' || effectiveCat === 'creative') {
-                      return cat === 'creative_leisure' || cat === 'creative_arts' || cat === 'social_activities' || title.includes('paint') || title.includes('pottery') || title.includes('craft') || title.includes('clay') || desc.includes('pottery') || desc.includes('canvas') || desc.includes('painting');
-                    }
-
-                    // 9. Tech & Gaming
-                    if (effectiveCat === 'tech_gaming' || effectiveCat === 'tech' || effectiveCat === 'gaming') {
-                      return cat === 'tech_gaming' || cat === 'gaming' || title.includes('vr') || title.includes('gaming') || title.includes('arcade') || title.includes('simulator') || desc.includes('virtual reality') || desc.includes('gaming');
-                    }
-
-                    // 10. Action & Sports
-                    if (effectiveCat === 'action_sports' || effectiveCat === 'action' || effectiveCat === 'sports' || effectiveCat === 'outdoor_fitness') {
-                      return cat === 'action_sports' || cat === 'outdoor_fitness' || cat === 'sports' || title.includes('kart') || title.includes('paintball') || title.includes('bowling') || title.includes('archery') || title.includes('tactical') || desc.includes('paintball') || desc.includes('racing');
-                    }
-
-                    return cat === effectiveCat || cat.includes(effectiveCat) || effectiveCat.includes(cat) || title.includes(effectiveCat);
-                  });
+                  const matchedSpots = sortTrending(
+                    mergeSpots(spots, unclaimedFeed).filter(s => spotInCategory(s, effectiveCat))
+                  );
 
                   if (matchedSpots.length === 0) {
                     return (
@@ -2579,9 +2524,9 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
                   return (
                     <div className="grid grid-cols-2 gap-3">
-                      {matchedSpots.map((s, idx) => (
+                      {matchedSpots.map((s) => (
                         <div
-                          key={idx}
+                          key={String(s.id)}
                           onClick={() => {
                             onCloseViewAll();
                             onOpenSpotDetails(s);
@@ -2593,7 +2538,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                             style={{ backgroundImage: `url('${s.img}')` }}
                           />
                           <h4 className="font-bold text-xs truncate text-[#E0533C]">{s.title}</h4>
-                          <p className="text-[10px] text-slate-500">{s.neighborhood} • ★{s.rating}</p>
+                          <p className="text-[10px] text-slate-500">{s.neighborhood} • {s.rating && s.rating !== 'New' ? `★${s.rating}` : 'New'}</p>
                           <button className="w-full py-1.5 bg-[#E0533C] text-white rounded-lg text-[11px] font-bold">
                             View Details
                           </button>

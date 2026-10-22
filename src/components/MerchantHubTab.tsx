@@ -4996,7 +4996,7 @@ isSpotFormOpen && (
                   </p>
                 </div>
               ) : (
-                claimableCommunitySpots.map(spot => {
+                claimableCommunitySpots.slice(0, 60).map(spot => {
                   const pendingClaim = (spotClaims || []).find(
                     c => String(c.spotId) === String(spot.id) && c.status === 'pending'
                   );

@@ -34,44 +34,7 @@ import { LocationCombobox } from './LocationCombobox.tsx';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 import type { ToastOptions } from './Toast.tsx';
 import { toBudget } from '../lib/budget.ts';
-
-/** Maps a Google-style category label from the `unclaimedspots` table to a RADA SpotCategory. */
-function mapUnclaimedCategory(raw?: string | null, name?: string | null): string {
-  const c = (raw || '').toLowerCase();
-  const n = (name || '').toLowerCase();
-  if (/night ?club|lounge|^bar|\bbar\b|pub|liquor|sports bar|casino/.test(c) || /lounge|liquor|club/.test(n)) return 'clubs_lounges';
-  if (/cafe|café|coffee|bakery|dessert|ice cream/.test(c)) return 'cafes_bakeries';
-  if (/hotel|lodging|guest house|resort|accommodation|apartment|villa|hostel|inn\b|motel|extended stay/.test(c)) return 'hotels_luxury';
-  if (/restaurant|food|grill|diner|eatery|pizza|fast food/.test(c)) return 'restaurants_dining';
-  if (/park|forest|garden|hiking|trail|wildlife|national|woods|nature|tourist|attraction|tour|travel agency|outdoor|cycling/.test(c)) return 'nature';
-  if (/game|gaming|arcade/.test(c)) return 'tech_gaming';
-  if (/sport|fitness|gym|kart|bowling/.test(c)) return 'action_sports';
-  return 'activities';
-}
-
-/** Converts a row from `unclaimedspots` into the SpotItem shape the feed expects. */
-function unclaimedRowToSpot(r: any) {
-  const gallery = Array.isArray(r.gallery) ? r.gallery.filter((g: any) => typeof g === 'string') : [];
-  const img = r.thumbnail || gallery[0] || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop';
-  return {
-    id: `unclaimed-${r.id}`,
-    title: r.name || 'Untitled Spot',
-    category: mapUnclaimedCategory(r.category, r.name),
-    subcategory: r.category || undefined,
-    neighborhood: 'Nairobi',
-    address: r.address || '',
-    lat: r.latitude ?? -1.2921,
-    lng: r.longitude ?? 36.8219,
-    price: 'Mid',
-    img,
-    images: gallery.length ? gallery : [img],
-    phone: r.phone || undefined,
-    is_claimed: false,
-    status: 'approved',
-    isUnclaimedImport: true,
-    reviews: [],
-  };
-}
+import { useUnclaimedSpots, spotInCategory, mergeSpots } from '../lib/spotsFeed.ts';
 
 interface SpotsTabProps {
   spots: SpotItem[];
@@ -220,7 +183,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   };
 
   const [dbSpots, setDbSpots] = useState<any[]>([]);
-  const [unclaimedSpots, setUnclaimedSpots] = useState<any[]>([]);
+  const { spots: unclaimedSpots } = useUnclaimedSpots();
   const [liveReviews, setLiveReviews] = useState<Record<string, any[]>>({});
 
 
@@ -228,21 +191,14 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     async function fetchLiveReviewsAndSpots() {
       try {
         if (!supabase) return;
-        const [spotsRes, reviewsRes, radaReviewsRes, unclaimedRes] = await Promise.all([
+        const [spotsRes, reviewsRes, radaReviewsRes] = await Promise.all([
           supabase.from('spots').select('*').order('created_at', { ascending: false }),
           supabase.from('reviews').select('*').order('created_at', { ascending: false }),
           supabase.from('rada_reviews').select('*').order('created_at', { ascending: false }),
-          supabase.from('unclaimedspots').select('*').order('created_at', { ascending: false }).limit(2000),
         ]);
 
         if (spotsRes.data && spotsRes.data.length > 0) {
           setDbSpots(spotsRes.data);
-        }
-
-        if (unclaimedRes.error) {
-          console.warn('unclaimedspots fetch error:', unclaimedRes.error.message);
-        } else if (unclaimedRes.data) {
-          setUnclaimedSpots(unclaimedRes.data);
         }
 
         const revMap: Record<string, any[]> = {};
@@ -401,12 +357,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         img: d.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
       }));
 
-    const seenIds = new Set<string>([...localIds, ...extraDbSpots.map(s => String(s.id))]);
-    const extraUnclaimed = unclaimedSpots
-      .map(unclaimedRowToSpot)
-      .filter(u => !seenIds.has(String(u.id)));
-
-    const allCombined = [...spots, ...extraDbSpots, ...extraUnclaimed];
+    const allCombined = mergeSpots([...spots, ...extraDbSpots], unclaimedSpots);
 
     // Compute live review counts and ratings from actual reviews only (no mock reviews or fake 4.8)
     return allCombined.map(sp => {
@@ -437,81 +388,11 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     });
   }, [spots, dbSpots, unclaimedSpots, liveReviews]);
 
-  const isNatureSpot = (s: SpotItem) =>
-    s.category === 'nature' ||
-    s.category === 'connect_with_nature' ||
-    s.category === 'outdoors' ||
-    (s.category === 'activities' && (s.title.toLowerCase().includes('forest') || s.title.toLowerCase().includes('arboretum') || s.title.toLowerCase().includes('trail') || s.title.toLowerCase().includes('nature') || s.title.toLowerCase().includes('biking') || s.title.toLowerCase().includes('hike') || s.title.toLowerCase().includes('waterfall') || s.title.toLowerCase().includes('mountain') || s.title.toLowerCase().includes('hills')));
-
-  const isCreativeSpot = (s: SpotItem): boolean =>
-    Boolean(
-      s.category === 'creative_leisure' ||
-      s.category === 'creative_arts' ||
-      s.category === 'social_activities' ||
-      s.title.toLowerCase().includes('paint') ||
-      s.title.toLowerCase().includes('pottery') ||
-      s.title.toLowerCase().includes('craft') ||
-      s.title.toLowerCase().includes('clay') ||
-      s.description?.toLowerCase().includes('pottery') ||
-      s.description?.toLowerCase().includes('canvas') ||
-      s.description?.toLowerCase().includes('painting')
-    );
-
-  const isTechGamingSpot = (s: SpotItem): boolean =>
-    Boolean(
-      s.category === 'tech_gaming' ||
-      s.title.toLowerCase().includes('vr') ||
-      s.title.toLowerCase().includes('gaming') ||
-      s.title.toLowerCase().includes('arcade') ||
-      s.title.toLowerCase().includes('simulator') ||
-      s.description?.toLowerCase().includes('virtual reality') ||
-      s.description?.toLowerCase().includes('gaming')
-    );
-
-  const isActionSportsSpot = (s: SpotItem): boolean =>
-    Boolean(
-      s.category === 'action_sports' ||
-      s.category === 'outdoor_fitness' ||
-      s.title.toLowerCase().includes('kart') ||
-      s.title.toLowerCase().includes('paintball') ||
-      s.title.toLowerCase().includes('bowling') ||
-      s.title.toLowerCase().includes('archery') ||
-      s.title.toLowerCase().includes('tactical') ||
-      s.description?.toLowerCase().includes('paintball') ||
-      s.description?.toLowerCase().includes('racing')
-    );
-
   // Real-time fuzzy natural query search
   // e.g. "Sushi in Westlands" parses "sushi" and "westlands"
   const filteredSpots = displaySpots.filter(s => {
-
-    // Category filter matching strictly against the 10 main categories
-    let matchesCategory = false;
-    if (selectedCategory === 'all') {
-      matchesCategory = true;
-    } else if (selectedCategory === 'restaurants_dining') {
-      matchesCategory = s.category === 'restaurants_dining' || s.category === 'restaurants';
-    } else if (selectedCategory === 'nature') {
-      matchesCategory = isNatureSpot(s);
-    } else if (selectedCategory === 'creative_leisure') {
-      matchesCategory = isCreativeSpot(s);
-    } else if (selectedCategory === 'tech_gaming') {
-      matchesCategory = isTechGamingSpot(s);
-    } else if (selectedCategory === 'action_sports') {
-      matchesCategory = isActionSportsSpot(s);
-    } else if (selectedCategory === 'date_spots') {
-      matchesCategory = s.category === 'date_spots';
-    } else if (selectedCategory === 'clubs_lounges') {
-      matchesCategory = s.category === 'clubs_lounges' || s.category === 'nightlife';
-    } else if (selectedCategory === 'cafes_bakeries') {
-      matchesCategory = s.category === 'cafes_bakeries' || s.category === 'cafes';
-    } else if (selectedCategory === 'hotels_luxury') {
-      matchesCategory = s.category === 'hotels_luxury' || s.category === 'hotels';
-    } else if (selectedCategory === 'vacation_escapes') {
-      matchesCategory = s.category === 'vacation_escapes' || s.category === 'vacation';
-    } else {
-      matchesCategory = s.category === selectedCategory;
-    }
+    // Category filter: strictly the spot's own category vs the 10 RADA categories
+    const matchesCategory = spotInCategory(s, selectedCategory);
 
     // Neighborhood filter
     const matchesNeigh = selectedNeighborhood === 'all' || 
@@ -569,16 +450,16 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     return allWordsMatch;
   });
 
-  const restaurants = filteredSpots.filter(s => s.category === 'restaurants' || s.category === 'restaurants_dining');
-  const natureSpots = filteredSpots.filter(isNatureSpot);
-  const creativeSpots = filteredSpots.filter(isCreativeSpot);
-  const techGamingSpots = filteredSpots.filter(isTechGamingSpot);
-  const actionSportsSpots = filteredSpots.filter(isActionSportsSpot);
-  const dateSpots = filteredSpots.filter(s => s.category === 'date_spots');
-  const clubsLounges = filteredSpots.filter(s => s.category === 'clubs_lounges' || s.category === 'nightlife');
-  const cafesBakeries = filteredSpots.filter(s => s.category === 'cafes_bakeries' || s.category === 'cafes');
-  const hotelsLuxury = filteredSpots.filter(s => s.category === 'hotels_luxury' || s.category === 'hotels');
-  const vacationEscapes = filteredSpots.filter(s => s.category === 'vacation_escapes' || s.category === 'vacation');
+  const restaurants = filteredSpots.filter(s => spotInCategory(s, 'restaurants_dining'));
+  const natureSpots = filteredSpots.filter(s => spotInCategory(s, 'nature'));
+  const creativeSpots = filteredSpots.filter(s => spotInCategory(s, 'creative_leisure'));
+  const techGamingSpots = filteredSpots.filter(s => spotInCategory(s, 'tech_gaming'));
+  const actionSportsSpots = filteredSpots.filter(s => spotInCategory(s, 'action_sports'));
+  const dateSpots = filteredSpots.filter(s => spotInCategory(s, 'date_spots'));
+  const clubsLounges = filteredSpots.filter(s => spotInCategory(s, 'clubs_lounges'));
+  const cafesBakeries = filteredSpots.filter(s => spotInCategory(s, 'cafes_bakeries'));
+  const hotelsLuxury = filteredSpots.filter(s => spotInCategory(s, 'hotels_luxury'));
+  const vacationEscapes = filteredSpots.filter(s => spotInCategory(s, 'vacation_escapes'));
 
 
   const isSaved = (id: number | string) => {
@@ -787,18 +668,6 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               Hangouts & Experiences
             </h2>
           </div>
-
-          {onOpenSuggestSpot && (
-            <button
-              type="button"
-              onClick={onOpenSuggestSpot}
-              className="px-3 py-1.5 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 active:scale-95 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
-              title="Suggest a new venue or hangout spot"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Suggest a Spot</span>
-            </button>
-          )}
         </div>
 
         {/* Smart Search Bar with Web Speech API & Waveform Animation */}

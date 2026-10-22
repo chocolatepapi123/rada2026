@@ -8,12 +8,13 @@ import type {
   BusinessAccount, SpotCategory, SpotItem, AdminUserRecord, PlatformStats,
   SubscriptionStatus, UnclaimedSpotInput, SpotClaimRequest
 } from '../types';
-import {
+import { fetchBusinesses,
   fetchPlatformStats, fetchAdminUsers, setUserSuspension, revokeCreatorStatus,
   revokeBusinessStatus, deleteAccountAdmin, setBusinessSubscription, publishUnclaimedSpot,
   fetchUnclaimedSpots, deleteListing, reviewBusiness, fetchSpotClaims, reviewSpotClaim,
   fetchPendingUserSpots, approveCommunitySpot, rejectCommunitySpot,
 } from '../lib/cloudSync';
+import { initialBusinesses } from '../data/initialData.ts';
 import type { ToastOptions } from './Toast.tsx';
 
 type VerificationStatus = 'pending' | 'approved' | 'rejected';
@@ -69,7 +70,7 @@ const emptyForm = {
 };
 
 export function AdminDashboardModal({
-  businesses, onClose, onRefresh, showToast, onUpdateBusiness,
+  businesses: businessesProp, onClose, onRefresh, showToast, onUpdateBusiness,
   onSpotPublished, onSpotDeleted, spotsCount, eventsCount,
   spotClaims = [], onApproveClaim, onRejectClaim,
 }: AdminDashboardProps) {
@@ -83,6 +84,18 @@ export function AdminDashboardModal({
   const [users, setUsers] = useState<AdminUserRecord[] | null>(null);
   const [usersError, setUsersError] = useState(false);
   const [unclaimed, setUnclaimed] = useState<any[]>([]);
+
+  // Businesses shown in admin = every real business in Supabase + any local real ones (demo seeds excluded).
+  const [remoteBiz, setRemoteBiz] = useState<BusinessAccount[]>([]);
+  const businesses = useMemo(() => {
+    const seedIds = new Set(initialBusinesses.map(b => b.id));
+    const map = new Map<string, BusinessAccount>();
+    for (const b of remoteBiz) map.set(b.id, b);
+    for (const b of businessesProp) if (!seedIds.has(b.id) && !map.has(b.id)) map.set(b.id, b);
+    // prefer the freshest app-state copy for edits made this session
+    for (const b of businessesProp) if (map.has(b.id) && !seedIds.has(b.id)) map.set(b.id, { ...map.get(b.id)!, ...b });
+    return Array.from(map.values());
+  }, [remoteBiz, businessesProp]);
   const [liveClaims, setLiveClaims] = useState<SpotClaimRequest[]>(spotClaims || []);
   const [claimStatusFilter, setClaimStatusFilter] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
   const [claimSearch, setClaimSearch] = useState('');
@@ -104,9 +117,11 @@ export function AdminDashboardModal({
   }, [spotClaims]);
 
   const loadAll = useCallback(async () => {
+    const rb = (await fetchBusinesses()) || [];
+    setRemoteBiz(rb);
     const [s, u, sp, cl, ps] = await Promise.all([
       fetchPlatformStats(),
-      fetchAdminUsers(businesses),
+      fetchAdminUsers(rb.length ? rb : businessesProp),
       fetchUnclaimedSpots(),
       fetchSpotClaims(),
       fetchPendingUserSpots(),
@@ -121,7 +136,7 @@ export function AdminDashboardModal({
     } else if (spotClaims && spotClaims.length > 0) {
       setLiveClaims(spotClaims);
     }
-  }, [businesses, spotClaims]);
+  }, [businessesProp, spotClaims]);
 
   useEffect(() => { void loadAll(); }, [loadAll]);
 

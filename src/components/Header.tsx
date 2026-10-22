@@ -276,23 +276,6 @@ export const Header: React.FC<HeaderProps> = ({
                   <span>Settings</span>
                 </button>
 
-                {/* Theme Mode Option (Moved exclusively to menu/settings) */}
-                <button
-                  onClick={() => {
-                    onToggleTheme();
-                    setMenuOpen(false);
-                  }}
-                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center justify-between text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    {isDarkMode ? <Moon className="w-4 h-4 text-amber-400" /> : <Sun className="w-4 h-4 text-amber-500" />}
-                    <span>Theme: {isDarkMode ? 'Dark Mode' : 'Light Mode'}</span>
-                  </div>
-                  <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
-                    Toggle
-                  </span>
-                </button>
-
                 {/* Account & Security */}
                 <button
                   onClick={() => {
@@ -309,32 +292,6 @@ export const Header: React.FC<HeaderProps> = ({
                   <span>Account & Security</span>
                 </button>
 
-                {/* Platform Support & Help Desk */}
-                <button
-                  type="button"
-                  onClick={() => handleMenuClick('sosOverlay')}
-                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-emerald-50/80 dark:hover:bg-emerald-950/20 flex items-center justify-between text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <HelpCircle className="w-4 h-4 text-emerald-500 shrink-0" />
-                    <div>
-                      <span className="font-bold">Support & Help Desk</span>
-                      <p className="text-[10px] text-slate-400 font-normal">Assistance, FAQ & platform safety</p>
-                    </div>
-                  </div>
-                  <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded">
-                    24/7
-                  </span>
-                </button>
-
-                {/* Emergency & SOS */}
-                <button
-                  onClick={() => handleMenuClick('sosOverlay')}
-                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-3 text-red-600 dark:text-red-400 transition"
-                >
-                  <ShieldAlert className="w-4 h-4 text-[#E0533C]" />
-                  <span>Emergency & SOS Hub</span>
-                </button>
                 {isGuestMode && onOpenAuth ? (
                   <button
                     onClick={() => {
