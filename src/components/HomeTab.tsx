@@ -44,10 +44,20 @@ import { EmojiPicker } from './EmojiPicker.tsx';
 import { 
   doesEventMatchDay, 
   getCleanDateHeader, 
-  getEventPriceDisplay, 
   getCategoryBadgeStyle, 
   isDateToday 
 } from '../utils/calendarUtils.ts';
+import {
+  eventMatchesCategory,
+  eventMatchesSearch,
+  getEventPriceLabel,
+  getSourceLabel,
+  isHappeningToday,
+  isUpcoming,
+  matchesDateFilter,
+  matchesPriceFilter,
+  compareByStart
+} from '../utils/eventUtils.ts';
 
 interface HomeTabProps {
   events: EventItem[];
@@ -393,84 +403,30 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     setReplyInputText('');
   };
 
-  // Filter events with real-time query, vibe, genre, price tier, and date
+  // Filter live events with real-time query, vibe, genre, price tier, date and category
+  const homeEventCategoryId = selectedEventCategory === 'art' ? 'arts' : selectedEventCategory;
   const filteredEvents = events.filter(e => {
+    if (!isUpcoming(e)) return false;
     const matchesVibe = selectedVibe === 'all' || e.category === selectedVibe;
-    const matchesGenre = selectedGenre === 'all' || (e.genre && e.genre.toLowerCase().includes(selectedGenre.toLowerCase()));
-
-    // Price tier filtering
-    let matchesPrice = true;
-    if (selectedEventPriceTier === 'free') {
-      matchesPrice = e.tiers.some(t => t.price.toLowerCase().includes('free') || t.price.includes('0'));
-    } else if (selectedEventPriceTier === 'under1k') {
-      matchesPrice = e.tiers.some(t => {
-        const num = parseInt(t.price.replace(/\D/g, ''), 10);
-        return num && num < 1000;
-      });
-    } else if (selectedEventPriceTier === '1k-3k') {
-      matchesPrice = e.tiers.some(t => {
-        const num = parseInt(t.price.replace(/\D/g, ''), 10);
-        return num && num >= 1000 && num <= 3000;
-      });
-    } else if (selectedEventPriceTier === '3k+') {
-      matchesPrice = e.tiers.some(t => {
-        const num = parseInt(t.price.replace(/\D/g, ''), 10);
-        return num && num > 3000;
-      });
-    }
-
-    // Date range filtering
-    let matchesDate = true;
-    if (selectedEventDateRange === 'today') {
-      matchesDate = e.date.toLowerCase().includes('today') || e.date.toLowerCase().includes('14 oct');
-    } else if (selectedEventDateRange === 'weekend') {
-      matchesDate = e.date.toLowerCase().includes('sat') || e.date.toLowerCase().includes('sun') || e.date.toLowerCase().includes('weekend') || e.date.toLowerCase().includes('17 oct') || e.date.toLowerCase().includes('18 oct');
-    }
-
-    // Event Category Filtering
-    let matchesEventCategory = true;
-    if (selectedEventCategory === 'nightlife') {
-      const text = `${e.category || ''} ${e.genre || ''} ${e.title || ''} ${e.description || ''}`.toLowerCase();
-      matchesEventCategory = e.category === 'nightlife' || text.includes('party') || text.includes('rave') || text.includes('club') || text.includes('amapiano') || text.includes('afro-house') || text.includes('house & techno') || text.includes('nightlife');
-    } else if (selectedEventCategory === 'music') {
-      const text = `${e.category || ''} ${e.genre || ''} ${e.title || ''} ${e.description || ''}`.toLowerCase();
-      matchesEventCategory = e.category === 'concerts' || text.includes('live') || text.includes('concert') || text.includes('band') || text.includes('acoustic') || text.includes('jazz') || text.includes('soul') || text.includes('afrobeats') || text.includes('music');
-    } else if (selectedEventCategory === 'tech') {
-      const text = `${e.category || ''} ${e.genre || ''} ${e.title || ''} ${e.description || ''}`.toLowerCase();
-      matchesEventCategory = e.category === 'tech' || text.includes('tech') || text.includes('gaming') || text.includes('game') || text.includes('vr') || text.includes('esports') || text.includes('hackathon');
-    } else if (selectedEventCategory === 'art') {
-      const text = `${e.category || ''} ${e.genre || ''} ${e.title || ''} ${e.description || ''}`.toLowerCase();
-      matchesEventCategory = e.category === 'art' || text.includes('art') || text.includes('visual') || text.includes('culture') || text.includes('fashion') || text.includes('streetwear') || text.includes('sneaker') || text.includes('food & wine') || text.includes('tasting');
-    } else if (selectedEventCategory === 'sports') {
-      const text = `${e.category || ''} ${e.genre || ''} ${e.title || ''} ${e.description || ''}`.toLowerCase();
-      matchesEventCategory = e.category === 'sports' || text.includes('sport') || text.includes('fitness') || text.includes('run') || text.includes('marathon') || text.includes('derby') || text.includes('race') || text.includes('football') || text.includes('tournament');
-    }
-
-    if (!matchesVibe || !matchesGenre || !matchesPrice || !matchesDate || !matchesEventCategory) return false;
-
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase().trim();
+    const genreText = `${e.genre || ''} ${e.title || ''} ${e.description || ''} ${(e.tags || []).join(' ')}`.toLowerCase();
+    const matchesGenre = selectedGenre === 'all' || genreText.includes(selectedGenre.toLowerCase());
     return (
-      e.title.toLowerCase().includes(q) ||
-      e.location.toLowerCase().includes(q) ||
-      (e.genre && e.genre.toLowerCase().includes(q)) ||
-      (e.description && e.description.toLowerCase().includes(q)) ||
-      (e.artists && e.artists.some(a => a.name.toLowerCase().includes(q)))
+      matchesVibe &&
+      matchesGenre &&
+      matchesPriceFilter(e, selectedEventPriceTier) &&
+      matchesDateFilter(e, selectedEventDateRange) &&
+      eventMatchesCategory(e, homeEventCategoryId) &&
+      eventMatchesSearch(e, searchQuery)
     );
   });
 
-  // Events Suite: Upcoming events sorted by date/popularity
+  // Events Suite: soonest first (or cheapest when asked); capped for the home carousel
   const sortedEvents = useMemo(() => {
     return [...filteredEvents].sort((a, b) => {
       if (eventSortBy === 'popular') {
-        return (b.goingCount || 0) - (a.goingCount || 0);
+        return (b.goingCount || 0) - (a.goingCount || 0) || compareByStart(a, b);
       }
-      // Date sort: "Today" first, then upcoming dates, then popularity as secondary
-      const aIsToday = a.date.toLowerCase().includes('today') || a.date.toLowerCase().includes('14 oct');
-      const bIsToday = b.date.toLowerCase().includes('today') || b.date.toLowerCase().includes('14 oct');
-      if (aIsToday && !bIsToday) return -1;
-      if (!aIsToday && bIsToday) return 1;
-      return (b.goingCount || 0) - (a.goingCount || 0);
+      return compareByStart(a, b);
     });
   }, [filteredEvents, eventSortBy]);
 
@@ -658,8 +614,11 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <div className="grid grid-cols-3 gap-1.5 text-xs">
                   {[
                     { id: 'all', label: 'All Dates' },
-                    { id: 'today', label: 'Happening Today' },
-                    { id: 'weekend', label: 'This Weekend' }
+                    { id: 'today', label: 'Today' },
+                    { id: 'tomorrow', label: 'Tomorrow' },
+                    { id: 'weekend', label: 'This Weekend' },
+                    { id: 'week', label: 'Next 7 Days' },
+                    { id: 'month', label: 'This Month' }
                   ].map((d) => (
                     <button
                       key={d.id}
@@ -988,7 +947,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 onClick={() => onOpenDedicatedViewAll('Featured Trending Events', 'events')}
                 className="text-[11px] font-bold text-[#E0533C] hover:underline"
               >
-                View All ({events.length})
+                View More ({events.length})
               </button>
             </div>
           </div>
@@ -1063,9 +1022,9 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
           {filteredEvents.length > 0 ? (
             <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {filteredEvents.map((evt) => {
-                const isToday = evt.date.toLowerCase().includes('today') || evt.date.toLowerCase().includes('14 oct');
-                const priceDisplay = getEventPriceDisplay(evt.tiers);
+              {sortedEvents.slice(0, 12).map((evt) => {
+                const isToday = isHappeningToday(evt);
+                const priceDisplay = getEventPriceLabel(evt);
                 const badgeStyle = getCategoryBadgeStyle(evt.category, evt.genre);
 
                 return (
@@ -1077,7 +1036,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   <div>
                     <div
                       className="h-44 bg-slate-200 dark:bg-slate-800 rounded-2xl mb-2.5 bg-cover bg-center relative overflow-hidden"
-                      style={{ backgroundImage: `url('${evt.img}')` }}
+                      style={evt.img ? { backgroundImage: `url('${evt.img}')` } : undefined}
                     >
                       <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 flex-wrap max-w-[80%]">
                         <span className="bg-black/60 backdrop-blur-md text-white text-[9px] font-black px-2.5 py-1 rounded-md">
@@ -1134,7 +1093,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
                   <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800">
                     <span className="text-[10px] font-bold text-[#475569] dark:text-slate-300">
-                      {evt.goingCount} going
+                      {evt.goingCount > 0 ? `${evt.goingCount} going` : (evt.source ? `via ${getSourceLabel(evt.source)}` : 'New')}
                     </span>
                     <button
                       onClick={(e) => {
@@ -1149,6 +1108,17 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 </div>
               );
             })}
+              {sortedEvents.length > 12 && (
+                <button
+                  type="button"
+                  onClick={() => onOpenDedicatedViewAll('Featured Trending Events', 'events')}
+                  className="flex flex-col items-center justify-center gap-2 w-40 shrink-0 rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 bg-[#F8F8F6] dark:bg-[#1C1A1E] text-[#E0533C] font-black text-xs cursor-pointer hover:border-[#E0533C] transition"
+                >
+                  <span className="text-2xl leading-none">→</span>
+                  <span>View {sortedEvents.length - 12} more</span>
+                  <span className="text-[10px] text-slate-400 font-bold">search & filter all</span>
+                </button>
+              )}
             </div>
           ) : (
             /* Sleek Empty State Card for Day View */

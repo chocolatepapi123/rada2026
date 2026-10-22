@@ -75,10 +75,11 @@ import { getSpotMenuHeading } from '../utils/spotMenuUtils.ts';
 import { 
   doesEventMatchDay, 
   getCleanDateHeader, 
-  getEventPriceDisplay, 
   getCategoryBadgeStyle, 
   isDateToday 
 } from '../utils/calendarUtils.ts';
+import { EventsExplorer } from './EventsExplorer.tsx';
+import { getSourceLabel } from '../utils/eventUtils.ts';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 
 interface OverlaysProps {
@@ -105,7 +106,7 @@ interface OverlaysProps {
   selectedEvent: EventItem | null;
   onCloseEventModal: () => void;
   onToggleGoing: (event: EventItem) => void;
-  goingEventIds: number[];
+  goingEventIds: Array<number | string>;
   onBuyEventTicket: (event: EventItem) => void;
 
   // Current User Profile
@@ -155,6 +156,8 @@ interface OverlaysProps {
   savedItems?: SavedItem[];
   onToggleSave?: (item: any, kind: 'spot' | 'event' | 'offer') => void;
   onNavigateToCalendar?: (dateStr?: string, eventId?: number | string) => void;
+  /** Opens the venue map for a live event (coordinates are looked up on demand) */
+  onOpenEventMap?: (event: EventItem) => void;
 }
 
 export const Overlays: React.FC<OverlaysProps> = ({
@@ -170,6 +173,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
   savedItems = [],
   onToggleSave,
   onNavigateToCalendar,
+  onOpenEventMap,
   onOpenSpotDetails,
   onOpenEventDetails,
   onBookCinema,
@@ -285,7 +289,6 @@ export const Overlays: React.FC<OverlaysProps> = ({
   // SPEC 5: Plan a date - free browsing across all categories
   const [planDateCategory, setPlanDateCategory] = useState<string>('all');
   const [planDateSearch, setPlanDateSearch] = useState('');
-  const [eventsCategoryFilter, setEventsCategoryFilter] = useState<'all' | 'nightlife' | 'music' | 'tech' | 'art' | 'sports'>('all');
   const [localCategoryOverride, setLocalCategoryOverride] = useState<string | null>(null);
   const { spots: unclaimedFeed } = useUnclaimedSpots();
 
@@ -1236,7 +1239,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
           <div className="max-w-lg mx-auto w-full p-4 space-y-5 flex-1 text-xs pb-16">
             <div
               className="h-60 rounded-3xl bg-cover bg-center relative shadow-md"
-              style={{ backgroundImage: `url('${selectedEvent.img}')` }}
+              style={selectedEvent.img ? { backgroundImage: `url('${selectedEvent.img}')` } : undefined}
             >
               {/* Top Save Icon on Event Image */}
               <button
@@ -1259,7 +1262,11 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
               <div className="absolute top-3 right-3 bg-black/75 backdrop-blur-md text-white text-[11px] font-black px-3 py-1.5 rounded-full flex items-center gap-1.5">
                 <Users className="w-3.5 h-3.5 text-[#E0533C]" />
-                <span>{selectedEvent.goingCount} people going</span>
+                <span>
+                  {selectedEvent.goingCount > 0
+                    ? `${selectedEvent.goingCount} people going`
+                    : (selectedEvent.source ? `via ${getSourceLabel(selectedEvent.source)}` : 'Be the first to go')}
+                </span>
               </div>
               {selectedEvent.genre && (
                 <div className="absolute bottom-3 left-3 bg-[#E0533C] text-white text-[10px] font-black px-3 py-1 rounded-full shadow">
@@ -1293,10 +1300,34 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 </span>
               </button>
 
-              <p className="text-xs text-slate-500 flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5" />
-                <span>{selectedEvent.location}</span>
-              </p>
+              <div className="flex items-start justify-between gap-2 pt-1">
+                <p className="text-xs text-slate-500 flex items-start gap-1 min-w-0">
+                  <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  <span className="min-w-0">
+                    <span className="block font-semibold text-slate-700 dark:text-slate-300">{selectedEvent.location}</span>
+                    {selectedEvent.address && selectedEvent.address !== selectedEvent.location && (
+                      <span className="block text-[11px] text-slate-400">{selectedEvent.address}</span>
+                    )}
+                  </span>
+                </p>
+                {onOpenEventMap && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenEventMap(selectedEvent)}
+                    className="shrink-0 px-3 py-1.5 rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-[11px] font-black flex items-center gap-1 cursor-pointer hover:opacity-90 transition"
+                  >
+                    <MapPin className="w-3 h-3" />
+                    <span>View on Map</span>
+                  </button>
+                )}
+              </div>
+              {(selectedEvent.host || selectedEvent.source) && (
+                <p className="text-[11px] text-slate-400 pt-1">
+                  {selectedEvent.host ? `Hosted by ${selectedEvent.host}` : ''}
+                  {selectedEvent.host && selectedEvent.source ? ' · ' : ''}
+                  {selectedEvent.source ? `Tickets via ${getSourceLabel(selectedEvent.source)}` : ''}
+                </p>
+              )}
               {selectedEvent.description && (
                 <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed pt-2">
                   {selectedEvent.description}
@@ -1309,7 +1340,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
               <button
                 onClick={() => {
                   showToast(`Opening Uber to ${selectedEvent.title}...`);
-                  window.open(`https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${encodeURIComponent(selectedEvent.location)}`, '_blank');
+                  window.open(`https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${encodeURIComponent(selectedEvent.address || selectedEvent.location)}`, '_blank');
                 }}
                 className="py-2.5 bg-black text-white hover:bg-slate-800 font-black rounded-2xl shadow-md transition flex items-center justify-center gap-2"
               >
@@ -1354,23 +1385,32 @@ export const Overlays: React.FC<OverlaysProps> = ({
               </div>
             )}
 
+            {/* No tiers scraped: point to the ticket page instead of showing nothing */}
+            {(!selectedEvent.tiers || selectedEvent.tiers.length === 0) && selectedEvent.source && (
+              <div className="p-3 rounded-2xl bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-dashed border-slate-300 dark:border-slate-700 text-[11px] text-slate-500">
+                Ticket prices for this event are listed on {getSourceLabel(selectedEvent.source)}.
+              </div>
+            )}
+
             {/* Ticket Tier Options */}
             {selectedEvent.tiers && selectedEvent.tiers.length > 0 && (
               <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
                 <h4 className="font-black text-slate-900 dark:text-slate-100 uppercase text-[11px] tracking-wider">
                   Ticket Tier Options
                 </h4>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {selectedEvent.tiers.map((t, idx) => (
                     <div
                       key={idx}
-                      className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 p-2.5 rounded-xl flex items-center justify-between"
+                      className={`bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 p-2.5 rounded-xl flex items-center justify-between gap-2 ${
+                        t.status === 'sold_out' || t.status === 'soldout' ? 'opacity-50' : ''
+                      }`}
                     >
-                      <div>
+                      <div className="min-w-0">
                         <span className="font-bold text-xs block">{t.name}</span>
                         {t.perks && <span className="text-[9px] text-slate-400 block">{t.perks}</span>}
                       </div>
-                      <span className="font-black text-xs text-[#E0533C]">{t.price}</span>
+                      <span className="font-black text-xs text-[#E0533C] shrink-0">{t.price}</span>
                     </div>
                   ))}
                 </div>
@@ -1394,7 +1434,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   onClick={() => onBuyEventTicket(selectedEvent)}
                   className="flex-1 py-3 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-2xl shadow-md transition text-xs flex items-center justify-center gap-1.5"
                 >
-                  <span>Get Primary Ticket</span>
+                  <span>{selectedEvent.source ? `Get Tickets on ${getSourceLabel(selectedEvent.source)}` : 'Get Primary Ticket'}</span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -2226,184 +2266,16 @@ export const Overlays: React.FC<OverlaysProps> = ({
             <div className="py-4 space-y-3 flex-1 text-xs">
               {/* Category-Specific Strict Filtering */}
               {viewAllCategory === 'events' ? (
-                /* STRICTLY DISPLAY EVENTS with Dynamic Calendar Day Filter */
-                <div className="space-y-4">
-                  {/* Category Quick Filter Bar */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                        <Flame className="w-3.5 h-3.5 text-[#E0533C]" />
-                        <span>Filter by Event Category</span>
-                      </span>
-                      {eventsCategoryFilter !== 'all' && (
-                        <button
-                          type="button"
-                          onClick={() => setEventsCategoryFilter('all')}
-                          className="text-[10px] font-bold text-[#E0533C] hover:underline cursor-pointer"
-                        >
-                          Show All Events
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="flex gap-1.5 overflow-x-auto hide-scrollbar pb-1 text-xs">
-                      {[
-                        { id: 'all' as const, label: 'All Events' },
-                        { id: 'nightlife' as const, label: 'Parties & Nightlife' },
-                        { id: 'music' as const, label: 'Live Music' },
-                        { id: 'tech' as const, label: 'Tech & Gaming' },
-                        { id: 'art' as const, label: 'Art & Culture' },
-                        { id: 'sports' as const, label: 'Sports & Fitness' }
-                      ].map((item, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => setEventsCategoryFilter(item.id)}
-                          className={`px-3 py-1.5 rounded-full font-bold shrink-0 transition text-xs cursor-pointer ${
-                            eventsCategoryFilter === item.id
-                              ? 'bg-[#E0533C] text-white shadow-xs'
-                              : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
-                          }`}
-                        >
-                          {item.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Clean Formatted Header */}
-                  {(() => {
-                    const headerText = eventsCategoryFilter === 'all' 
-                      ? 'All Upcoming Nairobi Events' 
-                      : (eventsCategoryFilter === 'nightlife' ? 'Parties & Nightlife'
-                        : eventsCategoryFilter === 'music' ? 'Live Music & Concerts'
-                        : eventsCategoryFilter === 'tech' ? 'Tech & Gaming'
-                        : eventsCategoryFilter === 'art' ? 'Art & Culture'
-                        : 'Sports & Fitness');
-
-                    const matchingEvents = events.filter((evt) => {
-                      if (eventsCategoryFilter === 'all') return true;
-                      const text = `${evt.category || ''} ${evt.genre || ''} ${evt.title || ''} ${evt.description || ''}`.toLowerCase();
-                      if (eventsCategoryFilter === 'nightlife') {
-                        return evt.category === 'nightlife' || text.includes('party') || text.includes('rave') || text.includes('club') || text.includes('amapiano') || text.includes('afro-house') || text.includes('house & techno') || text.includes('nightlife');
-                      }
-                      if (eventsCategoryFilter === 'music') {
-                        return evt.category === 'concerts' || text.includes('live') || text.includes('concert') || text.includes('band') || text.includes('acoustic') || text.includes('jazz') || text.includes('soul') || text.includes('afrobeats') || text.includes('music');
-                      }
-                      if (eventsCategoryFilter === 'tech') {
-                        return evt.category === 'tech' || text.includes('tech') || text.includes('gaming') || text.includes('game') || text.includes('vr') || text.includes('esports') || text.includes('hackathon');
-                      }
-                      if (eventsCategoryFilter === 'art') {
-                        return evt.category === 'art' || text.includes('art') || text.includes('visual') || text.includes('culture') || text.includes('fashion') || text.includes('streetwear') || text.includes('sneaker') || text.includes('food & wine') || text.includes('tasting');
-                      }
-                      if (eventsCategoryFilter === 'sports') {
-                        return evt.category === 'sports' || text.includes('sport') || text.includes('fitness') || text.includes('run') || text.includes('marathon') || text.includes('derby') || text.includes('race') || text.includes('football') || text.includes('tournament');
-                      }
-                      return true;
-                    });
-
-                    return (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
-                          <h4 className="font-black text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-[#E0533C]" />
-                            <span>{headerText}</span>
-                          </h4>
-                          <span className="text-[10px] text-slate-400 font-bold">
-                            {matchingEvents.length} {matchingEvents.length === 1 ? 'event' : 'events'}
-                          </span>
-                        </div>
-
-                        {matchingEvents.length > 0 ? (
-                          <div className="space-y-3">
-                            {matchingEvents.map((evt) => {
-                              const badgeStyle = getCategoryBadgeStyle(evt.category, evt.genre);
-                              const priceDisplay = getEventPriceDisplay(evt.tiers);
-
-                              return (
-                                <div
-                                  key={evt.id}
-                                  onClick={() => {
-                                    onCloseViewAll();
-                                    if (onOpenEventDetails) onOpenEventDetails(evt);
-                                  }}
-                                  className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs cursor-pointer hover:border-[#E0533C] transition group"
-                                >
-                                  <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
-                                    <div
-                                      className="w-16 h-16 rounded-xl bg-cover bg-center shrink-0 relative overflow-hidden"
-                                      style={{ backgroundImage: `url('${evt.img}')` }}
-                                    >
-                                      <span className={`absolute top-1 left-1 text-[8px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wider backdrop-blur-md ${badgeStyle.bg} ${badgeStyle.text}`}>
-                                        {evt.genre || evt.category}
-                                      </span>
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                      <div className="flex items-center gap-1.5 flex-wrap">
-                                        <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition truncate">
-                                          {evt.title}
-                                        </h4>
-                                      </div>
-                                      <p className="text-[10px] text-[#E0533C] font-semibold flex items-center gap-1 mt-0.5">
-                                        <Clock className="w-3 h-3 shrink-0" />
-                                        <span>{evt.date} • {evt.time || 'Evening'}</span>
-                                      </p>
-                                      <p className="text-[10px] text-slate-400 truncate flex items-center gap-1 mt-0.5">
-                                        <MapPin className="w-3 h-3 shrink-0" />
-                                        <span className="truncate">{evt.location}</span>
-                                      </p>
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-center justify-between w-full sm:w-auto sm:flex-col sm:items-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200/60 dark:border-slate-800/80">
-                                    <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                                      {priceDisplay}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        onCloseViewAll();
-                                        if (onOpenEventDetails) onOpenEventDetails(evt);
-                                      }}
-                                      className="px-3 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-black shadow-xs transition flex items-center gap-1 cursor-pointer"
-                                    >
-                                      <span>Event Details</span>
-                                      <ChevronRight className="w-3 h-3" />
-                                    </button>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          /* Sleek Empty State Card */
-                          <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-dashed border-slate-300 dark:border-slate-800 rounded-3xl p-6 text-center space-y-3 shadow-2xs">
-                            <div className="w-10 h-10 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] mx-auto flex items-center justify-center">
-                              <Calendar className="w-5 h-5" />
-                            </div>
-                            <div className="space-y-1">
-                              <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">
-                                No events scheduled for this day
-                              </h4>
-                              <p className="text-[11px] text-slate-500 max-w-xs mx-auto leading-relaxed">
-                                Check back soon or explore trending events!
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => setEventsCategoryFilter('all')}
-                              className="px-4 py-2 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5 cursor-pointer"
-                            >
-                              <Sparkles className="w-3.5 h-3.5" />
-                              <span>Show All Events</span>
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
+                /* LIVE EVENTS: search + category + date + price filters over public.external_events */
+                <EventsExplorer
+                  events={events}
+                  savedItems={savedItems}
+                  onToggleSave={onToggleSave}
+                  onOpenEvent={(evt) => {
+                    onCloseViewAll();
+                    if (onOpenEventDetails) onOpenEventDetails(evt);
+                  }}
+                />
               ) : viewAllCategory === 'cinemas' ? (
                 /* STRICTLY DISPLAY CINEMA MOVIES */
                 <div className="grid grid-cols-2 gap-3">

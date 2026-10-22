@@ -19,48 +19,27 @@ import { EventItem, SavedItem } from '../types.ts';
 import { 
   doesEventMatchDay, 
   getCleanDateHeader, 
-  getEventPriceDisplay, 
   getCategoryBadgeStyle,
-  isDateToday,
   parseEventDate
 } from '../utils/calendarUtils.ts';
+import {
+  EVENT_CATEGORY_FILTERS,
+  eventMatchesCategory,
+  eventMatchesSearch,
+  eventOccursOnDay,
+  getEventPriceLabel,
+  getSourceLabel,
+  getTodayParts,
+  isRealToday
+} from '../utils/eventUtils.ts';
 import { getCategoryAccent } from '../utils/categoryAccents.ts';
 import type { ToastOptions } from './Toast.tsx';
 
-type EventFilterId = 'all' | 'nightlife' | 'concerts' | 'tech' | 'art' | 'sports';
-
-const EVENT_FILTERS: { id: EventFilterId; label: string; emoji: string }[] = [
-  { id: 'all', label: 'All Events', emoji: '✨' },
-  { id: 'nightlife', label: 'Parties & Nightlife', emoji: '🪩' },
-  { id: 'concerts', label: 'Concerts & Live', emoji: '🎤' },
-  { id: 'tech', label: 'Tech & Gaming', emoji: '🎮' },
-  { id: 'art', label: 'Art & Culture', emoji: '🎨' },
-  { id: 'sports', label: 'Sports', emoji: '⚽' },
-];
-
-const TECH_RE = /\b(tech|gaming|game|gamer|esports?|hackathon|developer|startup|ai|coding|code|robotics|fifa|playstation|ps5)\b/i;
-const SPORTS_RE = /\b(sports?|football|soccer|rugby|marathon|run|race|rally|basketball|cricket|golf|boxing|tournament|match|derby|gym|fitness|safari rally)\b/i;
-
-/** Maps an event onto the category filters using its category, genre and title. */
-function eventMatchesFilter(evt: EventItem, filter: EventFilterId): boolean {
-  if (filter === 'all') return true;
-  const text = `${evt.genre || ''} ${evt.title || ''}`;
-  const isTech = TECH_RE.test(text);
-  const isSports = SPORTS_RE.test(text);
-  switch (filter) {
-    case 'tech':
-      return isTech;
-    case 'sports':
-      return isSports && !isTech;
-    case 'nightlife':
-      return evt.category === 'nightlife' && !isTech && !isSports;
-    case 'concerts':
-      return evt.category === 'concerts' && !isTech && !isSports;
-    case 'art':
-      return (evt.category === 'art' || evt.category === 'cinemas') && !isTech && !isSports;
-    default:
-      return true;
-  }
+/** Does a live (startAt) or merchant-created (date string) event fall on this day? */
+function eventOnDay(evt: EventItem, year: number, month: number, day: number): boolean {
+  const live = eventOccursOnDay(evt, year, month, day);
+  if (live !== null) return live;
+  return doesEventMatchDay(evt.date, year, month, day, isRealToday(year, month, day));
 }
 
 interface LukuEventsTabProps {
@@ -95,11 +74,12 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
     return parseEventDate(initialDate);
   }, [initialDate]);
 
-  // Calendar state - default to parsed target date, or October 2026, day 24 (or 14 for today)
-  const [selectedYear, setSelectedYear] = useState<number>(() => parsedTargetDate?.year || 2026);
-  const [selectedMonth, setSelectedMonth] = useState<number>(() => (parsedTargetDate?.month !== undefined ? parsedTargetDate.month : 9));
-  const [selectedDay, setSelectedDay] = useState<number | null>(() => (parsedTargetDate?.day !== undefined ? parsedTargetDate.day : 24));
-  const [selectedCategory, setSelectedCategory] = useState<EventFilterId>('all');
+  // Calendar state - default to the requested date, otherwise the real "today" in Nairobi
+  const [selectedYear, setSelectedYear] = useState<number>(() => parsedTargetDate?.year || getTodayParts().year);
+  const [selectedMonth, setSelectedMonth] = useState<number>(() => (parsedTargetDate?.month !== undefined ? parsedTargetDate.month : getTodayParts().month));
+  const [selectedDay, setSelectedDay] = useState<number | null>(() => (parsedTargetDate?.day !== undefined ? parsedTargetDate.day : null));
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [focusedEventId, setFocusedEventId] = useState<number | string | null>(highlightEventId);
 
   // Sync state whenever initialDate changes
@@ -118,9 +98,10 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
   React.useEffect(() => {
     // Parent only knows the original event categories; tech/sports roll up to the generic 'events'
     const parentCategory =
-      selectedCategory === 'nightlife' || selectedCategory === 'concerts' || selectedCategory === 'art'
-        ? selectedCategory
-        : 'events';
+      selectedCategory === 'nightlife' ? 'nightlife'
+      : selectedCategory === 'music' ? 'concerts'
+      : selectedCategory === 'arts' ? 'art'
+      : 'events';
     onCategoryChange?.(parentCategory);
   }, [selectedCategory, onCategoryChange]);
 
@@ -153,10 +134,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
   const daysWithEvents = useMemo(() => {
     const daysSet = new Set<number>();
     dayCells.forEach(day => {
-      const isToday = isDateToday(selectedYear, selectedMonth, day);
-      const hasMatch = events.some(evt => 
-        doesEventMatchDay(evt.date, selectedYear, selectedMonth, day, isToday)
-      );
+      const hasMatch = events.some(evt => eventOnDay(evt, selectedYear, selectedMonth, day));
       if (hasMatch) {
         daysSet.add(day);
       }
@@ -165,19 +143,17 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
   }, [events, selectedYear, selectedMonth, dayCells]);
 
   // Selected date is today check
-  const isSelectedDayToday = selectedDay !== null && isDateToday(selectedYear, selectedMonth, selectedDay);
+  const isSelectedDayToday = selectedDay !== null && isRealToday(selectedYear, selectedMonth, selectedDay);
 
   // Filter events for the currently selected day
   const dayEvents = useMemo(() => {
-    if (selectedDay === null) {
-      return events.filter(e => eventMatchesFilter(e, selectedCategory));
-    }
-    return events.filter(e => {
-      const matchesDay = doesEventMatchDay(e.date, selectedYear, selectedMonth, selectedDay, isSelectedDayToday);
-      const matchesCategory = eventMatchesFilter(e, selectedCategory);
-      return matchesDay && matchesCategory;
-    });
-  }, [events, selectedDay, selectedYear, selectedMonth, isSelectedDayToday, selectedCategory]);
+    return events
+      .filter(e => {
+        const matchesDay = selectedDay === null || eventOnDay(e, selectedYear, selectedMonth, selectedDay);
+        return matchesDay && eventMatchesCategory(e, selectedCategory) && eventMatchesSearch(e, searchQuery);
+      })
+      .sort((a, b) => (a.startAt || '').localeCompare(b.startAt || ''));
+  }, [events, selectedDay, selectedYear, selectedMonth, selectedCategory, searchQuery]);
 
   // Clean formatted date header
   const dateHeader = useMemo(() => {
@@ -259,9 +235,10 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
             <button
               type="button"
               onClick={() => {
-                setSelectedMonth(9);
-                setSelectedYear(2026);
-                setSelectedDay(14);
+                const t = getTodayParts();
+                setSelectedMonth(t.month);
+                setSelectedYear(t.year);
+                setSelectedDay(t.day);
               }}
               className={`px-3 py-1 rounded-xl text-[11px] font-black transition cursor-pointer ${
                 isSelectedDayToday
@@ -298,7 +275,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
           {dayCells.map((day) => {
             const isSelected = selectedDay === day;
             const hasEvents = daysWithEvents.has(day);
-            const isDayToday = isDateToday(selectedYear, selectedMonth, day);
+            const isDayToday = isRealToday(selectedYear, selectedMonth, day);
             const isTargetDay = (
               parsedTargetDate &&
               parsedTargetDate.year === selectedYear &&
@@ -354,13 +331,25 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
         </div>
       </div>
 
+      {/* Search */}
+      <div className="relative flex items-center">
+        <Filter className="w-4 h-4 absolute left-3.5 text-slate-400 pointer-events-none" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search events, venues, hosts..."
+          className="w-full pl-10 pr-4 py-2.5 rounded-2xl text-xs font-semibold bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-[#E0533C]"
+        />
+      </div>
+
       {/* Category filters */}
       <div
         className="-mx-3 sm:-mx-4 px-3 sm:px-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         role="tablist"
         aria-label="Event categories"
       >
-        {EVENT_FILTERS.map((f) => {
+        {EVENT_CATEGORY_FILTERS.map((f) => {
           const active = selectedCategory === f.id;
           return (
             <button
@@ -410,7 +399,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
         <div className="space-y-3">
           {dayEvents.map((event) => {
             const accent = getCategoryAccent(event.category, event.title, event.genre);
-            const priceDisplay = getEventPriceDisplay(event.tiers);
+            const priceDisplay = getEventPriceLabel(event);
             const isMatch = focusedEventId && String(event.id) === String(focusedEventId);
             const saved = isEventSaved(event.id);
 
@@ -429,7 +418,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
                 {/* Event Poster / Banner */}
                 <div
                   className="h-36 sm:h-auto sm:w-36 rounded-2xl bg-slate-200 dark:bg-slate-800 bg-cover bg-center shrink-0 relative overflow-hidden"
-                  style={{ backgroundImage: `url('${event.img}')` }}
+                  style={event.img ? { backgroundImage: `url('${event.img}')` } : undefined}
                 >
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent sm:hidden" />
                   
@@ -488,7 +477,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
                   <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-xs gap-2">
                     <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
                       <Users className="w-3.5 h-3.5 text-slate-500" />
-                      <span>{event.goingCount} going</span>
+                      <span>{event.goingCount > 0 ? `${event.goingCount} going` : (event.source ? `via ${getSourceLabel(event.source)}` : 'Be the first to go')}</span>
                     </span>
 
                     <div className="flex items-center gap-1.5">
@@ -539,7 +528,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
 
           <div className="space-y-1">
             <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
-              {selectedCategory === 'all' ? 'No events scheduled for this day' : 'No events in this category for this day'}
+              {searchQuery.trim() ? 'No events match your search' : selectedCategory === 'all' ? 'No events scheduled for this day' : 'No events in this category for this day'}
             </h4>
             <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto leading-relaxed">
               Check back soon or explore trending events across Nairobi!

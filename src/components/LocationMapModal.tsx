@@ -1,24 +1,77 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { X, MapPin, Car, Navigation, ExternalLink } from 'lucide-react';
-import { SpotItem } from '../types.ts';
+import { SpotItem, EventItem } from '../types.ts';
+import { hasEventCoords, resolveEventCoords, eventGoogleMapsUrl } from '../utils/eventUtils.ts';
 import type { ToastOptions } from './Toast.tsx';
 
 interface LocationMapModalProps {
   spot: SpotItem | null;
+  /** Show an event venue instead of a spot. Coordinates are looked up on demand when the event has none. */
+  event?: EventItem | null;
   onClose: () => void;
   showToast: (msg: string, options?: ToastOptions) => void;
 }
 
+const escapeHtml = (v: string) =>
+  String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 export const LocationMapModal: React.FC<LocationMapModalProps> = ({
   spot,
+  event = null,
   onClose,
   showToast
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
 
+  // Normalised place (spot or event venue)
+  const [eventCoords, setEventCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [geoState, setGeoState] = useState<'idle' | 'loading' | 'failed'>('idle');
+
   useEffect(() => {
-    if (!spot) return;
+    setEventCoords(null);
+    if (!event || spot) { setGeoState('idle'); return; }
+    if (hasEventCoords(event)) {
+      setEventCoords({ lat: event.lat, lng: event.lng });
+      setGeoState('idle');
+      return;
+    }
+    let cancelled = false;
+    setGeoState('loading');
+    resolveEventCoords(event).then(c => {
+      if (cancelled) return;
+      if (c) { setEventCoords(c); setGeoState('idle'); } else { setGeoState('failed'); }
+    });
+    return () => { cancelled = true; };
+  }, [event, spot]);
+
+  const place = spot
+    ? {
+        title: spot.title,
+        subtitle: `${spot.neighborhood} • ${spot.address}`,
+        popupMeta: `${spot.neighborhood} • ★${spot.rating}`,
+        address: spot.address,
+        lat: spot.lat as number | null,
+        lng: spot.lng as number | null,
+        mapsUrl: `https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lng}`
+      }
+    : event
+    ? {
+        title: event.title,
+        subtitle: event.address ? `${event.location} • ${event.address}` : event.location,
+        popupMeta: `${event.date}${event.time ? ` • ${event.time}` : ''}`,
+        address: event.address || event.location,
+        lat: eventCoords ? eventCoords.lat : null,
+        lng: eventCoords ? eventCoords.lng : null,
+        mapsUrl: eventGoogleMapsUrl(event)
+      }
+    : null;
+
+  const placeLat = place?.lat ?? null;
+  const placeLng = place?.lng ?? null;
+
+  useEffect(() => {
+    if (!place || placeLat == null || placeLng == null) return;
     const L = (window as any).L;
     if (!L || !mapContainerRef.current) return;
 
@@ -30,7 +83,7 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
       }
 
       if (mapContainerRef.current) {
-        const map = L.map(mapContainerRef.current, { zoomControl: false, attributionControl: true }).setView([spot.lat, spot.lng], 15);
+        const map = L.map(mapContainerRef.current, { zoomControl: false, attributionControl: true }).setView([placeLat, placeLng], 15);
         mapInstanceRef.current = map;
 
         // Minimal 2D vector-style basemap: flat light/dark line map, no 3D buildings or satellite
@@ -52,12 +105,12 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
           popupAnchor: [0, -32]
         });
 
-        const marker = L.marker([spot.lat, spot.lng], { icon: pinIcon }).addTo(map);
+        const marker = L.marker([placeLat, placeLng], { icon: pinIcon }).addTo(map);
         marker.bindPopup(`
           <div style="font-family: inherit; font-size: 12px; line-height: 1.4;">
-            <b style="color: #E0533C; font-size: 13px;">${spot.title}</b><br/>
-            <span>${spot.neighborhood} • ★${spot.rating}</span><br/>
-            <span style="color: #64748b; font-size: 11px;">${spot.address}</span>
+            <b style="color: #E0533C; font-size: 13px;">${escapeHtml(place.title)}</b><br/>
+            <span>${escapeHtml(place.popupMeta)}</span><br/>
+            <span style="color: #64748b; font-size: 11px;">${escapeHtml(place.address)}</span>
           </div>
         `).openPopup();
 
@@ -72,12 +125,12 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
         mapInstanceRef.current = null;
       }
     };
-  }, [spot]);
+  }, [spot, event, placeLat, placeLng]);
 
-  if (!spot) return null;
+  if (!place) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white dark:bg-[#1C1A1E] w-full max-w-md rounded-3xl p-4 space-y-4 shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-150">
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
           <div className="flex items-center gap-2 min-w-0">
@@ -85,8 +138,8 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
               <MapPin className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <h3 className="font-black text-sm text-[#E0533C] dark:text-[#D17A68] truncate">{spot.title}</h3>
-              <p className="text-[10px] text-slate-500 truncate">{spot.neighborhood} • {spot.address}</p>
+              <h3 className="font-black text-sm text-[#E0533C] dark:text-[#D17A68] truncate">{place.title}</h3>
+              <p className="text-[10px] text-slate-500 truncate">{place.subtitle}</p>
             </div>
           </div>
           <button
@@ -98,21 +151,39 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
         </div>
 
         {/* Leaflet Map Display */}
-        <div 
-          ref={mapContainerRef} 
-          className="h-60 w-full rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden relative z-10 rada-sketch-map"
-        />
+        {placeLat != null && placeLng != null ? (
+          <div 
+            ref={mapContainerRef} 
+            className="h-60 w-full rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden relative z-10 rada-sketch-map"
+          />
+        ) : (
+          <div className="h-60 w-full rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-[#F8F8F6] dark:bg-[#121113] flex flex-col items-center justify-center gap-2 text-center px-6">
+            <MapPin className="w-6 h-6 text-[#E0533C]" />
+            <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+              {geoState === 'loading' ? 'Finding this venue on the map...' : 'We could not pin this venue exactly'}
+            </p>
+            {geoState === 'failed' && (
+              <p className="text-[11px] text-slate-500">Open it in Google Maps to see the exact spot.</p>
+            )}
+          </div>
+        )}
 
         <div className="p-2.5 bg-[#F8F8F6] dark:bg-[#121113] rounded-2xl flex items-center justify-between text-xs">
-          <div>
-            <span className="font-bold text-slate-700 dark:text-slate-300 block">Exact GPS Coordinates</span>
-            <span className="text-[11px] text-slate-400 font-mono">{spot.lat.toFixed(4)}, {spot.lng.toFixed(4)}</span>
+          <div className="min-w-0">
+            <span className="font-bold text-slate-700 dark:text-slate-300 block">
+              {placeLat != null && placeLng != null ? 'Exact GPS Coordinates' : 'Venue address'}
+            </span>
+            <span className="text-[11px] text-slate-400 font-mono block truncate">
+              {placeLat != null && placeLng != null
+                ? `${placeLat.toFixed(4)}, ${placeLng.toFixed(4)}`
+                : place.address}
+            </span>
           </div>
           <a
-            href={`https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lng}`}
+            href={place.mapsUrl}
             target="_blank"
             rel="noreferrer"
-            className="px-3 py-1.5 bg-slate-900 text-white dark:bg-white dark:text-slate-900 rounded-xl font-bold text-[11px] flex items-center gap-1 hover:opacity-90 transition"
+            className="px-3 py-1.5 bg-slate-900 text-white dark:bg-white dark:text-slate-900 rounded-xl font-bold text-[11px] flex items-center gap-1 hover:opacity-90 transition shrink-0"
           >
             <Navigation className="w-3 h-3" /> Directions
           </a>
@@ -122,7 +193,7 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => {
-              window.open(`https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${encodeURIComponent(spot.address)}`, '_blank');
+              window.open(`https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${encodeURIComponent(place.address)}`, '_blank');
             }}
             className="py-2.5 bg-black text-white hover:bg-slate-800 font-black rounded-xl text-xs transition flex items-center justify-center gap-1.5"
           >
