@@ -1204,12 +1204,16 @@ export default function App() {
 
     const syncFromCloud = async () => {
       const startVersion = mutationRef.current;
-      const remoteBiz = await cloud.fetchBusinesses();
-      const remoteListings = await cloud.fetchListings();
+      // All five requests go out at the same time instead of one after another
+      const [remoteBiz, remoteListings, remoteReviewsRaw, remoteStatuses, remoteGoing] = await Promise.all([
+        cloud.fetchBusinesses(),
+        cloud.fetchListings(),
+        cloud.fetchReviews(),
+        cloud.fetchStatuses(),   // null = keep local
+        cloud.fetchGoing(uid),   // null = keep local
+      ]);
       if (!remoteBiz && !remoteListings) return; // offline or tables missing: keep local data
-      const remoteReviews = (await cloud.fetchReviews()) || {};
-      const remoteStatuses = await cloud.fetchStatuses();   // null = keep local
-      const remoteGoing = await cloud.fetchGoing(uid);      // null = keep local
+      const remoteReviews = remoteReviewsRaw || {};
 
       const L = latestRef.current;
       const seedBizIds = new Set(initialBusinesses.map(b => b.id));
@@ -1329,14 +1333,29 @@ export default function App() {
       );
     };
 
+    // One sync at a time. A request that arrives mid-sync (e.g. a save finishing) queues exactly one
+    // follow-up so it still sees the newest data. Returning to the app only re-syncs after 60 s away.
+    let inFlight = false;
+    let queued = false;
+    let lastDoneAt = 0;
     const run = () => {
-      syncFromCloud().catch(e => console.warn('Cloud sync failed:', e));
+      if (inFlight) { queued = true; return; }
+      inFlight = true;
+      syncFromCloud()
+        .catch(e => console.warn('Cloud sync failed:', e))
+        .finally(() => {
+          inFlight = false;
+          lastDoneAt = Date.now();
+          if (queued) { queued = false; run(); }
+        });
     };
 
     syncRef.current = run;
     run();
     const onVisible = () => {
-      if (document.visibilityState === 'visible') run();
+      if (document.visibilityState !== 'visible' || inFlight) return;
+      if (Date.now() - lastDoneAt < 60_000) return;
+      run();
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
