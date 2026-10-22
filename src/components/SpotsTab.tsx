@@ -11,7 +11,7 @@ import {
   Heart,
   Hotel,
   Palmtree,
-  Mic,
+  SlidersHorizontal,
   Plus,
   Compass,
   Bookmark,
@@ -80,7 +80,9 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   const [selectedNeighborhood, setSelectedNeighborhood] = useState<string>(cachedSpotsFilters.selectedNeighborhood);
   const [selectedPriceTier, setSelectedPriceTier] = useState<string>(cachedSpotsFilters.selectedPriceTier);
   const [activeImageIndices, setActiveImageIndices] = useState<Record<number, number>>({});
-  const [isListening, setIsListening] = useState(false);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [selectedRating, setSelectedRating] = useState<'all' | '4.5' | '4.0' | 'reviewed'>('all');
+  const [onlySpecialOffers, setOnlySpecialOffers] = useState(false);
   const { origin: userLocation } = useLocationPreference();
 
   // Sync back to cache so filters are never lost when viewing details or calendar
@@ -298,48 +300,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     });
   };
 
-  // Web Speech API Voice Search with pulsing waveform
-  const handleToggleVoiceSearch = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      if (showToast) showToast('Voice search not supported in this browser. Try Chrome/Edge!', { type: 'error' });
-      return;
-    }
 
-    if (isListening) {
-      setIsListening(false);
-      return;
-    }
-
-    try {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = 'en-KE';
-
-      recognition.onstart = () => {
-        setIsListening(true);
-      };
-
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setSearchQuery(transcript);
-        setIsListening(false);
-      };
-
-      recognition.onerror = () => {
-        setIsListening(false);
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
-      recognition.start();
-    } catch (err) {
-      setIsListening(false);
-    }
-  };
 
   // Show BOTH local spots (merchant-published, stored in app state) and Supabase spots.
   // Dynamically compute review count and average rating from real database rows.
@@ -410,6 +371,18 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
 
     // Price Tier filter
     const matchesPrice = selectedPriceTier === 'all' || resolveSpotBudget(s) === selectedPriceTier;
+
+    // Rating filter
+    if (selectedRating !== 'all') {
+      const numRating = Number(s.rating);
+      const revCount = s.reviews?.length ?? (s.reviewCount || 0);
+      if (selectedRating === 'reviewed' && revCount === 0) return false;
+      if (selectedRating === '4.5' && (isNaN(numRating) || numRating < 4.5)) return false;
+      if (selectedRating === '4.0' && (isNaN(numRating) || numRating < 4.0)) return false;
+    }
+
+    // Special Offers filter
+    if (onlySpecialOffers && (!s.specialOffers || s.specialOffers.length === 0)) return false;
 
     if (!matchesCategory || !matchesNeigh || !matchesPrice) return false;
 
@@ -642,43 +615,305 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           </div>
         </div>
 
-        {/* Smart Search Bar with Web Speech API & Waveform Animation */}
-        <div className="relative flex items-center">
-          <Search className="w-4 h-4 absolute left-3.5 text-slate-400 pointer-events-none" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search spots, activities, or locations..."
-            className="w-full pl-10 pr-24 py-3 bg-white dark:bg-[#1C1A1E] border border-slate-300 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] dark:focus:ring-[#D17A68] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 shadow-xs"
-          />
-
-          <div className="absolute right-2.5 flex items-center gap-1.5">
-            {/* Listening Waveform Animation */}
-            {isListening && (
-              <div className="flex items-center gap-0.5 px-2 py-1 bg-red-100 dark:bg-red-950/80 rounded-full">
-                <span className="w-1 h-3 bg-[#E0533C] dark:bg-[#A94F3E] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1 h-4 bg-[#E0533C] dark:bg-[#A94F3E] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1 h-2 bg-[#E0533C] dark:bg-[#A94F3E] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                <span className="text-[9px] font-black text-[#E0533C] dark:text-[#D17A68] ml-1">Listening</span>
-              </div>
+        {/* Search Bar & Filter Button (Voice search removed) */}
+        <div className="relative flex items-center gap-2">
+          <div className="relative flex-1 flex items-center">
+            <Search className="w-4 h-4 absolute left-3.5 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search spots, activities, or locations..."
+              className="w-full pl-10 pr-9 py-3 bg-white dark:bg-[#1C1A1E] border border-slate-300 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] dark:focus:ring-[#D17A68] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 shadow-xs"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 p-1 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                title="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             )}
+          </div>
 
-            {/* Microphone Button */}
+          {/* Filter Button Next to Search */}
+          <button
+            type="button"
+            onClick={() => setIsFilterModalOpen(true)}
+            className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-xs ${
+              selectedCategory !== 'all' || selectedNeighborhood !== 'all' || selectedPriceTier !== 'all' || selectedRating !== 'all' || onlySpecialOffers
+                ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white border-[#E0533C] shadow-md'
+                : 'bg-white dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+            }`}
+            title="Filter Spots (Category, Area, Budget, Rating, Offers)"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            {(selectedCategory !== 'all' || selectedNeighborhood !== 'all' || selectedPriceTier !== 'all' || selectedRating !== 'all' || onlySpecialOffers) && (
+              <span className="w-2 h-2 rounded-full bg-white ml-1.5" />
+            )}
+          </button>
+        </div>
+
+        {/* Active Filter Indicators */}
+        {(selectedCategory !== 'all' || selectedNeighborhood !== 'all' || selectedPriceTier !== 'all' || selectedRating !== 'all' || onlySpecialOffers) && (
+          <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pt-0.5">
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider shrink-0">Active:</span>
+            {selectedCategory !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#E0533C] text-white shrink-0">
+                <span className="capitalize">{selectedCategory.replace(/_/g, ' ')}</span>
+                <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedCategory('all')} />
+              </span>
+            )}
+            {selectedNeighborhood !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shrink-0">
+                <span>{selectedNeighborhood}</span>
+                <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedNeighborhood('all')} />
+              </span>
+            )}
+            {selectedPriceTier !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#2D6A4F] text-white shrink-0">
+                <span>{selectedPriceTier === 'Low' ? 'Budget $' : selectedPriceTier === 'Mid' ? 'Mid $$' : 'Luxury $$$'}</span>
+                <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedPriceTier('all')} />
+              </span>
+            )}
+            {selectedRating !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white shrink-0">
+                <span>{selectedRating === 'reviewed' ? 'Has Reviews' : `${selectedRating}+ Stars`}</span>
+                <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedRating('all')} />
+              </span>
+            )}
+            {onlySpecialOffers && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-600 text-white shrink-0">
+                <span>Special Offers</span>
+                <X className="w-3 h-3 cursor-pointer" onClick={() => setOnlySpecialOffers(false)} />
+              </span>
+            )}
             <button
               type="button"
-              onClick={handleToggleVoiceSearch}
-              title={isListening ? 'Stop Listening' : 'Voice Search with Web Speech API'}
-              className={`p-2 rounded-xl transition ${
-                isListening 
-                  ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white shadow-md' 
-                  : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-[#E0533C] dark:hover:bg-[#A94F3E] hover:text-white'
-              }`}
+              onClick={() => {
+                setSelectedCategory('all');
+                setSelectedNeighborhood('all');
+                setSelectedPriceTier('all');
+                setSelectedRating('all');
+                setOnlySpecialOffers(false);
+              }}
+              className="text-[10px] text-[#E0533C] font-bold underline ml-1 cursor-pointer shrink-0"
             >
-              <Mic className="w-3.5 h-3.5" />
+              Reset All
             </button>
           </div>
-        </div>
+        )}
+
+        {/* Spots Filter Modal */}
+        {isFilterModalOpen && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+            onClick={() => setIsFilterModalOpen(false)}
+          >
+            <div
+              className="bg-white dark:bg-[#1C1A1E] w-full max-w-md rounded-3xl p-5 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 max-h-[88vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] flex items-center justify-center">
+                    <SlidersHorizontal className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
+                      Filter Spots & Hangouts
+                    </h3>
+                    <p className="text-[10px] text-slate-400">Category, area, budget & ratings</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsFilterModalOpen(false)}
+                  className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Category Options */}
+              <div className="space-y-2">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                  <Compass className="w-3.5 h-3.5 text-[#E0533C]" />
+                  <span>Category:</span>
+                </span>
+                <div className="grid grid-cols-2 gap-1.5 text-xs max-h-48 overflow-y-auto pr-1">
+                  {[
+                    { id: 'all', label: 'All Categories' },
+                    { id: 'restaurants_dining', label: 'Restaurants & Dining' },
+                    { id: 'clubs_lounges', label: 'Clubs & Lounges' },
+                    { id: 'cafes_bakeries', label: 'Cafes & Bakeries' },
+                    { id: 'nature', label: 'Nature & Outdoors' },
+                    { id: 'action_sports', label: 'Action & Sports' },
+                    { id: 'tech_gaming', label: 'Tech & Gaming' },
+                    { id: 'hotels_luxury', label: 'Hotels & Luxury Stays' },
+                    { id: 'date_spots', label: 'Date Spots' },
+                    { id: 'creative_leisure', label: 'Creative & Leisure' },
+                    { id: 'vacation_escapes', label: 'Vacation Escapes' }
+                  ].map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setSelectedCategory(cat.id)}
+                      className={`p-2 rounded-xl font-bold transition text-left cursor-pointer truncate text-[11px] ${
+                        selectedCategory === cat.id
+                          ? 'bg-[#E0533C] text-white shadow-xs'
+                          : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Area / Neighborhood Quick Selection */}
+              <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5 text-[#2D6A4F]" />
+                  <span>Neighborhood / Area:</span>
+                </span>
+                <div className="flex flex-wrap gap-1.5 text-xs max-h-36 overflow-y-auto pr-1">
+                  {[
+                    'all',
+                    'Westlands',
+                    'Kilimani',
+                    'Karen',
+                    'CBD',
+                    'Lavington',
+                    'Kileleshwa',
+                    'Gigiri',
+                    'Parklands',
+                    'Ngong Road',
+                    'South B',
+                    'South C',
+                    'Ruaka',
+                    'Thika Road'
+                  ].map((area) => (
+                    <button
+                      key={area}
+                      type="button"
+                      onClick={() => setSelectedNeighborhood(area)}
+                      className={`px-2.5 py-1 rounded-xl font-bold transition cursor-pointer text-[11px] ${
+                        selectedNeighborhood.toLowerCase() === area.toLowerCase()
+                          ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-xs'
+                          : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
+                      }`}
+                    >
+                      {area === 'all' ? 'All Nairobi' : area}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Budget Tier */}
+              <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                  <span>Price / Budget Tier:</span>
+                </span>
+                <div className="grid grid-cols-4 gap-1.5 text-xs">
+                  {[
+                    { id: 'all', label: 'All' },
+                    { id: 'Low', label: 'Budget $' },
+                    { id: 'Mid', label: 'Mid $$' },
+                    { id: 'High', label: 'Luxury $$$' }
+                  ].map((tier) => (
+                    <button
+                      key={tier.id}
+                      type="button"
+                      onClick={() => setSelectedPriceTier(tier.id)}
+                      className={`p-2 rounded-xl font-bold transition text-center cursor-pointer text-[11px] ${
+                        selectedPriceTier === tier.id
+                          ? 'bg-[#2D6A4F] text-white shadow-xs'
+                          : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
+                      }`}
+                    >
+                      {tier.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Ratings & Special Deals */}
+              <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                  <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                  <span>Ratings & Deals:</span>
+                </span>
+                <div className="grid grid-cols-2 gap-1.5 text-xs">
+                  {[
+                    { id: 'all', label: 'Any Rating' },
+                    { id: '4.5', label: '★ 4.5+ Top Rated' },
+                    { id: '4.0', label: '★ 4.0+ Great' },
+                    { id: 'reviewed', label: 'Has Reviews' }
+                  ].map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => setSelectedRating(r.id as any)}
+                      className={`p-2 rounded-xl font-bold transition text-center cursor-pointer text-[11px] ${
+                        selectedRating === r.id
+                          ? 'bg-amber-500 text-white shadow-xs'
+                          : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
+                      }`}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setOnlySpecialOffers(!onlySpecialOffers)}
+                  className={`w-full mt-1.5 p-2.5 rounded-xl font-bold transition flex items-center justify-between text-xs cursor-pointer border ${
+                    onlySpecialOffers
+                      ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300'
+                      : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800'
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span>🔥 Has Running Special Offers</span>
+                  </span>
+                  <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] text-white ${onlySpecialOffers ? 'bg-rose-600' : 'bg-slate-300 dark:bg-slate-700'}`}>
+                    {onlySpecialOffers ? '✓' : ''}
+                  </span>
+                </button>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategory('all');
+                    setSelectedNeighborhood('all');
+                    setSelectedPriceTier('all');
+                    setSelectedRating('all');
+                    setOnlySpecialOffers(false);
+                  }}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 cursor-pointer"
+                >
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsFilterModalOpen(false)}
+                  className="flex-1 py-2.5 bg-[#E0533C] text-white rounded-xl text-xs font-black shadow-md hover:bg-orange-700 transition cursor-pointer"
+                >
+                  Apply Filters ({filteredSpots.length} spots)
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Category Filter Pills: Strictly 10 Overhauled Categories */}
         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">

@@ -88,7 +88,8 @@ import {
   CollectionFolder,
   OutingPlan,
   OutingAttendee,
-  SpotClaimRequest
+  SpotClaimRequest,
+  isPlatformAdmin
 } from './types.ts';
 
 
@@ -2217,6 +2218,7 @@ export default function App() {
             }}
             onOpenAdmin={() => setIsAdminOpen(true)}
             userRole={userRole}
+            userEmail={session?.user?.email || currentUserProfile?.email}
             onLogout={handleSignOut}
             onOpenSaved={() => setIsSavedModalOpen(true)}
             savedCount={savedItems.length}
@@ -2254,6 +2256,11 @@ export default function App() {
                 onOpenSuggestSpot={() => setIsSuggestSpotModalOpen(true)}
                 onOpenBusinessProfile={handleOpenBusinessProfile}
                 showToast={showToast}
+                isAdmin={!isGuestMode && isPlatformAdmin({ email: session?.user?.email || currentUserProfile?.email, role: userRole })}
+                currentUserEmail={session?.user?.email || currentUserProfile?.email}
+                currentUserId={session?.user?.id || currentUserId}
+                currentUserRole={userRole}
+                businesses={businesses}
               />
             )}
 

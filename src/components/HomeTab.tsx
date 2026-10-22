@@ -25,7 +25,6 @@ import {
   MessageCircle, 
   Send, 
   UserCheck, 
-  Mic, 
   Plus, 
   Sparkles, 
   Music, 
@@ -45,11 +44,20 @@ import {
   Trash2, 
   Compass, 
   Star,
-  UtensilsCrossed
+  UtensilsCrossed,
+  Crown,
+  Users,
+  Ban,
+  ShieldCheck,
+  ShieldAlert,
+  AlertTriangle,
+  MoreVertical
 } from 'lucide-react';
-import { EventItem, CinemaMovie, StatusPost, UserProfile, BusinessOffer, OfferCategory, SpotItem, SavedItem } from '../types.ts';
+import { EventItem, CinemaMovie, StatusPost, UserProfile, BusinessOffer, OfferCategory, SpotItem, SavedItem, BusinessAccount, isOfficialAdmin } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { EmojiPicker } from './EmojiPicker.tsx';
+import { AdminConfirmModal, AdminActionType, AdminTargetAccount } from './AdminConfirmModal.tsx';
+import { deleteAccountAdmin, setUserSuspension, revokeBusinessStatus, fetchAdminUsers } from '../lib/cloudSync';
 import { 
   doesEventMatchDay, 
   getCleanDateHeader, 
@@ -90,6 +98,11 @@ interface HomeTabProps {
   onOpenSuggestSpot?: () => void;
   onOpenBusinessProfile?: (businessId: string) => void;
   showToast: (msg: string) => void;
+  isAdmin?: boolean;
+  currentUserEmail?: string | null;
+  currentUserId?: string | null;
+  currentUserRole?: string | null;
+  businesses?: BusinessAccount[];
 }
 
 export const HomeTab: React.FC<HomeTabProps> = ({
@@ -113,16 +126,159 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   onOpenCreateEvent,
   onOpenSuggestSpot,
   onOpenBusinessProfile,
-  showToast
+  showToast,
+  isAdmin = false,
+  currentUserEmail,
+  currentUserId,
+  currentUserRole,
+  businesses = []
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedVibe, setSelectedVibe] = useState('all');
   const [selectedGenre, setSelectedGenre] = useState('all');
   const [selectedCinemaLoc, setSelectedCinemaLoc] = useState('all');
-  const [isListening, setIsListening] = useState(false);
+
+  // Comprehensive Home Tab Modal Filters
+  const [isHomeFilterModalOpen, setIsHomeFilterModalOpen] = useState(false);
+  const [selectedHomeSection, setSelectedHomeSection] = useState<'all' | 'events' | 'spots' | 'cinemas' | 'offers' | 'statuses'>('all');
+  const [selectedHomeCategory, setSelectedHomeCategory] = useState<string>('all');
+  const [selectedHomeDate, setSelectedHomeDate] = useState<'all' | 'today' | 'tomorrow' | 'weekend' | 'week'>('all');
+  const [selectedHomeArea, setSelectedHomeArea] = useState<string>('all');
+  const [selectedHomeBudget, setSelectedHomeBudget] = useState<'all' | 'free' | 'Low' | 'Mid' | 'High'>('all');
+
+  // Admin Account Management State
+  const [isAdminAccountModalOpen, setIsAdminAccountModalOpen] = useState(false);
+  const [adminUsers, setAdminUsers] = useState<any[]>([]);
+  const [adminUserSearch, setAdminUserSearch] = useState('');
+  const [adminUserFilter, setAdminUserFilter] = useState<'all' | 'merchants' | 'suspended' | 'admins'>('all');
+  const [confirmModalConfig, setConfirmModalConfig] = useState<{
+    isOpen: boolean;
+    actionType: AdminActionType;
+    target: AdminTargetAccount;
+  }>({
+    isOpen: false,
+    actionType: 'delete_account',
+    target: { id: '', name: '' }
+  });
+  const [activeAdminMenuId, setActiveAdminMenuId] = useState<string | null>(null);
+
+  // Load accounts for admin management
+  useEffect(() => {
+    if (!isAdmin) return;
+    let isMounted = true;
+    async function loadAccounts() {
+      try {
+        const u = await fetchAdminUsers(businesses);
+        if (isMounted && u && u.length > 0) {
+          setAdminUsers(u);
+        } else if (isMounted) {
+          const fallbackMap = new Map<string, any>();
+          statuses.forEach(st => {
+            const h = st.handle || `@${(st.author || 'user').toLowerCase().replace(/\s+/g, '')}`;
+            fallbackMap.set(h, {
+              id: st.id,
+              name: st.author,
+              handle: h,
+              email: `${h.replace('@', '')}@rada.app`,
+              avatar: st.avatar,
+              role: 'user',
+              isMerchant: false,
+              isSuspended: false,
+              businessIds: []
+            });
+          });
+          businesses.forEach(b => {
+            fallbackMap.set(b.id, {
+              id: b.ownerId || b.id,
+              name: b.name,
+              handle: `@${b.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+              email: b.email,
+              role: 'merchant',
+              isMerchant: true,
+              isSuspended: false,
+              businessName: b.name,
+              businessIds: [b.id]
+            });
+          });
+          setAdminUsers(Array.from(fallbackMap.values()));
+        }
+      } catch (err) {
+        console.warn('Admin users load error in HomeTab:', err);
+      }
+    }
+    loadAccounts();
+    return () => { isMounted = false; };
+  }, [isAdmin, businesses, statuses]);
+
+  const handleAdminTriggerAction = (actionType: AdminActionType, target: AdminTargetAccount) => {
+    setActiveAdminMenuId(null);
+    setConfirmModalConfig({
+      isOpen: true,
+      actionType,
+      target
+    });
+  };
+
+  const handleAdminConfirmAction = async (target: AdminTargetAccount, reason?: string) => {
+    const { actionType } = confirmModalConfig;
+
+    if (actionType === 'delete_account') {
+      const res = await deleteAccountAdmin(target.id);
+      if (res.error) {
+        showToast(res.error);
+        return;
+      }
+      setAdminUsers(prev => prev.filter(u => u.id !== target.id));
+      showToast(`Account @${target.handle || target.name} permanently deleted.`);
+      onRefreshFeed?.();
+    } else if (actionType === 'suspend_account') {
+      const err = await setUserSuspension(target.id, true, reason);
+      if (err) {
+        showToast(err);
+        return;
+      }
+      setAdminUsers(prev => prev.map(u => u.id === target.id ? { ...u, isSuspended: true, suspendedReason: reason } : u));
+      showToast(`Account @${target.handle || target.name} suspended.`);
+      onRefreshFeed?.();
+    } else if (actionType === 'unsuspend_account') {
+      const err = await setUserSuspension(target.id, false);
+      if (err) {
+        showToast(err);
+        return;
+      }
+      setAdminUsers(prev => prev.map(u => u.id === target.id ? { ...u, isSuspended: false } : u));
+      showToast(`Account @${target.handle || target.name} reinstated.`);
+      onRefreshFeed?.();
+    } else if (actionType === 'revoke_business') {
+      const err = await revokeBusinessStatus(target.id, reason);
+      if (err) {
+        showToast(err);
+        return;
+      }
+      setAdminUsers(prev => prev.map(u => u.id === target.id ? { ...u, isMerchant: false } : u));
+      showToast(`Merchant status revoked for ${target.name}.`);
+      onRefreshFeed?.();
+    } else if (actionType === 'delete_status') {
+      if (onDeleteStatus) {
+        onDeleteStatus(target.id);
+      }
+      showToast('Status post deleted.');
+    } else if (actionType === 'delete_spot') {
+      try {
+        if (supabase) {
+          await supabase.from('spots').delete().eq('id', target.id);
+          await supabase.from('rada_listings').delete().eq('id', target.id);
+        }
+        setDbSpots(prev => prev.filter(s => String(s.id) !== String(target.id)));
+        showToast(`Spot "${target.name}" deleted.`);
+        onRefreshFeed?.();
+      } catch (err: any) {
+        showToast(err?.message || 'Could not delete spot.');
+      }
+    }
+  };
 
   // Events Streamlined Modal Filters
-  const [isEventFilterModalOpen, setIsEventFilterModalOpen] = useState(false);
   const [selectedEventPriceTier, setSelectedEventPriceTier] = useState('all');
   const [selectedEventDateRange, setSelectedEventDateRange] = useState('all');
   const [selectedEventCategory, setSelectedEventCategory] = useState<'all' | 'nightlife' | 'music' | 'tech' | 'art' | 'sports'>('all');
@@ -297,11 +453,33 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     });
   }, [spots, dbSpots, unclaimedFeed, liveReviews, feedOrigin]);
 
-  // Category rows: strictly the 10 RADA categories (no keyword guessing)
-  const natureSpots = useMemo(() => displaySpots.filter(s => spotInCategory(s, 'nature')), [displaySpots]);
-  const creativeSpots = useMemo(() => displaySpots.filter(s => spotInCategory(s, 'creative_leisure')), [displaySpots]);
-  const techGamingSpots = useMemo(() => displaySpots.filter(s => spotInCategory(s, 'tech_gaming')), [displaySpots]);
-  const actionSportsSpots = useMemo(() => displaySpots.filter(s => spotInCategory(s, 'action_sports')), [displaySpots]);
+  // Filtered spots for Home Tab based on active Home filters
+  const homeFilteredSpots = useMemo(() => {
+    return displaySpots.filter(sp => {
+      if (selectedHomeCategory !== 'all' && !spotInCategory(sp, selectedHomeCategory)) return false;
+      if (selectedHomeArea !== 'all') {
+        const areaLower = selectedHomeArea.toLowerCase();
+        const neigh = (sp.neighborhood || '').toLowerCase();
+        const addr = (sp.address || '').toLowerCase();
+        if (!neigh.includes(areaLower) && !addr.includes(areaLower)) return false;
+      }
+      if (selectedHomeBudget !== 'all' && resolveSpotBudget(sp) !== selectedHomeBudget) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchTitle = (sp.title || '').toLowerCase().includes(q);
+        const matchDesc = (sp.description || '').toLowerCase().includes(q);
+        const matchNeigh = (sp.neighborhood || '').toLowerCase().includes(q);
+        if (!matchTitle && !matchDesc && !matchNeigh) return false;
+      }
+      return true;
+    });
+  }, [displaySpots, selectedHomeCategory, selectedHomeArea, selectedHomeBudget, searchQuery]);
+
+  // Category rows: strictly the 10 RADA categories
+  const natureSpots = useMemo(() => homeFilteredSpots.filter(s => spotInCategory(s, 'nature')), [homeFilteredSpots]);
+  const creativeSpots = useMemo(() => homeFilteredSpots.filter(s => spotInCategory(s, 'creative_leisure')), [homeFilteredSpots]);
+  const techGamingSpots = useMemo(() => homeFilteredSpots.filter(s => spotInCategory(s, 'tech_gaming')), [homeFilteredSpots]);
+  const actionSportsSpots = useMemo(() => homeFilteredSpots.filter(s => spotInCategory(s, 'action_sports')), [homeFilteredSpots]);
 
   const handleVisitSpot = (offer: BusinessOffer) => {
     // 1. Check if there is a corresponding spot in displaySpots
@@ -337,50 +515,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   const [activeReplyStatusId, setActiveReplyStatusId] = useState<string | null>(null);
   const [replyInputText, setReplyInputText] = useState('');
 
-  // Web Speech API Voice Search with pulsing waveform
-  const handleToggleVoiceSearch = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      showToast('Voice search not supported in this browser. Try Chrome/Edge!');
-      return;
-    }
 
-    if (isListening) {
-      setIsListening(false);
-      return;
-    }
-
-    try {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = 'en-KE';
-
-      recognition.onstart = () => {
-        setIsListening(true);
-        showToast('Listening... Speak an event, movie or artist');
-      };
-
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setSearchQuery(transcript);
-        setIsListening(false);
-        showToast(`Searching for: "${transcript}"`);
-      };
-
-      recognition.onerror = () => {
-        setIsListening(false);
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
-      recognition.start();
-    } catch (err) {
-      setIsListening(false);
-    }
-  };
 
   const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -413,22 +548,31 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     setReplyInputText('');
   };
 
-  // Filter live events with real-time query, vibe, genre, price tier, date and category
+  // Filter live events with real-time query, vibe, genre, price tier, date, category and Home filters
   const homeEventCategoryId = selectedEventCategory === 'art' ? 'arts' : selectedEventCategory;
-  const filteredEvents = events.filter(e => {
-    if (!isUpcoming(e)) return false;
-    const matchesVibe = selectedVibe === 'all' || e.category === selectedVibe;
-    const genreText = `${e.genre || ''} ${e.title || ''} ${e.description || ''} ${(e.tags || []).join(' ')}`.toLowerCase();
-    const matchesGenre = selectedGenre === 'all' || genreText.includes(selectedGenre.toLowerCase());
-    return (
-      matchesVibe &&
-      matchesGenre &&
-      matchesPriceFilter(e, selectedEventPriceTier) &&
-      matchesDateFilter(e, selectedEventDateRange) &&
-      eventMatchesCategory(e, homeEventCategoryId) &&
-      eventMatchesSearch(e, searchQuery)
-    );
-  });
+  const filteredEvents = useMemo(() => {
+    return events.filter(e => {
+      if (!isUpcoming(e)) return false;
+      const matchesVibe = selectedVibe === 'all' || e.category === selectedVibe;
+      const genreText = `${e.genre || ''} ${e.title || ''} ${e.description || ''} ${(e.tags || []).join(' ')}`.toLowerCase();
+      const matchesGenre = selectedGenre === 'all' || genreText.includes(selectedGenre.toLowerCase());
+
+      // Home filters
+      if (selectedHomeDate !== 'all' && !matchesDateFilter(e, selectedHomeDate)) return false;
+      if (selectedHomeBudget !== 'all' && !matchesPriceFilter(e, selectedHomeBudget.toLowerCase())) return false;
+      if (selectedHomeArea !== 'all' && !e.location.toLowerCase().includes(selectedHomeArea.toLowerCase())) return false;
+      if (selectedHomeCategory !== 'all' && !eventMatchesCategory(e, selectedHomeCategory)) return false;
+
+      return (
+        matchesVibe &&
+        matchesGenre &&
+        matchesPriceFilter(e, selectedEventPriceTier) &&
+        matchesDateFilter(e, selectedEventDateRange) &&
+        eventMatchesCategory(e, homeEventCategoryId) &&
+        eventMatchesSearch(e, searchQuery)
+      );
+    });
+  }, [events, selectedVibe, selectedGenre, selectedEventPriceTier, selectedEventDateRange, homeEventCategoryId, searchQuery, selectedHomeDate, selectedHomeBudget, selectedHomeArea, selectedHomeCategory]);
 
   // Events Suite: soonest first (or cheapest when asked); capped for the home carousel
   const sortedEvents = useMemo(() => {
@@ -462,6 +606,12 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       
       if (!matchesLoc || !matchesGenre) return false;
 
+      // Home area filter
+      if (selectedHomeArea !== 'all') {
+        const loc = (m.location || m.locationName || '').toLowerCase();
+        if (!loc.includes(selectedHomeArea.toLowerCase())) return false;
+      }
+
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase().trim();
       return (
@@ -479,25 +629,77 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     });
 
     return res;
-  }, [cinemaMovies, selectedCinemaLoc, selectedGenre, searchQuery, feedOrigin]);
+  }, [cinemaMovies, selectedCinemaLoc, selectedGenre, searchQuery, feedOrigin, selectedHomeArea]);
 
   // Filter offers by category and search query
-  const filteredOffers = (offers || []).filter(o => {
-    if (selectedOfferCategory !== 'all' && o.category !== selectedOfferCategory) return false;
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase().trim();
-    return (
-      o.title.toLowerCase().includes(q) ||
-      o.businessName.toLowerCase().includes(q) ||
-      o.description.toLowerCase().includes(q) ||
-      o.category.toLowerCase().includes(q) ||
-      o.discount.toLowerCase().includes(q)
-    );
-  });
+  const filteredOffers = useMemo(() => {
+    return (offers || []).filter(o => {
+      if (selectedOfferCategory !== 'all' && o.category !== selectedOfferCategory) return false;
+      if (selectedHomeCategory !== 'all') {
+        const cat = o.category.toLowerCase();
+        const bCat = (o.businessCategory || '').toLowerCase();
+        if (!cat.includes(selectedHomeCategory.toLowerCase()) && !bCat.includes(selectedHomeCategory.toLowerCase())) return false;
+      }
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase().trim();
+      return (
+        o.title.toLowerCase().includes(q) ||
+        o.businessName.toLowerCase().includes(q) ||
+        o.description.toLowerCase().includes(q) ||
+        o.category.toLowerCase().includes(q) ||
+        o.discount.toLowerCase().includes(q)
+      );
+    });
+  }, [offers, selectedOfferCategory, selectedHomeCategory, searchQuery]);
+
+  // Admin users filtering
+  const filteredAdminUsers = useMemo(() => {
+    const q = adminUserSearch.trim().toLowerCase();
+    return (adminUsers || []).filter(u => {
+      if (adminUserFilter === 'admins' && u.role !== 'admin') return false;
+      if (adminUserFilter === 'merchants' && !u.isMerchant && u.role !== 'merchant') return false;
+      if (adminUserFilter === 'suspended' && !u.isSuspended && !u.is_suspended) return false;
+      return !q || [u.name, u.username, u.handle, u.email, u.id].some(v => String(v || '').toLowerCase().includes(q));
+    });
+  }, [adminUsers, adminUserSearch, adminUserFilter]);
+
+  const hasActiveHomeFilters = selectedHomeSection !== 'all' || selectedHomeCategory !== 'all' || selectedHomeDate !== 'all' || selectedHomeArea !== 'all' || selectedHomeBudget !== 'all' || selectedGenre !== 'all';
 
   return (
     <section className="px-4 py-4 space-y-6 relative">
-      {/* Search Bar with Web Speech API & Waveform Animation */}
+      {/* Admin Quick Control Banner on Home Tab */}
+      {isAdmin && (
+        <div className="bg-gradient-to-r from-purple-500/10 via-amber-500/10 to-orange-500/10 dark:from-purple-950/30 dark:via-amber-950/20 dark:to-orange-950/20 border border-purple-200/80 dark:border-purple-800/60 rounded-3xl p-3 shadow-xs flex items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-2xl bg-gradient-to-tr from-purple-600 to-amber-500 text-white flex items-center justify-center font-black shadow-xs shrink-0">
+              <Crown className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-black text-slate-900 dark:text-slate-100">
+                  Admin Account Controls
+                </span>
+                <span className="text-[9px] bg-purple-600 text-white font-extrabold px-1.5 py-0.2 rounded uppercase">
+                  Admin
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                Delete, suspend & moderate accounts with confirmation safety
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsAdminAccountModalOpen(true)}
+            className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs shadow-xs transition flex items-center gap-1.5 shrink-0 cursor-pointer active:scale-95"
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>Manage Accounts</span>
+          </button>
+        </div>
+      )}
+
+      {/* Search Bar & Clean Filters (Voice Search Removed) */}
       <div className="space-y-3">
         <div className="relative flex items-center gap-2">
           <div className="relative flex-1 flex items-center">
@@ -507,49 +709,33 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search Kenyan events, venues, movies, or DJs..."
-              className="w-full pl-10 pr-20 py-3 bg-white dark:bg-[#1C1A1E] border border-slate-300 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] shadow-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+              className="w-full pl-10 pr-9 py-3 bg-white dark:bg-[#1C1A1E] border border-slate-300 dark:border-slate-800 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#E0533C] shadow-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
             />
-
-            <div className="absolute right-2.5 flex items-center gap-1.5">
-              {/* Listening Waveform Animation */}
-              {isListening && (
-                <div className="flex items-center gap-0.5 px-2 py-1 bg-red-100 dark:bg-red-950/80 rounded-full">
-                  <span className="w-1 h-3 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1 h-4 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-1 h-2 bg-[#E0533C] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                  <span className="text-[9px] font-black text-[#E0533C] ml-1">Listening</span>
-                </div>
-              )}
-
-              {/* Microphone Button */}
+            {searchQuery && (
               <button
                 type="button"
-                onClick={handleToggleVoiceSearch}
-                title={isListening ? 'Stop Listening' : 'Voice Search with Web Speech API'}
-                className={`p-2 rounded-xl transition ${
-                  isListening 
-                    ? 'bg-[#E0533C] text-white shadow-md' 
-                    : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-[#E0533C] hover:text-white'
-                }`}
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 p-1 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                title="Clear search"
               >
-                <Mic className="w-3.5 h-3.5" />
+                <X className="w-3.5 h-3.5" />
               </button>
-            </div>
+            )}
           </div>
 
-          {/* Clean Filter Icon Button (Replaces top genre pill row) */}
+          {/* Clean Filter Icon Button relevant to Home Tab */}
           <button
             type="button"
-            onClick={() => setIsEventFilterModalOpen(true)}
+            onClick={() => setIsHomeFilterModalOpen(true)}
             className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-xs ${
-              selectedGenre !== 'all' || selectedEventDateRange !== 'all' || selectedEventPriceTier !== 'all'
+              hasActiveHomeFilters
                 ? 'bg-[#E0533C] text-white border-[#E0533C] shadow-md'
                 : 'bg-white dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
             }`}
-            title="Filter Events (Date, Price, Expanded Genres)"
+            title="Filter Home Feed (Sections, Vibes, Area, Date, Budget)"
           >
             <SlidersHorizontal className="w-4 h-4" />
-            {(selectedGenre !== 'all' || selectedEventDateRange !== 'all' || selectedEventPriceTier !== 'all') && (
+            {hasActiveHomeFilters && (
               <span className="w-2 h-2 rounded-full bg-white ml-1.5" />
             )}
           </button>
@@ -580,45 +766,74 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         </div>
 
         {/* Active Filter Indicators */}
-        {(selectedGenre !== 'all' || selectedEventDateRange !== 'all' || selectedEventPriceTier !== 'all') && (
+        {hasActiveHomeFilters && (
           <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pt-0.5">
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Active:</span>
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider shrink-0">Active:</span>
+            {selectedHomeSection !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-600 text-white shrink-0">
+                <span className="capitalize">{selectedHomeSection}</span>
+                <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedHomeSection('all')} />
+              </span>
+            )}
+            {selectedHomeCategory !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#E0533C] text-white shrink-0">
+                <span className="capitalize">{selectedHomeCategory.replace(/_/g, ' ')}</span>
+                <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedHomeCategory('all')} />
+              </span>
+            )}
+            {selectedHomeDate !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shrink-0">
+                <span>{selectedHomeDate}</span>
+                <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedHomeDate('all')} />
+              </span>
+            )}
+            {selectedHomeArea !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#2D6A4F] text-white shrink-0">
+                <span>{selectedHomeArea}</span>
+                <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedHomeArea('all')} />
+              </span>
+            )}
+            {selectedHomeBudget !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-600 text-white shrink-0">
+                <span>{selectedHomeBudget === 'Low' ? 'Budget $' : selectedHomeBudget === 'Mid' ? 'Mid $$' : selectedHomeBudget === 'High' ? 'Luxury $$$' : 'Free Entry'}</span>
+                <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedHomeBudget('all')} />
+              </span>
+            )}
             {selectedGenre !== 'all' && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#E0533C] text-white">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-600 text-white shrink-0">
                 <span>{selectedGenre.toUpperCase()}</span>
                 <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedGenre('all')} />
-              </span>
-            )}
-            {selectedEventDateRange !== 'all' && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900">
-                <span>{selectedEventDateRange}</span>
-                <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedEventDateRange('all')} />
-              </span>
-            )}
-            {selectedEventPriceTier !== 'all' && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#2D6A4F] text-white">
-                <span>{selectedEventPriceTier}</span>
-                <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedEventPriceTier('all')} />
               </span>
             )}
             <button
               type="button"
               onClick={() => {
+                setSelectedHomeSection('all');
+                setSelectedHomeCategory('all');
+                setSelectedHomeDate('all');
+                setSelectedHomeArea('all');
+                setSelectedHomeBudget('all');
                 setSelectedGenre('all');
-                setSelectedEventDateRange('all');
-                setSelectedEventPriceTier('all');
               }}
-              className="text-[10px] text-[#E0533C] font-bold underline ml-1 cursor-pointer"
+              className="text-[10px] text-[#E0533C] font-bold underline ml-1 cursor-pointer shrink-0"
             >
-              Reset
+              Reset All
             </button>
           </div>
         )}
 
-        {/* Streamlined Events & Entertainment Filter Modal */}
-        {isEventFilterModalOpen && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-            <div className="bg-white dark:bg-[#1C1A1E] w-full max-w-md rounded-3xl p-5 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 max-h-[88vh] overflow-y-auto">
+        {/* Comprehensive Home Tab Filter Modal */}
+        {isHomeFilterModalOpen && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+            onClick={() => setIsHomeFilterModalOpen(false)}
+          >
+            <div
+              className="bg-white dark:bg-[#1C1A1E] w-full max-w-md rounded-3xl p-5 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 max-h-[88vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-red-50 dark:bg-red-950/60 text-[#E0533C] flex items-center justify-center">
@@ -626,25 +841,127 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   </div>
                   <div>
                     <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-                      Filter Events & Movies
+                      Filter Nairobi Home Hub
                     </h3>
-                    <p className="text-[10px] text-slate-400">Date, price tier & expanded genres</p>
+                    <p className="text-[10px] text-slate-400">Sections, vibes, areas, dates & budgets</p>
                   </div>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setIsEventFilterModalOpen(false)}
+                  onClick={() => setIsHomeFilterModalOpen(false)}
                   className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Date Filter Options */}
+              {/* What to show on Home Feed (Sections) */}
               <div className="space-y-2">
                 <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                  <span>Show Sections:</span>
+                </span>
+                <div className="grid grid-cols-3 gap-1.5 text-xs">
+                  {[
+                    { id: 'all', label: 'All Feed' },
+                    { id: 'events', label: '🎟️ Events' },
+                    { id: 'spots', label: '📍 Hangouts' },
+                    { id: 'cinemas', label: '🎬 Movies' },
+                    { id: 'offers', label: '🔥 Offers' },
+                    { id: 'statuses', label: '💬 Statuses' },
+                  ].map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setSelectedHomeSection(s.id as any)}
+                      className={`p-2 rounded-xl font-bold transition text-center cursor-pointer text-[11px] ${
+                        selectedHomeSection === s.id
+                          ? 'bg-purple-600 text-white shadow-xs'
+                          : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Category & Vibe Filter */}
+              <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                  <Flame className="w-3.5 h-3.5 text-[#E0533C]" />
+                  <span>Category & Vibe:</span>
+                </span>
+                <div className="grid grid-cols-2 gap-1.5 text-xs max-h-36 overflow-y-auto pr-1">
+                  {[
+                    { id: 'all', label: 'All Vibes' },
+                    { id: 'restaurants_dining', label: 'Restaurants & Dining' },
+                    { id: 'clubs_lounges', label: 'Clubs & Nightlife' },
+                    { id: 'cafes_bakeries', label: 'Cafes & Bakeries' },
+                    { id: 'nature', label: 'Nature & Outdoor' },
+                    { id: 'action_sports', label: 'Action & Sports' },
+                    { id: 'tech_gaming', label: 'Tech & Gaming' },
+                    { id: 'creative_leisure', label: 'Creative & Arts' },
+                    { id: 'hotels_luxury', label: 'Luxury Stays' },
+                    { id: 'date_spots', label: 'Date Spots' },
+                  ].map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setSelectedHomeCategory(cat.id)}
+                      className={`p-2 rounded-xl font-bold transition text-left cursor-pointer truncate text-[11px] ${
+                        selectedHomeCategory === cat.id
+                          ? 'bg-[#E0533C] text-white shadow-xs'
+                          : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Area / Neighborhood */}
+              <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5 text-[#2D6A4F]" />
+                  <span>Area / Neighborhood:</span>
+                </span>
+                <div className="flex flex-wrap gap-1.5 text-xs max-h-32 overflow-y-auto pr-1">
+                  {[
+                    'all',
+                    'Westlands',
+                    'Kilimani',
+                    'Karen',
+                    'CBD',
+                    'Lavington',
+                    'Kileleshwa',
+                    'Gigiri',
+                    'Parklands',
+                    'Ngong Road',
+                    'Ruaka',
+                    'Thika Road'
+                  ].map((area) => (
+                    <button
+                      key={area}
+                      type="button"
+                      onClick={() => setSelectedHomeArea(area)}
+                      className={`px-2.5 py-1 rounded-xl font-bold transition cursor-pointer text-[11px] ${
+                        selectedHomeArea.toLowerCase() === area.toLowerCase()
+                          ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-xs'
+                          : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
+                      }`}
+                    >
+                      {area === 'all' ? 'All Nairobi' : area}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Date Filter */}
+              <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
                   <Calendar className="w-3.5 h-3.5 text-[#E0533C]" />
-                  <span>When:</span>
+                  <span>When (Events & Shows):</span>
                 </span>
                 <div className="grid grid-cols-3 gap-1.5 text-xs">
                   {[
@@ -653,14 +970,13 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     { id: 'tomorrow', label: 'Tomorrow' },
                     { id: 'weekend', label: 'This Weekend' },
                     { id: 'week', label: 'Next 7 Days' },
-                    { id: 'month', label: 'This Month' }
                   ].map((d) => (
                     <button
                       key={d.id}
                       type="button"
-                      onClick={() => setSelectedEventDateRange(d.id)}
-                      className={`p-2 rounded-xl font-bold transition text-center cursor-pointer ${
-                        selectedEventDateRange === d.id
+                      onClick={() => setSelectedHomeDate(d.id as any)}
+                      className={`p-2 rounded-xl font-bold transition text-center cursor-pointer text-[11px] ${
+                        selectedHomeDate === d.id
                           ? 'bg-[#E0533C] text-white shadow-xs'
                           : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
                       }`}
@@ -671,26 +987,26 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 </div>
               </div>
 
-              {/* Price Tier Options */}
-              <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+              {/* Budget Filter */}
+              <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
                   <Ticket className="w-3.5 h-3.5 text-[#2D6A4F]" />
-                  <span>Price / Budget:</span>
+                  <span>Budget / Price Range:</span>
                 </span>
-                <div className="grid grid-cols-2 gap-1.5 text-xs">
+                <div className="grid grid-cols-4 gap-1.5 text-xs">
                   {[
-                    { id: 'all', label: 'All Prices' },
-                    { id: 'free', label: 'Free Entry / RSVP' },
-                    { id: 'under1k', label: 'Under KES 1,000' },
-                    { id: '1k-3k', label: 'KES 1,000 - 3,000' },
-                    { id: '3k+', label: 'VIP (KES 3,000+)' }
+                    { id: 'all', label: 'All' },
+                    { id: 'free', label: 'Free' },
+                    { id: 'Low', label: 'Budget $' },
+                    { id: 'Mid', label: 'Mid $$' },
+                    { id: 'High', label: 'Luxury $$$' },
                   ].map((p) => (
                     <button
                       key={p.id}
                       type="button"
-                      onClick={() => setSelectedEventPriceTier(p.id)}
-                      className={`p-2 rounded-xl font-bold transition text-center cursor-pointer ${
-                        selectedEventPriceTier === p.id
+                      onClick={() => setSelectedHomeBudget(p.id as any)}
+                      className={`p-2 rounded-xl font-bold transition text-center cursor-pointer text-[11px] ${
+                        selectedHomeBudget === p.id
                           ? 'bg-[#2D6A4F] text-white shadow-xs'
                           : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
                       }`}
@@ -701,51 +1017,17 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 </div>
               </div>
 
-              {/* Expanded Genres */}
-              <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
-                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                  <Music className="w-3.5 h-3.5 text-purple-500" />
-                  <span>Genre & Style:</span>
-                </span>
-                <div className="flex flex-wrap gap-1.5 text-xs">
-                  {[
-                    { id: 'all', label: 'All Genres' },
-                    { id: 'hip hop', label: 'Hip Hop & Rap' },
-                    { id: 'afrobeats', label: 'Afrobeats' },
-                    { id: 'amapiano', label: 'Amapiano' },
-                    { id: 'gengetone', label: 'Gengetone' },
-                    { id: 'reggae', label: 'Reggae & Dancehall' },
-                    { id: 'electronic', label: 'Electronic & Tech' },
-                    { id: 'acoustic', label: 'Acoustic & Live Bands' },
-                    { id: 'sci-fi', label: 'Sci-Fi' },
-                    { id: 'action', label: 'Action Movies' },
-                    { id: 'comedy', label: 'Comedy' },
-                    { id: 'animation', label: 'Animation' }
-                  ].map((g) => (
-                    <button
-                      key={g.id}
-                      type="button"
-                      onClick={() => setSelectedGenre(g.id)}
-                      className={`px-3 py-1.5 rounded-xl font-bold transition cursor-pointer ${
-                        selectedGenre === g.id
-                          ? 'bg-purple-600 text-white shadow-xs'
-                          : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
-                      }`}
-                    >
-                      {g.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* Action Buttons */}
               <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => {
+                    setSelectedHomeSection('all');
+                    setSelectedHomeCategory('all');
+                    setSelectedHomeDate('all');
+                    setSelectedHomeArea('all');
+                    setSelectedHomeBudget('all');
                     setSelectedGenre('all');
-                    setSelectedEventDateRange('all');
-                    setSelectedEventPriceTier('all');
                   }}
                   className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 cursor-pointer"
                 >
@@ -753,15 +1035,198 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsEventFilterModalOpen(false)}
+                  onClick={() => setIsHomeFilterModalOpen(false)}
                   className="flex-1 py-2.5 bg-[#E0533C] text-white rounded-xl text-xs font-black shadow-md hover:bg-orange-700 transition cursor-pointer"
                 >
-                  Apply Filters ({filteredEvents.length} events)
+                  Apply Filters
                 </button>
               </div>
             </div>
           </div>
         )}
+
+        {/* Admin Accounts Quick Manager Modal */}
+        {isAdminAccountModalOpen && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+            onClick={() => setIsAdminAccountModalOpen(false)}
+          >
+            <div
+              className="bg-white dark:bg-[#1C1A1E] w-full max-w-lg rounded-3xl p-5 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 max-h-[88vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-2xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center shadow-xs">
+                    <Users className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
+                      Admin Account Management
+                    </h3>
+                    <p className="text-[10px] text-slate-400">
+                      Moderate, suspend, or delete accounts with confirmation safeguards
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAdminAccountModalOpen(false)}
+                  className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Search & Filter pills */}
+              <div className="space-y-2 shrink-0">
+                <div className="relative flex items-center">
+                  <Search className="w-4 h-4 absolute left-3 text-slate-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={adminUserSearch}
+                    onChange={(e) => setAdminUserSearch(e.target.value)}
+                    placeholder="Search accounts by name, handle, email, ID..."
+                    className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div className="flex gap-1.5 overflow-x-auto hide-scrollbar pb-1 text-xs">
+                  {[
+                    { id: 'all', label: 'All Accounts' },
+                    { id: 'merchants', label: 'Merchants' },
+                    { id: 'suspended', label: 'Suspended' },
+                    { id: 'admins', label: 'Admins' },
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setAdminUserFilter(tab.id as any)}
+                      className={`px-3 py-1 rounded-full font-bold text-[11px] transition cursor-pointer ${
+                        adminUserFilter === tab.id
+                          ? 'bg-purple-600 text-white shadow-xs'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Account List */}
+              <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 min-h-[220px]">
+                {filteredAdminUsers.length === 0 ? (
+                  <div className="py-12 text-center text-slate-400 text-xs font-semibold">
+                    No accounts matching search criteria
+                  </div>
+                ) : (
+                  filteredAdminUsers.map((u: any) => {
+                    const isSuspended = u.isSuspended || u.is_suspended;
+                    const isTargetOfficial = isOfficialAdmin(u.email);
+                    return (
+                      <div
+                        key={u.id}
+                        className="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121113] flex items-center justify-between gap-3 shadow-2xs"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-xs text-slate-700 dark:text-slate-200 overflow-hidden shrink-0">
+                            {u.avatar ? (
+                              <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" />
+                            ) : (
+                              (u.name || 'U')[0].toUpperCase()
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">
+                                {u.name || 'Unnamed Account'}
+                              </span>
+                              {u.role === 'admin' && (
+                                <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 uppercase">
+                                  Admin
+                                </span>
+                              )}
+                              {u.isMerchant && (
+                                <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 uppercase">
+                                  Merchant
+                                </span>
+                              )}
+                              {isSuspended && (
+                                <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 uppercase">
+                                  Suspended
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-slate-400 truncate">
+                              {u.handle || u.username || u.email || u.id}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Account Actions */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {!isTargetOfficial && (
+                            <>
+                              {isSuspended ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleAdminTriggerAction('unsuspend_account', u)}
+                                  className="px-2 py-1 bg-emerald-100 dark:bg-emerald-950/50 hover:bg-emerald-200 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold rounded-lg transition cursor-pointer"
+                                >
+                                  Reinstate
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleAdminTriggerAction('suspend_account', u)}
+                                  className="px-2 py-1 bg-amber-100 dark:bg-amber-950/50 hover:bg-amber-200 text-amber-700 dark:text-amber-300 text-[11px] font-bold rounded-lg transition cursor-pointer"
+                                >
+                                  Suspend
+                                </button>
+                              )}
+
+                              {u.isMerchant && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleAdminTriggerAction('revoke_business', u)}
+                                  className="px-2 py-1 bg-orange-100 dark:bg-orange-950/50 hover:bg-orange-200 text-[#E0533C] text-[11px] font-bold rounded-lg transition cursor-pointer"
+                                  title="Revoke Merchant Privileges"
+                                >
+                                  Revoke
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => handleAdminTriggerAction('delete_account', u)}
+                                className="p-1.5 bg-red-100 dark:bg-red-950/50 hover:bg-red-200 text-red-600 dark:text-red-400 rounded-lg transition cursor-pointer"
+                                title="Delete Account Permanently"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Global Admin Confirmation Modal */}
+        <AdminConfirmModal
+          isOpen={confirmModalConfig.isOpen}
+          actionType={confirmModalConfig.actionType}
+          target={confirmModalConfig.target}
+          onClose={() => setConfirmModalConfig(prev => ({ ...prev, isOpen: false }))}
+          onConfirm={handleAdminConfirmAction}
+        />
       </div>
 
       {/* Empty Search Result State for Home Tab */}
@@ -791,7 +1256,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       {/* ========================================================
           RUNNING OFFERS & PROMOTIONS FEED (SPEC 4)
           ======================================================== */}
-      {filteredOffers.length > 0 && (
+      {(selectedHomeSection === 'all' || selectedHomeSection === 'offers') && filteredOffers.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -952,6 +1417,22 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     >
                       <Store className="w-4 h-4" />
                     </button>
+
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => handleAdminTriggerAction('revoke_business', {
+                          id: offer.businessId,
+                          name: offer.businessName,
+                          businessName: offer.businessName,
+                          isMerchant: true
+                        })}
+                        className="p-2 hover:bg-orange-50 dark:hover:bg-orange-950/40 text-amber-600 dark:text-amber-400 rounded-xl border border-amber-200 dark:border-amber-800 transition shrink-0 cursor-pointer"
+                        title="Admin: Revoke Merchant Status"
+                      >
+                        <ShieldAlert className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -961,7 +1442,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       )}
 
       {/* Featured Trending Events Section with Category Filter */}
-      {(selectedVibe === 'all' || selectedVibe === 'concerts' || selectedVibe === 'nightlife' || selectedVibe === 'art') && (
+      {(selectedHomeSection === 'all' || selectedHomeSection === 'events') && (selectedVibe === 'all' || selectedVibe === 'concerts' || selectedVibe === 'nightlife' || selectedVibe === 'art') && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
@@ -1183,7 +1664,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       )}
 
       {/* CENTURY CINEMAX SHOWINGS (Official Posters, Showtime by Date removed, Movie Genre filter added) */}
-      {(selectedVibe === 'all' || selectedVibe === 'cinemas') && filteredCinemaMovies.length > 0 && (
+      {(selectedHomeSection === 'all' || selectedHomeSection === 'cinemas') && (selectedVibe === 'all' || selectedVibe === 'cinemas') && filteredCinemaMovies.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -1277,7 +1758,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       {/* ========================================================
           4A. SPOTS NEAR YOU / TRENDING (LIVE SUPABASE DATABASE)
           ======================================================== */}
-      {displaySpots.length > 0 && (
+      {(selectedHomeSection === 'all' || selectedHomeSection === 'spots') && displaySpots.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -1363,17 +1844,35 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     <span className="text-[10px] text-[#E0533C] font-bold">
                       {getDisplayHours(spot.openingHours, 'Open Daily')}
                     </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenSpotDetails && onOpenSpotDetails(spot);
-                      }}
-                      className="px-3 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
-                    >
-                      <span>Explore</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAdminTriggerAction('delete_spot', {
+                              id: String(spot.id),
+                              name: spot.title,
+                            });
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition cursor-pointer"
+                          title="Admin: Delete Spot"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenSpotDetails && onOpenSpotDetails(spot);
+                        }}
+                        className="px-3 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>Explore</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -1386,7 +1885,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           4B. NATURE TRAILS AND OUTDOOR
           (Hiking, nature trails, waterfalls, mountains, and outdoor groups)
           ======================================================== */}
-      {natureSpots.length > 0 && (
+      {(selectedHomeSection === 'all' || selectedHomeSection === 'spots') && natureSpots.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -1491,7 +1990,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           4D. ACTION & SPORTS CATEGORY
           (Go-karting, bowling, paintball, tactical sports)
           ======================================================== */}
-      {actionSportsSpots.length > 0 && (
+      {(selectedHomeSection === 'all' || selectedHomeSection === 'spots') && actionSportsSpots.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -1597,7 +2096,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           4C. TECH & GAMING CATEGORY
           (VR arcades, gaming lounges, tech entertainment)
           ======================================================== */}
-      {techGamingSpots.length > 0 && (
+      {(selectedHomeSection === 'all' || selectedHomeSection === 'spots') && techGamingSpots.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -1702,7 +2201,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           4B. CREATIVE & LEISURE CATEGORY
           (Paint & sip, crafting, pottery, social craft workshops)
           ======================================================== */}
-      {creativeSpots.length > 0 && (
+      {(selectedHomeSection === 'all' || selectedHomeSection === 'spots') && creativeSpots.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -1806,213 +2305,262 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       {/* ========================================================
           5. LIVE COMMUNITY STATUS FEED - "Where Are You At?" (Last bottom)
           ======================================================== */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-            <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
-            <span>Where Are You At?</span>
-          </h2>
-          <span className="text-[10px] text-slate-600 dark:text-slate-300 font-bold bg-white dark:bg-slate-800 px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-700/60 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-            <span>Community Feed</span>
-          </span>
-        </div>
-
-        {/* Post Creation Box */}
-        <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3.5 shadow-sm space-y-3">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] text-white flex items-center justify-center font-black text-xs shrink-0">
-              W
-            </div>
-            <textarea
-              rows={2}
-              value={statusText}
-              onChange={(e) => setStatusText(e.target.value)}
-              placeholder="What spot are you at right now? Share vibes, DJs, or crowd tips..."
-              className="flex-1 bg-transparent border-none text-xs focus:outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 resize-none"
-            />
+      {(selectedHomeSection === 'all' || selectedHomeSection === 'statuses') && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
+              <span>Where Are You At?</span>
+            </h2>
+            <span className="text-[10px] text-slate-600 dark:text-slate-300 font-bold bg-white dark:bg-slate-800 px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-700/60 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+              <span>Community Feed</span>
+            </span>
           </div>
 
-          {myStatusId && (
-            <p className="text-[10px] text-slate-500 font-medium">
-              You already have a live status. Broadcasting again replaces it. Statuses disappear after 12 hours.
-            </p>
-          )}
-
-          {statusMediaUrl && (
-            <div className="relative w-28 h-20 rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700">
-              <img loading="lazy" decoding="async" src={statusMediaUrl} alt="Status upload" className="w-full h-full object-cover" />
-              <button
-                onClick={() => setStatusMediaUrl(null)}
-                className="absolute top-1 right-1 w-5 h-5 bg-black/70 text-white rounded-full flex items-center justify-center text-[10px]"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-
-          <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800/80">
-            <div className="flex items-center gap-1.5">
-              <label className="cursor-pointer p-1.5 text-slate-500 hover:text-[#E0533C] transition" title="Attach Photo">
-                <Camera className="w-4 h-4" />
-                <input type="file" accept="image/*" className="hidden" onChange={handleMediaUpload} />
-              </label>
-
-              <button
-                type="button"
-                onClick={() => setShowStatusEmojiPicker(!showStatusEmojiPicker)}
-                className={`p-1.5 rounded-lg transition cursor-pointer ${
-                  showStatusEmojiPicker ? 'text-[#E0533C] bg-orange-50 dark:bg-orange-950/40' : 'text-slate-500 hover:text-[#E0533C]'
-                }`}
-                title="Pick Emoji"
-              >
-                <Smile className="w-4 h-4" />
-              </button>
-
-              <span className="text-[10px] text-slate-500 font-medium truncate max-w-[150px]">
-                📍 {statusLocation}
-              </span>
-            </div>
-
-            <button
-              onClick={handlePublishStatus}
-              className="px-4 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center gap-1.5 cursor-pointer"
-            >
-              <span>Broadcast</span>
-              <Send className="w-3 h-3" />
-            </button>
-          </div>
-
-          {/* Expanded Emoji Picker for Status Updates */}
-          {showStatusEmojiPicker && (
-            <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-              <EmojiPicker
-                isOpen={showStatusEmojiPicker}
-                onSelectEmoji={(emoji) => setStatusText(prev => prev + emoji)}
-                onClose={() => setShowStatusEmojiPicker(false)}
+          {/* Post Creation Box */}
+          <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3.5 shadow-sm space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] text-white flex items-center justify-center font-black text-xs shrink-0">
+                W
+              </div>
+              <textarea
+                rows={2}
+                value={statusText}
+                onChange={(e) => setStatusText(e.target.value)}
+                placeholder="What spot are you at right now? Share vibes, DJs, or crowd tips..."
+                className="flex-1 bg-transparent border-none text-xs focus:outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 resize-none"
               />
             </div>
-          )}
-        </div>
 
-        {/* Status Stream */}
-        <div className="space-y-3">
-          {statuses.map((post) => (
-            <div
-              key={post.id}
-              className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3.5 shadow-sm space-y-2.5"
-            >
-              <div className="flex items-center justify-between">
-                <div 
-                  className="flex items-center gap-2.5 cursor-pointer group"
-                  onClick={() => onViewUserProfile({
-                    name: post.author,
-                    handle: post.handle,
-                    avatar: post.avatar,
-                    bio: 'Exploring nightlife, music events, and great culinary spots.',
-                    loc: post.locationName || 'Kenya',
-                    relationshipStatus: 'single'
-                  })}
-                >
-                  <div
-                    className="w-9 h-9 rounded-full bg-cover bg-center shrink-0 border border-slate-300 dark:border-slate-700 group-hover:scale-105 transition"
-                    style={{ backgroundImage: `url('${post.avatar}')` }}
-                  />
-                  <div>
-                    <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition">
-                      {post.author}
-                    </h4>
-                    <span className="text-[10px] text-slate-500">
-                      {post.handle} • {post.timeAgo}
-                    </span>
-                  </div>
-                </div>
-
-                {post.locationName && (
-                  <span className="text-[10px] font-bold text-[#2D6A4F] bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md flex items-center gap-1">
-                    <MapPin className="w-2.5 h-2.5" />
-                    <span>{post.locationName}</span>
-                  </span>
-                )}
-              </div>
-
-              <p className="text-xs text-slate-900 dark:text-slate-100 leading-relaxed font-normal">
-                {post.text}
+            {myStatusId && (
+              <p className="text-[10px] text-slate-500 font-medium">
+                You already have a live status. Broadcasting again replaces it. Statuses disappear after 12 hours.
               </p>
+            )}
 
-              {post.mediaUrl && (
-                <div className="rounded-2xl overflow-hidden max-h-64 border border-slate-200 dark:border-slate-800">
-                  <img loading="lazy" decoding="async" src={post.mediaUrl} alt="Status media" className="w-full h-full object-cover" />
-                </div>
-              )}
-
-              {/* Action Buttons: Reply */}
-              <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800 text-xs">
+            {statusMediaUrl && (
+              <div className="relative w-28 h-20 rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700">
+                <img loading="lazy" decoding="async" src={statusMediaUrl} alt="Status upload" className="w-full h-full object-cover" />
                 <button
-                  onClick={() => setActiveReplyStatusId(activeReplyStatusId === post.id ? null : post.id)}
-                  className="text-slate-500 hover:text-[#E0533C] font-bold text-[11px] flex items-center gap-1 transition"
+                  onClick={() => setStatusMediaUrl(null)}
+                  className="absolute top-1 right-1 w-5 h-5 bg-black/70 text-white rounded-full flex items-center justify-center text-[10px]"
                 >
-                  <MessageCircle className="w-3.5 h-3.5" />
-                  <span>{post.replies?.length || 0} Replies</span>
+                  ✕
+                </button>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800/80">
+              <div className="flex items-center gap-1.5">
+                <label className="cursor-pointer p-1.5 text-slate-500 hover:text-[#E0533C] transition" title="Attach Photo">
+                  <Camera className="w-4 h-4" />
+                  <input type="file" accept="image/*" className="hidden" onChange={handleMediaUpload} />
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => setShowStatusEmojiPicker(!showStatusEmojiPicker)}
+                  className={`p-1.5 rounded-lg transition cursor-pointer ${
+                    showStatusEmojiPicker ? 'text-[#E0533C] bg-orange-50 dark:bg-orange-950/40' : 'text-slate-500 hover:text-[#E0533C]'
+                  }`}
+                  title="Pick Emoji"
+                >
+                  <Smile className="w-4 h-4" />
                 </button>
 
-                {myStatusId === post.id && onDeleteStatus && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (window.confirm('Delete your status?')) onDeleteStatus(post.id);
-                    }}
-                    className="text-slate-500 hover:text-red-600 font-bold text-[11px] flex items-center gap-1 transition cursor-pointer"
-                    title="Delete Status"
-                    aria-label="Delete status"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Delete Status</span>
-                  </button>
-                )}
+                <span className="text-[10px] text-slate-500 font-medium truncate max-w-[150px]">
+                  📍 {statusLocation}
+                </span>
               </div>
 
-              {/* Replies Drawer */}
-              {activeReplyStatusId === post.id && (
-                <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800 animate-in fade-in duration-150">
-                  {post.replies && post.replies.map((rep) => (
-                    <div key={rep.id} className="flex items-start gap-2 text-xs bg-white dark:bg-[#121113] p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
-                      <div
-                        className="w-6 h-6 rounded-full bg-cover bg-center shrink-0"
-                        style={{ backgroundImage: `url('${rep.avatar}')` }}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-[11px] text-slate-800 dark:text-slate-200">{rep.author}</span>
-                          <span className="text-[9px] text-slate-400">{rep.timeAgo}</span>
-                        </div>
-                        <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5">{rep.text}</p>
-                      </div>
-                    </div>
-                  ))}
+              <button
+                onClick={handlePublishStatus}
+                className="px-4 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>Broadcast</span>
+                <Send className="w-3 h-3" />
+              </button>
+            </div>
 
-                  <div className="flex gap-2 pt-1">
-                    <input
-                      type="text"
-                      value={replyInputText}
-                      onChange={(e) => setReplyInputText(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSendReply(post.id)}
-                      placeholder="Write a reply..."
-                      className="flex-1 p-2 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none"
+            {/* Expanded Emoji Picker for Status Updates */}
+            {showStatusEmojiPicker && (
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                <EmojiPicker
+                  isOpen={showStatusEmojiPicker}
+                  onSelectEmoji={(emoji) => setStatusText(prev => prev + emoji)}
+                  onClose={() => setShowStatusEmojiPicker(false)}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Status Stream */}
+          <div className="space-y-3">
+            {statuses.map((post) => (
+              <div
+                key={post.id}
+                className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3.5 shadow-sm space-y-2.5"
+              >
+                <div className="flex items-center justify-between">
+                  <div 
+                    className="flex items-center gap-2.5 cursor-pointer group"
+                    onClick={() => onViewUserProfile({
+                      name: post.author,
+                      handle: post.handle,
+                      avatar: post.avatar,
+                      bio: 'Exploring nightlife, music events, and great culinary spots.',
+                      loc: post.locationName || 'Kenya',
+                      relationshipStatus: 'single'
+                    })}
+                  >
+                    <div
+                      className="w-9 h-9 rounded-full bg-cover bg-center shrink-0 border border-slate-300 dark:border-slate-700 group-hover:scale-105 transition"
+                      style={{ backgroundImage: `url('${post.avatar}')` }}
                     />
-                    <button
-                      onClick={() => handleSendReply(post.id)}
-                      className="px-3 py-2 bg-[#E0533C] text-white rounded-xl text-xs font-bold"
-                    >
-                      Reply
-                    </button>
+                    <div>
+                      <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition">
+                        {post.author}
+                      </h4>
+                      <span className="text-[10px] text-slate-500">
+                        {post.handle} • {post.timeAgo}
+                      </span>
+                    </div>
+                  </div>
+
+                  {post.locationName && (
+                    <span className="text-[10px] font-bold text-[#2D6A4F] bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <MapPin className="w-2.5 h-2.5" />
+                      <span>{post.locationName}</span>
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-xs text-slate-900 dark:text-slate-100 leading-relaxed font-normal">
+                  {post.text}
+                </p>
+
+                {post.mediaUrl && (
+                  <div className="rounded-2xl overflow-hidden max-h-64 border border-slate-200 dark:border-slate-800">
+                    <img loading="lazy" decoding="async" src={post.mediaUrl} alt="Status media" className="w-full h-full object-cover" />
+                  </div>
+                )}
+
+                {/* Action Buttons: Reply + Admin controls */}
+                <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800 text-xs">
+                  <button
+                    onClick={() => setActiveReplyStatusId(activeReplyStatusId === post.id ? null : post.id)}
+                    className="text-slate-500 hover:text-[#E0533C] font-bold text-[11px] flex items-center gap-1 transition"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    <span>{post.replies?.length || 0} Replies</span>
+                  </button>
+
+                  <div className="flex items-center gap-1.5">
+                    {/* Admin Moderation Shortcuts */}
+                    {isAdmin && (
+                      <div className="flex items-center gap-1 bg-purple-50 dark:bg-purple-950/40 px-2 py-0.5 rounded-xl border border-purple-200 dark:border-purple-900">
+                        <span className="text-[9px] font-black text-purple-700 dark:text-purple-300 uppercase tracking-wider">
+                          Admin
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleAdminTriggerAction('delete_status', {
+                            id: post.id,
+                            name: post.author,
+                            handle: post.handle
+                          })}
+                          className="p-1 text-slate-500 hover:text-red-600 rounded transition cursor-pointer"
+                          title="Admin: Delete Status Post"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAdminTriggerAction('suspend_account', {
+                            id: (post as any).userId || post.author,
+                            name: post.author,
+                            handle: post.handle
+                          })}
+                          className="p-1 text-slate-500 hover:text-amber-600 rounded transition cursor-pointer"
+                          title="Admin: Suspend Author Account"
+                        >
+                          <Ban className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAdminTriggerAction('delete_account', {
+                            id: (post as any).userId || post.author,
+                            name: post.author,
+                            handle: post.handle
+                          })}
+                          className="p-1 text-slate-500 hover:text-red-600 rounded transition cursor-pointer"
+                          title="Admin: Permanently Delete Author Account"
+                        >
+                          <AlertTriangle className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+
+                    {myStatusId === post.id && onDeleteStatus && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm('Delete your status?')) onDeleteStatus(post.id);
+                        }}
+                        className="text-slate-500 hover:text-red-600 font-bold text-[11px] flex items-center gap-1 transition cursor-pointer"
+                        title="Delete Status"
+                        aria-label="Delete status"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete Status</span>
+                      </button>
+                    )}
                   </div>
                 </div>
-              )}
-            </div>
-          ))}
+
+                {/* Replies Drawer */}
+                {activeReplyStatusId === post.id && (
+                  <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800 animate-in fade-in duration-150">
+                    {post.replies && post.replies.map((rep) => (
+                      <div key={rep.id} className="flex items-start gap-2 text-xs bg-white dark:bg-[#121113] p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                        <div
+                          className="w-6 h-6 rounded-full bg-cover bg-center shrink-0"
+                          style={{ backgroundImage: `url('${rep.avatar}')` }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-[11px] text-slate-800 dark:text-slate-200">{rep.author}</span>
+                            <span className="text-[9px] text-slate-400">{rep.timeAgo}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5">{rep.text}</p>
+                        </div>
+                      </div>
+                    ))}
+
+                    <div className="flex gap-2 pt-1">
+                      <input
+                        type="text"
+                        value={replyInputText}
+                        onChange={(e) => setReplyInputText(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSendReply(post.id)}
+                        placeholder="Write a reply..."
+                        className="flex-1 p-2 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none"
+                      />
+                      <button
+                        onClick={() => handleSendReply(post.id)}
+                        className="px-3 py-2 bg-[#E0533C] text-white rounded-xl text-xs font-bold"
+                      >
+                        Reply
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </section>
   );
 };
