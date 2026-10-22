@@ -181,10 +181,30 @@ function rowToBusiness(row: any): BusinessAccount {
   };
 }
 
-export async function fetchBusinesses(): Promise<BusinessAccount[] | null> {
+/**
+ * Share one request between callers that ask at the same time (startup sync, feed refresh,
+ * fetchSpots + fetchEvents + fetchOffers all need the same listings). Not a cache: once the
+ * request finishes, the next call fetches fresh data again.
+ */
+function shareInFlight<T>(fn: () => Promise<T>): () => Promise<T> {
+  let pending: Promise<T> | null = null;
+  return () => {
+    if (!pending) pending = fn().finally(() => { pending = null; });
+    return pending;
+  };
+}
+
+/** Starts a query immediately (Supabase queries are lazy) so two tables can load at the same time. */
+function startQuery(q: PromiseLike<any>): Promise<any> {
+  return Promise.resolve(q).catch((error: any) => ({ data: null, error }));
+}
+
+async function fetchBusinessesImpl(): Promise<BusinessAccount[] | null> {
   if (!isSupabaseConfigured) return null;
   const list: BusinessAccount[] = [];
   const seenIds = new Set<string>();
+  // Both tables load at the same time; results are still merged in the original order
+  const businessesReq = startQuery(supabase.from('businesses').select('*').order('created_at', { ascending: false }));
 
   // 1. Query 'rada_businesses' table (primary RADA business table)
   try {
@@ -213,10 +233,7 @@ export async function fetchBusinesses(): Promise<BusinessAccount[] | null> {
 
   // 2. Query 'businesses' table (if populated or used in some environments)
   try {
-    let res = await supabase
-      .from('businesses')
-      .select('*')
-      .order('created_at', { ascending: false });
+    let res: any = await businessesReq;
 
     if (res.error) {
       res = await supabase.from('businesses').select('*');
@@ -237,6 +254,7 @@ export async function fetchBusinesses(): Promise<BusinessAccount[] | null> {
 
   return list;
 }
+export const fetchBusinesses = shareInFlight(fetchBusinessesImpl);
 
 /** Inserts/upserts business into 'rada_businesses' and 'businesses' */
 export async function insertBusiness(biz: BusinessAccount, ownerId: string): Promise<string | null> {
@@ -445,10 +463,12 @@ export async function reviewBusiness(
 // =====================================================================
 // LISTINGS
 // =====================================================================
-export async function fetchListings(): Promise<CloudListings | null> {
+async function fetchListingsImpl(): Promise<CloudListings | null> {
   if (!isSupabaseConfigured) return null;
   const out: CloudListings = { spot: [], event: [], offer: [] };
   const seenSpotIds = new Set<string>();
+  // Both tables load at the same time; results are still merged in the original order
+  const listingsReq = startQuery(supabase.from('rada_listings').select('*').order('created_at', { ascending: false }));
 
   // 1. Fetch from 'spots' table (standard Supabase table used across RADA)
   try {
@@ -520,10 +540,7 @@ export async function fetchListings(): Promise<CloudListings | null> {
 
   // 2. Fetch from 'rada_listings'
   try {
-    const { data, error } = await supabase
-      .from('rada_listings')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const { data, error } = await listingsReq;
 
     if (!error && data) {
       for (const row of data) {
@@ -560,6 +577,7 @@ export async function fetchListings(): Promise<CloudListings | null> {
 
   return out;
 }
+export const fetchListings = shareInFlight(fetchListingsImpl);
 
 export function canEditSpot(
   spot: any,
@@ -763,10 +781,12 @@ export async function deleteListing(kind: ListingKind, id: string | number): Pro
 // =====================================================================
 // REVIEWS
 // =====================================================================
-export async function fetchReviews(): Promise<Record<string, any[]> | null> {
+async function fetchReviewsImpl(): Promise<Record<string, any[]> | null> {
   if (!isSupabaseConfigured) return null;
   const out: Record<string, any[]> = {};
   const seenIds = new Set<string>();
+  // Both tables load at the same time; results are still merged in the original order
+  const radaReviewsReq = startQuery(supabase.from('rada_reviews').select('*').order('created_at', { ascending: false }));
 
   // 1. Fetch from 'reviews' table (standard Supabase table)
   try {
@@ -806,10 +826,7 @@ export async function fetchReviews(): Promise<Record<string, any[]> | null> {
 
   // 2. Fetch from 'rada_reviews' table
   try {
-    const { data, error } = await supabase
-      .from('rada_reviews')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const { data, error } = await radaReviewsReq;
 
     if (!error && data) {
       for (const row of data) {
@@ -828,6 +845,7 @@ export async function fetchReviews(): Promise<Record<string, any[]> | null> {
 
   return out;
 }
+export const fetchReviews = shareInFlight(fetchReviewsImpl);
 
 export async function insertReview(spotId: number | string, review: any, userId: string): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
@@ -933,7 +951,7 @@ export async function fetchStatuses(): Promise<any[] | null> {
   const cutoff = new Date(Date.now() - STATUS_TTL_MS).toISOString();
   const [st, rp] = await Promise.all([
     supabase.from('rada_statuses').select('*').gte('created_at', cutoff).order('created_at', { ascending: false }),
-    supabase.from('rada_status_replies').select('*').order('created_at', { ascending: true }),
+    supabase.from('rada_status_replies').select('*').gte('created_at', cutoff).order('created_at', { ascending: true }),
   ]);
   if (st.error || rp.error) {
     console.warn('fetchStatuses failed:', st.error?.message || rp.error?.message);
