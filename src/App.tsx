@@ -46,6 +46,7 @@ import {
   initialBusinesses,
   initialOffers,
   initialSpots,
+  LEGACY_MOCK_SPOT_TITLES,
   initialEvents,
   initialStatuses,
   discoveryProfiles,
@@ -116,6 +117,12 @@ const readDeepLinkTab = (): string => {
 // Old saved lists may still hold Luku/thrift items; drop them
 const stripLegacyThrift = (items: SavedItem[]): SavedItem[] =>
   items.filter(i => (i.kind as string) !== 'thrift');
+
+// Purges the old hardcoded demo spots (ids 1-20 with seed titles) that may be cached locally or in old cloud rows.
+const MOCK_SPOT_TITLE_SET = new Set(LEGACY_MOCK_SPOT_TITLES.map(t => t.trim().toLowerCase()));
+const isLegacyMockSpot = (s: any) =>
+  /^\d{1,2}$/.test(String(s?.id ?? '')) && Number(s.id) <= 20 && MOCK_SPOT_TITLE_SET.has(String(s?.title || '').trim().toLowerCase());
+const stripMockSpots = <T,>(list: T[]): T[] => list.filter(s => !isLegacyMockSpot(s));
 
 export default function App() {
   const [session, setSession] = useState<any>(null);
@@ -396,11 +403,11 @@ export default function App() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length >= 10) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           const existingIds = new Set(parsed.map((p: any) => String(p.id)));
           const missing = initialSpots.filter(init => !existingIds.has(String(init.id)));
           // Clean legacy mock reviews / fake counts
-          return [...parsed, ...missing].map((sp: any) => {
+          return stripMockSpots([...parsed, ...missing]).map((sp: any) => {
             const cleanReviews = (sp.reviews || []).filter((r: any) => r.id !== 'rev-1');
             const count = cleanReviews.length;
             const rating = count > 0
@@ -816,7 +823,7 @@ export default function App() {
         cloud.fetchOffers(),
         cloud.fetchStatuses()
       ]);
-      if (remoteSpots && remoteSpots.length > 0) setSpots(remoteSpots);
+      if (remoteSpots && remoteSpots.length > 0) setSpots(stripMockSpots(remoteSpots));
       if (remoteEvents && remoteEvents.length > 0) setEvents(remoteEvents);
       if (remoteOffers && remoteOffers.length > 0) setOffers(remoteOffers);
       if (remoteStatuses) {
@@ -1252,7 +1259,7 @@ export default function App() {
       if (mutationRef.current !== startVersion || pendingRef.current > 0) return;
 
       setBusinesses(mergedBiz);
-      setSpots(mergedSpots);
+      setSpots(stripMockSpots(mergedSpots));
       setEvents(mergedEvents);
       setOffers(mergedOffers);
       try {
