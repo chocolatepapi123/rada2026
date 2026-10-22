@@ -37,7 +37,7 @@ import {
   isOwnStatus
 } from './utils/statusLifecycle';
 
-import { fetchCinemaShowings } from './lib/cinema.ts';
+import { fetchCinemaShowings, CINEMA_UPDATED_EVENT } from './lib/cinema.ts';
 import { readJSON, writeJSON, purgeSeedData } from './lib/storage.ts';
 
 // One-time removal of the old demo content cached on this device
@@ -363,10 +363,12 @@ export default function App() {
   const [cinemaMovies, setCinemaMovies] = useState<CinemaMovie[]>([]);
   useEffect(() => {
     let cancelled = false;
-    fetchCinemaShowings().then(list => {
+    const load = () => fetchCinemaShowings().then(list => {
       if (!cancelled) setCinemaMovies(list);
     });
-    return () => { cancelled = true; };
+    load();
+    window.addEventListener(CINEMA_UPDATED_EVENT, load);
+    return () => { cancelled = true; window.removeEventListener(CINEMA_UPDATED_EVENT, load); };
   }, []);
 
   // Navigation
@@ -1751,7 +1753,7 @@ export default function App() {
       id: `pass-${Date.now()}`,
       title: movie.title,
       dateStr: movie.date,
-      locationStr: 'Cinema',
+      locationStr: movie.locationName || 'Cinema',
       type: 'Cinema Movie Pass'
     };
     setTickets(prev => [newPass, ...prev]);

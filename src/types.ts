@@ -270,7 +270,7 @@ export interface EventItem {
 }
 
 export interface CinemaMovie {
-  id: number;
+  id: number | string;
   title: string;
   genre?: string;
   /** Release date (YYYY-MM-DD) from the live feed. */
@@ -282,6 +282,11 @@ export interface CinemaMovie {
   url: string;
   /** Ticket / booking link built per movie. */
   bookingUrl: string;
+  /** Cinema name (used as the filter key). */
+  location?: string;
+  locationName?: string;
+  /** Showtimes text entered by the admin. */
+  times?: string;
 }
 
 export interface StatusReply {
