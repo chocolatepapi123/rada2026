@@ -3,31 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import * as cloud from './lib/cloudSync';
 import { fetchExternalEvents } from './lib/externalEvents';
 import { BusinessesProvider } from './components/BusinessBadge.tsx';
-import { AuthModal } from './components/AuthModal';
-import { AdminDashboard } from './components/AdminDashboardModal.tsx';
 import { Header } from './components/Header.tsx';
 import { Navigation } from './components/Navigation.tsx';
-import { MerchantHubTab } from './components/MerchantHubTab.tsx';
-import { PublicBusinessProfileModal } from './components/PublicBusinessProfileModal.tsx';
 import { HomeTab } from './components/HomeTab.tsx';
-import { SpotsTab } from './components/SpotsTab.tsx';
-import { OutingsTab } from './components/OutingsTab.tsx';
-import { SocialsTab } from './components/SocialsTab.tsx';
-import { VaultTab } from './components/VaultTab.tsx';
-import { LukuEventsTab } from './components/LukuEventsTab.tsx';
-import { Overlays } from './components/Overlays.tsx';
-import { LocationMapModal } from './components/LocationMapModal.tsx';
-import { UserProfileModal } from './components/UserProfileModal.tsx';
 import { SplashScreen } from './components/SplashScreen.tsx';
-import { AccountSettingsModal } from './components/AccountSettingsModal.tsx';
-import { SavedPlacesModal } from './components/SavedPlacesModal.tsx';
-import { LivenessVerificationModal } from './components/LivenessVerificationModal.tsx';
-import { SuggestSpotModal } from './components/SuggestSpotModal.tsx';
 import { ToastProvider, showToast as triggerToast, type ToastOptions } from './components/Toast.tsx';
 import { getTimeOfDayGreeting } from './utils/greetingUtils';
 import {
@@ -43,6 +27,34 @@ import { readJSON, writeJSON, purgeSeedData } from './lib/storage.ts';
 
 // One-time removal of the old demo content cached on this device
 purgeSeedData();
+
+// ---- Code splitting: heavy screens and modals load on demand instead of in the first bundle ----
+const lazyNamed = (loader: () => Promise<any>, name: string) =>
+  lazy(() => loader().then((m) => ({ default: m[name] })));
+
+const AuthModal = lazyNamed(() => import('./components/AuthModal'), 'AuthModal');
+const AdminDashboard = lazyNamed(() => import('./components/AdminDashboardModal.tsx'), 'AdminDashboard');
+const MerchantHubTab = lazyNamed(() => import('./components/MerchantHubTab.tsx'), 'MerchantHubTab');
+const PublicBusinessProfileModal = lazyNamed(() => import('./components/PublicBusinessProfileModal.tsx'), 'PublicBusinessProfileModal');
+const SpotsTab = lazyNamed(() => import('./components/SpotsTab.tsx'), 'SpotsTab');
+const OutingsTab = lazyNamed(() => import('./components/OutingsTab.tsx'), 'OutingsTab');
+const SocialsTab = lazyNamed(() => import('./components/SocialsTab.tsx'), 'SocialsTab');
+const VaultTab = lazyNamed(() => import('./components/VaultTab.tsx'), 'VaultTab');
+const LukuEventsTab = lazyNamed(() => import('./components/LukuEventsTab.tsx'), 'LukuEventsTab');
+const Overlays = lazyNamed(() => import('./components/Overlays.tsx'), 'Overlays');
+const LocationMapModal = lazyNamed(() => import('./components/LocationMapModal.tsx'), 'LocationMapModal');
+const UserProfileModal = lazyNamed(() => import('./components/UserProfileModal.tsx'), 'UserProfileModal');
+const AccountSettingsModal = lazyNamed(() => import('./components/AccountSettingsModal.tsx'), 'AccountSettingsModal');
+const SavedPlacesModal = lazyNamed(() => import('./components/SavedPlacesModal.tsx'), 'SavedPlacesModal');
+const LivenessVerificationModal = lazyNamed(() => import('./components/LivenessVerificationModal.tsx'), 'LivenessVerificationModal');
+const SuggestSpotModal = lazyNamed(() => import('./components/SuggestSpotModal.tsx'), 'SuggestSpotModal');
+
+const TabFallback = () => (
+  <div className="flex items-center justify-center py-24" role="status" aria-label="Loading">
+    <div className="w-7 h-7 rounded-full border-[3px] border-slate-200 dark:border-slate-700 border-t-[#E0533C] animate-spin" />
+  </div>
+);
+
 import {
   initialBusinesses,
   initialOffers,
@@ -2091,7 +2103,7 @@ export default function App() {
       <BusinessesProvider businesses={businesses}>
         <div className="min-h-screen bg-white text-slate-900 dark:bg-[#121113] dark:text-slate-100 flex flex-col transition-colors duration-200 antialiased overflow-x-hidden">
           {/* Primary Application Splash Screen */}
-          {showSplash && <SplashScreen durationMs={2000} onDismiss={() => setShowSplash(false)} />}
+          {showSplash && <SplashScreen durationMs={1200} onDismiss={() => setShowSplash(false)} />}
 
       {authLoading ? (
         <div 
@@ -2171,6 +2183,7 @@ export default function App() {
 
           {/* Main Content Viewports */}
           <main className="flex-1 pb-24 max-w-lg mx-auto w-full relative px-0">
+            <Suspense fallback={<TabFallback />}>
             {activeTab === 'home' && (
               <HomeTab
                 events={allEvents}
@@ -2317,6 +2330,7 @@ export default function App() {
                 showToast={showToast}
               />
             )}
+            </Suspense>
           </main>
 
           {/* Bottom Sticky Navigation */}
@@ -2344,6 +2358,7 @@ export default function App() {
           />
 
           {/* Modals & Overlays */}
+          <Suspense fallback={null}>
           {isBusinessHubOpen && (
             <div className="fixed inset-0 z-50 bg-[#FBFBF9] dark:bg-[#121113] overflow-y-auto">
               <MerchantHubTab
@@ -2377,12 +2392,14 @@ export default function App() {
             </div>
           )}
 
-          <LocationMapModal
-            spot={selectedLocationMapSpot}
-            event={selectedLocationMapEvent}
-            onClose={() => { setSelectedLocationMapSpot(null); setSelectedLocationMapEvent(null); }}
-            showToast={showToast}
-          />
+          {(selectedLocationMapSpot || selectedLocationMapEvent) && (
+            <LocationMapModal
+              spot={selectedLocationMapSpot}
+              event={selectedLocationMapEvent}
+              onClose={() => { setSelectedLocationMapSpot(null); setSelectedLocationMapEvent(null); }}
+              showToast={showToast}
+            />
+          )}
 
           <Overlays
             activeOverlay={activeOverlay}
@@ -2482,66 +2499,76 @@ export default function App() {
             onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
           />
 
-          <PublicBusinessProfileModal
-            business={selectedPublicBusiness}
-            onClose={() => setSelectedPublicBusiness(null)}
-            offers={offers}
-            spots={spots}
-            events={allEvents}
-            onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
-            onOpenEventDetails={(event) => setSelectedEventModal(event)}
-            showToast={showToast}
-          />
+          {selectedPublicBusiness && (
+            <PublicBusinessProfileModal
+              business={selectedPublicBusiness}
+              onClose={() => setSelectedPublicBusiness(null)}
+              offers={offers}
+              spots={spots}
+              events={allEvents}
+              onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
+              onOpenEventDetails={(event) => setSelectedEventModal(event)}
+              showToast={showToast}
+            />
+          )}
 
-          <AccountSettingsModal
-            isOpen={isAccountSettingsOpen}
-            onClose={() => setIsAccountSettingsOpen(false)}
-            session={session}
-            currentUserProfile={currentUserProfile}
-            showToast={showToast}
-            onOpenAuth={() => setIsAuthModalOpen(true)}
-            onSignOut={handleSignOut}
-            onProfileChange={handleOwnProfileChange}
-          />
+          {isAccountSettingsOpen && (
+            <AccountSettingsModal
+              isOpen={isAccountSettingsOpen}
+              onClose={() => setIsAccountSettingsOpen(false)}
+              session={session}
+              currentUserProfile={currentUserProfile}
+              showToast={showToast}
+              onOpenAuth={() => setIsAuthModalOpen(true)}
+              onSignOut={handleSignOut}
+              onProfileChange={handleOwnProfileChange}
+            />
+          )}
 
-          <SavedPlacesModal
-            isOpen={isSavedModalOpen}
-            onClose={() => setIsSavedModalOpen(false)}
-            savedItems={savedItems}
-            savedFolders={savedFolders}
-            onCreateFolder={handleCreateFolder}
-            onDeleteFolder={handleDeleteFolder}
-            onAssignItemFolder={handleAssignItemFolder}
-            spots={spots}
-            events={allEvents}
-            offers={offers}
-            onToggleSave={handleToggleSave}
-            onOpenSpot={(spot) => setSelectedSpotModal(spot)}
-            onOpenEvent={(evt) => setSelectedEventModal(evt)}
-            showToast={showToast}
-          />
+          {isSavedModalOpen && (
+            <SavedPlacesModal
+              isOpen={isSavedModalOpen}
+              onClose={() => setIsSavedModalOpen(false)}
+              savedItems={savedItems}
+              savedFolders={savedFolders}
+              onCreateFolder={handleCreateFolder}
+              onDeleteFolder={handleDeleteFolder}
+              onAssignItemFolder={handleAssignItemFolder}
+              spots={spots}
+              events={allEvents}
+              offers={offers}
+              onToggleSave={handleToggleSave}
+              onOpenSpot={(spot) => setSelectedSpotModal(spot)}
+              onOpenEvent={(evt) => setSelectedEventModal(evt)}
+              showToast={showToast}
+            />
+          )}
 
-          <LivenessVerificationModal
-            isOpen={isLivenessModalOpen}
-            onClose={() => setIsLivenessModalOpen(false)}
-            currentUserProfile={currentUserProfile}
-            userId={session?.user?.id}
-            onVerificationSuccess={handleVerificationSuccess}
-            showToast={showToast}
-          />
+          {isLivenessModalOpen && (
+            <LivenessVerificationModal
+              isOpen={isLivenessModalOpen}
+              onClose={() => setIsLivenessModalOpen(false)}
+              currentUserProfile={currentUserProfile}
+              userId={session?.user?.id}
+              onVerificationSuccess={handleVerificationSuccess}
+              showToast={showToast}
+            />
+          )}
 
-          <SuggestSpotModal
-            isOpen={isSuggestSpotModalOpen}
-            onClose={() => setIsSuggestSpotModalOpen(false)}
-            onSubmitSuccess={(spot) => {
-              if (spot.status === 'approved') {
-                setSpots(prev => [spot, ...prev.filter(s => String(s.id) !== String(spot.id))]);
-              }
-            }}
-            showToast={showToast}
-            currentUserId={session?.user?.id}
-            currentUserProfile={currentUserProfile}
-          />
+          {isSuggestSpotModalOpen && (
+            <SuggestSpotModal
+              isOpen={isSuggestSpotModalOpen}
+              onClose={() => setIsSuggestSpotModalOpen(false)}
+              onSubmitSuccess={(spot) => {
+                if (spot.status === 'approved') {
+                  setSpots(prev => [spot, ...prev.filter(s => String(s.id) !== String(spot.id))]);
+                }
+              }}
+              showToast={showToast}
+              currentUserId={session?.user?.id}
+              currentUserProfile={currentUserProfile}
+            />
+          )}
 
           {isAuthModalOpen && (
             <AuthModal
@@ -2583,6 +2610,8 @@ export default function App() {
               }}
             />
           )}
+
+          </Suspense>
 
           {/* Account Suspended Modal */}
           {suspensionReason && (
