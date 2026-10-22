@@ -509,13 +509,13 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
                     id: sid,
                     title: row.title || row.data?.title || 'Spot',
                     category: row.category || row.data?.category || 'restaurants',
-                    neighborhood: row.neighborhood || row.data?.neighborhood || 'Nairobi',
+                    neighborhood: row.neighborhood || row.data?.neighborhood || '',
                     rating: row.rating ? String(row.rating) : 'New',
                     reviewCount: Number(row.review_count || 0),
                     price: normalizeAnalyticsPriceTier(row.price || row.data?.price),
                     lat: row.lat || -1.2675,
                     lng: row.lng || 36.8115,
-                    address: row.address || `${row.neighborhood || 'Nairobi'}, Kenya`,
+                    address: row.address || (row.neighborhood ? `${row.neighborhood}, Kenya` : 'Kenya'),
                     img: row.img || (row.images && row.images[0]) || row.data?.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
                     merchantId: rowMerchantId,
                     businessId: rowBizId,
@@ -865,7 +865,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
             Publish your first spot to unlock real-time visitor insights
           </h4>
           <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-1.5 leading-relaxed">
-            Track live impressions, customer vault bookmarks, star ratings, and peak hangout days in real time across Nairobi.
+            Track live impressions, customer vault bookmarks, star ratings, and peak hangout days in real time.
           </p>
           <button
             onClick={onOpenCreateSpot}
@@ -1077,7 +1077,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
                       {spot.title}
                     </h5>
                     <p className="text-[10px] text-slate-500 truncate">
-                      {spot.neighborhood || 'Nairobi'}
+                      {spot.neighborhood || ''}
                     </p>
                   </div>
                 </div>
@@ -1372,7 +1372,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       phone: onboardPhone.trim() || '+254 700 000 000',
       whatsapp: onboardWhatsapp.replace(/\s+/g, '') || '+254700000000',
       neighborhood: onboardNeighborhood || 'Westlands',
-      address: onboardAddress.trim() || `${onboardNeighborhood || 'Westlands'}, Nairobi`,
+      address: onboardAddress.trim() || `${onboardNeighborhood || 'Westlands'}`,
       bio: onboardBio.trim() || `Official ${selectedVertical === 'hospitality' ? 'Spot' : 'Event Organizer'} verified on RADA.`,
       logo: onboardLogo || presetLogos[0],
       coverImage: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
@@ -1547,7 +1547,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setSpotCategory('restaurants_dining');
     setSpotSubcategory('Fine Dining');
     setSpotNeighborhood(currentBiz?.neighborhood || 'Westlands');
-    setSpotAddress(currentBiz?.address || 'Westlands, Nairobi');
+    setSpotAddress(currentBiz?.address || 'Westlands');
     setSpotExactLocationTag(`${currentBiz?.address || 'Westlands'}, near Stage`);
     setSpotLandmark('Nearest Stage / Roundabout');
     setSpotPrice('Mid');
@@ -1717,8 +1717,8 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       category: spotCategory,
       subcategory: spotSubcategory,
       neighborhood: spotNeighborhood || 'Westlands',
-      address: spotAddress || `${spotNeighborhood || 'Westlands'}, Nairobi`,
-      exactLocationTag: spotExactLocationTag || `${spotNeighborhood || 'Westlands'}, Nairobi`,
+      address: spotAddress || `${spotNeighborhood || 'Westlands'}`,
+      exactLocationTag: spotExactLocationTag || `${spotNeighborhood || 'Westlands'}`,
       landmark: spotLandmark || 'Central Stage',
       lat: existing?.lat || -1.2675,
       lng: existing?.lng || 36.8115,
@@ -2062,7 +2062,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   const [eventGenre, setEventGenre] = useState('Afrobeats & Amapiano');
   const [eventDate, setEventDate] = useState('Sat, 28 Nov 2026');
   const [eventTime, setEventTime] = useState('08:00 PM - 04:00 AM');
-  const [eventLocation, setEventLocation] = useState('Westlands, Nairobi');
+  const [eventLocation, setEventLocation] = useState('Westlands');
   const [eventExactLocationTag, setEventExactLocationTag] = useState('');
   const [eventUrl, setEventUrl] = useState('https://hustlesasa.com/');
   const [eventImg, setEventImg] = useState('');
@@ -2129,7 +2129,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setEventGenre('Afrobeats & Amapiano');
     setEventDate('Sat, 28 Nov 2026');
     setEventTime('08:00 PM - 04:00 AM');
-    setEventLocation(currentBiz?.address || 'Westlands, Nairobi');
+    setEventLocation(currentBiz?.address || 'Westlands');
     setEventExactLocationTag('Courtyard / Arena Main Stage');
     setEventUrl('https://hustlesasa.com/');
     setEventImg('');
@@ -2458,7 +2458,7 @@ isSpotFormOpen && (
                     rows={3}
                     value={spotDescription} 
                     onChange={(e) => setSpotDescription(e.target.value)} 
-                    placeholder="Tell Nairobi explorers what makes your hangout, cocktails, ambiance, scenic views, or activities unique..."
+                    placeholder="Tell explorers what makes your hangout, cocktails, ambiance, scenic views, or activities unique..."
                     className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]"
                     required
                   />
@@ -3475,7 +3475,7 @@ isSpotFormOpen && (
                     }
                   }}
                   label="Neighborhood / Area Location *"
-                  placeholder="Search Nairobi estates, Kiambu, Mombasa Rd stages..."
+                  placeholder="Search estates, neighborhoods and stages..."
                 />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -3869,7 +3869,7 @@ isSpotFormOpen && (
                 </div>
                 <h2 className="text-lg font-black tracking-tight">Create your business presence</h2>
                 <p className="text-xs text-slate-500 mt-1">
-                  Establish your brand on Nairobi's premier guide. This information is displayed across your listings and public profile.
+                  Establish your brand on the premier guide. This information is displayed across your listings and public profile.
                 </p>
 
                 <div className="space-y-4 mt-6">
@@ -3880,7 +3880,7 @@ isSpotFormOpen && (
                     </label>
                     <input 
                       type="text"
-                      placeholder="e.g. Ink & Drink Lounge, Nairobi Waves, 90s Vintage"
+                      placeholder="e.g. Ink & Drink Lounge, Coastal Waves, 90s Vintage"
                       value={onboardName}
                       onChange={(e) => setOnboardName(e.target.value)}
                       className="w-full text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl px-4 py-3 focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]"
@@ -3894,7 +3894,7 @@ isSpotFormOpen && (
                     </label>
                     <textarea 
                       rows={3}
-                      placeholder="Tell Nairobi what makes your venue, rave, or streetwear drop extraordinary..."
+                      placeholder="Tell explorers what makes your venue, rave, or streetwear drop extraordinary..."
                       value={onboardBio}
                       onChange={(e) => setOnboardBio(e.target.value)}
                       className="w-full text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-4 focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]"
@@ -5023,7 +5023,7 @@ isSpotFormOpen && (
                           </div>
                           <p className="text-[11px] text-slate-400 truncate flex items-center gap-1 mt-0.5">
                             <MapPin className="w-3 h-3 text-[#E0533C] dark:text-[#D17A68]" />
-                            <span>{spot.neighborhood} • {spot.address}</span>
+                            <span>{[spot.neighborhood, spot.address].filter(Boolean).join(' • ')}</span>
                           </p>
                           <p className="text-[10px] text-slate-500 mt-0.5">
                             Rating ★ {spot.rating || '4.8'} ({spot.reviewCount || 0} reviews)
@@ -5243,7 +5243,7 @@ isSpotFormOpen && (
                     type="text" 
                     value={eventTitle} 
                     onChange={(e) => setEventTitle(e.target.value)} 
-                    placeholder="e.g. Sunset Amapiano Jam Vol. 4 • Nairobi Edition"
+                    placeholder="e.g. Sunset Amapiano Jam Vol. 4 • Special Edition"
                     className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none focus:border-purple-600"
                     required
                   />
@@ -5341,7 +5341,7 @@ isSpotFormOpen && (
                     <MapPin className="w-3.5 h-3.5 text-purple-600" />
                     <span>Venue Location & Transit Directions</span>
                   </h3>
-                  <span className="text-[10px] text-purple-600 font-bold">Nairobi • Kiambu • Mombasa Rd</span>
+                  <span className="text-[10px] text-purple-600 font-bold">Kiambu • Mombasa Rd</span>
                 </div>
 
                 {/* Dynamic Auto-Search Location Selector */}
@@ -6085,7 +6085,7 @@ isSpotFormOpen && (
                   rows={3}
                   value={claimProofNote}
                   onChange={(e) => setClaimProofNote(e.target.value)}
-                  placeholder="Explain your connection to this venue (e.g. 'We are the founding operators of this cocktail lounge located at XYZ building. Attached is our Nairobi County Single Business Permit and exterior signage with staff.')..."
+                  placeholder="Explain your connection to this venue (e.g. 'We are the founding operators of this cocktail lounge located at XYZ building. Attached is our County Single Business Permit and exterior signage with staff.')..."
                   className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#E0533C] dark:focus:ring-[#D17A68]"
                   required
                 />
@@ -6155,7 +6155,7 @@ isSpotFormOpen && (
                         Attach proof photos or document scans
                       </p>
                       <p className="text-[10px] text-slate-400 mt-0.5 max-w-sm">
-                        Acceptable: Nairobi County Single Business Permit, KRA PIN certificate, Utility bill matching spot address, or branded exterior signage
+                        Acceptable: County Single Business Permit, KRA PIN certificate, Utility bill matching spot address, or branded exterior signage
                       </p>
                     </div>
                     <span className="px-3 py-1 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-bold text-xs rounded-xl">
