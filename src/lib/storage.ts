@@ -46,3 +46,91 @@ export function purgeSeedData(): void {
     /* ignore */
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Debounced / idle persistence                                        */
+/* ------------------------------------------------------------------ */
+
+const DATA_URL_MIN_LENGTH = 1024;
+const isHeavyDataUrl = (v: unknown): v is string =>
+  typeof v === 'string' && v.length > DATA_URL_MIN_LENGTH && v.startsWith('data:');
+
+/**
+ * Returns a copy of `value` without large base64 data URLs (object keys are dropped,
+ * array entries are filtered out). Used only for the local cache: cloudSync stores the
+ * full value remotely, so the next sync restores the images.
+ */
+export function stripDataUrls<T>(value: T): T {
+  const walk = (v: any): any => {
+    if (isHeavyDataUrl(v)) return undefined;
+    if (Array.isArray(v)) {
+      const out: any[] = [];
+      for (const item of v) {
+        const r = walk(item);
+        if (r !== undefined) out.push(r);
+      }
+      return out;
+    }
+    if (v && typeof v === 'object') {
+      const out: any = {};
+      for (const k of Object.keys(v)) {
+        const r = walk(v[k]);
+        if (r !== undefined) out[k] = r;
+      }
+      return out;
+    }
+    return v;
+  };
+  return walk(value);
+}
+
+type Pending = { getValue: () => unknown; strip: boolean };
+const pending = new Map<string, Pending>();
+let timer: number | null = null;
+let idleHandle: number | null = null;
+
+const ric: (cb: () => void, opts?: { timeout: number }) => number =
+  (typeof window !== 'undefined' && (window as any).requestIdleCallback)
+    ? (cb, opts) => (window as any).requestIdleCallback(cb, opts)
+    : (cb) => window.setTimeout(cb, 50);
+
+function flushNow(): void {
+  if (timer != null) { clearTimeout(timer); timer = null; }
+  if (idleHandle != null) {
+    if ((window as any).cancelIdleCallback) (window as any).cancelIdleCallback(idleHandle);
+    else clearTimeout(idleHandle);
+    idleHandle = null;
+  }
+  const entries = Array.from(pending.entries());
+  pending.clear();
+  for (const [key, { getValue, strip }] of entries) {
+    const v = getValue();
+    writeJSON(key, strip ? stripDataUrls(v) : v);
+  }
+}
+
+/** Write the latest value of `key` after a short pause, during browser idle time. */
+export function writeJSONDebounced(
+  key: string,
+  value: unknown,
+  opts: { delay?: number; stripImages?: boolean } = {}
+): void {
+  pending.set(key, { getValue: () => value, strip: !!opts.stripImages });
+  if (timer != null) clearTimeout(timer);
+  timer = window.setTimeout(() => {
+    timer = null;
+    idleHandle = ric(() => { idleHandle = null; flushNow(); }, { timeout: 2000 });
+  }, opts.delay ?? 800);
+}
+
+/** Immediately write anything still waiting (called when the app is hidden or closed). */
+export function flushPendingWrites(): void {
+  if (pending.size) flushNow();
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', flushPendingWrites);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushPendingWrites();
+  });
+}
