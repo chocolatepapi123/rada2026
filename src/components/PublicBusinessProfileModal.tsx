@@ -25,7 +25,8 @@ import {
   EventItem 
 } from '../types.ts';
 import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
-import { isBusinessApproved } from './BusinessBadge.tsx';
+import { isBusinessApproved, PublicTierBadges } from './BusinessBadge.tsx';
+import { usePublicTiers } from '../lib/subscriptions';
 
 import { shareContent } from '../utils/shareUtils.ts';
 import type { ToastOptions } from './Toast.tsx';
@@ -52,6 +53,8 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
   showToast
 }) => {
  const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
+  // Public tier of the business owner (Business / Golden Featured). Hook runs before the early return.
+  const ownerTiers = usePublicTiers([business?.ownerId]);
   if (!business) return null;
 
   // Filter offers for this business
@@ -135,6 +138,13 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
                 <MapPin className="w-3 h-3 text-[#E0533C] dark:text-[#D17A68] shrink-0" />
                 <span className="truncate">{business.address || `${business.neighborhood}, Nairobi`}</span>
               </div>
+              <PublicTierBadges
+                tiers={business.ownerId ? ownerTiers[business.ownerId] : undefined}
+                kinds={['merchant']}
+                merchantApproved={isBusinessApproved(business)}
+                size="sm"
+                className="mt-2.5"
+              />
             </div>
           </div>
 

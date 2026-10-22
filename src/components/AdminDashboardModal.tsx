@@ -10,17 +10,18 @@ import type {
 } from '../types';
 import { fetchBusinesses,
   fetchPlatformStats, fetchAdminUsers, setUserSuspension, revokeCreatorStatus,
-  revokeBusinessStatus, deleteAccountAdmin, setBusinessSubscription, publishUnclaimedSpot,
+  revokeBusinessStatus, deleteAccountAdmin, publishUnclaimedSpot,
   fetchUnclaimedSpots, deleteListing, reviewBusiness, fetchSpotClaims, reviewSpotClaim,
   fetchPendingUserSpots, approveCommunitySpot, rejectCommunitySpot,
 } from '../lib/cloudSync';
 import { CinemaAdminPanel } from './CinemaAdminPanel.tsx';
+import { AdminSubscriptionsPanel } from './AdminSubscriptionsPanel';
 import { supabase } from '../lib/supabase';
 import { initialBusinesses } from '../data/initialData.ts';
 import type { ToastOptions } from './Toast.tsx';
 
 type VerificationStatus = 'pending' | 'approved' | 'rejected';
-type TabId = 'overview' | 'pending_spots' | 'claims' | 'verification' | 'spots' | 'cinema' | 'users';
+type TabId = 'overview' | 'pending_spots' | 'claims' | 'verification' | 'spots' | 'cinema' | 'users' | 'subscriptions';
 
 export interface AdminDashboardProps {
   businesses: BusinessAccount[];
@@ -55,8 +56,6 @@ const SPOT_CATEGORIES: { id: SpotCategory; label: string }[] = [
   { id: 'spa_wellness', label: 'Spa & Wellness' },
   { id: 'event_space', label: 'Event Space' },
 ];
-
-const SUB_STATUSES: SubscriptionStatus[] = ['none', 'active', 'trialing', 'past_due', 'canceled'];
 
 const statusOf = (b: BusinessAccount): VerificationStatus =>
   b.verificationStatus || (b.verified ? 'approved' : 'pending');
@@ -312,14 +311,6 @@ export function AdminDashboardModal({
       verifiedAt: undefined, verifiedBy: 'admin',
     }, `Verified badge removed from ${b.name}.`);
 
-  const changeSubscription = async (b: BusinessAccount, status: SubscriptionStatus) => {
-    const err = await setBusinessSubscription(b.id, {
-      status, plan: b.subscriptionPlan, amount: b.subscriptionAmount, renewsAt: b.subscriptionRenewsAt,
-    });
-    if (err) { toast(err, { type: 'error' }); return; }
-    setSubOverride(o => ({ ...o, [b.id]: status }));
-  };
-
   // =====================================================================
   // UNCLAIMED SPOTS
   // =====================================================================
@@ -438,7 +429,7 @@ export function AdminDashboardModal({
   // OVERVIEW DERIVED
   // =====================================================================
   const paidBusinesses = useMemo(
-    () => businesses.filter(b => subOf(b) === 'active'),
+    () => businesses.filter(b => subOf(b) === 'active' || subOf(b) === 'trialing'),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [businesses, subOverride]
   );
@@ -488,6 +479,7 @@ export function AdminDashboardModal({
     { id: 'spots', label: 'Add Unclaimed Spot', icon: <MapPinPlus className="w-4 h-4" /> },
     { id: 'cinema', label: 'Cinema', icon: <Film className="w-4 h-4" /> },
     { id: 'users', label: 'Users', icon: <Users className="w-4 h-4" /> },
+    { id: 'subscriptions', label: 'Subscriptions', icon: <CircleDollarSign className="w-4 h-4" /> },
   ];
 
   const StatCard = ({ label, value, icon }: { label: string; value: React.ReactNode; icon: React.ReactNode }) => (
@@ -622,7 +614,7 @@ export function AdminDashboardModal({
 
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <h2 className="text-sm font-black">Active paid business accounts ({paidBusinesses.length})</h2>
+                    <h2 className="text-sm font-black">Premium business accounts ({paidBusinesses.length})</h2>
                     <span className="flex items-center gap-1 text-xs font-bold text-emerald-600">
                       <CircleDollarSign className="w-4 h-4" />
                       {monthlyRevenue > 0 ? `KES ${monthlyRevenue.toLocaleString()} / mo recorded` : 'No amounts recorded'}
@@ -630,7 +622,7 @@ export function AdminDashboardModal({
                   </div>
                   {paidBusinesses.length === 0 ? (
                     <p className="text-sm text-slate-500 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-4">
-                      No business has an active subscription yet. Set one from a business's review panel.
+                      No business is on a paid or trial plan yet. Manage plans from the Subscriptions tab.
                     </p>
                   ) : (
                     <div className="space-y-2">
@@ -1227,6 +1219,9 @@ export function AdminDashboardModal({
             {/* ================= USERS ================= */}
             {tab === 'cinema' && <CinemaAdminPanel toast={toast} />}
 
+            {/* ================= SUBSCRIPTIONS ================= */}
+            {tab === 'subscriptions' && <AdminSubscriptionsPanel toast={toast} />}
+
             {tab === 'users' && (
               <div className="p-4 space-y-3">
                 <SearchBox value={userSearch} onChange={setUserSearch} placeholder="Search name, @username, email or ID..." />
@@ -1324,16 +1319,22 @@ export function AdminDashboardModal({
                 </div>
               )}
 
-              <label className="block">
-                <span className="text-xs text-slate-500">Subscription</span>
-                <select
-                  className={inputCls}
-                  value={subOf(selectedBiz)}
-                  onChange={e => changeSubscription(selectedBiz, e.target.value as SubscriptionStatus)}
+              <div className="rounded-2xl bg-slate-50 dark:bg-slate-900 p-4 flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-xs text-slate-500">Subscription</p>
+                  <p className="text-sm font-bold mt-1 capitalize">
+                    {subOf(selectedBiz).replace('_', ' ')}
+                    {selectedBiz.subscriptionPlan ? ` · ${selectedBiz.subscriptionPlan}` : ''}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setSelectedBiz(null); setTab('subscriptions'); }}
+                  className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold cursor-pointer shrink-0"
                 >
-                  {SUB_STATUSES.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
-                </select>
-              </label>
+                  Manage plan
+                </button>
+              </div>
 
               {statusOf(selectedBiz) === 'pending' && (
                 <textarea

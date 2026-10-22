@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Crown as PlanCrownIcon } from 'lucide-react';
+import { useMySubscriptions } from '../lib/subscriptions';
+import { SubscriptionPlans, TrialBanner } from './SubscriptionPlans';
 import { 
   Store, 
   Ticket, 
@@ -1304,7 +1307,11 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   const [onboardingStep, setOnboardingStep] = useState<1 | 2>(1);
 
   // Active sub-tab inside the vertical dashboard
-  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'manage' | 'claim' | 'offers' | 'profile' | 'analytics'>('overview');
+  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'manage' | 'claim' | 'offers' | 'profile' | 'analytics' | 'plan'>('overview');
+
+  // Merchant subscription (read-only here: plans are changed by RADA admins on the server)
+  const mySubs = useMySubscriptions(adminMode ? undefined : userId);
+  const merchantSub = mySubs.subs.merchant;
 
   // Business Switcher Dropdown
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
@@ -4298,6 +4305,18 @@ isSpotFormOpen && (
               <span>Spot Analytics</span>
             </button>
 
+            <button
+              onClick={() => setActiveSubTab('plan')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
+                activeSubTab === 'plan'
+                  ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-amber-950 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <PlanCrownIcon className="w-3.5 h-3.5" />
+              <span>My Plan</span>
+            </button>
+
             {/* Spot Merchant Specific Tabs */}
             {currentBiz.category === 'hospitality' && (
               <>
@@ -4373,6 +4392,11 @@ isSpotFormOpen && (
 
       {/* Main Dashboard Container */}
       <div className="max-w-lg mx-auto px-4 py-5 space-y-6">
+
+        {/* Trial countdown / plan status (hidden on the plan tab itself) */}
+        {!adminMode && activeSubTab !== 'plan' && merchantSub && (
+          <TrialBanner record={merchantSub} compact onManage={() => setActiveSubTab('plan')} />
+        )}
 
         {/* =========================================================================
             SUB-TAB: OVERVIEW
@@ -4851,6 +4875,24 @@ isSpotFormOpen && (
         {/* =========================================================================
             SUB-TAB: SPOT ANALYTICS & INSIGHTS
             ========================================================================= */}
+        {/* =========================================================================
+            SUB-TAB: MY PLAN (merchant subscription)
+            ========================================================================= */}
+        {activeSubTab === 'plan' && (
+          <div className="space-y-6 pb-8 animate-in fade-in duration-150">
+            <SubscriptionPlans
+              kind="merchant"
+              record={merchantSub}
+              loading={mySubs.loading}
+              error={mySubs.error}
+              onRefresh={mySubs.refresh}
+              signedIn={Boolean(isUserSignedIn ?? userId)}
+              onOpenAuth={onOpenAuth}
+              accountLabel={currentBiz.name}
+            />
+          </div>
+        )}
+
         {activeSubTab === 'analytics' && (
           <div className="space-y-6 animate-in fade-in duration-150">
             <SpotInsightsAnalytics

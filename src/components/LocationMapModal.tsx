@@ -3,6 +3,7 @@ import { X, MapPin, Car, Navigation, ExternalLink } from 'lucide-react';
 import { SpotItem, EventItem } from '../types.ts';
 import { hasEventCoords, resolveEventCoords, eventGoogleMapsUrl } from '../utils/eventUtils.ts';
 import type { ToastOptions } from './Toast.tsx';
+import { loadLeaflet } from '../lib/leaflet.ts';
 
 interface LocationMapModalProps {
   spot: SpotItem | null;
@@ -72,11 +73,14 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
 
   useEffect(() => {
     if (!place || placeLat == null || placeLng == null) return;
-    const L = (window as any).L;
-    if (!L || !mapContainerRef.current) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // Leaflet is loaded on demand (no longer in index.html) so it can't block app start
+    loadLeaflet().then((L) => {
+    if (cancelled || !L || !mapContainerRef.current) return;
 
     // Small delay to ensure modal container has dimensions
-    const timer = setTimeout(() => {
+    timer = setTimeout(() => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
@@ -117,8 +121,10 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
         map.invalidateSize();
       }
     }, 150);
+    }).catch(() => { /* map stays blank; the directions links still work */ });
 
     return () => {
+      cancelled = true;
       clearTimeout(timer);
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();

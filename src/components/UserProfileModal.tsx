@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { VerifiedBadge } from './VerifiedBadge';
+import { PublicTierBadges } from './BusinessBadge';
+import { usePublicTiers } from '../lib/subscriptions';
 import { toHandle } from '../lib/cloudSync';
 import {
   AvatarHero,
@@ -115,6 +117,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     statsFallback: professionalStats,
   });
 
+  // Public tier (Creator / Golden Creator). Only the tier is exposed, never trial dates.
+  const tierUserId = (isOwnProfile ? currentUserId : undefined) || user?.id;
+  const publicTiers = usePublicTiers([tierUserId]);
+  const myTiers = tierUserId ? publicTiers[tierUserId] : undefined;
+
   if (!user) return null;
 
   const handle = toHandle(user.handle);
@@ -197,10 +204,16 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               </div>
             </Section>
 
+            {myTiers?.creator && (
+              <div className="mx-4 mt-5">
+                <PublicTierBadges tiers={myTiers} kinds={['creator']} size="md" />
+              </div>
+            )}
+
             {own.isPro && (
               <p className="mx-4 mt-4 text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                 <VerifiedBadge status="approved" size="sm" />
-                <span>Professional account. Open the ••• menu in Account & Security for your host dashboard.</span>
+                <span>Professional account. Open the ••• menu in Account & Security for your host dashboard and plan.</span>
               </p>
             )}
           </div>
@@ -310,6 +323,12 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             <MapPin className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68] shrink-0" />
             <span>{cleanLoc(user.loc)}</span>
           </p>
+
+          {myTiers?.creator && (
+            <div>
+              <PublicTierBadges tiers={myTiers} kinds={['creator']} size="md" />
+            </div>
+          )}
 
           {isVerifiedPro && (
             <div className="p-3 rounded-2xl bg-[#E0533C]/10 dark:bg-[#A94F3E]/10 flex items-center justify-between gap-3">

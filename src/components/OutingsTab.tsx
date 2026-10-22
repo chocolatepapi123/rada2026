@@ -32,6 +32,15 @@ import { OutingPlan, OutingAttendee, SpotItem, UserProfile } from '../types.ts';
 import { shareContent } from '../utils/shareUtils.ts';
 import { uploadCoverImage } from '../lib/cloudSync.ts';
 import { VerifiedBadge } from './VerifiedBadge.tsx';
+import {
+  PLAN_META,
+  attendeeCeiling,
+  clampAttendees,
+  countOutingsThisMonth,
+  fetchMyOutingUsage,
+  getOutingQuota,
+  useMySubscriptions,
+} from '../lib/subscriptions';
 
 export const NAIROBI_KEY_LOCATIONS = [
   'All Locations',
@@ -421,6 +430,32 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   const [planDate, setPlanDate] = useState('2026-10-24');
   const [planTime, setPlanTime] = useState('18:00');
   const [maxAttendees, setMaxAttendees] = useState(6);
+
+  // ---- Plan limits: Free 4 / Pro 10 / Elite unlimited outings a month; attendees 10 / 30 / unlimited ----
+  const { plan: myPlan } = useMySubscriptions(currentUserId);
+  const [serverOutingsUsed, setServerOutingsUsed] = useState(0);
+  useEffect(() => {
+    if (!currentUserId) {
+      setServerOutingsUsed(0);
+      return;
+    }
+    let cancelled = false;
+    fetchMyOutingUsage().then((u) => {
+      if (!cancelled && u) setServerOutingsUsed(u.used);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserId, outings.length]);
+  const quota = getOutingQuota(
+    myPlan,
+    Math.max(serverOutingsUsed, countOutingsThisMonth(outings, currentUserId))
+  );
+  const attendeeMax = attendeeCeiling(myPlan);
+  useEffect(() => {
+    setMaxAttendees((prev) => clampAttendees(myPlan, prev));
+  }, [myPlan]);
+  const outingLimitMessage = `You've used all ${quota.limit} outings for this month on the ${PLAN_META[myPlan].name} plan. Upgrade in Account & Security to host more.`;
   const [accessType, setAccessType] = useState<'open' | 'singles_only'>('open');
   const [description, setDescription] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>(['All Plans', 'Group Hangouts']);
@@ -603,6 +638,16 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       return;
     }
 
+    if (!quota.allowed) {
+      showToast(outingLimitMessage);
+      return;
+    }
+
+    if (quota.attendeeCap !== null && Number(maxAttendees) > quota.attendeeCap) {
+      showToast(`The ${PLAN_META[myPlan].name} plan allows up to ${quota.attendeeCap} attendees per outing.`);
+      return;
+    }
+
     if (coverUploading) {
       showToast('Cover image is still uploading, one moment...');
       return;
@@ -692,6 +737,23 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
             <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
               Got a plan? Host it and let the community join.
             </p>
+            {isUserSignedIn && (
+              <div className="mt-3.5 space-y-2">
+                <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                  {quota.limit === null
+                    ? `Unlimited outings · ${PLAN_META[myPlan].name} plan`
+                    : `${quota.used} of ${quota.limit} outings used this month · ${PLAN_META[myPlan].name} plan`}
+                </p>
+                {quota.limit !== null && (
+                  <div className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden" aria-hidden="true">
+                    <div
+                      className={`h-full rounded-full ${quota.allowed ? 'bg-[#E0533C]' : 'bg-red-500'}`}
+                      style={{ width: `${Math.min(100, Math.round((quota.used / quota.limit) * 100))}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <button
@@ -700,6 +762,10 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
               if (!isUserSignedIn && !currentUserId) {
                 showToast('Please sign in to host a plan');
                 onOpenAuth();
+                return;
+              }
+              if (!quota.allowed) {
+                showToast(outingLimitMessage);
                 return;
               }
               setIsHostModalOpen(true);
@@ -1480,7 +1546,10 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
               <div className="grid grid-cols-2 gap-2.5">
                 <div className="space-y-1">
                   <label className="font-extrabold text-slate-900 dark:text-slate-100 flex items-center justify-between">
-                    <span>Max Attendees:</span>
+                    <span>
+                      Max Attendees
+                      <span className="ml-1 font-semibold text-[10px] text-slate-400">(up to {quota.attendeeCap ?? 'any'})</span>:
+                    </span>
                     <span className="font-black text-[#E0533C] text-sm">{maxAttendees}</span>
                   </label>
                   <div className="flex items-center gap-2">
@@ -1494,14 +1563,14 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                     <input
                       type="range"
                       min={2}
-                      max={20}
+                      max={attendeeMax}
                       value={maxAttendees}
                       onChange={(e) => setMaxAttendees(parseInt(e.target.value, 10))}
                       className="flex-1 accent-[#E0533C]"
                     />
                     <button
                       type="button"
-                      onClick={() => setMaxAttendees(prev => Math.min(25, prev + 1))}
+                      onClick={() => setMaxAttendees(prev => Math.min(attendeeMax, prev + 1))}
                       className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-black text-sm flex items-center justify-center hover:bg-slate-200 cursor-pointer"
                     >
                       +
