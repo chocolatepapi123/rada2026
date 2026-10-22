@@ -15,6 +15,7 @@ import { fetchBusinesses,
   fetchPendingUserSpots, approveCommunitySpot, rejectCommunitySpot,
 } from '../lib/cloudSync';
 import { CinemaAdminPanel } from './CinemaAdminPanel.tsx';
+import { supabase } from '../lib/supabase';
 import { initialBusinesses } from '../data/initialData.ts';
 import type { ToastOptions } from './Toast.tsx';
 
@@ -117,27 +118,61 @@ export function AdminDashboardModal({
     }
   }, [spotClaims]);
 
+  // Source of truth for unclaimed spots: public.unclaimedspots (paged, so >1000 rows still load).
+  const fetchUnclaimedFromDb = useCallback(async (): Promise<any[] | null> => {
+    if (!supabase) return null;
+    const rows: any[] = [];
+    const PAGE = 1000;
+    for (let from = 0; from < 20000; from += PAGE) {
+      const { data, error } = await supabase
+        .from('unclaimedspots')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(from, from + PAGE - 1);
+      if (error) { console.warn('unclaimedspots read failed:', error.message); return rows.length ? rows : null; }
+      rows.push(...(data || []));
+      if (!data || data.length < PAGE) break;
+    }
+    return rows.map(r => ({
+      id: r.id,
+      title: r.name,
+      category: r.category,
+      neighborhood: r.neighborhood || r.address || '',
+      address: r.address,
+      img: r.thumbnail,
+      lat: r.latitude,
+      lng: r.longitude,
+      phone: r.phone,
+      website: r.website,
+      isUnclaimed: true,
+      _src: 'unclaimedspots',
+    }));
+  }, []);
+
   const loadAll = useCallback(async () => {
     const rb = (await fetchBusinesses()) || [];
     setRemoteBiz(rb);
-    const [s, u, sp, cl, ps] = await Promise.all([
+    const [s, u, sp, cl, ps, dbUnclaimed] = await Promise.all([
       fetchPlatformStats(),
       fetchAdminUsers(rb.length ? rb : businessesProp),
       fetchUnclaimedSpots(),
       fetchSpotClaims(),
       fetchPendingUserSpots(),
+      fetchUnclaimedFromDb(),
     ]);
     setStats(s);
     setUsers(u);
     setUsersError(u === null);
-    setUnclaimed(sp || []);
+    // live table first; keep any extra rows the old loader returned (matched by id)
+    const seen = new Set((dbUnclaimed || []).map(x => String(x.id)));
+    setUnclaimed([...(dbUnclaimed || []), ...(sp || []).filter((x: any) => !seen.has(String(x.id)))]);
     setPendingSpots(ps || []);
     if (cl && cl.length > 0) {
       setLiveClaims(cl);
     } else if (spotClaims && spotClaims.length > 0) {
       setLiveClaims(spotClaims);
     }
-  }, [businessesProp, spotClaims]);
+  }, [businessesProp, spotClaims, fetchUnclaimedFromDb]);
 
   useEffect(() => { void loadAll(); }, [loadAll]);
 
@@ -325,8 +360,16 @@ export function AdminDashboardModal({
 
   const removeSpot = async (s: any) => {
     if (!window.confirm(`Delete "${s.title}"? This cannot be undone.`)) return;
-    const err = await deleteListing('spot', s.id);
-    if (err) { toast(err, { type: 'error' }); return; }
+    if (s._src === 'unclaimedspots' && supabase) {
+      const { data, error } = await supabase.from('unclaimedspots').delete().eq('id', s.id).select('id');
+      if (error || !data || data.length === 0) {
+        toast(error?.message || 'Could not delete. Sign in with the admin account and try again.', { type: 'error' });
+        return;
+      }
+    } else {
+      const err = await deleteListing('spot', s.id);
+      if (err) { toast(err, { type: 'error' }); return; }
+    }
     setUnclaimed(list => list.filter(x => String(x.id) !== String(s.id)));
     onSpotDeleted?.(s.id);
   };
@@ -517,9 +560,10 @@ export function AdminDashboardModal({
               <div className="p-4 space-y-5">
                 <div>
                   <h2 className="text-sm font-black mb-2">Platform</h2>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-8 gap-3">
                     <StatCard label="Total users" value={num(stats?.totalUsers)} icon={<Users className="w-5 h-5" />} />
                     <StatCard label="Total spots" value={num(stats?.totalSpots, spotsCount)} icon={<MapPinPlus className="w-5 h-5" />} />
+                    <StatCard label="Unclaimed spots" value={unclaimed.length} icon={<MapPinPlus className="w-5 h-5 text-emerald-600" />} />
                     <StatCard label="Pending spots" value={pendingSpots.length} icon={<MapPin className="w-5 h-5 text-orange-500" />} />
                     <StatCard label="Total events" value={num(stats?.totalEvents, eventsCount)} icon={<Sparkles className="w-5 h-5" />} />
                     <StatCard label="Businesses" value={num(stats?.totalBusinesses, businesses.length)} icon={<Store className="w-5 h-5" />} />
@@ -944,7 +988,7 @@ export function AdminDashboardModal({
 
                               <p className="text-xs text-slate-500 flex items-center gap-1">
                                 <MapPin className="w-3.5 h-3.5 text-purple-500 shrink-0" />
-                                <span className="truncate">{c.spotNeighborhood ? `${c.spotNeighborhood} • ` : ''}{c.spotAddress || 'Nairobi'}</span>
+                                <span className="truncate">{c.spotNeighborhood ? `${c.spotNeighborhood} • ` : ''}{c.spotAddress || 'Address not provided'}</span>
                               </p>
 
                               <div className="flex items-center gap-2 flex-wrap text-xs pt-0.5">
@@ -1513,7 +1557,7 @@ export function AdminDashboardModal({
                       <textarea
                         value={claimRejectNote}
                         onChange={e => setClaimRejectNote(e.target.value)}
-                        placeholder="e.g. Document image is blurry, please re-upload clear Nairobi County Single Business Permit or business lease..."
+                        placeholder="e.g. Document image is blurry, please re-upload a clear Single Business Permit or business lease..."
                         rows={2}
                         className={inputCls}
                       />

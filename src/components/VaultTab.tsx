@@ -25,6 +25,7 @@ import {
   isDateToday 
 } from '../utils/calendarUtils.ts';
 import type { ToastOptions } from './Toast.tsx';
+import { VaultQrUploads } from './VaultQrUploads.tsx';
 
 interface VaultTabProps {
   tickets: VaultTicket[];
@@ -370,7 +371,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({
                 No events scheduled for this day
               </h4>
               <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
-                Check back soon or explore trending events across Nairobi!
+                Check back soon or explore trending events!
               </p>
             </div>
 
@@ -483,6 +484,9 @@ export const VaultTab: React.FC<VaultTabProps> = ({
           )}
         </div>
       </div>
+
+      {/* Uploaded QR codes & tickets for events and cinema */}
+      <VaultQrUploads showToast={showToast} />
     </section>
   );
 };

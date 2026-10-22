@@ -33,7 +33,7 @@ import { supabase } from '../lib/supabase.ts';
 import { LocationCombobox } from './LocationCombobox.tsx';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 import type { ToastOptions } from './Toast.tsx';
-import { toBudget } from '../lib/budget.ts';
+import { resolveSpotBudget, budgetBadge } from '../lib/spotBudget.ts';
 import { useUnclaimedSpots, spotInCategory, mergeSpots } from '../lib/spotsFeed.ts';
 
 interface SpotsTabProps {
@@ -349,9 +349,9 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         ...d,
         title: d.title || 'Untitled Spot',
         category: d.category || 'restaurants',
-        neighborhood: d.neighborhood || 'Nairobi',
+        neighborhood: d.neighborhood || 'Nearby',
         address: d.address || '',
-        price: toBudget(d.price) ?? 'Mid',
+        price: resolveSpotBudget(d),
         lat: d.lat ?? -1.2921,
         lng: d.lng ?? 36.8219,
         img: d.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
@@ -383,7 +383,8 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         ...sp,
         reviews: combinedRevs,
         reviewCount: totalReviews,
-        rating: calculatedRating
+        rating: calculatedRating,
+        price: resolveSpotBudget(sp)
       };
     });
   }, [spots, dbSpots, unclaimedSpots, liveReviews]);
@@ -400,7 +401,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
       selectedNeighborhood.toLowerCase().includes(s.neighborhood.toLowerCase());
 
     // Price Tier filter
-    const matchesPrice = selectedPriceTier === 'all' || toBudget(s.price) === selectedPriceTier;
+    const matchesPrice = selectedPriceTier === 'all' || resolveSpotBudget(s) === selectedPriceTier;
 
     if (!matchesCategory || !matchesNeigh || !matchesPrice) return false;
 
@@ -518,7 +519,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
 
             {/* Price Badge */}
             <span className="absolute top-2.5 right-2.5 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
-              {toBudget(spot.price) ?? spot.price}
+              {budgetBadge(resolveSpotBudget(spot))}
             </span>
 
             {/* Image Counter Badge if multiple images */}
@@ -713,14 +714,14 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           {[
             { id: 'all', label: 'All Categories', icon: Compass },
             { id: 'restaurants_dining', label: 'Restaurants and dining', icon: UtensilsCrossed },
-            { id: 'nature', label: 'Nature Trails & Outdoors', icon: Trees },
-            { id: 'creative_leisure', label: 'Creative and leisure', icon: Palette },
-            { id: 'tech_gaming', label: 'Tech and Gaming', icon: Gamepad2 },
-            { id: 'action_sports', label: 'Action and sports', icon: Dumbbell },
-            { id: 'date_spots', label: 'Date spots', icon: Heart },
             { id: 'clubs_lounges', label: 'Clubs and lounges', icon: Music },
-            { id: 'cafes_bakeries', label: 'Cafes and Bakeries', icon: Coffee },
+            { id: 'cafes_bakeries', label: 'Cafes and bakeries', icon: Coffee },
+            { id: 'nature', label: 'Nature trails and outdoor', icon: Trees },
+            { id: 'action_sports', label: 'Action and sports', icon: Dumbbell },
+            { id: 'tech_gaming', label: 'Tech and gaming', icon: Gamepad2 },
             { id: 'hotels_luxury', label: 'Hotels and luxury stays', icon: Hotel },
+            { id: 'date_spots', label: 'Date spots', icon: Heart },
+            { id: 'creative_leisure', label: 'Creative and leisure', icon: Palette },
             { id: 'vacation_escapes', label: 'Vacation spots and escapes', icon: Palmtree }
           ].map((cat) => {
             const Icon = cat.icon;
@@ -747,9 +748,9 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider shrink-0 mr-1">Budget:</span>
           {[
             { id: 'all', label: 'All' },
-            { id: 'Low', label: 'Low' },
-            { id: 'Mid', label: 'Mid' },
-            { id: 'High', label: 'High' }
+            { id: 'Low', label: 'Budget $' },
+            { id: 'Mid', label: 'Mid $$' },
+            { id: 'High', label: 'Luxury $$$' }
           ].map((tier) => (
             <button
               key={tier.id}
@@ -825,16 +826,60 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           </div>
         )}
 
-        {/* 2. Nature */}
+        {/* 2. Clubs and lounges */}
+        {(selectedCategory === 'all' || selectedCategory === 'clubs_lounges') && clubsLounges.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                <Music className="w-3.5 h-3.5 text-purple-600" />
+                <span>Clubs and lounges</span>
+              </h3>
+              <button
+                onClick={() => onOpenDedicatedViewAll('Clubs and lounges', 'clubs_lounges')}
+                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
+              >
+                View All ({clubsLounges.length})
+              </button>
+            </div>
+
+            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+              {clubsLounges.map(renderSpotCard)}
+            </div>
+          </div>
+        )}
+
+        {/* 3. Cafes and bakeries */}
+        {(selectedCategory === 'all' || selectedCategory === 'cafes_bakeries') && cafesBakeries.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                <Coffee className="w-3.5 h-3.5 text-[#E9C46A] dark:text-[#BFA25F]" />
+                <span>Cafes and bakeries</span>
+              </h3>
+              <button
+                onClick={() => onOpenDedicatedViewAll('Cafes and bakeries', 'cafes_bakeries')}
+                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
+              >
+                View All ({cafesBakeries.length})
+              </button>
+            </div>
+
+            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+              {cafesBakeries.map(renderSpotCard)}
+            </div>
+          </div>
+        )}
+
+        {/* 4. Nature trails and outdoor */}
         {(selectedCategory === 'all' || selectedCategory === 'nature') && natureSpots.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
                 <Trees className="w-3.5 h-3.5 text-emerald-600" />
-                <span>NATURE TRAILS & OUTDOORS</span>
+                <span>Nature trails and outdoor</span>
               </h3>
               <button
-                onClick={() => onOpenDedicatedViewAll('Nature Trails & Outdoors', 'nature')}
+                onClick={() => onOpenDedicatedViewAll('Nature trails and outdoor', 'nature')}
                 className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
               >
                 View All ({natureSpots.length})
@@ -843,50 +888,6 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
 
             <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
               {natureSpots.map(renderSpotCard)}
-            </div>
-          </div>
-        )}
-
-        {/* 3. Creative and leisure */}
-        {(selectedCategory === 'all' || selectedCategory === 'creative_leisure') && creativeSpots.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <Palette className="w-3.5 h-3.5 text-[#2D6A4F]" />
-                <span>Creative and leisure</span>
-              </h3>
-              <button
-                onClick={() => onOpenDedicatedViewAll('Creative and leisure', 'creative_leisure')}
-                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
-              >
-                View All ({creativeSpots.length})
-              </button>
-            </div>
-
-            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {creativeSpots.map(renderSpotCard)}
-            </div>
-          </div>
-        )}
-
-        {/* 4. Tech and Gaming */}
-        {(selectedCategory === 'all' || selectedCategory === 'tech_gaming') && techGamingSpots.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <Gamepad2 className="w-3.5 h-3.5 text-blue-500" />
-                <span>Tech and Gaming</span>
-              </h3>
-              <button
-                onClick={() => onOpenDedicatedViewAll('Tech and Gaming', 'tech_gaming')}
-                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
-              >
-                View All ({techGamingSpots.length})
-              </button>
-            </div>
-
-            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {techGamingSpots.map(renderSpotCard)}
             </div>
           </div>
         )}
@@ -913,7 +914,51 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           </div>
         )}
 
-        {/* 6. Date spots */}
+        {/* 6. Tech and gaming */}
+        {(selectedCategory === 'all' || selectedCategory === 'tech_gaming') && techGamingSpots.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                <Gamepad2 className="w-3.5 h-3.5 text-blue-500" />
+                <span>Tech and gaming</span>
+              </h3>
+              <button
+                onClick={() => onOpenDedicatedViewAll('Tech and gaming', 'tech_gaming')}
+                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
+              >
+                View All ({techGamingSpots.length})
+              </button>
+            </div>
+
+            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+              {techGamingSpots.map(renderSpotCard)}
+            </div>
+          </div>
+        )}
+
+        {/* 7. Hotels and luxury stays */}
+        {(selectedCategory === 'all' || selectedCategory === 'hotels_luxury') && hotelsLuxury.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                <Hotel className="w-3.5 h-3.5 text-[#2D6A4F]" />
+                <span>Hotels and luxury stays</span>
+              </h3>
+              <button
+                onClick={() => onOpenDedicatedViewAll('Hotels and luxury stays', 'hotels_luxury')}
+                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
+              >
+                View All ({hotelsLuxury.length})
+              </button>
+            </div>
+
+            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+              {hotelsLuxury.map(renderSpotCard)}
+            </div>
+          </div>
+        )}
+
+        {/* 8. Date spots */}
         {(selectedCategory === 'all' || selectedCategory === 'date_spots') && dateSpots.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -935,68 +980,24 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           </div>
         )}
 
-        {/* 7. Clubs and lounges */}
-        {(selectedCategory === 'all' || selectedCategory === 'clubs_lounges') && clubsLounges.length > 0 && (
+        {/* 9. Creative and leisure */}
+        {(selectedCategory === 'all' || selectedCategory === 'creative_leisure') && creativeSpots.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <Music className="w-3.5 h-3.5 text-purple-600" />
-                <span>Clubs and lounges</span>
+                <Palette className="w-3.5 h-3.5 text-[#2D6A4F]" />
+                <span>Creative and leisure</span>
               </h3>
               <button
-                onClick={() => onOpenDedicatedViewAll('Clubs and lounges', 'clubs_lounges')}
+                onClick={() => onOpenDedicatedViewAll('Creative and leisure', 'creative_leisure')}
                 className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
               >
-                View All ({clubsLounges.length})
+                View All ({creativeSpots.length})
               </button>
             </div>
 
             <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {clubsLounges.map(renderSpotCard)}
-            </div>
-          </div>
-        )}
-
-        {/* 8. Cafes and Bakeries */}
-        {(selectedCategory === 'all' || selectedCategory === 'cafes_bakeries') && cafesBakeries.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <Coffee className="w-3.5 h-3.5 text-[#E9C46A] dark:text-[#BFA25F]" />
-                <span>Cafes and Bakeries</span>
-              </h3>
-              <button
-                onClick={() => onOpenDedicatedViewAll('Cafes and Bakeries', 'cafes_bakeries')}
-                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
-              >
-                View All ({cafesBakeries.length})
-              </button>
-            </div>
-
-            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {cafesBakeries.map(renderSpotCard)}
-            </div>
-          </div>
-        )}
-
-        {/* 9. Hotels and luxury stays */}
-        {(selectedCategory === 'all' || selectedCategory === 'hotels_luxury') && hotelsLuxury.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <Hotel className="w-3.5 h-3.5 text-[#2D6A4F]" />
-                <span>Hotels and luxury stays</span>
-              </h3>
-              <button
-                onClick={() => onOpenDedicatedViewAll('Hotels and luxury stays', 'hotels_luxury')}
-                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
-              >
-                View All ({hotelsLuxury.length})
-              </button>
-            </div>
-
-            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {hotelsLuxury.map(renderSpotCard)}
+              {creativeSpots.map(renderSpotCard)}
             </div>
           </div>
         )}
@@ -1049,7 +1050,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                   {reviewModalSpot.title}
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  {reviewModalSpot.neighborhood || 'Nairobi'}
+                  {reviewModalSpot.neighborhood || 'Nearby'}
                 </p>
               </div>
               <button

@@ -1,4 +1,6 @@
 import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending } from '../lib/spotsFeed.ts';
+import { resolveSpotBudget, budgetBadge } from '../lib/spotBudget.ts';
+import { useLocationPreference, sortByProximity, NEIGHBORHOOD_COORDS, formatDistance } from '../lib/geo.ts';
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
@@ -126,6 +128,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
   // Real spots from Supabase (unclaimedspots + merchant-created) for the Home feed
   const { spots: unclaimedFeed } = useUnclaimedSpots();
+  // Home feed is ordered by distance from the device (or a picked neighborhood)
+  const { pref: locPref, setPref: setLocPref, origin: feedOrigin, status: locStatus, requestGps } = useLocationPreference();
   const [dbSpots, setDbSpots] = useState<any[]>([]);
   const [liveReviews, setLiveReviews] = useState<Record<string, any[]>>({});
 
@@ -231,15 +235,17 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         ...d,
         title: d.title || 'Untitled Spot',
         category: d.category || 'restaurants',
-        neighborhood: d.neighborhood || 'Nairobi',
+        neighborhood: d.neighborhood || 'Nearby',
         address: d.address || '',
-        price: d.price || 'KES $$',
+        price: resolveSpotBudget(d),
+        hasCoords: d.lat != null && d.lng != null,
         lat: d.lat ?? -1.2921,
         lng: d.lng ?? 36.8219,
         img: d.img || (d.images && d.images[0]) || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
       }));
 
-    const allCombined = sortTrending(mergeSpots([...spots, ...extraDbSpots], unclaimedFeed));
+    const merged = mergeSpots([...spots, ...extraDbSpots], unclaimedFeed);
+    const allCombined = feedOrigin ? sortByProximity(merged, feedOrigin) : sortTrending(merged);
 
     // Compute live review counts and ratings from actual Supabase reviews
     return allCombined.map(sp => {
@@ -265,10 +271,11 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         ...sp,
         reviews: combinedRevs,
         reviewCount: totalReviews,
-        rating: calculatedRating
+        rating: calculatedRating,
+        price: resolveSpotBudget(sp)
       };
     });
-  }, [spots, dbSpots, unclaimedFeed, liveReviews]);
+  }, [spots, dbSpots, unclaimedFeed, liveReviews, feedOrigin]);
 
   // Category rows: strictly the 10 RADA categories (no keyword guessing)
   const natureSpots = useMemo(() => displaySpots.filter(s => spotInCategory(s, 'nature')), [displaySpots]);
@@ -304,7 +311,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   // Status creation state
   const [statusText, setStatusText] = useState('');
   const [statusMediaUrl, setStatusMediaUrl] = useState<string | null>(null);
-  const [statusLocation, setStatusLocation] = useState('Westlands, Nairobi');
+  const [statusLocation, setStatusLocation] = useState('Westlands');
 
   // Active status replies drawer
   const [activeReplyStatusId, setActiveReplyStatusId] = useState<string | null>(null);
@@ -1263,7 +1270,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       )}
 
       {/* ========================================================
-          4A. TRENDING NAIROBI SPOTS & HANGOUTS (LIVE SUPABASE DATABASE)
+          4A. SPOTS NEAR YOU / TRENDING (LIVE SUPABASE DATABASE)
           ======================================================== */}
       {displaySpots.length > 0 && (
         <div className="space-y-3">
@@ -1274,16 +1281,45 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               </div>
               <div className="flex items-center gap-1.5 flex-wrap">
                 <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
-                  Trending Nairobi Spots
+                  {feedOrigin ? 'Spots Near You' : 'Trending Spots'}
                 </h2>
               </div>
             </div>
             <button
-              onClick={() => onOpenDedicatedViewAll('Trending Nairobi Spots', 'spots')}
+              onClick={() => onOpenDedicatedViewAll(feedOrigin ? 'Spots Near You' : 'Trending Spots', 'spots')}
               className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
             >
               View All ({displaySpots.length})
             </button>
+          </div>
+
+
+          {/* Location for the feed: device GPS or a chosen neighborhood */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 dark:text-slate-300">
+              <MapPin className="w-3 h-3 text-[#E0533C]" />
+              <span>Near</span>
+              <select
+                value={locPref}
+                onChange={(e) => setLocPref(e.target.value)}
+                className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-lg px-2 py-1 text-[11px] font-bold"
+              >
+                <option value="gps">My location</option>
+                {Object.keys(NEIGHBORHOOD_COORDS).map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </label>
+            {locPref === 'gps' && locStatus === 'asking' && (
+              <span className="text-[10px] text-slate-400">Finding you…</span>
+            )}
+            {locPref === 'gps' && (locStatus === 'denied' || locStatus === 'unavailable') && (
+              <span className="text-[10px] text-slate-500">
+                Location is off.{' '}
+                <button type="button" onClick={requestGps} className="font-bold text-[#E0533C] hover:underline cursor-pointer">Try again</button>
+                {' '}or pick an area.
+              </span>
+            )}
           </div>
 
           <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
@@ -1321,7 +1357,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
                       </button>
                       <span className="absolute bottom-2.5 right-2.5 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
-                        {spot.price}
+                        {budgetBadge(resolveSpotBudget(spot)) || spot.price}
                       </span>
                     </div>
 
@@ -1339,6 +1375,9 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                       <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
                         <MapPin className="w-3 h-3 text-[#E0533C] shrink-0" />
                         <span className="truncate">{spot.address || spot.neighborhood}</span>
+                        {spot.distanceKm != null && (
+                          <span className="shrink-0 font-bold text-[#E0533C]">• {formatDistance(spot.distanceKm)}</span>
+                        )}
                       </p>
 
                       <p className="text-[11px] text-[#475569] dark:text-slate-300 line-clamp-2 mt-1 leading-relaxed font-medium">
@@ -1371,7 +1410,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       )}
 
       {/* ========================================================
-          4B. NATURE TRAILS & OUTDOORS
+          4B. NATURE TRAILS AND OUTDOOR
           (Hiking, nature trails, waterfalls, mountains, and outdoor groups)
           ======================================================== */}
       {natureSpots.length > 0 && (
@@ -1382,11 +1421,11 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <Trees className="w-3.5 h-3.5" />
               </div>
               <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
-                NATURE TRAILS & OUTDOORS
+                Nature trails and outdoor
               </h2>
             </div>
             <button
-              onClick={() => onOpenDedicatedViewAll('Nature Trails & Outdoors', 'nature')}
+              onClick={() => onOpenDedicatedViewAll('Nature trails and outdoor', 'nature')}
               className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
             >
               View All ({natureSpots.length})
@@ -1426,7 +1465,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
                       </button>
                       <span className="absolute bottom-2.5 right-2.5 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
-                        {spot.price}
+                        {budgetBadge(resolveSpotBudget(spot)) || spot.price}
                       </span>
                     </div>
 
@@ -1476,36 +1515,36 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       )}
 
       {/* ========================================================
-          4B. CREATIVE & LEISURE CATEGORY
-          (Paint & sip, crafting, pottery, social craft workshops)
+          4D. ACTION & SPORTS CATEGORY
+          (Go-karting, bowling, paintball, tactical sports)
           ======================================================== */}
-      {creativeSpots.length > 0 && (
+      {actionSportsSpots.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shadow-xs">
-                <Palette className="w-3.5 h-3.5" />
+              <div className="w-6 h-6 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center shadow-xs">
+                <Flame className="w-3.5 h-3.5" />
               </div>
               <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
-                Creative & Leisure
+                Action and sports
               </h2>
             </div>
             <button
-              onClick={() => onOpenDedicatedViewAll('Creative & Leisure', 'creative_leisure')}
+              onClick={() => onOpenDedicatedViewAll('Action and sports', 'action_sports')}
               className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
             >
-              View All ({creativeSpots.length})
+              View All ({actionSportsSpots.length})
             </button>
           </div>
 
           <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-            {creativeSpots.map((spot) => {
+            {actionSportsSpots.map((spot) => {
               const saved = isSaved(spot.id, 'spot');
               return (
                 <div
                   key={spot.id}
                   onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
-                  className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-purple-500 transition group"
+                  className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-orange-500 transition group"
                 >
                   <div>
                     <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
@@ -1514,8 +1553,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         style={{ backgroundImage: `url('${spot.img}')` }}
                       />
                       <span className="absolute top-2.5 left-2.5 bg-black/70 backdrop-blur-md text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
-                        <Palette className="w-2.5 h-2.5 text-purple-400" />
-                        <span>Creative</span>
+                        <Flame className="w-2.5 h-2.5 text-orange-400" />
+                        <span>Action & Adrenaline</span>
                       </span>
                       <button
                         type="button"
@@ -1531,13 +1570,13 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
                       </button>
                       <span className="absolute bottom-2.5 right-2.5 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
-                        {spot.price}
+                        {budgetBadge(resolveSpotBudget(spot)) || spot.price}
                       </span>
                     </div>
 
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-purple-600 transition">
+                        <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-orange-600 transition">
                           {spot.title}
                         </h4>
                         <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
@@ -1547,7 +1586,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                       </div>
 
                       <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
-                        <MapPin className="w-3 h-3 text-purple-500 shrink-0" />
+                        <MapPin className="w-3 h-3 text-orange-500 shrink-0" />
                         <span className="truncate">{spot.address || spot.neighborhood}</span>
                       </p>
 
@@ -1558,8 +1597,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   </div>
 
                   <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold">
-                      {spot.openingHours || 'Open Weekend'}
+                    <span className="text-[10px] text-orange-600 dark:text-orange-400 font-bold">
+                      {spot.openingHours || 'Open Daily'}
                     </span>
                     <button
                       type="button"
@@ -1567,9 +1606,9 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         e.stopPropagation();
                         onOpenSpotDetails && onOpenSpotDetails(spot);
                       }}
-                      className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
+                      className="px-3 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
                     >
-                      <span>Details</span>
+                      <span>Action</span>
                       <ArrowRight className="w-3 h-3" />
                     </button>
                   </div>
@@ -1579,6 +1618,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           </div>
         </div>
       )}
+
 
       {/* ========================================================
           4C. TECH & GAMING CATEGORY
@@ -1592,11 +1632,11 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <Gamepad2 className="w-3.5 h-3.5" />
               </div>
               <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
-                Tech & Gaming
+                Tech and gaming
               </h2>
             </div>
             <button
-              onClick={() => onOpenDedicatedViewAll('Tech & Gaming', 'tech_gaming')}
+              onClick={() => onOpenDedicatedViewAll('Tech and gaming', 'tech_gaming')}
               className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
             >
               View All ({techGamingSpots.length})
@@ -1636,7 +1676,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
                       </button>
                       <span className="absolute bottom-2.5 right-2.5 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
-                        {spot.price}
+                        {budgetBadge(resolveSpotBudget(spot)) || spot.price}
                       </span>
                     </div>
 
@@ -1686,36 +1726,36 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       )}
 
       {/* ========================================================
-          4D. ACTION & SPORTS CATEGORY
-          (Go-karting, bowling, paintball, tactical sports)
+          4B. CREATIVE & LEISURE CATEGORY
+          (Paint & sip, crafting, pottery, social craft workshops)
           ======================================================== */}
-      {actionSportsSpots.length > 0 && (
+      {creativeSpots.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center shadow-xs">
-                <Flame className="w-3.5 h-3.5" />
+              <div className="w-6 h-6 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shadow-xs">
+                <Palette className="w-3.5 h-3.5" />
               </div>
               <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
-                Action & Sports
+                Creative and leisure
               </h2>
             </div>
             <button
-              onClick={() => onOpenDedicatedViewAll('Action & Sports', 'action_sports')}
+              onClick={() => onOpenDedicatedViewAll('Creative and leisure', 'creative_leisure')}
               className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
             >
-              View All ({actionSportsSpots.length})
+              View All ({creativeSpots.length})
             </button>
           </div>
 
           <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-            {actionSportsSpots.map((spot) => {
+            {creativeSpots.map((spot) => {
               const saved = isSaved(spot.id, 'spot');
               return (
                 <div
                   key={spot.id}
                   onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
-                  className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-orange-500 transition group"
+                  className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-purple-500 transition group"
                 >
                   <div>
                     <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
@@ -1724,8 +1764,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         style={{ backgroundImage: `url('${spot.img}')` }}
                       />
                       <span className="absolute top-2.5 left-2.5 bg-black/70 backdrop-blur-md text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
-                        <Flame className="w-2.5 h-2.5 text-orange-400" />
-                        <span>Action & Adrenaline</span>
+                        <Palette className="w-2.5 h-2.5 text-purple-400" />
+                        <span>Creative</span>
                       </span>
                       <button
                         type="button"
@@ -1741,13 +1781,13 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
                       </button>
                       <span className="absolute bottom-2.5 right-2.5 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
-                        {spot.price}
+                        {budgetBadge(resolveSpotBudget(spot)) || spot.price}
                       </span>
                     </div>
 
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-orange-600 transition">
+                        <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-purple-600 transition">
                           {spot.title}
                         </h4>
                         <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
@@ -1757,7 +1797,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                       </div>
 
                       <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
-                        <MapPin className="w-3 h-3 text-orange-500 shrink-0" />
+                        <MapPin className="w-3 h-3 text-purple-500 shrink-0" />
                         <span className="truncate">{spot.address || spot.neighborhood}</span>
                       </p>
 
@@ -1768,8 +1808,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   </div>
 
                   <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <span className="text-[10px] text-orange-600 dark:text-orange-400 font-bold">
-                      {spot.openingHours || 'Open Daily'}
+                    <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold">
+                      {spot.openingHours || 'Open Weekend'}
                     </span>
                     <button
                       type="button"
@@ -1777,9 +1817,9 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         e.stopPropagation();
                         onOpenSpotDetails && onOpenSpotDetails(spot);
                       }}
-                      className="px-3 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
+                      className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
                     >
-                      <span>Action</span>
+                      <span>Details</span>
                       <ArrowRight className="w-3 h-3" />
                     </button>
                   </div>
@@ -1789,7 +1829,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           </div>
         </div>
       )}
-
 
       {/* ========================================================
           5. LIVE COMMUNITY STATUS FEED - "Where Are You At?" (Last bottom)
@@ -1897,8 +1936,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     name: post.author,
                     handle: post.handle,
                     avatar: post.avatar,
-                    bio: 'Exploring Nairobi nightlife, music events, and great culinary spots.',
-                    loc: post.locationName || 'Nairobi, Kenya',
+                    bio: 'Exploring nightlife, music events, and great culinary spots.',
+                    loc: post.locationName || 'Kenya',
                     relationshipStatus: 'single'
                   })}
                 >
