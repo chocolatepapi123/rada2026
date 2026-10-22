@@ -808,7 +808,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               >
                 {/* Poster Banner */}
                 <div className="h-36 w-full relative bg-slate-900 overflow-hidden">
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={offer.posterUrl || 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&auto=format&fit=crop'}
                     alt={offer.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition duration-300 opacity-90"
@@ -819,7 +819,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     <span className="bg-[#E0533C] text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md uppercase tracking-wide">
                       {offer.discount}
                     </span>
-                    <span className="bg-black/60 backdrop-blur-md text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-white/20">
+                    <span className="bg-black/60 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-white/20">
                       {offer.category}
                     </span>
                   </div>
@@ -830,7 +830,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                       e.stopPropagation();
                       onToggleSave?.(offer, 'offer');
                     }}
-                    className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer backdrop-blur-md z-10 shadow-sm ${
+                    className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer z-10 shadow-sm ${
                       isSaved(offer.id, 'offer')
                         ? 'bg-[#E0533C] text-white'
                         : 'bg-black/60 text-white hover:bg-black/80'
@@ -1039,18 +1039,18 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                       style={evt.img ? { backgroundImage: `url('${evt.img}')` } : undefined}
                     >
                       <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 flex-wrap max-w-[80%]">
-                        <span className="bg-black/60 backdrop-blur-md text-white text-[9px] font-black px-2.5 py-1 rounded-md">
+                        <span className="bg-black/60 text-white text-[9px] font-black px-2.5 py-1 rounded-md">
                           {evt.date.split(',')[0]}
                         </span>
                         {isToday && (
-                          <span className="bg-emerald-600/90 backdrop-blur-md text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs">
+                          <span className="bg-emerald-600/90 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs">
                             <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
                             <span>Happening Today</span>
                           </span>
                         )}
                       </div>
                       <div className="absolute top-2.5 right-2.5 flex items-center gap-1 z-10">
-                        <span className={`text-[9px] font-black px-2.5 py-1 rounded-md shadow-xs backdrop-blur-md ${badgeStyle.bg} ${badgeStyle.text}`}>
+                        <span className={`text-[9px] font-black px-2.5 py-1 rounded-md shadow-xs ${badgeStyle.bg} ${badgeStyle.text}`}>
                           {evt.genre || evt.category}
                         </span>
                         <button
@@ -1059,7 +1059,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                             e.stopPropagation();
                             onToggleSave?.(evt, 'event');
                           }}
-                          className={`w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer backdrop-blur-md shadow-xs ${
+                          className={`w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs ${
                             isSaved(evt.id, 'event')
                               ? 'bg-[#E0533C] text-white'
                               : 'bg-black/60 text-white hover:bg-black/80'
@@ -1072,7 +1072,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
                       {/* Ticket price badge on thumbnail */}
                       <div className="absolute bottom-2 left-2">
-                        <span className="bg-black/75 backdrop-blur-md text-emerald-400 text-[10px] font-extrabold px-2.5 py-0.5 rounded-md border border-white/10">
+                        <span className="bg-black/75 text-emerald-400 text-[10px] font-extrabold px-2.5 py-0.5 rounded-md border border-white/10">
                           {priceDisplay}
                         </span>
                       </div>
@@ -1205,7 +1205,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                       {movie.format}
                     </span>
                     {movie.genre && (
-                      <span className="absolute bottom-2 left-2 bg-black/75 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-md">
+                      <span className="absolute bottom-2 left-2 bg-black/75 text-white text-[9px] font-bold px-2 py-0.5 rounded-md">
                         {movie.genre}
                       </span>
                     )}
@@ -1309,7 +1309,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-all duration-300"
                         style={{ backgroundImage: `url('${spot.img}')` }}
                       />
-                      <span className="absolute top-2.5 left-2.5 bg-black/70 backdrop-blur-md text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <span className="absolute top-2.5 left-2.5 bg-black/70 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
                         <Compass className="w-2.5 h-2.5 text-orange-400" />
                         <span className="capitalize">{spot.category?.replace(/_/g, ' ') || 'Hangout'}</span>
                       </span>
@@ -1319,14 +1319,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                           e.stopPropagation();
                           onToggleSave?.(spot, 'spot');
                         }}
-                        className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer backdrop-blur-md shadow-xs z-10 ${
+                        className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs z-10 ${
                           saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
                         }`}
                         title={saved ? 'Remove from saved' : 'Save experience'}
                       >
                         <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
                       </button>
-                      <span className="absolute bottom-2.5 right-2.5 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
+                      <span className="absolute bottom-2.5 right-2.5 bg-black/75 text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
                         {budgetBadge(resolveSpotBudget(spot)) || spot.price}
                       </span>
                     </div>
@@ -1417,7 +1417,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-all duration-300"
                         style={{ backgroundImage: `url('${spot.img}')` }}
                       />
-                      <span className="absolute top-2.5 left-2.5 bg-black/70 backdrop-blur-md text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <span className="absolute top-2.5 left-2.5 bg-black/70 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
                         <Trees className="w-2.5 h-2.5 text-emerald-400" />
                         <span>Nature & Trails</span>
                       </span>
@@ -1427,14 +1427,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                           e.stopPropagation();
                           onToggleSave?.(spot, 'spot');
                         }}
-                        className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer backdrop-blur-md shadow-xs z-10 ${
+                        className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs z-10 ${
                           saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
                         }`}
                         title={saved ? 'Remove from saved' : 'Save experience'}
                       >
                         <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
                       </button>
-                      <span className="absolute bottom-2.5 right-2.5 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
+                      <span className="absolute bottom-2.5 right-2.5 bg-black/75 text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
                         {budgetBadge(resolveSpotBudget(spot)) || spot.price}
                       </span>
                     </div>
@@ -1522,7 +1522,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-all duration-300"
                         style={{ backgroundImage: `url('${spot.img}')` }}
                       />
-                      <span className="absolute top-2.5 left-2.5 bg-black/70 backdrop-blur-md text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <span className="absolute top-2.5 left-2.5 bg-black/70 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
                         <Flame className="w-2.5 h-2.5 text-orange-400" />
                         <span>Action & Adrenaline</span>
                       </span>
@@ -1532,14 +1532,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                           e.stopPropagation();
                           onToggleSave?.(spot, 'spot');
                         }}
-                        className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer backdrop-blur-md shadow-xs z-10 ${
+                        className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs z-10 ${
                           saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
                         }`}
                         title={saved ? 'Remove from saved' : 'Save experience'}
                       >
                         <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
                       </button>
-                      <span className="absolute bottom-2.5 right-2.5 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
+                      <span className="absolute bottom-2.5 right-2.5 bg-black/75 text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
                         {budgetBadge(resolveSpotBudget(spot)) || spot.price}
                       </span>
                     </div>
@@ -1628,7 +1628,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-all duration-300"
                         style={{ backgroundImage: `url('${spot.img}')` }}
                       />
-                      <span className="absolute top-2.5 left-2.5 bg-black/70 backdrop-blur-md text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <span className="absolute top-2.5 left-2.5 bg-black/70 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
                         <Gamepad2 className="w-2.5 h-2.5 text-cyan-400" />
                         <span>Tech & VR</span>
                       </span>
@@ -1638,14 +1638,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                           e.stopPropagation();
                           onToggleSave?.(spot, 'spot');
                         }}
-                        className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer backdrop-blur-md shadow-xs z-10 ${
+                        className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs z-10 ${
                           saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
                         }`}
                         title={saved ? 'Remove from saved' : 'Save experience'}
                       >
                         <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
                       </button>
-                      <span className="absolute bottom-2.5 right-2.5 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
+                      <span className="absolute bottom-2.5 right-2.5 bg-black/75 text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
                         {budgetBadge(resolveSpotBudget(spot)) || spot.price}
                       </span>
                     </div>
@@ -1733,7 +1733,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-all duration-300"
                         style={{ backgroundImage: `url('${spot.img}')` }}
                       />
-                      <span className="absolute top-2.5 left-2.5 bg-black/70 backdrop-blur-md text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <span className="absolute top-2.5 left-2.5 bg-black/70 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
                         <Palette className="w-2.5 h-2.5 text-purple-400" />
                         <span>Creative</span>
                       </span>
@@ -1743,14 +1743,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                           e.stopPropagation();
                           onToggleSave?.(spot, 'spot');
                         }}
-                        className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer backdrop-blur-md shadow-xs z-10 ${
+                        className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs z-10 ${
                           saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
                         }`}
                         title={saved ? 'Remove from saved' : 'Save experience'}
                       >
                         <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
                       </button>
-                      <span className="absolute bottom-2.5 right-2.5 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
+                      <span className="absolute bottom-2.5 right-2.5 bg-black/75 text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
                         {budgetBadge(resolveSpotBudget(spot)) || spot.price}
                       </span>
                     </div>
@@ -1838,7 +1838,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
           {statusMediaUrl && (
             <div className="relative w-28 h-20 rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700">
-              <img src={statusMediaUrl} alt="Status upload" className="w-full h-full object-cover" />
+              <img loading="lazy" decoding="async" src={statusMediaUrl} alt="Status upload" className="w-full h-full object-cover" />
               <button
                 onClick={() => setStatusMediaUrl(null)}
                 className="absolute top-1 right-1 w-5 h-5 bg-black/70 text-white rounded-full flex items-center justify-center text-[10px]"
@@ -1939,7 +1939,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
               {post.mediaUrl && (
                 <div className="rounded-2xl overflow-hidden max-h-64 border border-slate-200 dark:border-slate-800">
-                  <img src={post.mediaUrl} alt="Status media" className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={post.mediaUrl} alt="Status media" className="w-full h-full object-cover" />
                 </div>
               )}
 

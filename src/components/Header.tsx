@@ -103,7 +103,7 @@ export const Header: React.FC<HeaderProps> = ({
   }, [currentLocation]);
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 dark:bg-[#121113]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-xs transition-colors duration-200">
+    <header className="sticky top-0 z-40 bg-white/95 dark:bg-[#121113]/95 border-b border-slate-200 dark:border-slate-800 shadow-xs transition-colors duration-200">
       <div className="max-w-lg mx-auto w-full px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-2 flex-nowrap">
         {/* Left Side: Brand Logo & Truncated Location Pill */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 shrink">

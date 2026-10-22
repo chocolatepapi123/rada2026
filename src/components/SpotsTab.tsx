@@ -485,6 +485,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
       <div
         key={spot.id}
         onClick={handleOpenDetails}
+        style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 288px auto 340px' }}
         className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-[#E0533C] dark:hover:border-[#D17A68] transition group"
       >
         <div>
@@ -502,7 +503,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                 e.stopPropagation();
                 onToggleSave?.(spot, 'spot');
               }}
-              className={`absolute top-2.5 left-2.5 z-10 transition-all cursor-pointer backdrop-blur-md shadow-sm flex items-center gap-1.5 ${
+              className={`absolute top-2.5 left-2.5 z-10 transition-all cursor-pointer shadow-sm flex items-center gap-1.5 ${
                 saved
                   ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white px-2.5 py-1 rounded-full ring-2 ring-white/50'
                   : 'w-7 h-7 rounded-full bg-black/60 text-white hover:bg-black/85 justify-center'
@@ -518,13 +519,13 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
             </button>
 
             {/* Price Badge */}
-            <span className="absolute top-2.5 right-2.5 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
+            <span className="absolute top-2.5 right-2.5 bg-black/75 text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
               {budgetBadge(resolveSpotBudget(spot))}
             </span>
 
             {/* Image Counter Badge if multiple images */}
             {imagesList.length > 1 && (
-              <span className="absolute bottom-2.5 left-2.5 bg-black/60 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-md z-10">
+              <span className="absolute bottom-2.5 left-2.5 bg-black/60 text-white text-[9px] font-bold px-2 py-0.5 rounded-md z-10">
                 {currentIndex + 1} / {imagesList.length} photos
               </span>
             )}
@@ -1130,7 +1131,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                         key={pIdx}
                         className="relative aspect-square rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700 bg-slate-900 shadow-xs group"
                       >
-                        <img
+                        <img loading="lazy" decoding="async"
                           src={photoUrl}
                           alt={`Review attachment ${pIdx + 1}`}
                           className="w-full h-full object-cover"
