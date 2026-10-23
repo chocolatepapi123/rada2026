@@ -21,11 +21,11 @@ jobs:
           npm cache clean --force
           npm install --legacy-peer-deps
 
-
-
       - name: Run Spot Scraper & Seeder
         env:
           APIFY_API_TOKEN: ${{ secrets.APIFY_API_TOKEN }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: npm run seed:maps
