@@ -28,10 +28,33 @@ export function writeJSON(key: string, value: unknown): void {
 const SEED_STATUS_IDS = ['s-1', 's-2'];
 const SEED_CHAT_IDS = ['c-1'];
 const SEED_OUTING_IDS = ['out-1', 'out-2', 'out-3', 'out-4', 'out-5'];
-const SEED_FLAG = 'rada_seed_purged_v1';
+const SEED_FLAG = 'rada_seed_purged_v2';
 
 export function purgeSeedData(): void {
   try {
+    // Sanitize any existing cached user profile if it contains 'lowkey wayne' or mock avatar
+    const userRaw = localStorage.getItem('rada_current_user');
+    if (userRaw) {
+      try {
+        const u = JSON.parse(userRaw);
+        if (u && typeof u === 'object') {
+          let modified = false;
+          if (!u.name || /lowkey\s*wayne|wayne\s*\(owner\)|^wayne$|^Guest Explorer$|^Explorer$/i.test(u.name)) {
+            const num = Math.floor(10 + Math.random() * 90);
+            u.name = `new_user_${num}`;
+            modified = true;
+          }
+          if (u.avatar && (u.avatar.includes('photo-1535713875002-d1d0cf377fde') || u.avatar.includes('photo-1534528741775'))) {
+            u.avatar = '';
+            modified = true;
+          }
+          if (modified) {
+            localStorage.setItem('rada_current_user', JSON.stringify(u));
+          }
+        }
+      } catch (_) {}
+    }
+
     if (localStorage.getItem(SEED_FLAG)) return;
     const strip = (key: string, ids: string[]) => {
       const list = readJSON<any[]>(key, [], Array.isArray);

@@ -444,16 +444,12 @@ export const AvatarHero: React.FC<{ p: OwnProfile; subtitle?: React.ReactNode; e
       </div>
 
       <div className="mt-3 flex items-center gap-1.5 max-w-full">
-        <h2 className="text-xl font-black truncate">{p.userId || p.hasUsername ? p.handle : 'Guest'}</h2>
+        <h2 className="text-xl font-black truncate">{p.displayName || (p.userId || p.hasUsername ? p.handle : 'Guest')}</h2>
         <VerifiedBadge status={p.isPro ? 'approved' : 'none'} size="md" />
       </div>
-      {p.displayName && (
-        <p className="mt-0.5 text-[12px] text-slate-500 dark:text-slate-400 flex items-center gap-1 max-w-full">
-          <Lock className="w-3 h-3 shrink-0" />
-          <span className="truncate">{p.displayName}</span>
-          <span className="text-slate-400 shrink-0">(only you see this)</span>
-        </p>
-      )}
+      <p className="mt-0.5 text-[12px] text-slate-500 dark:text-slate-400 flex items-center gap-1 max-w-full">
+        <span className="truncate">{p.handle || '@explorer'}</span>
+      </p>
       {subtitle}
     </div>
   );

@@ -279,7 +279,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
       id: `rev-${Date.now()}`,
       userName: currentUserProfile?.name || 'RADA member',
       userHandle: currentUserProfile?.handle || '@explorer',
-      userAvatar: currentUserProfile?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop',
+      userAvatar: currentUserProfile?.avatar || '',
       rating: newReviewRating,
       date: 'Just now',
       comment: newReviewText.trim(),
@@ -464,7 +464,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
   // Profile Bio & Relationship Status state (SPEC 6: Rename Profile, strictly Single / Not single)
   const [profileBio, setProfileBio] = useState(currentUserProfile?.bio || 'Discovering local hangouts, good music and vibes.');
-  const [profileAvatar, setProfileAvatar] = useState(currentUserProfile?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop');
+  const [profileAvatar, setProfileAvatar] = useState(currentUserProfile?.avatar || '');
   const [profileRelationshipStatus, setProfileRelationshipStatus] = useState<'single' | 'not_single'>(currentUserProfile?.relationshipStatus || 'single');
 
   useEffect(() => {
@@ -2441,10 +2441,16 @@ export const Overlays: React.FC<OverlaysProps> = ({
             <div className="py-4 space-y-5 text-xs flex-1">
               <div className="p-4 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl space-y-4 text-center">
                 <div className="relative w-24 h-24 mx-auto">
-                  <div
-                    className="w-24 h-24 rounded-full bg-cover bg-center border-2 border-[#E0533C] shadow-md"
-                    style={{ backgroundImage: `url('${profileAvatar}')` }}
-                  />
+                  {profileAvatar ? (
+                    <div
+                      className="w-24 h-24 rounded-full bg-cover bg-center border-2 border-[#E0533C] shadow-md"
+                      style={{ backgroundImage: `url('${profileAvatar}')` }}
+                    />
+                  ) : (
+                    <div className="w-24 h-24 rounded-full bg-slate-200 dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 flex items-center justify-center shadow-md">
+                      <User className="w-10 h-10 text-slate-400" />
+                    </div>
+                  )}
                   <label className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#E0533C] text-white flex items-center justify-center cursor-pointer shadow-lg hover:bg-orange-700 transition">
                     <Upload className="w-3.5 h-3.5" />
                     <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />

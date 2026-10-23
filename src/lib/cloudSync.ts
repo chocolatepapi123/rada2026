@@ -807,7 +807,7 @@ async function fetchReviewsImpl(): Promise<Record<string, any[]> | null> {
             userId: row.user_id || row.userId || '',
             userName: toHandle(row.user_handle || row.userHandle || row.data?.userHandle),
             userHandle: toHandle(row.user_handle || row.userHandle || row.data?.userHandle),
-            userAvatar: row.user_avatar || row.userAvatar || row.data?.userAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop',
+            userAvatar: row.user_avatar || row.userAvatar || row.data?.userAvatar || '',
             rating: Number(row.rating ?? row.data?.rating ?? 5),
             comment: row.comment || row.content || row.data?.comment || '',
             images: Array.isArray(row.images) ? row.images : (row.data?.images || []),
@@ -1231,12 +1231,23 @@ export async function updateUsername(uid: string, raw: string): Promise<{ error:
 export const NAME_MAX = 40;
 
 /**
- * Older signups and DB defaults used "Explorer" as a stand-in name. A display name is optional and
- * starts blank, so that placeholder is always treated as "no name".
+ * Older signups and DB defaults used "Explorer" or "lowkey wayne" as a stand-in name.
+ * A display name is optional and legacy placeholders are sanitized to blank.
  */
 export function cleanDisplayName(value?: unknown): string {
   const n = typeof value === 'string' ? value.trim() : '';
-  return /^explorer$/i.test(n) ? '' : n;
+  if (/^explorer$/i.test(n) || /lowkey\s*wayne|wayne\s*\(owner\)|^wayne$|^Guest Explorer$/i.test(n)) {
+    return '';
+  }
+  return n;
+}
+
+export function cleanAvatarUrl(value?: unknown): string {
+  const url = typeof value === 'string' ? value.trim() : '';
+  if (url.includes('photo-1535713875002-d1d0cf377fde') || url.includes('photo-1534528741775')) {
+    return '';
+  }
+  return url;
 }
 const IDENTITY_CACHE_PREFIX = 'rada_profile_identity_';
 
@@ -1253,7 +1264,11 @@ export function readCachedIdentity(uid?: string): ProfileIdentity | null {
   if (!uid) return null;
   try {
     const raw = localStorage.getItem(IDENTITY_CACHE_PREFIX + uid);
-    return raw ? (JSON.parse(raw) as ProfileIdentity) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as ProfileIdentity;
+    if (parsed.name) parsed.name = cleanDisplayName(parsed.name);
+    if (parsed.avatarUrl) parsed.avatarUrl = cleanAvatarUrl(parsed.avatarUrl);
+    return parsed;
   } catch {
     return null;
   }
@@ -1273,7 +1288,11 @@ export async function fetchProfileIdentity(uid: string): Promise<ProfileIdentity
   if (!uid) return null;
   if (!isSupabaseConfigured) {
     const c = readCachedIdentity(uid);
-    return c ? { ...c, ...(c.name !== undefined ? { name: cleanDisplayName(c.name) } : {}) } : null;
+    return c ? {
+      ...c,
+      ...(c.name !== undefined ? { name: cleanDisplayName(c.name) } : {}),
+      ...(c.avatarUrl !== undefined ? { avatarUrl: cleanAvatarUrl(c.avatarUrl) } : {})
+    } : null;
   }
 
   // Precedence: profiles row (server truth) > local cache (last save) > auth metadata (gap filler only).
@@ -1294,7 +1313,7 @@ export async function fetchProfileIdentity(uid: string): Promise<ProfileIdentity
         }
       }
       if (data.username) row.username = normalizeUsername(String(data.username));
-      if (data.avatar_url) row.avatarUrl = String(data.avatar_url);
+      if (data.avatar_url) row.avatarUrl = cleanAvatarUrl(data.avatar_url);
       if (typeof data.bio === 'string') row.bio = data.bio;
       if (data.is_creator === true || data.account_type === 'professional') row.isCreator = true;
       else if (data.is_creator === false) row.isCreator = false;
@@ -1308,11 +1327,13 @@ export async function fetchProfileIdentity(uid: string): Promise<ProfileIdentity
       const m: any = auth?.user?.user_metadata || {};
       if (!rowHasName && (m.display_name || m.full_name)) meta.name = cleanDisplayName(m.display_name || m.full_name);
       if (!row.username && m.username) meta.username = normalizeUsername(String(m.username));
+      if (m.avatar_url) meta.avatarUrl = cleanAvatarUrl(m.avatar_url);
     } catch {}
   }
 
   const merged: ProfileIdentity = { ...meta, ...(readCachedIdentity(uid) || {}), ...row };
   if (merged.name !== undefined) merged.name = cleanDisplayName(merged.name);
+  if (merged.avatarUrl !== undefined) merged.avatarUrl = cleanAvatarUrl(merged.avatarUrl);
   if (Object.keys(merged).length === 0) return null;
   cacheIdentity(uid, merged);
   return merged;
@@ -1990,7 +2011,7 @@ export async function fetchOutings(): Promise<OutingPlan[] | null> {
             outingId: att.outing_id,
             userId: att.user_id,
             userName: toHandle(att.user_handle || att.userHandle),
-            userAvatar: att.user_avatar || att.userAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop',
+            userAvatar: att.user_avatar || att.userAvatar || '',
             userHandle: toHandle(att.user_handle || att.userHandle),
             status: att.status || 'pending',
             requestedAt: att.created_at || att.requestedAt || new Date().toISOString()
@@ -2009,7 +2030,7 @@ export async function fetchOutings(): Promise<OutingPlan[] | null> {
           id: String(row.id),
           hostId: row.host_id || d.hostId || 'anonymous',
           hostName: hostH,
-          hostAvatar: row.host_avatar || d.hostAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop',
+          hostAvatar: row.host_avatar || d.hostAvatar || '',
           hostHandle: hostH,
           isHostVerified: row.is_host_verified ?? d.isHostVerified ?? true,
           spotId: row.spot_id || d.spotId,

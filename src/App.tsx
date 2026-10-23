@@ -93,10 +93,17 @@ import {
 } from './types.ts';
 
 
+import {
+  generateNewUserName,
+  sanitizeDisplayName,
+  sanitizeAvatarUrl,
+  isLegacyWayneName
+} from './utils/userUtils.ts';
+
 const GUEST_PROFILE: UserProfile = {
-  name: 'Guest Explorer',
+  name: generateNewUserName(),
   handle: '@guest',
-  avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop',
+  avatar: '',
   bio: 'Discovering local spots near you on RADA. Log in or create an account to customize your profile & connect with spots!',
   loc: 'Westlands',
   relationshipStatus: 'single',
@@ -107,9 +114,9 @@ const GUEST_PROFILE: UserProfile = {
 };
 
 const DEFAULT_PROFILE: UserProfile = {
-  name: '',
+  name: generateNewUserName(),
   handle: '@explorer',
-  avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop',
+  avatar: '',
   bio: 'Exploring Nairobi spots, events, and fashion setups. Hit me up for hangouts! ✨',
   loc: 'Nairobi',
   relationshipStatus: 'single',
@@ -632,6 +639,8 @@ export default function App() {
           return {
             ...GUEST_PROFILE,
             ...parsed,
+            name: sanitizeDisplayName(parsed.name),
+            avatar: sanitizeAvatarUrl(parsed.avatar),
             relationshipStatus: parsed.relationshipStatus || parsed.relationship_status || 'single',
             relationship_status: parsed.relationship_status || parsed.relationshipStatus || 'single',
             isLivenessVerified: Boolean(parsed.isLivenessVerified || parsed.is_liveness_verified),
@@ -640,7 +649,11 @@ export default function App() {
         }
       }
     } catch (_) {}
-    return GUEST_PROFILE;
+    return {
+      ...GUEST_PROFILE,
+      name: generateNewUserName(),
+      avatar: ''
+    };
   });
 
   // Profile View Modal state (to view anyone's profile and bio)
@@ -1431,15 +1444,18 @@ export default function App() {
     (async () => {
       const remote = await cloud.fetchUserData(uid);
       if (cancelled) return;
-      // Brand-new account: no hardcoded username/bio. The username stays empty until the user picks one.
+      // Brand-new account: name defaults to new_user_(random 2 numbers) and blank avatar
       const freshProfile = (): UserProfile => ({
         ...DEFAULT_PROFILE,
-        name: '',
+        name: generateNewUserName(),
         handle: '@explorer',
+        avatar: '',
         username: undefined,
         bio: '',
       });
       let base: UserProfile = remote?.profile ? remote.profile : freshProfile();
+      base.name = sanitizeDisplayName(base.name);
+      base.avatar = sanitizeAvatarUrl(base.avatar);
       if (remote) {
         if (remote.tickets) setTickets(remote.tickets);
         if (remote.contacts) setEmergencyContacts(remote.contacts);
@@ -1449,11 +1465,15 @@ export default function App() {
       try {
         const patch = await cloud.fetchOwnProfilePatch(uid);
         if (cancelled) return;
+        if (patch.name) patch.name = sanitizeDisplayName(patch.name);
+        if (patch.avatar !== undefined) patch.avatar = sanitizeAvatarUrl(patch.avatar);
         base = { ...base, ...patch };
         if (patch.username) base.handle = cloud.toHandle(patch.username);
       } catch (e) {
         console.warn('Profile identity load failed:', e);
       }
+      base.name = sanitizeDisplayName(base.name);
+      base.avatar = sanitizeAvatarUrl(base.avatar);
       setCurrentUserProfile(base);
       userDataUidRef.current = uid;
       setUserDataReady(true);

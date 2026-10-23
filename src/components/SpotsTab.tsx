@@ -169,7 +169,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
       id: `rev-${Date.now()}`,
       userName: 'Explorer',
       userHandle: '@explorer',
-      userAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop',
+      userAvatar: '',
       rating: reviewRating,
       date: 'Just now',
       comment: reviewComment.trim(),

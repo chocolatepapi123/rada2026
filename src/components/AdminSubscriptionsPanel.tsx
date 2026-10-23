@@ -508,18 +508,18 @@ export const AdminSubscriptionsPanel: React.FC<{ toast: (m: string, options?: To
       return u;
     });
 
-    const hasWayne = mapped.some((u) => (u.email || '').toLowerCase().trim() === 'lowkeywayne21@gmail.com');
-    if (!hasWayne) {
+    const hasAdmin = mapped.some((u) => (u.email || '').toLowerCase().trim() === 'lowkeywayne21@gmail.com');
+    if (!hasAdmin) {
       mapped.unshift({
-        user_id: 'wayne-elite-forever',
+        user_id: 'rada-admin-primary',
         email: 'lowkeywayne21@gmail.com',
-        username: 'lowkeywayne',
-        display_name: 'Wayne (Owner)',
-        avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop',
+        username: 'admin',
+        display_name: 'Administrator',
+        avatar_url: '',
         is_creator: true,
         businesses: ['RADA HQ'],
-        creator: createPermanentEliteRecord('creator', 'wayne-elite-forever'),
-        merchant: createPermanentEliteRecord('merchant', 'wayne-elite-forever'),
+        creator: createPermanentEliteRecord('creator', 'rada-admin-primary'),
+        merchant: createPermanentEliteRecord('merchant', 'rada-admin-primary'),
       });
     }
 

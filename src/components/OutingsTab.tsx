@@ -619,7 +619,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       outingId: plan.id,
       userId: currentUserId || `usr-${Date.now()}`,
       userName: currentUserProfile.name || 'Explorer',
-      userAvatar: currentUserProfile.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop',
+      userAvatar: currentUserProfile.avatar || '',
       userHandle: currentUserProfile.handle || '@explorer',
       status: 'pending',
       requestedAt: new Date().toISOString()
@@ -685,7 +685,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
         id: `out-${Date.now()}`,
         hostId: currentUserId || `host-${Date.now()}`,
         hostName: currentUserProfile.name || 'RADA member',
-        hostAvatar: currentUserProfile.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop',
+        hostAvatar: currentUserProfile.avatar || '',
         hostHandle: currentUserProfile.handle || '@host',
         isHostVerified: currentUserProfile.is_creator === true,
         spotId: isCustom ? undefined : selectedSpot.id,
