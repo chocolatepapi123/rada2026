@@ -24,7 +24,8 @@ import {
   Image as ImageIcon,
   Building2,
   X,
-  Dumbbell
+  Dumbbell,
+  Trash2
 } from 'lucide-react';
 
 import { SpotItem, MenuItem, SavedItem, Review } from '../types.ts';
@@ -34,9 +35,11 @@ import { LocationCombobox } from './LocationCombobox.tsx';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 import type { ToastOptions } from './Toast.tsx';
 import { resolveSpotBudget, budgetBadge } from '../lib/spotBudget.ts';
-import { useUnclaimedSpots, spotInCategory, mergeSpots } from '../lib/spotsFeed.ts';
+import { useUnclaimedSpots, spotInCategory, mergeSpots, evictUnclaimedSpot } from '../lib/spotsFeed.ts';
 import { useLocationPreference, sortByProximity } from '../lib/geo.ts';
 import { spotMatchesSearchWithTags } from '../utils/spotTags.ts';
+import { AdminConfirmModal } from './AdminConfirmModal.tsx';
+import { deleteListing } from '../lib/cloudSync.ts';
 
 interface SpotsTabProps {
   spots: SpotItem[];
@@ -50,6 +53,8 @@ interface SpotsTabProps {
   onPostReview?: (spotId: number, review: Review) => void;
   onNavigateToCalendar?: (dateStr?: string, eventId?: number | string) => void;
   showToast?: (msg: string, options?: ToastOptions) => void;
+  isAdmin?: boolean;
+  onDeleteSpot?: (spot: SpotItem) => Promise<void> | void;
 }
 
 // Persistent filter state across unmounts and calendar/modal navigations
@@ -73,7 +78,9 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   onOpenSuggestSpot,
   onPostReview,
   onNavigateToCalendar,
-  showToast
+  showToast,
+  isAdmin = false,
+  onDeleteSpot
 }) => {
   const [searchQuery, setSearchQuery] = useState(cachedSpotsFilters.searchQuery);
   const [selectedCategory, setSelectedCategory] = useState<string>(cachedSpotsFilters.selectedCategory);
@@ -84,6 +91,50 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   const [selectedRating, setSelectedRating] = useState<'all' | '4.5' | '4.0' | 'reviewed'>('all');
   const [onlySpecialOffers, setOnlySpecialOffers] = useState(false);
   const { origin: userLocation } = useLocationPreference();
+
+  // Admin Spot Deletion state
+  const [spotToDelete, setSpotToDelete] = useState<SpotItem | null>(null);
+
+  const handleConfirmDeleteSpot = async (spot: SpotItem) => {
+    try {
+      if (onDeleteSpot) {
+        await onDeleteSpot(spot);
+      } else {
+        if (supabase) {
+          const rawId = String(spot.id);
+          const cleanId = rawId.replace('unclaimed-', '').replace('scraped-', '');
+          try {
+            await supabase.from('unclaimedspots').delete().or(`id.eq.${cleanId},id.eq.${rawId}`);
+          } catch (_) {}
+          if (spot.title) {
+            try {
+              await supabase.from('unclaimedspots').delete().eq('name', spot.title);
+            } catch (_) {}
+            try {
+              await supabase.from('spots').delete().eq('title', spot.title);
+            } catch (_) {}
+          }
+          const numId = Number(spot.id);
+          if (Number.isFinite(numId) && !isNaN(numId)) {
+            try {
+              await supabase.from('spots').delete().eq('id', numId);
+            } catch (_) {}
+          }
+          try {
+            await deleteListing('spot', spot.id);
+          } catch (_) {}
+        }
+      }
+
+      setDbSpots(prev => prev.filter(s => String(s.id) !== String(spot.id) && (!spot.title || (s.title || '').trim().toLowerCase() !== spot.title.trim().toLowerCase())));
+      evictUnclaimedSpot(spot.id, spot.title);
+      showToast?.(`"${spot.title}" was permanently deleted.`, { type: 'success' });
+      setSpotToDelete(null);
+    } catch (err: any) {
+      console.error('Delete spot error:', err);
+      showToast?.(err?.message || 'Failed to delete spot.', { type: 'error' });
+    }
+  };
 
   // Sync back to cache so filters are never lost when viewing details or calendar
   useEffect(() => {
@@ -464,6 +515,22 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               {budgetBadge(resolveSpotBudget(spot))}
             </span>
 
+            {/* Admin Delete Spot shortcut */}
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSpotToDelete(spot);
+                }}
+                className="absolute top-2.5 right-14 z-10 w-7 h-7 rounded-full bg-red-600/90 hover:bg-red-700 text-white flex items-center justify-center transition shadow-md cursor-pointer hover:scale-105 active:scale-95"
+                title="Delete Spot (Admin)"
+                aria-label={`Delete ${spot.title}`}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+
             {/* Image Counter Badge if multiple images */}
             {imagesList.length > 1 && (
               <span className="absolute bottom-2.5 left-2.5 bg-black/60 text-white text-[9px] font-bold px-2 py-0.5 rounded-md z-10">
@@ -598,6 +665,21 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           >
             <span>Details</span>
           </button>
+
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSpotToDelete(spot);
+              }}
+              className="py-2 px-2.5 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/60 text-red-600 dark:text-red-400 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 border border-red-200 dark:border-red-900 shrink-0 cursor-pointer"
+              title="Delete this spot (Admin)"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete</span>
+            </button>
+          )}
         </div>
       </div>
     );
@@ -1402,6 +1484,26 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
             </form>
           </div>
         </div>
+      )}
+
+      {/* Admin Confirm Delete Spot Modal */}
+      {spotToDelete && (
+        <AdminConfirmModal
+          isOpen={Boolean(spotToDelete)}
+          actionType="delete_spot"
+          target={{
+            id: String(spotToDelete.id),
+            name: spotToDelete.title,
+            handle: spotToDelete.address,
+            neighborhood: spotToDelete.neighborhood,
+            category: spotToDelete.category,
+            businessName: spotToDelete.title,
+          }}
+          onClose={() => setSpotToDelete(null)}
+          onConfirm={async () => {
+            await handleConfirmDeleteSpot(spotToDelete);
+          }}
+        />
       )}
     </section>
   );

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, X, MapPin, Bookmark, Star, SlidersHorizontal, Sparkles, UtensilsCrossed, Compass } from 'lucide-react';
+import { Search, X, MapPin, Bookmark, Star, SlidersHorizontal, Sparkles, UtensilsCrossed, Compass, Trash2 } from 'lucide-react';
 import { SpotItem, SavedItem } from '../types.ts';
 import { spotInCategory } from '../lib/spotsFeed.ts';
 import { resolveSpotBudget, budgetBadge } from '../lib/spotBudget.ts';
@@ -14,6 +14,8 @@ interface SpotsExplorerProps {
   onToggleSave?: (item: any, kind: 'spot') => void;
   onOpenSpot: (spot: SpotItem) => void;
   userCoords?: LatLng | null;
+  isAdmin?: boolean;
+  onDeleteSpot?: (spot: SpotItem) => void;
 }
 
 const NAIROBI_NEIGHBORHOODS = [
@@ -51,6 +53,8 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
   onToggleSave,
   onOpenSpot,
   userCoords = null,
+  isAdmin = false,
+  onDeleteSpot,
 }) => {
   const [query, setQuery] = useState('');
   const [selectedNeighborhood, setSelectedNeighborhood] = useState('All Areas');
@@ -279,6 +283,22 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
                       <span className="capitalize">{spot.category?.replace(/_/g, ' ') || 'Hangout'}</span>
                     </span>
 
+                    {/* Admin Delete shortcut */}
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteSpot?.(spot);
+                        }}
+                        className="absolute top-2.5 right-11 w-7 h-7 rounded-full bg-red-600/90 hover:bg-red-700 text-white flex items-center justify-center transition shadow-xs z-10 cursor-pointer hover:scale-105 active:scale-95"
+                        title="Delete Spot (Admin)"
+                        aria-label={`Delete ${spot.title}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+
                     <button
                       type="button"
                       onClick={(e) => {
@@ -322,20 +342,36 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
                   </div>
                 </div>
 
-                <div className="mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-slate-500">
+                <div className="mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between gap-1.5">
+                  <span className="text-[11px] font-bold text-slate-500 truncate">
                     {spot.neighborhood}
                   </span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onOpenSpot(spot);
-                    }}
-                    className="px-3 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-[11px] font-bold transition shadow-xs"
-                  >
-                    View Details
-                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteSpot?.(spot);
+                        }}
+                        className="px-2.5 py-1.5 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/60 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 rounded-xl text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                        title="Delete Spot (Admin)"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Delete</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenSpot(spot);
+                      }}
+                      className="px-3 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-[11px] font-bold transition shadow-xs cursor-pointer"
+                    >
+                      View Details
+                    </button>
+                  </div>
                 </div>
               </div>
             );

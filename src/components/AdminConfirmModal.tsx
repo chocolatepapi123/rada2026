@@ -12,6 +12,8 @@ export interface AdminTargetAccount {
   isMerchant?: boolean;
   isSuspended?: boolean;
   businessName?: string;
+  category?: string;
+  neighborhood?: string;
 }
 
 interface AdminConfirmModalProps {
@@ -163,20 +165,24 @@ export const AdminConfirmModal: React.FC<AdminConfirmModalProps> = ({
         {/* Target Card */}
         <div className="bg-slate-50 dark:bg-[#121113] p-3 rounded-2xl border border-slate-200 dark:border-slate-800/80 space-y-1">
           <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">
-            Target Account
+            {actionType === 'delete_spot' ? 'Target Spot' : 'Target Account'}
           </span>
           <div className="flex items-center justify-between">
             <div className="min-w-0">
               <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">
-                {target.name || target.businessName || 'User Account'}
+                {target.name || target.businessName || (actionType === 'delete_spot' ? 'Venue / Spot' : 'User Account')}
               </h4>
               <p className="text-[11px] text-slate-500 truncate">
-                {target.handle || target.email || target.id}
+                {target.neighborhood ? `${target.neighborhood}${target.handle ? ` • ${target.handle}` : ''}` : (target.handle || target.email || target.id)}
               </p>
             </div>
-            {target.role && (
-              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300">
-                {target.role}
+            {(target.category || target.role) && (
+              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                actionType === 'delete_spot'
+                  ? 'bg-red-100 dark:bg-red-950/60 text-[#E0533C]'
+                  : 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'
+              }`}>
+                {target.category ? target.category.replace(/_/g, ' ') : target.role}
               </span>
             )}
           </div>
@@ -272,7 +278,7 @@ export const AdminConfirmModal: React.FC<AdminConfirmModalProps> = ({
             ) : (
               <>
                 <Check className="w-3.5 h-3.5" />
-                <span>Confirm {actionType === 'delete_account' ? 'Deletion' : 'Action'}</span>
+                <span>Confirm {actionType === 'delete_account' ? 'Deletion' : actionType === 'delete_spot' ? 'Delete Spot' : 'Action'}</span>
               </>
             )}
           </button>

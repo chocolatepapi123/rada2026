@@ -85,6 +85,7 @@ import { SpotsExplorer } from './SpotsExplorer.tsx';
 import { useLocationPreference } from '../lib/geo.ts';
 import { getSourceLabel } from '../utils/eventUtils.ts';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
+import { AdminConfirmModal } from './AdminConfirmModal.tsx';
 
 interface OverlaysProps {
   // Overlays state
@@ -163,6 +164,8 @@ interface OverlaysProps {
   onNavigateToCalendar?: (dateStr?: string, eventId?: number | string) => void;
   /** Opens the venue map for a live event (coordinates are looked up on demand) */
   onOpenEventMap?: (event: EventItem) => void;
+  isAdmin?: boolean;
+  onDeleteSpot?: (spot: SpotItem) => Promise<void> | void;
 }
 
 export const Overlays: React.FC<OverlaysProps> = ({
@@ -219,8 +222,13 @@ export const Overlays: React.FC<OverlaysProps> = ({
   showToast,
   onOpenSaved,
   onOpenAccountSettings,
-  savedCount
+  savedCount,
+  isAdmin = false,
+  onDeleteSpot
 }) => {
+  // Admin Spot Deletion state
+  const [spotToDelete, setSpotToDelete] = useState<SpotItem | null>(null);
+
   // Spot Active Photo Index
   const [activeSpotImgIndex, setActiveSpotImgIndex] = useState(0);
 
@@ -409,6 +417,20 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 >
                   <Share2 className="w-4 h-4" />
                 </button>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedSpot) {
+                        setSpotToDelete(selectedSpot);
+                      }
+                    }}
+                    title="Delete Spot (Admin)"
+                    className="w-9 h-9 rounded-full bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/60 border border-red-200 dark:border-red-900 flex items-center justify-center text-red-600 dark:text-red-400 transition cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -1489,6 +1511,8 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 onToggleSave={onToggleSave}
                 onOpenSpot={(spot) => onSelectSpotForDate(spot)}
                 userCoords={origin}
+                isAdmin={isAdmin}
+                onDeleteSpot={(spot) => setSpotToDelete(spot)}
               />
             </div>
           </div>
@@ -2412,11 +2436,39 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     onOpenSpotDetails(spot);
                   }}
                   userCoords={origin}
+                  isAdmin={isAdmin}
+                  onDeleteSpot={(spot) => setSpotToDelete(spot)}
                 />
               )}
             </div>
           </div>
         </div>
+      )}
+
+      {/* Admin Confirm Delete Spot Modal */}
+      {spotToDelete && (
+        <AdminConfirmModal
+          isOpen={Boolean(spotToDelete)}
+          actionType="delete_spot"
+          target={{
+            id: String(spotToDelete.id),
+            name: spotToDelete.title,
+            handle: spotToDelete.address,
+            neighborhood: spotToDelete.neighborhood,
+            category: spotToDelete.category,
+            businessName: spotToDelete.title,
+          }}
+          onClose={() => setSpotToDelete(null)}
+          onConfirm={async () => {
+            if (onDeleteSpot) {
+              await onDeleteSpot(spotToDelete);
+            }
+            if (selectedSpot && (String(selectedSpot.id) === String(spotToDelete.id) || selectedSpot.title === spotToDelete.title)) {
+              onCloseSpotModal();
+            }
+            setSpotToDelete(null);
+          }}
+        />
       )}
     </>
   );

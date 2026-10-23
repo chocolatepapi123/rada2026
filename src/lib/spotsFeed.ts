@@ -307,6 +307,24 @@ export function useUnclaimedSpots(): { spots: any[]; loading: boolean; refresh: 
   return { spots, loading, refresh: async () => { await loadUnclaimedSpots(true); } };
 }
 
+/** Evicts a spot from in-memory unclaimed spots feed and notifies all listeners. */
+export function evictUnclaimedSpot(id: string | number, title?: string) {
+  const sid = String(id);
+  const cleanSid = sid.replace(/^unclaimed-/, '');
+  const tLower = title ? title.trim().toLowerCase() : '';
+
+  if (cache) {
+    cache = cache.filter(s => {
+      const sId = String(s.id);
+      const sCleanId = sId.replace(/^unclaimed-/, '');
+      if (sId === sid || sCleanId === cleanSid || sCleanId === sid || sId === cleanSid) return false;
+      if (tLower && (s.title || '').trim().toLowerCase() === tLower) return false;
+      return true;
+    });
+    listeners.forEach(l => l(cache!));
+  }
+}
+
 /** Merge merchant/user-created spots with real imported ones, de-duplicated by id and title. */
 export function mergeSpots(local: any[], unclaimed: any[]): any[] {
   const ids = new Set(local.map(s => String(s.id)));

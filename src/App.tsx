@@ -25,7 +25,7 @@ import {
 
 import { fetchCinemaShowings, CINEMA_UPDATED_EVENT } from './lib/cinema.ts';
 import { readJSON, writeJSON, writeJSONDebounced, purgeSeedData } from './lib/storage.ts';
-import { useUnclaimedSpots, mergeSpots } from './lib/spotsFeed.ts';
+import { useUnclaimedSpots, mergeSpots, evictUnclaimedSpot } from './lib/spotsFeed.ts';
 import { resolveNearestNeighborhood } from './lib/geo.ts';
 
 // One-time removal of the old demo content cached on this device
@@ -2226,6 +2226,78 @@ export default function App() {
       setActiveOverlay(overlayId);
     }
   };
+
+  const isAdmin = !isGuestMode && isPlatformAdmin({ email: session?.user?.email || currentUserProfile?.email, role: userRole });
+
+  const handleDeleteSpot = async (spot: SpotItem | { id: string | number; title?: string }) => {
+    const spotId = spot.id;
+    const spotTitle = (spot as any).title || '';
+
+    try {
+      // 1. Supabase unclaimedspots table
+      if (isSupabaseConfigured && supabase) {
+        const rawId = String(spotId);
+        const cleanId = rawId.replace('unclaimed-', '').replace('scraped-', '');
+        try {
+          await supabase.from('unclaimedspots').delete().or(`id.eq.${cleanId},id.eq.${rawId}`);
+        } catch (_) {}
+        if (spotTitle) {
+          try {
+            await supabase.from('unclaimedspots').delete().eq('name', spotTitle);
+          } catch (_) {}
+        }
+      }
+
+      // 2. Supabase spots table
+      if (isSupabaseConfigured && supabase) {
+        const numId = Number(spotId);
+        if (Number.isFinite(numId) && !isNaN(numId)) {
+          try {
+            await supabase.from('spots').delete().eq('id', numId);
+          } catch (_) {}
+        } else {
+          try {
+            await supabase.from('spots').delete().eq('id', spotId);
+          } catch (_) {}
+        }
+        if (spotTitle) {
+          try {
+            await supabase.from('spots').delete().eq('title', spotTitle);
+          } catch (_) {}
+        }
+      }
+
+      // 3. Supabase rada_listings table
+      try {
+        await cloud.deleteListing('spot', spotId);
+      } catch (_) {}
+    } catch (e) {
+      console.warn('Backend delete spot error:', e);
+    }
+
+    // 4. In-memory feed cache eviction
+    evictUnclaimedSpot(spotId, spotTitle);
+
+    // 5. Update local spots state and localStorage
+    setSpots(prev => {
+      const updated = prev.filter(s => String(s.id) !== String(spotId) && (!spotTitle || (s.title || '').trim().toLowerCase() !== spotTitle.trim().toLowerCase()));
+      try {
+        localStorage.setItem('rada_spots', JSON.stringify(updated));
+      } catch (_) {}
+      return updated;
+    });
+
+    // 6. Clean from saved places
+    setSavedItems(prev => prev.filter(item => !(item.kind === 'spot' && String(item.id) === String(spotId))));
+
+    // 7. If currently open in modal, close it
+    if (selectedSpotModal && (String(selectedSpotModal.id) === String(spotId) || (spotTitle && selectedSpotModal.title === spotTitle))) {
+      setSelectedSpotModal(null);
+    }
+
+    showToast(`"${spotTitle || 'Spot'}" was permanently deleted.`, { type: 'success' });
+  };
+
   return (
     <ToastProvider>
       <BusinessesProvider businesses={businesses}>
@@ -2369,6 +2441,8 @@ export default function App() {
                 onPostReview={handlePostReview}
                 onNavigateToCalendar={handleNavigateToCalendar}
                 showToast={showToast}
+                isAdmin={isAdmin}
+                onDeleteSpot={handleDeleteSpot}
               />
             )}
 
@@ -2618,6 +2692,8 @@ export default function App() {
             savedItems={savedItems}
             onToggleSave={handleToggleSave}
             onNavigateToCalendar={handleNavigateToCalendar}
+            isAdmin={isAdmin}
+            onDeleteSpot={handleDeleteSpot}
           />
 
           <UserProfileModal
@@ -2739,7 +2815,7 @@ export default function App() {
                 setSpots(prev => [spot, ...prev.filter(s => String(s.id) !== String(spot.id))]);
               }}
               onSpotDeleted={(spotId) => {
-                setSpots(prev => prev.filter(s => String(s.id) !== String(spotId)));
+                handleDeleteSpot({ id: spotId });
               }}
               onUpdateBusiness={(businessId, updates) => {
                 const business = businesses.find(b => b.id === businessId);
