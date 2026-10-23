@@ -29,7 +29,7 @@ interface DynamicLocationSelectorProps {
 export const DynamicLocationSelector: React.FC<DynamicLocationSelectorProps> = ({
   value,
   onChange,
-  placeholder = 'Search place, stage, mall, or town in Kenya...',
+  placeholder = 'Search exact location, neighborhood, or landmark...',
   label,
   isModalMode = false,
   isOpen = true,
@@ -245,23 +245,7 @@ export const DynamicLocationSelector: React.FC<DynamicLocationSelectorProps> = (
         )}
       </div>
 
-      {/* GPS Reset Option */}
-      {showGpsReset && onResetGps && (
-        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-          <span className="text-[11px] text-slate-400">Need live device coordinates?</span>
-          <button
-            type="button"
-            onClick={() => {
-              onResetGps();
-              if (onClose) onClose();
-            }}
-            className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
-          >
-            <Navigation className="w-3.5 h-3.5" />
-            <span>Reset to Device GPS</span>
-          </button>
-        </div>
-      )}
+      {/* Dynamic results list continues above */}
     </div>
   );
 

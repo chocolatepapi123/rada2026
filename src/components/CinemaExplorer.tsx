@@ -152,19 +152,34 @@ export const CinemaExplorer: React.FC<CinemaExplorerProps> = ({
 
       {/* Cinema Hall & Format Filter Controls */}
       <div className="flex items-center gap-2 flex-wrap text-xs">
-        <div className="flex items-center gap-1.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5">
-          <MapPin className="w-3.5 h-3.5 text-[#2D6A4F]" />
-          <select
-            value={selectedVenue}
-            onChange={(e) => setSelectedVenue(e.target.value)}
-            className="bg-transparent font-bold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
-          >
-            {CINEMA_VENUES.map(v => (
-              <option key={v.id} value={v.id} className="bg-white dark:bg-[#1C1A1E]">
-                {v.label}
-              </option>
-            ))}
-          </select>
+        {/* Searchbox for Exact Cinema Location */}
+        <div className="relative flex items-center">
+          <MapPin className="w-3.5 h-3.5 text-[#2D6A4F] absolute left-2.5 pointer-events-none" />
+          <input
+            type="text"
+            value={selectedVenue === 'all' ? '' : (CINEMA_VENUES.find(v => v.id === selectedVenue)?.label || selectedVenue)}
+            onChange={(e) => {
+              const val = e.target.value.toLowerCase();
+              if (!val.trim()) {
+                setSelectedVenue('all');
+                return;
+              }
+              const matched = CINEMA_VENUES.find(v => v.label.toLowerCase().includes(val) || v.id.toLowerCase().includes(val));
+              setSelectedVenue(matched ? matched.id : e.target.value);
+            }}
+            placeholder="Search exact cinema location..."
+            className="pl-8 pr-7 py-1.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:border-[#2D6A4F]"
+          />
+          {selectedVenue !== 'all' && (
+            <button
+              type="button"
+              onClick={() => setSelectedVenue('all')}
+              className="absolute right-2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              title="Reset cinema location"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5">

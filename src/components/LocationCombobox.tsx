@@ -18,7 +18,7 @@ export const LocationCombobox: React.FC<LocationComboboxProps> = ({
   value,
   onChange,
   spots = [],
-  placeholder = 'Type place, neighborhood, or area...',
+  placeholder = 'Search exact location or neighborhood...',
   label,
   allowAll = false,
   showSelectedChip = false,
@@ -55,17 +55,22 @@ export const LocationCombobox: React.FC<LocationComboboxProps> = ({
       .map(s => s.neighborhood?.trim())
       .filter((n): n is string => Boolean(n && n.length > 0));
 
-    // No fixed suggestions: results only appear once the user types.
-    if (!query.trim()) return [];
+    const POPULAR_AREAS = [
+      'Westlands', 'Kilimani', 'Karen', 'CBD', 'Lavington',
+      'Kileleshwa', 'Gigiri', 'Parklands', 'Ngong Road', 'Thika Road', 'Ruaka'
+    ];
+
+    if (!query.trim()) {
+      return Array.from(new Set([...POPULAR_AREAS, ...spotNeighborhoods])).slice(0, 10);
+    }
 
     const nairobiPlaces: string[] = [];
     for (const item of searchNairobiLocations(query)) {
-      if (item.neighborhood) nairobiPlaces.push(item.neighborhood);
       if (item.name) nairobiPlaces.push(item.name);
+      if (item.neighborhood) nairobiPlaces.push(item.neighborhood);
     }
 
     const combined = Array.from(new Set([...spotNeighborhoods, ...nairobiPlaces]));
-
     const q = query.toLowerCase();
     return combined
       .filter(item => item.toLowerCase().includes(q))
@@ -155,7 +160,7 @@ export const LocationCombobox: React.FC<LocationComboboxProps> = ({
       )}
 
       {/* Floating Suggestions Dropdown */}
-      {isOpen && query.trim().length > 0 && (
+      {isOpen && (suggestions.length > 0 || query.trim().length > 0) && (
         <div className="absolute left-0 right-0 top-full mt-1.5 z-50 max-h-56 overflow-y-auto bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-100">
           {/* Free-typed custom location option */}
           {query.trim().length > 0 && !suggestions.some(s => s.toLowerCase() === query.trim().toLowerCase()) && (

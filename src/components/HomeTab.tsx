@@ -12,6 +12,7 @@ const getDisplayHours = (hours: any, fallback = 'Open Daily'): string => {
   }
   return fallback;
 };
+import { searchNairobiLocations } from '../data/nairobiLocations.ts';
 import { supabase } from '../lib/supabase';
 import { 
   Search, 
@@ -533,44 +534,33 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   const [statusText, setStatusText] = useState('');
   const [statusMediaUrl, setStatusMediaUrl] = useState<string | null>(null);
 
-  // Phone Location for "Where Are You At?" — locked to phone's physical location, no manual selection
-  const [phoneLocation, setPhoneLocation] = useState<string>(() => currentLocation || 'Detecting GPS...');
-  const [isLocatingPhone, setIsLocatingPhone] = useState<boolean>(false);
+  // Exact location for "Where Are You At?" — user can search or type any exact spot, venue, or neighborhood
+  const [statusLocation, setStatusLocation] = useState<string>(() => currentLocation || '');
+  const [isStatusLocOpen, setIsStatusLocOpen] = useState<boolean>(false);
 
   useEffect(() => {
-    if (currentLocation && (!phoneLocation || phoneLocation === 'Detecting GPS...')) {
-      setPhoneLocation(currentLocation);
+    if (currentLocation && !statusLocation) {
+      setStatusLocation(currentLocation);
     }
   }, [currentLocation]);
 
-  const requestPhoneLocation = useCallback(() => {
-    if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
-      setIsLocatingPhone(true);
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const { latitude, longitude } = pos.coords;
-          const detected = resolveNearestNeighborhood(latitude, longitude);
-          setPhoneLocation(detected);
-          setIsLocatingPhone(false);
-        },
-        () => {
-          setIsLocatingPhone(false);
-          if (!phoneLocation || phoneLocation === 'Detecting GPS...') {
-            setPhoneLocation(currentLocation || 'Nairobi');
-          }
-        },
-        { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
-      );
-    } else {
-      setPhoneLocation(currentLocation || 'Nairobi');
-    }
-  }, [currentLocation, phoneLocation]);
+  // Fast suggestions for exact location searchbox in status feed
+  const statusLocSuggestions = useMemo(() => {
+    const popularAreas = ['Westlands', 'Kilimani', 'Karen', 'CBD', 'Lavington', 'Kileleshwa', 'Gigiri', 'Parklands', 'Ngong Road', 'Ruaka'];
+    const spotNames = (spots || []).slice(0, 8).map(s => `${s.title}, ${s.neighborhood}`);
 
-  useEffect(() => {
-    if (!currentLocation || phoneLocation === 'Detecting GPS...') {
-      requestPhoneLocation();
+    if (!statusLocation.trim()) {
+      return Array.from(new Set([...spotNames, ...popularAreas])).slice(0, 8);
     }
-  }, [currentLocation, requestPhoneLocation]);
+
+    const q = statusLocation.toLowerCase();
+    const matchedSpots = (spots || [])
+      .filter(s => (s.title && s.title.toLowerCase().includes(q)) || (s.neighborhood && s.neighborhood.toLowerCase().includes(q)))
+      .map(s => `${s.title}, ${s.neighborhood}`);
+
+    const matchedPlaces = searchNairobiLocations(statusLocation).map(p => `${p.name}, ${p.neighborhood}`);
+    return Array.from(new Set([...matchedSpots, ...matchedPlaces])).slice(0, 8);
+  }, [spots, statusLocation]);
 
   // Daytime arrangement: 7:00 AM to 8:00 PM (7 <= hour < 20)
   const isDayTime = useMemo(() => {
@@ -601,11 +591,12 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       showToast('Type a status or attach a photo.');
       return;
     }
-    const loc = phoneLocation && phoneLocation !== 'Detecting GPS...' ? phoneLocation : (currentLocation || 'Nairobi');
+    const loc = statusLocation.trim() || currentLocation || 'Nairobi';
     onPostStatus(statusText.trim(), statusMediaUrl || undefined, loc);
     setStatusText('');
     setStatusMediaUrl(null);
     setShowStatusEmojiPicker(false);
+    setIsStatusLocOpen(false);
   };
 
   const handleSendReply = (statusId: string) => {
@@ -986,38 +977,58 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 </div>
               </div>
 
-              {/* Area / Neighborhood */}
+              {/* Exact Location Searchbox */}
               <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-[#2D6A4F]" />
-                  <span>Area / Neighborhood:</span>
-                </span>
-                <div className="flex flex-wrap gap-1.5 text-xs max-h-32 overflow-y-auto pr-1">
-                  {[
-                    'all',
-                    'Westlands',
-                    'Kilimani',
-                    'Karen',
-                    'CBD',
-                    'Lavington',
-                    'Kileleshwa',
-                    'Gigiri',
-                    'Parklands',
-                    'Ngong Road',
-                    'Ruaka',
-                    'Thika Road'
-                  ].map((area) => (
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 text-[#2D6A4F]" />
+                    <span>Exact Location / Area:</span>
+                  </span>
+                  {selectedHomeArea !== 'all' && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedHomeArea('all')}
+                      className="text-[10px] font-bold text-[#E0533C] hover:underline cursor-pointer"
+                    >
+                      Reset to All
+                    </button>
+                  )}
+                </div>
+
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={selectedHomeArea === 'all' ? '' : selectedHomeArea}
+                    onChange={(e) => setSelectedHomeArea(e.target.value.trim() ? e.target.value : 'all')}
+                    placeholder="Search exact area (e.g. Westlands, Kilimani, Karen)..."
+                    className="w-full pl-9 pr-8 py-2 bg-[#F8F8F6] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#E0533C]"
+                  />
+                  {selectedHomeArea !== 'all' && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedHomeArea('all')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Popular exact area quick picks */}
+                <div className="flex flex-wrap gap-1 text-[11px]">
+                  {['Westlands', 'Kilimani', 'Karen', 'CBD', 'Lavington', 'Ngong Road'].map((area) => (
                     <button
                       key={area}
                       type="button"
-                      onClick={() => setSelectedHomeArea(area)}
-                      className={`px-2.5 py-1 rounded-xl font-bold transition cursor-pointer text-[11px] ${
+                      onClick={() => setSelectedHomeArea(selectedHomeArea === area ? 'all' : area)}
+                      className={`px-2 py-0.5 rounded-lg font-bold transition cursor-pointer ${
                         selectedHomeArea.toLowerCase() === area.toLowerCase()
-                          ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-xs'
-                          : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
+                          ? 'bg-[#E0533C] text-white'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                       }`}
                     >
-                      {area === 'all' ? 'All Nairobi' : area}
+                      {area}
                     </button>
                   ))}
                 </div>
@@ -2112,59 +2123,107 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             </span>
           </div>
 
-          {/* Post Creation Box */}
-          <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3.5 shadow-sm space-y-3">
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
+          {/* Post Creation Box - Compacted, Clean, No Cramped Phone GPS, Searchbox for Exact Location */}
+          <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 shadow-xs space-y-2.5">
+            <div className="flex items-start gap-2.5">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] text-white flex items-center justify-center font-black text-xs shrink-0 shadow-2xs mt-0.5">
                 W
               </div>
               <textarea
                 rows={2}
                 value={statusText}
                 onChange={(e) => setStatusText(e.target.value)}
-                placeholder="What spot are you at right now? Share vibes, DJs, or crowd tips..."
-                className="flex-1 bg-transparent border-none text-xs focus:outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 resize-none"
+                placeholder="What spot are you at right now? Share vibes or tips..."
+                className="flex-1 bg-transparent border-none text-xs focus:outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 resize-none leading-relaxed"
               />
             </div>
 
-            {/* Quick Emoji Vibe Bar */}
-            <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar py-0.5">
-              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 shrink-0 select-none">
-                Vibe:
-              </span>
-              {['🔥', '🎉', '🍹', '🎶', '🍻', '⚡', '✨', '🕺'].map((emoji) => (
-                <button
-                  key={emoji}
-                  type="button"
-                  onClick={() => setStatusText(prev => prev + emoji)}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-orange-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-sm transition-all hover:scale-110 active:scale-95 shrink-0 cursor-pointer"
-                  title={`Add ${emoji}`}
-                >
-                  {emoji}
-                </button>
-              ))}
+            {/* Exact Location Searchbox */}
+            <div className="relative">
+              <div className="relative flex items-center">
+                <MapPin className="w-3.5 h-3.5 text-[#E0533C] absolute left-2.5 pointer-events-none shrink-0" />
+                <input
+                  type="text"
+                  value={statusLocation}
+                  onChange={(e) => {
+                    setStatusLocation(e.target.value);
+                    setIsStatusLocOpen(true);
+                  }}
+                  onFocus={() => setIsStatusLocOpen(true)}
+                  placeholder="Search exact spot or location (e.g. Alchemist, Westlands)..."
+                  className="w-full pl-8 pr-7 py-2 bg-[#F8F8F6] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#E0533C]"
+                />
+                {statusLocation && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStatusLocation('');
+                      setIsStatusLocOpen(true);
+                    }}
+                    className="absolute right-2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                    title="Clear location"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Exact Location Suggestions Popup */}
+              {isStatusLocOpen && (
+                <div className="absolute left-0 right-0 top-full mt-1 z-30 max-h-48 overflow-y-auto bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-1 space-y-0.5 animate-in fade-in duration-100">
+                  <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                    <span>Suggested Exact Locations</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsStatusLocOpen(false)}
+                      className="text-[#E0533C] hover:underline"
+                    >
+                      Done
+                    </button>
+                  </div>
+                  {statusLocSuggestions.map((loc) => (
+                    <button
+                      key={loc}
+                      type="button"
+                      onClick={() => {
+                        setStatusLocation(loc);
+                        setIsStatusLocOpen(false);
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-200 hover:bg-orange-50 dark:hover:bg-orange-950/30 hover:text-[#E0533C] flex items-center justify-between transition cursor-pointer"
+                    >
+                      <div className="flex items-center gap-1.5 truncate">
+                        <MapPin className="w-3 h-3 text-[#E0533C] shrink-0" />
+                        <span className="truncate">{loc}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 shrink-0">Select</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {myStatusId && (
               <p className="text-[10px] text-slate-500 font-medium">
-                You already have a live status. Posting again replaces it. Statuses disappear after 12 hours.
+                Posting replaces your current live status. Statuses disappear after 12 hours.
               </p>
             )}
 
             {statusMediaUrl && (
-              <div className="relative w-28 h-20 rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700">
+              <div className="relative w-24 h-16 rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700">
                 <img loading="lazy" decoding="async" src={statusMediaUrl} alt="Status upload" className="w-full h-full object-cover" />
                 <button
+                  type="button"
                   onClick={() => setStatusMediaUrl(null)}
-                  className="absolute top-1 right-1 w-5 h-5 bg-black/70 text-white rounded-full flex items-center justify-center text-[10px]"
+                  className="absolute top-1 right-1 w-4 h-4 bg-black/70 text-white rounded-full flex items-center justify-center text-[9px] cursor-pointer"
                 >
                   ✕
                 </button>
               </div>
             )}
 
-            <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800/80 gap-2">
-              <div className="flex items-center gap-1.5 min-w-0">
+            {/* Compact Bottom Bar: Camera, Emoji on Left, Post on Right */}
+            <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 dark:border-slate-800/80">
+              <div className="flex items-center gap-1">
                 <label className="cursor-pointer p-1.5 text-slate-500 hover:text-[#E0533C] transition rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0" title="Attach Photo">
                   <Camera className="w-4 h-4" />
                   <input type="file" accept="image/*" className="hidden" onChange={handleMediaUpload} />
@@ -2180,35 +2239,12 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 >
                   <Smile className="w-4 h-4" />
                 </button>
-
-                {/* Phone GPS Location (Automatic from phone's location; no manual selection) */}
-                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-[11px] font-bold border border-slate-200 dark:border-slate-700/80 shrink-0 select-none shadow-2xs">
-                  <MapPin className="w-3.5 h-3.5 text-[#E0533C] shrink-0" />
-                  <span className="truncate max-w-[110px] sm:max-w-[150px]">
-                    {phoneLocation || 'Detecting GPS...'}
-                  </span>
-                  <span className="text-[9px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-300/40 dark:border-emerald-700/40 flex items-center gap-1 shrink-0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>Phone GPS</span>
-                  </span>
-                  {isLocatingPhone ? (
-                    <Loader2 className="w-3 h-3 text-slate-400 animate-spin shrink-0 ml-0.5" />
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={requestPhoneLocation}
-                      title="Update Phone GPS Location"
-                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded cursor-pointer transition active:scale-90 shrink-0"
-                    >
-                      <RotateCcw className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
               </div>
 
               <button
+                type="button"
                 onClick={handlePublishStatus}
-                className="px-4 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center gap-1.5 cursor-pointer shrink-0"
+                className="px-4 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white font-bold rounded-xl text-xs transition shadow-2xs flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95"
               >
                 <span>Post</span>
                 <Send className="w-3 h-3" />
