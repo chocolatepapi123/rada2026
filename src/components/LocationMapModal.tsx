@@ -90,17 +90,21 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
         const map = L.map(mapContainerRef.current, { zoomControl: false, attributionControl: true }).setView([placeLat, placeLng], 15);
         mapInstanceRef.current = map;
 
-        // Clean, fast vector-raster basemap: free, public CARTO basemaps (no API key required)
+        // 100% Free OpenStreetMap raster tiles (Zero API key required)
         const isDark = document.documentElement.classList.contains('dark');
-        const tileUrl = isDark
-          ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-          : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-
-        L.tileLayer(tileUrl, {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-          subdomains: 'abcd',
-          maxZoom: 20,
+        const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
+          subdomains: ['a', 'b', 'c'],
+          maxZoom: 19,
+          className: isDark ? 'rada-osm-dark' : '',
         }).addTo(map);
+
+        if (isDark) {
+          const pane = map.getPane('tilePane');
+          if (pane) {
+            pane.style.filter = 'invert(100%) hue-rotate(180deg) brightness(85%) contrast(110%)';
+          }
+        }
 
         const pinIcon = L.divIcon({
           className: 'rada-map-pin',
@@ -198,22 +202,22 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
 
         {/* Uber & Bolt Ride Hailing */}
         <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={() => {
-              window.open(`https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${encodeURIComponent(place.address)}`, '_blank');
-            }}
+          <a
+            href={`https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${encodeURIComponent(place.address)}`}
+            target="_blank"
+            rel="noopener noreferrer"
             className="py-2.5 bg-black text-white hover:bg-slate-800 font-black rounded-xl text-xs transition flex items-center justify-center gap-1.5"
           >
             <Car className="w-3.5 h-3.5" /> Uber Ride
-          </button>
-          <button
-            onClick={() => {
-              window.open('https://bolt.eu/', '_blank');
-            }}
+          </a>
+          <a
+            href="https://bolt.eu/"
+            target="_blank"
+            rel="noopener noreferrer"
             className="py-2.5 bg-emerald-600 text-white hover:bg-emerald-700 font-black rounded-xl text-xs transition flex items-center justify-center gap-1.5"
           >
             <Car className="w-3.5 h-3.5" /> Bolt Ride
-          </button>
+          </a>
         </div>
       </div>
     </div>

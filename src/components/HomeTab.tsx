@@ -2,6 +2,7 @@ import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending, formatOpen
 import { resolveSpotBudget, budgetBadge } from '../lib/spotBudget.ts';
 import { useLocationPreference, sortByProximity, NEIGHBORHOOD_COORDS, formatDistance, distanceKm } from '../lib/geo.ts';
 import React, { useState, useMemo, useEffect } from 'react';
+import { getStoredLanguage, translations, type AppLanguage } from '../utils/i18n.ts';
 
 const getDisplayHours = (hours: any, fallback = 'Open Daily'): string => {
   if (typeof hours === 'string' && hours.trim()) return hours;
@@ -476,7 +477,22 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     });
   }, [displaySpots, selectedHomeCategory, selectedHomeArea, selectedHomeBudget, searchQuery]);
 
-  // Category rows: strictly the 10 RADA categories
+  // Active language hook
+  const [appLang, setAppLang] = useState<AppLanguage>(() => getStoredLanguage());
+  useEffect(() => {
+    const handleLangChange = (e: any) => {
+      if (e.detail) setAppLang(e.detail);
+    };
+    window.addEventListener('rada_language_changed', handleLangChange);
+    return () => window.removeEventListener('rada_language_changed', handleLangChange);
+  }, []);
+  const t = translations[appLang];
+
+  // Category rows: strictly RADA categories
+  const restaurantSpots = useMemo(() => homeFilteredSpots.filter(s => spotInCategory(s, 'restaurants_dining')), [homeFilteredSpots]);
+  const clubSpots = useMemo(() => homeFilteredSpots.filter(s => spotInCategory(s, 'clubs_lounges')), [homeFilteredSpots]);
+  const cafeSpots = useMemo(() => homeFilteredSpots.filter(s => spotInCategory(s, 'cafes_bakeries')), [homeFilteredSpots]);
+  const dateSpots = useMemo(() => homeFilteredSpots.filter(s => spotInCategory(s, 'date_spots')), [homeFilteredSpots]);
   const natureSpots = useMemo(() => homeFilteredSpots.filter(s => spotInCategory(s, 'nature')), [homeFilteredSpots]);
   const creativeSpots = useMemo(() => homeFilteredSpots.filter(s => spotInCategory(s, 'creative_leisure')), [homeFilteredSpots]);
   const techGamingSpots = useMemo(() => homeFilteredSpots.filter(s => spotInCategory(s, 'tech_gaming')), [homeFilteredSpots]);
@@ -1907,38 +1923,48 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
       {/* ========================================================
           4B & 4C & 4D. DAY/NIGHT DYNAMIC CATEGORIES
-          Daytime (7am-8pm): Action & sports, Nature trails and outdoors, Tech & gaming, Creative & leisure
-          Nighttime (8pm-7am): Nature trails and outdoors, Action & sports, Tech & gaming, Creative & leisure
+          Nighttime (8pm-7am): Restaurants and dinner, clubs and lounges, then the rest
+          Daytime (7am-8pm): Action and sports, Nature trails, Tech and gaming, Creative & leisure, Restaurants, Cafés, Clubs
           ======================================================== */}
       {(() => {
-        const renderNatureTrails = () => (
-          (selectedHomeSection === 'all' || selectedHomeSection === 'spots') && natureSpots.length > 0 && (
-            <div key="nature-section" className="space-y-3">
+        const renderCategoryRow = (
+          key: string,
+          title: string,
+          catKey: string,
+          IconComp: any,
+          spotsList: SpotItem[],
+          accentColor: string,
+          badgeText: string
+        ) => {
+          if ((selectedHomeSection !== 'all' && selectedHomeSection !== 'spots') || spotsList.length === 0) return null;
+          return (
+            <div key={key} className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-xs">
-                    <Trees className="w-3.5 h-3.5" />
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center shadow-xs" style={{ backgroundColor: `${accentColor}20`, color: accentColor }}>
+                    <IconComp className="w-3.5 h-3.5" />
                   </div>
                   <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
-                    Nature trails and outdoor
+                    {title}
                   </h2>
                 </div>
                 <button
-                  onClick={() => onOpenDedicatedViewAll('Nature trails and outdoor', 'nature')}
+                  type="button"
+                  onClick={() => onOpenDedicatedViewAll(title, catKey)}
                   className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
                 >
-                  View All ({natureSpots.length})
+                  {t.viewAll} ({spotsList.length})
                 </button>
               </div>
 
               <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-                {natureSpots.map((spot) => {
+                {spotsList.map((spot) => {
                   const saved = isSaved(spot.id, 'spot');
                   return (
                     <div
                       key={spot.id}
                       onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
-                      className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-[#2D6A4F] transition group"
+                      className="w-72 bg-white dark:bg-[#151319] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-[#E0533C] transition group"
                     >
                       <div>
                         <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
@@ -1947,8 +1973,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                             style={{ backgroundImage: `url('${spot.img}')` }}
                           />
                           <span className="absolute top-2.5 left-2.5 bg-black/70 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
-                            <Trees className="w-2.5 h-2.5 text-emerald-400" />
-                            <span>Nature & Trails</span>
+                            <IconComp className="w-2.5 h-2.5" />
+                            <span>{badgeText}</span>
                           </span>
                           <button
                             type="button"
@@ -1970,7 +1996,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
                         <div className="space-y-1">
                           <div className="flex items-center justify-between">
-                            <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-emerald-600 transition">
+                            <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-[#E0533C] transition">
                               {spot.title}
                             </h4>
                             <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
@@ -1980,110 +2006,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                           </div>
 
                           <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
-                            <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
-                            <span className="truncate">{spot.address || spot.neighborhood}</span>
-                          </p>
-
-                          <p className="text-[11px] text-[#475569] dark:text-slate-300 line-clamp-2 mt-1 leading-relaxed">
-                            {spot.description}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
-                          {getDisplayHours(spot.openingHours, 'Open Daily')}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onOpenSpotDetails && onOpenSpotDetails(spot);
-                          }}
-                          className="px-3 py-1.5 bg-[#2D6A4F] hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
-                        >
-                          <span>Explore</span>
-                          <ArrowRight className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )
-        );
-
-        const renderActionSports = () => (
-          (selectedHomeSection === 'all' || selectedHomeSection === 'spots') && actionSportsSpots.length > 0 && (
-            <div key="action-sports-section" className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center shadow-xs">
-                    <Flame className="w-3.5 h-3.5" />
-                  </div>
-                  <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
-                    Action and sports
-                  </h2>
-                </div>
-                <button
-                  onClick={() => onOpenDedicatedViewAll('Action and sports', 'action_sports')}
-                  className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
-                >
-                  View All ({actionSportsSpots.length})
-                </button>
-              </div>
-
-              <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-                {actionSportsSpots.map((spot) => {
-                  const saved = isSaved(spot.id, 'spot');
-                  return (
-                    <div
-                      key={spot.id}
-                      onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
-                      className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-orange-500 transition group"
-                    >
-                      <div>
-                        <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
-                          <div
-                            className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-all duration-300"
-                            style={{ backgroundImage: `url('${spot.img}')` }}
-                          />
-                          <span className="absolute top-2.5 left-2.5 bg-black/70 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
-                            <Flame className="w-2.5 h-2.5 text-orange-400" />
-                            <span>Action & Adrenaline</span>
-                          </span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onToggleSave?.(spot, 'spot');
-                            }}
-                            className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs z-10 ${
-                              saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
-                            }`}
-                            title={saved ? 'Remove from saved' : 'Save experience'}
-                          >
-                            <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
-                          </button>
-                          <span className="absolute bottom-2.5 right-2.5 bg-black/75 text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
-                            {budgetBadge(resolveSpotBudget(spot)) || spot.price}
-                          </span>
-                        </div>
-
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between">
-                            <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-orange-600 transition">
-                              {spot.title}
-                            </h4>
-                            <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
-                              <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
-                              <span>{spot.rating}</span>
-                            </div>
-                          </div>
-
-                          <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
-                            <MapPin className="w-3 h-3 text-orange-500 shrink-0" />
+                            <MapPin className="w-3 h-3 text-[#E0533C] shrink-0" />
                             <span className="truncate">{spot.address || spot.neighborhood}</span>
                           </p>
 
@@ -2094,7 +2017,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                       </div>
 
                       <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                        <span className="text-[10px] text-orange-600 dark:text-orange-400 font-bold">
+                        <span className="text-[10px] font-bold" style={{ color: accentColor }}>
                           {getDisplayHours(spot.openingHours, 'Open Daily')}
                         </span>
                         <button
@@ -2103,9 +2026,10 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                             e.stopPropagation();
                             onOpenSpotDetails && onOpenSpotDetails(spot);
                           }}
-                          className="px-3 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
+                          className="px-3 py-1.5 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
+                          style={{ backgroundColor: accentColor }}
                         >
-                          <span>Action</span>
+                          <span>{t.explore}</span>
                           <ArrowRight className="w-3 h-3" />
                         </button>
                       </div>
@@ -2114,228 +2038,34 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 })}
               </div>
             </div>
-          )
-        );
+          );
+        };
 
-        const renderTechGaming = () => (
-          (selectedHomeSection === 'all' || selectedHomeSection === 'spots') && techGamingSpots.length > 0 && (
-            <div key="tech-gaming-section" className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shadow-xs">
-                    <Gamepad2 className="w-3.5 h-3.5" />
-                  </div>
-                  <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
-                    Tech and gaming
-                  </h2>
-                </div>
-                <button
-                  onClick={() => onOpenDedicatedViewAll('Tech and gaming', 'tech_gaming')}
-                  className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
-                >
-                  View All ({techGamingSpots.length})
-                </button>
-              </div>
+        const isNightTime = !isDayTime;
 
-              <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-                {techGamingSpots.map((spot) => {
-                  const saved = isSaved(spot.id, 'spot');
-                  return (
-                    <div
-                      key={spot.id}
-                      onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
-                      className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-cyan-500 transition group"
-                    >
-                      <div>
-                        <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
-                          <div
-                            className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-all duration-300"
-                            style={{ backgroundImage: `url('${spot.img}')` }}
-                          />
-                          <span className="absolute top-2.5 left-2.5 bg-black/70 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
-                            <Gamepad2 className="w-2.5 h-2.5 text-cyan-400" />
-                            <span>Tech & VR</span>
-                          </span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onToggleSave?.(spot, 'spot');
-                            }}
-                            className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs z-10 ${
-                              saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
-                            }`}
-                            title={saved ? 'Remove from saved' : 'Save experience'}
-                          >
-                            <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
-                          </button>
-                          <span className="absolute bottom-2.5 right-2.5 bg-black/75 text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
-                            {budgetBadge(resolveSpotBudget(spot)) || spot.price}
-                          </span>
-                        </div>
-
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between">
-                            <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-cyan-600 transition">
-                              {spot.title}
-                            </h4>
-                            <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
-                              <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
-                              <span>{spot.rating}</span>
-                            </div>
-                          </div>
-
-                          <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
-                            <MapPin className="w-3 h-3 text-cyan-500 shrink-0" />
-                            <span className="truncate">{spot.address || spot.neighborhood}</span>
-                          </p>
-
-                          <p className="text-[11px] text-[#475569] dark:text-slate-300 line-clamp-2 mt-1 leading-relaxed font-medium">
-                            {spot.description}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                        <span className="text-[10px] text-cyan-600 dark:text-cyan-400 font-bold">
-                          {getDisplayHours(spot.openingHours, 'Open Daily')}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onOpenSpotDetails && onOpenSpotDetails(spot);
-                          }}
-                          className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
-                        >
-                          <span>Play</span>
-                          <ArrowRight className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )
-        );
-
-        const renderCreativeLeisure = () => (
-          (selectedHomeSection === 'all' || selectedHomeSection === 'spots') && creativeSpots.length > 0 && (
-            <div key="creative-leisure-section" className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shadow-xs">
-                    <Palette className="w-3.5 h-3.5" />
-                  </div>
-                  <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
-                    Creative and leisure
-                  </h2>
-                </div>
-                <button
-                  onClick={() => onOpenDedicatedViewAll('Creative and leisure', 'creative_leisure')}
-                  className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
-                >
-                  View All ({creativeSpots.length})
-                </button>
-              </div>
-
-              <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-                {creativeSpots.map((spot) => {
-                  const saved = isSaved(spot.id, 'spot');
-                  return (
-                    <div
-                      key={spot.id}
-                      onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
-                      className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-purple-500 transition group"
-                    >
-                      <div>
-                        <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
-                          <div
-                            className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-all duration-300"
-                            style={{ backgroundImage: `url('${spot.img}')` }}
-                          />
-                          <span className="absolute top-2.5 left-2.5 bg-black/70 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
-                            <Palette className="w-2.5 h-2.5 text-purple-400" />
-                            <span>Creative</span>
-                          </span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onToggleSave?.(spot, 'spot');
-                            }}
-                            className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs z-10 ${
-                              saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
-                            }`}
-                            title={saved ? 'Remove from saved' : 'Save experience'}
-                          >
-                            <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
-                          </button>
-                          <span className="absolute bottom-2.5 right-2.5 bg-black/75 text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
-                            {budgetBadge(resolveSpotBudget(spot)) || spot.price}
-                          </span>
-                        </div>
-
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between">
-                            <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-purple-600 transition">
-                              {spot.title}
-                            </h4>
-                            <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
-                              <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
-                              <span>{spot.rating}</span>
-                            </div>
-                          </div>
-
-                          <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
-                            <MapPin className="w-3 h-3 text-purple-500 shrink-0" />
-                            <span className="truncate">{spot.address || spot.neighborhood}</span>
-                          </p>
-
-                          <p className="text-[11px] text-[#475569] dark:text-slate-300 line-clamp-2 mt-1 leading-relaxed font-medium">
-                            {spot.description}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                        <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold">
-                          {getDisplayHours(spot.openingHours, 'Open Weekend')}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onOpenSpotDetails && onOpenSpotDetails(spot);
-                          }}
-                          className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
-                        >
-                          <span>Details</span>
-                          <ArrowRight className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )
-        );
-
-        return isDayTime ? (
+        return isNightTime ? (
           <>
-            {renderActionSports()}
-            {renderNatureTrails()}
-            {renderTechGaming()}
-            {renderCreativeLeisure()}
+            {/* Nighttime (8:00 PM to 7:00 AM): 1) Restaurants & dinner, 2) Clubs & lounges, 3) Then the rest */}
+            {renderCategoryRow('restaurants', t.restaurantsDining, 'restaurants_dining', UtensilsCrossed, restaurantSpots, '#E0533C', 'Dining & Dinner')}
+            {renderCategoryRow('clubs', t.clubsLounges, 'clubs_lounges', Music, clubSpots, '#9C3B28', 'Nightlife & Lounges')}
+            {renderCategoryRow('nature', t.natureTrails, 'nature', Trees, natureSpots, '#2D6A4F', 'Nature & Trails')}
+            {renderCategoryRow('sports', t.actionSports, 'action_sports', Flame, actionSportsSpots, '#E0533C', 'Action & Sports')}
+            {renderCategoryRow('tech', t.techGaming, 'tech_gaming', Gamepad2, techGamingSpots, '#0284C7', 'Tech & Gaming')}
+            {renderCategoryRow('creative', t.creativeLeisure, 'creative_leisure', Palette, creativeSpots, '#9333EA', 'Creative & Leisure')}
+            {renderCategoryRow('cafes', t.cafesBakeries, 'cafes_bakeries', UtensilsCrossed, cafeSpots, '#D97706', 'Cafés & Bakeries')}
+            {renderCategoryRow('date', t.dateSpots, 'date_spots', Compass, dateSpots, '#E11D48', 'Date Night')}
           </>
         ) : (
           <>
-            {renderNatureTrails()}
-            {renderActionSports()}
-            {renderTechGaming()}
-            {renderCreativeLeisure()}
+            {/* Daytime (7:00 AM to 8:00 PM): Action & sports, Nature trails, Tech, Creative, Restaurants, Cafes, Clubs, Date */}
+            {renderCategoryRow('sports', t.actionSports, 'action_sports', Flame, actionSportsSpots, '#E0533C', 'Action & Sports')}
+            {renderCategoryRow('nature', t.natureTrails, 'nature', Trees, natureSpots, '#2D6A4F', 'Nature & Trails')}
+            {renderCategoryRow('tech', t.techGaming, 'tech_gaming', Gamepad2, techGamingSpots, '#0284C7', 'Tech & Gaming')}
+            {renderCategoryRow('creative', t.creativeLeisure, 'creative_leisure', Palette, creativeSpots, '#9333EA', 'Creative & Leisure')}
+            {renderCategoryRow('restaurants', t.restaurantsDining, 'restaurants_dining', UtensilsCrossed, restaurantSpots, '#E0533C', 'Dining & Dinner')}
+            {renderCategoryRow('cafes', t.cafesBakeries, 'cafes_bakeries', UtensilsCrossed, cafeSpots, '#D97706', 'Cafés & Bakeries')}
+            {renderCategoryRow('clubs', t.clubsLounges, 'clubs_lounges', Music, clubSpots, '#9C3B28', 'Nightlife & Lounges')}
+            {renderCategoryRow('date', t.dateSpots, 'date_spots', Compass, dateSpots, '#E11D48', 'Date Night')}
           </>
         );
       })()}

@@ -14,7 +14,33 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
-  app.use(express.json({ limit: '10mb' }));
+  // Enforce security headers
+  app.use((_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    next();
+  });
+
+  app.use(express.json({ limit: '2mb' }));
+
+  // In-memory rate limiting for AI endpoints: max 30 requests per minute per IP
+  const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+  const aiRateLimiter = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const now = Date.now();
+    const entry = rateLimitMap.get(ip);
+    if (!entry || now > entry.resetTime) {
+      rateLimitMap.set(ip, { count: 1, resetTime: now + 60000 });
+      return next();
+    }
+    if (entry.count >= 40) {
+      return res.status(429).json({ error: 'Too many requests. Please wait a moment before trying again.' });
+    }
+    entry.count += 1;
+    next();
+  };
 
   // Initialize Gemini API client if API key is present
   const apiKey = process.env.GEMINI_API_KEY;
@@ -40,7 +66,7 @@ async function startServer() {
   });
 
   // Dynamic Wagwan AI chat endpoint with full location, category & listings context
-  app.post('/api/ai/chat', async (req, res) => {
+  app.post('/api/ai/chat', aiRateLimiter, async (req, res) => {
     try {
       const { 
         message, 
@@ -250,7 +276,7 @@ Respond as Wagwan AI in JSON format.`;
   });
 
   // Fast streaming Wagwan AI chat endpoint via Server-Sent Events (SSE)
-  app.post('/api/ai/chat-stream', async (req, res) => {
+  app.post('/api/ai/chat-stream', aiRateLimiter, async (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');

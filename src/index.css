@@ -86,19 +86,24 @@ body {
 html.dark .rada-sketch-map { background: #17151a; }
 .rada-map-pin { background: transparent !important; border: 0 !important; }
 
-/* Dark mode: muted, desaturated accents so orange/amber highlights sit calmly on dark surfaces */
+/* Dark mode: darker, richer, deeper accents and darker surfaces */
 html.dark {
-  --color-brandTerracotta: #C06A58;
-  --color-brandAmber: #BFA25F;
-  --color-orange-300: #CFA183;
-  --color-orange-400: #C27F57;
-  --color-orange-500: #B5694A;
-  --color-orange-600: #9C573C;
-  --color-amber-300: #C9AB6A;
-  --color-amber-400: #B89A58;
-  --color-amber-500: #A38449;
-  --color-amber-600: #8F7340;
+  background-color: #0C0A0E;
+  color: #F1F5F9;
+  --color-brandTerracotta: #B83D26;
+  --color-brandSage: #1E5338;
+  --color-brandAmber: #B3861B;
+  --color-darkBg: #0C0A0E;
+  --color-darkSurface: #151319;
+  --color-orange-300: #9E4A28;
+  --color-orange-400: #8C3919;
+  --color-orange-500: #7A2E12;
+  --color-orange-600: #66240C;
+  --color-amber-300: #9C7216;
+  --color-amber-400: #8A6110;
+  --color-amber-500: #75500A;
+  --color-amber-600: #5C3D06;
 }
-html.dark .spot-title { color: #D17A68 !important; }
+html.dark .spot-title { color: #C44C33 !important; }
 
-.rada-osm-dark { filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9); }
+.rada-osm-dark { filter: invert(100%) hue-rotate(180deg) brightness(0.82) contrast(1.15); }

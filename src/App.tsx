@@ -1023,7 +1023,8 @@ export default function App() {
     selectedEventModal ||
     activeOverlay ||
     isBusinessHubOpen ||
-    isLivenessModalOpen
+    isLivenessModalOpen ||
+    isSuggestSpotModalOpen
   );
 
   const lastBackPressRef = useRef<number>(0);
@@ -1084,6 +1085,7 @@ export default function App() {
         if (activeOverlay) setActiveOverlay(null);
         if (isBusinessHubOpen) setIsBusinessHubOpen(false);
         if (isLivenessModalOpen) setIsLivenessModalOpen(false);
+        if (isSuggestSpotModalOpen) setIsSuggestSpotModalOpen(false);
         return;
       }
 
@@ -1113,6 +1115,7 @@ export default function App() {
       }
 
       lastBackPressRef.current = now;
+      showToast('Press Back again to exit RADA');
       // Re-anchor history state to keep the user safely inside the web app
       window.history.pushState({ radaApp: true, tab: 'home' }, '');
     };
@@ -1137,6 +1140,8 @@ export default function App() {
     selectedEventModal,
     activeOverlay,
     isBusinessHubOpen,
+    isLivenessModalOpen,
+    isSuggestSpotModalOpen,
     activeTab,
     showToast
   ]);
@@ -2517,6 +2522,9 @@ export default function App() {
               requireAuth('add emergency contacts', () => {
                 setEmergencyContacts(prev => [...prev, { id: `ec-${Date.now()}`, name, phone }]);
               });
+            }}
+            onDeleteEmergencyContact={(id) => {
+              setEmergencyContacts(prev => prev.filter(c => c.id !== id));
             }}
             isDarkMode={isDarkMode}
             onToggleTheme={handleToggleTheme}
