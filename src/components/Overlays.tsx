@@ -10,7 +10,6 @@ import {
   Calendar, 
   Clock, 
   ShieldAlert, 
-  Radio, 
   CheckCircle2, 
   Upload, 
   Users, 
@@ -29,10 +28,6 @@ import {
   ChevronRight,
   Bell,
   Lock,
-  Volume2,
-  VolumeX,
-  PhoneCall,
-  PhoneOff,
   Trash2,
   Eye,
   HelpCircle,
@@ -316,15 +311,6 @@ export const Overlays: React.FC<OverlaysProps> = ({
   const [newContactName, setNewContactName] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');
 
-  // Emergency Siren & Safety Audio State
-  const sirenAudioCtxRef = useRef<AudioContext | null>(null);
-  const sirenOscRef = useRef<OscillatorNode | null>(null);
-  const [isSirenActive, setIsSirenActive] = useState(false);
-
-  // Fake Escape Call State
-  const [fakeCallStatus, setFakeCallStatus] = useState<'idle' | 'ringing' | 'connected'>('idle');
-  const [fakeCallSeconds, setFakeCallSeconds] = useState(0);
-
   // Active App Language
   const [appLang, setAppLang] = useState<AppLanguage>(() => getStoredLanguage());
 
@@ -335,126 +321,6 @@ export const Overlays: React.FC<OverlaysProps> = ({
     window.addEventListener('rada_language_changed', handleLangChange);
     return () => window.removeEventListener('rada_language_changed', handleLangChange);
   }, []);
-
-  // Timer for connected fake call
-  useEffect(() => {
-    let timer: any;
-    if (fakeCallStatus === 'connected') {
-      timer = setInterval(() => setFakeCallSeconds(s => s + 1), 1000);
-    } else {
-      setFakeCallSeconds(0);
-    }
-    return () => clearInterval(timer);
-  }, [fakeCallStatus]);
-
-  // Clean up siren on unmount or overlay close
-  useEffect(() => {
-    if (activeOverlay !== 'sosOverlay' && isSirenActive) {
-      stopSiren();
-    }
-  }, [activeOverlay, isSirenActive]);
-
-  const startSiren = () => {
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      const ctx = new AudioCtx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sawtooth';
-      const now = ctx.currentTime;
-      osc.frequency.setValueAtTime(750, now);
-      for (let i = 0; i < 40; i++) {
-        osc.frequency.linearRampToValueAtTime(1200, now + i * 0.7 + 0.35);
-        osc.frequency.linearRampToValueAtTime(750, now + i * 0.7 + 0.7);
-      }
-      gain.gain.setValueAtTime(0.85, now);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      sirenAudioCtxRef.current = ctx;
-      sirenOscRef.current = osc;
-      setIsSirenActive(true);
-      showToast('🚨 LOUD EMERGENCY SIREN ALARM ACTIVATED');
-    } catch (_) {
-      setIsSirenActive(true);
-      showToast('🚨 Emergency siren active');
-    }
-  };
-
-  const stopSiren = () => {
-    try {
-      sirenOscRef.current?.stop();
-      sirenAudioCtxRef.current?.close();
-    } catch (_) {}
-    sirenOscRef.current = null;
-    sirenAudioCtxRef.current = null;
-    setIsSirenActive(false);
-    showToast('Siren alarm deactivated.');
-  };
-
-  const toggleSiren = () => {
-    if (isSirenActive) stopSiren();
-    else startSiren();
-  };
-
-  const triggerFakeCall = (delayMs: number = 0) => {
-    if (delayMs > 0) {
-      showToast(`Phone will ring in ${Math.round(delayMs / 1000)} seconds.`);
-      setTimeout(() => {
-        setFakeCallStatus('ringing');
-      }, delayMs);
-    } else {
-      setFakeCallStatus('ringing');
-    }
-  };
-
-  // Broadcast Emergency Panic Alert: drafts SMS to added emergency contacts with exact location
-  const handleBroadcastSOS = () => {
-    showToast('📡 Acquiring real-time GPS coordinates for emergency SMS...');
-
-    const finalizeAndDraftSms = (lat: number, lng: number, accuracy?: number) => {
-      const gmapsUrl = `https://maps.google.com/?q=${lat},${lng}`;
-      const accuracyStr = accuracy ? ` (GPS within ~${Math.round(accuracy)}m)` : '';
-      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const msg = `🚨 EMERGENCY SOS ALERT: I need urgent help! My live GPS location: ${gmapsUrl}${accuracyStr} [Time: ${timeStr}]. Sent via RADA Emergency Hub.`;
-
-      // Copy text to clipboard so user can paste it anywhere as well
-      try {
-        navigator.clipboard.writeText(msg);
-      } catch (_) {}
-
-      const cleanPhones = emergencyContacts
-        .map(c => c.phone.replace(/[^0-9+]/g, ''))
-        .filter(Boolean);
-
-      let smsUrl = '';
-      if (cleanPhones.length > 0) {
-        // Formatted to prefill contacts and message body
-        smsUrl = `sms:${cleanPhones.join(',')}?body=${encodeURIComponent(msg)}`;
-      } else {
-        smsUrl = `sms:?body=${encodeURIComponent(msg)}`;
-      }
-
-      // Open native SMS app draft
-      window.location.href = smsUrl;
-      showToast(`🚨 SMS draft created with your live GPS location! Open your messages to send.`, { type: 'success' });
-    };
-
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          finalizeAndDraftSms(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
-        },
-        (err) => {
-          console.warn('Geolocation lookup during SOS:', err);
-          finalizeAndDraftSms(-1.286389, 36.817223);
-        },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 10000 }
-      );
-    } else {
-      finalizeAndDraftSms(-1.286389, 36.817223);
-    }
-  };
 
   // Settings State (SPEC 6: Redesign Settings like Instagram/TikTok)
   const [is2FAEnabled, setIs2FAEnabled] = useState(true);
@@ -1790,7 +1656,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
       {/* 8. EMERGENCY & SOS OVERLAY */}
       {activeOverlay === 'sosOverlay' && (
-        <div className={`fixed inset-0 z-50 bg-white dark:bg-[#0C0A0E] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200 ${isSirenActive ? 'ring-8 ring-red-600 animate-pulse' : ''}`}>
+        <div className="fixed inset-0 z-50 bg-white dark:bg-[#0C0A0E] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
@@ -1798,118 +1664,33 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 <h3 className="font-black text-sm uppercase tracking-wider">{translations[appLang].sosHubTitle}</h3>
               </div>
               <button 
-                onClick={() => {
-                  if (isSirenActive) stopSiren();
-                  onCloseOverlay();
-                }} 
-                className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500"
+                onClick={onCloseOverlay} 
+                className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="py-4 space-y-5 text-xs flex-1">
-              {/* Broadcast Panic Alert Card */}
-              <div className="p-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 rounded-3xl space-y-3.5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-black text-red-700 dark:text-red-300 flex items-center gap-1.5 text-xs">
-                      <Radio className="w-4 h-4 animate-pulse" /> {translations[appLang].liveGpsBroadcast}
-                    </h4>
-                    <p className="text-slate-600 dark:text-slate-300 text-[11px] mt-0.5 leading-relaxed">
-                      {translations[appLang].liveGpsDesc}
-                    </p>
-                  </div>
-                  <button
-                    onClick={onToggleGps}
-                    className={`px-3.5 py-1.5 font-black rounded-xl shadow-xs text-xs cursor-pointer ${
-                      isGpsBroadcasting ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-red-600 text-white'
-                    }`}
-                  >
-                    {isGpsBroadcasting ? 'Active' : 'Enable'}
-                  </button>
+              {/* WhatsApp Emergency Alert */}
+              <div className="p-3.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 rounded-2xl flex items-center justify-between gap-3 shadow-xs">
+                <div>
+                  <h4 className="font-bold text-red-700 dark:text-red-300 text-xs">
+                    Quick WhatsApp Alert
+                  </h4>
+                  <p className="text-slate-600 dark:text-slate-400 text-[11px] mt-0.5">
+                    Share an instant emergency SOS message with your contacts or group chat.
+                  </p>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={handleBroadcastSOS}
-                  className="w-full py-3.5 bg-red-600 hover:bg-red-700 active:scale-[0.98] text-white font-black rounded-2xl shadow-lg transition flex items-center justify-center gap-2 text-sm cursor-pointer"
+                <a
+                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent('🚨 EMERGENCY SOS: Urgent help needed! My live location: https://maps.google.com/?q=-1.286389,36.817223')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs text-center transition flex items-center justify-center gap-1.5 shrink-0"
                 >
-                  <ShieldAlert className="w-5 h-5 animate-bounce" />
-                  <span>{translations[appLang].broadcastPanicAlert}</span>
-                </button>
-                <p className="text-[10px] text-center text-red-600 dark:text-red-300 font-medium">
-                  Directly prepares a text message with your precise GPS pin to all emergency contacts.
-                </p>
-              </div>
-
-              {/* Safety Audio & Escape Tools */}
-              <div className="space-y-2">
-                <h4 className="font-bold text-slate-800 dark:text-slate-200 uppercase text-[10px] tracking-wider">
-                  Active Deterrent & Escape Tools
-                </h4>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <button
-                    type="button"
-                    onClick={toggleSiren}
-                    className={`p-3.5 rounded-2xl border text-left flex flex-col justify-between transition cursor-pointer ${
-                      isSirenActive
-                        ? 'bg-red-600 text-white border-red-700 shadow-lg animate-pulse'
-                        : 'bg-[#F8F8F6] dark:bg-[#151319] border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-red-400'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between w-full mb-2">
-                      <span className="font-black text-xs flex items-center gap-1.5">
-                        {isSirenActive ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4 text-red-600" />}
-                        Siren Alarm
-                      </span>
-                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${isSirenActive ? 'bg-white text-red-600' : 'bg-red-100 dark:bg-red-950 text-red-600'}`}>
-                        {isSirenActive ? 'STOP' : 'TEST'}
-                      </span>
-                    </div>
-                    <p className={`text-[10px] leading-tight ${isSirenActive ? 'text-red-100' : 'text-slate-400'}`}>
-                      {translations[appLang].emergencySirenDesc}
-                    </p>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => triggerFakeCall(0)}
-                    className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-[#F8F8F6] dark:bg-[#151319] hover:border-emerald-500 text-left flex flex-col justify-between transition cursor-pointer"
-                  >
-                    <div className="flex items-center justify-between w-full mb-2">
-                      <span className="font-black text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                        <PhoneCall className="w-4 h-4 text-emerald-600" />
-                        Escape Call
-                      </span>
-                      <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-600">
-                        CALL
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-slate-400 leading-tight">
-                      {translations[appLang].fakeCallDesc}
-                    </p>
-                  </button>
-                </div>
-
-                <div className="flex gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => triggerFakeCall(10000)}
-                    className="flex-1 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-[11px] text-center transition"
-                  >
-                    ⏱️ Escape Call in 10s
-                  </button>
-                  <a
-                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent('🚨 EMERGENCY SOS: Urgent help needed! My live location: https://maps.google.com/?q=-1.286389,36.817223')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-[11px] text-center transition flex items-center justify-center gap-1"
-                  >
-                    <span>WhatsApp Alert</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
+                  <span>WhatsApp</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
               </div>
 
               {/* Hotlines */}
@@ -2081,64 +1862,6 @@ export const Overlays: React.FC<OverlaysProps> = ({
               </div>
             </div>
           </div>
-
-          {/* Fake Incoming Call Modal Screen */}
-          {fakeCallStatus !== 'idle' && (
-            <div className="fixed inset-0 z-[100] bg-slate-950 text-white flex flex-col justify-between p-8 animate-in fade-in duration-300">
-              <div className="text-center pt-12 space-y-3">
-                <div className="w-24 h-24 rounded-full bg-slate-800 border-2 border-slate-600 mx-auto flex items-center justify-center text-3xl font-black shadow-2xl">
-                  🚨
-                </div>
-                <div>
-                  <h2 className="text-2xl font-black">Home Emergency</h2>
-                  <p className="text-sm text-slate-400 font-mono mt-1">+254 700 000 000 • Nairobi</p>
-                  <p className="text-xs text-emerald-400 font-bold uppercase tracking-widest mt-2">
-                    {fakeCallStatus === 'ringing' ? 'Incoming Call...' : `Connected (${Math.floor(fakeCallSeconds / 60)}:${(fakeCallSeconds % 60).toString().padStart(2, '0')})`}
-                  </p>
-                </div>
-              </div>
-
-              {fakeCallStatus === 'connected' && (
-                <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl text-center space-y-2">
-                  <p className="text-xs text-slate-300 font-medium">
-                    "Hello? Yes, I have to step out immediately for an emergency at home."
-                  </p>
-                  <p className="text-[10px] text-slate-500">
-                    Use this realistic screen to safely excuse yourself from the situation.
-                  </p>
-                </div>
-              )}
-
-              <div className="flex items-center justify-around pb-12">
-                {fakeCallStatus === 'ringing' ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setFakeCallStatus('idle')}
-                      className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center shadow-lg transition active:scale-95"
-                    >
-                      <PhoneOff className="w-7 h-7 text-white" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFakeCallStatus('connected')}
-                      className="w-16 h-16 rounded-full bg-emerald-600 hover:bg-emerald-700 flex items-center justify-center shadow-lg transition animate-pulse active:scale-95"
-                    >
-                      <PhoneCall className="w-7 h-7 text-white" />
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setFakeCallStatus('idle')}
-                    className="w-20 h-20 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center shadow-2xl transition active:scale-95"
-                  >
-                    <PhoneOff className="w-8 h-8 text-white" />
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       )}
 
