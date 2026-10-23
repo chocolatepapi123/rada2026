@@ -4,9 +4,12 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
-const apifyToken = process.env.APIFY_API_TOKEN;
+// Strip stray spaces, newlines and quotes from pasted secrets
+const clean = (v?: string) => v?.trim().replace(/^['"]|['"]$/g, '');
+
+const supabaseUrl = clean(process.env.VITE_SUPABASE_URL) || clean(process.env.SUPABASE_URL);
+const supabaseKey = clean(process.env.SUPABASE_SERVICE_ROLE_KEY) || clean(process.env.SUPABASE_KEY);
+const apifyToken = clean(process.env.APIFY_API_TOKEN);
 
 if (!supabaseUrl || !supabaseKey) {
   const missing: string[] = [];
@@ -14,13 +17,22 @@ if (!supabaseUrl || !supabaseKey) {
   if (!supabaseKey) missing.push("Supabase service role key (set SUPABASE_SERVICE_ROLE_KEY or SUPABASE_KEY)");
   throw new Error(
     `Missing required environment variables:\n - ${missing.join("\n - ")}\n` +
-    `Check your GitHub repository secrets (Settings > Secrets and variables > Actions) ` +
-    `and the env: block in .github/workflows/seed-spots.yml.`
+    `Check your GitHub repository secrets and the env: block in .github/workflows/seed-spots.yml.`
+  );
+}
+
+try {
+  const u = new URL(supabaseUrl);
+  if (u.protocol !== "https:" && u.protocol !== "http:") throw new Error("bad protocol");
+} catch {
+  throw new Error(
+    `The Supabase URL secret is not a valid http(s) URL (it starts with "${supabaseUrl.slice(0, 12)}"). ` +
+    `Expected something like https://<project-ref>.supabase.co`
   );
 }
 
 if (!apifyToken) {
-  throw new Error("Missing required environment variable: APIFY_API_TOKEN (add it as a GitHub secret and export it in the workflow env: block).");
+  throw new Error("Missing required environment variable: APIFY_API_TOKEN.");
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
