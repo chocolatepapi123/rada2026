@@ -44,7 +44,7 @@ const retryImport = <T,>(fn: () => Promise<T>, retries = 3, delay = 800): Promis
 const lazyNamed = (loader: () => Promise<any>, name: string): React.ComponentType<any> =>
   lazy(() => retryImport(loader).then((m) => ({ default: m[name] })));
 
-const AuthModal = lazyNamed(() => import('./components/AuthModal'), 'AuthModal');
+import { AuthModal } from './components/AuthModal.tsx';
 const AdminDashboard = lazyNamed(() => import('./components/AdminDashboardModal.tsx'), 'AdminDashboard');
 const MerchantHubTab = lazyNamed(() => import('./components/MerchantHubTab.tsx'), 'MerchantHubTab');
 const PublicBusinessProfileModal = lazyNamed(() => import('./components/PublicBusinessProfileModal.tsx'), 'PublicBusinessProfileModal');
@@ -336,18 +336,42 @@ export default function App() {
   const handleSignOut = async () => {
     try {
       if (isSupabaseConfigured && supabase?.auth) {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut().catch(() => {});
       }
     } catch (err) {
       console.warn('Sign out error:', err);
     }
+    // Clean all session & authentication state
     setSession(null);
     setUserRole('user');
-    setIsGuestMode(false);
+    setIsGuestMode(true);
     setAuthModalMessage('');
-    setIsAuthModalOpen(true);
+    setIsAuthModalOpen(false);
     setCurrentUserProfile(GUEST_PROFILE);
     localStorage.removeItem('rada_current_user');
+    localStorage.removeItem('rada_last_uid');
+
+    // Dismiss any open user/admin/merchant modals
+    setIsAccountSettingsOpen(false);
+    setIsBusinessHubOpen(false);
+    setIsAdminOpen(false);
+    setViewingProfile(null);
+    setSelectedPublicBusiness(null);
+    setActiveOverlay(null);
+    setSelectedSpotModal(null);
+    setSelectedEventModal(null);
+    setIsPlanDateModalOpen(false);
+    setIsCreateGroupOpen(false);
+    setIsSavedModalOpen(false);
+    setIsLivenessModalOpen(false);
+    setIsSuggestSpotModalOpen(false);
+
+    // If on an authenticated-only tab (like merchant), revert cleanly to home
+    if (activeTab === 'merchant') {
+      setActiveTab('home');
+    }
+
+    showToast('Signed out successfully. Browsing as Guest.', { type: 'info' });
   };
 
   const requireAuth = (actionName: string, actionCallback: () => void) => {
@@ -2598,7 +2622,7 @@ export default function App() {
 
           <UserProfileModal
             user={viewingProfile}
-            isMutualMatch={conversations.some(c => viewingProfile && c.name.toLowerCase().includes(viewingProfile.name.split(',')[0].toLowerCase()))}
+            isMutualMatch={Boolean(viewingProfile?.name && conversations.some(c => c?.name && c.name.toLowerCase().includes(viewingProfile.name.split(',')[0].toLowerCase())))}
             onClose={() => setViewingProfile(null)}
             onSendMatchRequest={(u) => {
               requireAuth('send messages', () => {
@@ -2692,7 +2716,7 @@ export default function App() {
           {isAuthModalOpen && (
             <AuthModal
               isOpen={isAuthModalOpen}
-              onClose={() => { if (session || isGuestMode) setIsAuthModalOpen(false); }}
+              onClose={() => { setIsAuthModalOpen(false); setIsGuestMode(true); }}
               onSuccess={() => { setIsAuthModalOpen(false); setIsGuestMode(false); setAuthModalMessage(''); }}
               onContinueAsGuest={() => { setIsGuestMode(true); setIsAuthModalOpen(false); setAuthModalMessage(''); }}
               customMessage={authModalMessage}

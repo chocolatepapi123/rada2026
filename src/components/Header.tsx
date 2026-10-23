@@ -220,6 +220,24 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                 </button>
 
+                {/* Emergency & SOS Hub */}
+                <button
+                  type="button"
+                  onClick={() => handleMenuClick('sosOverlay')}
+                  className="w-full text-left px-4 py-2.5 text-xs font-bold hover:bg-red-50/80 dark:hover:bg-red-950/20 flex items-center justify-between text-red-600 dark:text-red-400 border-b border-slate-100 dark:border-slate-800/80 transition group cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <ShieldAlert className="w-4 h-4 text-red-600 dark:text-red-400 group-hover:scale-110 transition shrink-0" />
+                    <div>
+                      <span className="font-extrabold text-red-600 dark:text-red-400">Emergency & SOS Hub</span>
+                      <p className="text-[10px] text-red-500/80 dark:text-red-400/70 font-normal">Siren, panic SMS & contacts</p>
+                    </div>
+                  </div>
+                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-950/80 text-red-600 dark:text-red-400 uppercase tracking-wider">
+                    SOS
+                  </span>
+                </button>
+
 
                 {/* Prominent Saved Items */}
                 <button
