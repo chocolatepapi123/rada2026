@@ -61,3 +61,7 @@ export function getCategoryAccent(category?: string, _title?: string, genre?: st
     gradient: 'from-[#FF5733] to-[#FF8C00]',
   };
 }
+
+// Spot (venue) accents for the 17 categories live in lib/spotAccents.ts; re-exported here for convenience.
+// Adjust the relative path if this file is not in src/utils/.
+export * from '../lib/spotAccents.ts';
