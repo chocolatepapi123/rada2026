@@ -434,9 +434,11 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       <Bookmark className={`w-4 h-4 ${isSpotSaved ? 'fill-white' : ''}`} />
                     </button>
 
-                    <span className="absolute top-3 right-3 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
-                      {selectedSpot.price}
-                    </span>
+                    {selectedSpot.price && (
+                      <span className="absolute top-3 right-3 bg-black/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
+                        {selectedSpot.price}
+                      </span>
+                    )}
                     {(() => {
                       const revCount = (selectedSpot.reviews && selectedSpot.reviews.length > 0)
                         ? selectedSpot.reviews.length
