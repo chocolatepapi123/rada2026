@@ -1,6 +1,10 @@
 import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending, formatOpeningHours } from '../lib/spotsFeed.ts';
 import { resolveSpotBudget, budgetBadge } from '../lib/spotBudget.ts';
 import { useLocationPreference, sortByProximity, NEIGHBORHOOD_COORDS, formatDistance, distanceKm, resolveNearestNeighborhood } from '../lib/geo.ts';
+import { SPOT_CATEGORIES, getSpotCategoryIds } from '../lib/spotCategories.ts';
+import { getSpotCategoryAccent, accentPillStyle } from '../lib/spotAccents.ts';
+import { rankSpots, useNearYou } from '../lib/spotRanking.ts';
+import { NearYouControl } from './NearYouControl.tsx';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { getStoredLanguage, translations, type AppLanguage } from '../utils/i18n.ts';
 
@@ -315,6 +319,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   const { spots: unclaimedFeed } = useUnclaimedSpots();
   // Home feed is ordered by distance from the device (or a picked neighborhood)
   const { pref: locPref, setPref: setLocPref, origin: feedOrigin, status: locStatus, requestGps } = useLocationPreference();
+  const near = useNearYou();
   const [dbSpots, setDbSpots] = useState<any[]>([]);
   const [liveReviews, setLiveReviews] = useState<Record<string, any[]>>({});
 
@@ -419,7 +424,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       .map(d => ({
         ...d,
         title: d.title || 'Untitled Spot',
-        category: d.category || 'restaurants',
+        category: d.category || 'Hangouts & Leisure',
         neighborhood: d.neighborhood || 'Nearby',
         address: d.address || '',
         price: resolveSpotBudget(d),
@@ -430,11 +435,10 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       }));
 
     const merged = mergeSpots([...spots, ...extraDbSpots], unclaimedFeed);
-    const effectiveFeedOrigin = feedOrigin || { lat: -1.2864, lng: 36.8172 };
-    const allCombined = sortByProximity(merged, effectiveFeedOrigin);
+    const allCombined = merged;
 
     // Compute live review counts and ratings from actual Supabase reviews
-    return allCombined.map(sp => {
+    const enriched = allCombined.map(sp => {
       const sid = String(sp.id);
       const dbRevs = liveReviews[sid] || [];
       const propRevs = (sp.reviews || []).filter((r: any) => r.id !== 'rev-1');
@@ -457,11 +461,15 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         ...sp,
         reviews: combinedRevs,
         reviewCount: totalReviews,
+        baseRating: sp.rating,
         rating: calculatedRating,
         price: resolveSpotBudget(sp)
       };
     });
-  }, [spots, dbSpots, unclaimedFeed, liveReviews, feedOrigin]);
+
+    // Default = premium-first (rating, reviews, real photos, verification). Near You = nearest first within radius.
+    return rankSpots(enriched, { nearYou: near.active, origin: near.origin, radiusKm: near.radiusKm });
+  }, [spots, dbSpots, unclaimedFeed, liveReviews, near.active, near.origin, near.radiusKm]);
 
   // Filtered spots for Home Tab based on active Home filters
   const homeFilteredSpots = useMemo(() => {
@@ -496,15 +504,12 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   }, []);
   const t = translations[appLang];
 
-  // Category rows: strictly RADA categories
-  const restaurantSpots = useMemo(() => homeFilteredSpots.filter(s => spotInCategory(s, 'restaurants_dining')), [homeFilteredSpots]);
-  const clubSpots = useMemo(() => homeFilteredSpots.filter(s => spotInCategory(s, 'clubs_lounges')), [homeFilteredSpots]);
-  const cafeSpots = useMemo(() => homeFilteredSpots.filter(s => spotInCategory(s, 'cafes_bakeries')), [homeFilteredSpots]);
-  const dateSpots = useMemo(() => homeFilteredSpots.filter(s => spotInCategory(s, 'date_spots')), [homeFilteredSpots]);
-  const natureSpots = useMemo(() => homeFilteredSpots.filter(s => spotInCategory(s, 'nature')), [homeFilteredSpots]);
-  const creativeSpots = useMemo(() => homeFilteredSpots.filter(s => spotInCategory(s, 'creative_leisure')), [homeFilteredSpots]);
-  const techGamingSpots = useMemo(() => homeFilteredSpots.filter(s => spotInCategory(s, 'tech_gaming')), [homeFilteredSpots]);
-  const actionSportsSpots = useMemo(() => homeFilteredSpots.filter(s => spotInCategory(s, 'action_sports')), [homeFilteredSpots]);
+  // Category rows: all 17 RADA categories (category + extra_categories)
+  const spotsByCat = useMemo(() => {
+    const out: Record<string, SpotItem[]> = {};
+    for (const c of SPOT_CATEGORIES) out[c.id] = homeFilteredSpots.filter(sp => spotInCategory(sp, c.id)) as SpotItem[];
+    return out;
+  }, [homeFilteredSpots]);
 
   const handleVisitSpot = (offer: BusinessOffer) => {
     // 1. Check if there is a corresponding spot in displaySpots
@@ -722,7 +727,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     });
   }, [adminUsers, adminUserSearch, adminUserFilter]);
 
-  const hasActiveHomeFilters = selectedHomeSection !== 'all' || selectedHomeCategory !== 'all' || selectedHomeDate !== 'all' || selectedHomeArea !== 'all' || selectedHomeBudget !== 'all' || selectedGenre !== 'all';
+  const hasActiveHomeFilters = selectedHomeSection !== 'all' || selectedHomeCategory !== 'all' || selectedHomeDate !== 'all' || selectedHomeArea !== 'all' || selectedHomeBudget !== 'all' || selectedGenre !== 'all' || near.active;
 
   return (
     <section className="px-4 py-4 space-y-6 relative">
@@ -836,7 +841,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             )}
             {selectedHomeCategory !== 'all' && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#E0533C] text-white shrink-0">
-                <span className="capitalize">{selectedHomeCategory.replace(/_/g, ' ')}</span>
+                <span>{getSpotCategoryAccent(selectedHomeCategory).label}</span>
                 <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedHomeCategory('all')} />
               </span>
             )}
@@ -873,6 +878,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 setSelectedHomeArea('all');
                 setSelectedHomeBudget('all');
                 setSelectedGenre('all');
+                near.clear();
               }}
               className="text-[10px] text-[#E0533C] font-bold underline ml-1 cursor-pointer shrink-0"
             >
@@ -950,32 +956,24 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   <Flame className="w-3.5 h-3.5 text-[#E0533C]" />
                   <span>Category & Vibe:</span>
                 </span>
-                <div className="grid grid-cols-2 gap-1.5 text-xs max-h-36 overflow-y-auto pr-1">
-                  {[
-                    { id: 'all', label: 'All Vibes' },
-                    { id: 'restaurants_dining', label: 'Restaurants & Dining' },
-                    { id: 'clubs_lounges', label: 'Clubs & Nightlife' },
-                    { id: 'cafes_bakeries', label: 'Cafes & Bakeries' },
-                    { id: 'nature', label: 'Nature & Outdoor' },
-                    { id: 'action_sports', label: 'Action & Sports' },
-                    { id: 'tech_gaming', label: 'Tech & Gaming' },
-                    { id: 'creative_leisure', label: 'Creative & Arts' },
-                    { id: 'hotels_luxury', label: 'Luxury Stays' },
-                    { id: 'date_spots', label: 'Date Spots' },
-                  ].map((cat) => (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => setSelectedHomeCategory(cat.id)}
-                      className={`p-2 rounded-xl font-bold transition text-left cursor-pointer truncate text-[11px] ${
-                        selectedHomeCategory === cat.id
-                          ? 'bg-[#E0533C] text-white shadow-xs'
-                          : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
-                      }`}
-                    >
-                      {cat.label}
-                    </button>
-                  ))}
+                <div className="grid grid-cols-2 gap-1.5 text-xs max-h-56 overflow-y-auto pr-1">
+                  {[{ id: 'all', label: 'All Vibes' }, ...SPOT_CATEGORIES].map((cat) => {
+                    const isSel = selectedHomeCategory === cat.id;
+                    const acc = cat.id === 'all' ? null : getSpotCategoryAccent(cat.id);
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setSelectedHomeCategory(cat.id)}
+                        className={`p-2 rounded-xl font-bold transition text-left cursor-pointer truncate text-[11px] border ${
+                          acc ? '' : isSel ? 'bg-[#E0533C] text-white border-[#E0533C]' : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800'
+                        }`}
+                        style={acc ? accentPillStyle(acc, isSel) : undefined}
+                      >
+                        {cat.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1107,6 +1105,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     setSelectedHomeArea('all');
                     setSelectedHomeBudget('all');
                     setSelectedGenre('all');
+                    near.clear();
                   }}
                   className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 cursor-pointer"
                 >
@@ -1876,8 +1875,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         style={{ backgroundImage: `url('${spot.img}')` }}
                       />
                       <span className="absolute top-2.5 left-2.5 bg-black/70 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
-                        <Compass className="w-2.5 h-2.5 text-orange-400" />
-                        <span className="capitalize">{spot.category?.replace(/_/g, ' ') || 'Hangout'}</span>
+                        {(() => { const a = getSpotCategoryAccent(getSpotCategoryIds(spot)[0] || spot.category); const I = a.Icon; return (<><I className="w-2.5 h-2.5" style={{ color: a.color }} /><span>{a.label}</span></>); })()}
                       </span>
                       <button
                         type="button"
@@ -2080,31 +2078,19 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           );
         };
 
-        const isNightTime = !isDayTime;
+        const NIGHT_ORDER = ['restaurants', 'nyama_choma', 'clubs_lounges', 'bars_chill', 'rooftops', 'date_spots', 'desserts', 'fast_food', 'hangouts_leisure', 'gaming_arcades', 'arts_culture', 'cafes_bakeries', 'hotels_stays', 'getaways_resorts', 'sports_adventure', 'outdoors_nature', 'garden_hangouts'];
+        const DAY_ORDER = ['sports_adventure', 'outdoors_nature', 'garden_hangouts', 'gaming_arcades', 'arts_culture', 'cafes_bakeries', 'restaurants', 'nyama_choma', 'fast_food', 'desserts', 'hangouts_leisure', 'getaways_resorts', 'hotels_stays', 'rooftops', 'date_spots', 'bars_chill', 'clubs_lounges'];
+        const order = !isDayTime ? NIGHT_ORDER : DAY_ORDER;
+        const ids = [...order, ...SPOT_CATEGORIES.map(c => c.id).filter(id => !order.includes(id))];
 
-        return isNightTime ? (
+        return (
           <>
-            {/* Nighttime (8:00 PM to 7:00 AM): 1) Restaurants & dinner, 2) Clubs & lounges, 3) Then the rest */}
-            {renderCategoryRow('restaurants', t.restaurantsDining, 'restaurants_dining', UtensilsCrossed, restaurantSpots, '#E0533C', 'Dining & Dinner')}
-            {renderCategoryRow('clubs', t.clubsLounges, 'clubs_lounges', Music, clubSpots, '#9C3B28', 'Nightlife & Lounges')}
-            {renderCategoryRow('nature', t.natureTrails, 'nature', Trees, natureSpots, '#2D6A4F', 'Nature & Trails')}
-            {renderCategoryRow('sports', t.actionSports, 'action_sports', Flame, actionSportsSpots, '#E0533C', 'Action & Sports')}
-            {renderCategoryRow('tech', t.techGaming, 'tech_gaming', Gamepad2, techGamingSpots, '#0284C7', 'Tech & Gaming')}
-            {renderCategoryRow('creative', t.creativeLeisure, 'creative_leisure', Palette, creativeSpots, '#9333EA', 'Creative & Leisure')}
-            {renderCategoryRow('cafes', t.cafesBakeries, 'cafes_bakeries', UtensilsCrossed, cafeSpots, '#D97706', 'Cafés & Bakeries')}
-            {renderCategoryRow('date', t.dateSpots, 'date_spots', Compass, dateSpots, '#E11D48', 'Date Night')}
-          </>
-        ) : (
-          <>
-            {/* Daytime (7:00 AM to 8:00 PM): Action & sports, Nature trails, Tech, Creative, Restaurants, Cafes, Clubs, Date */}
-            {renderCategoryRow('sports', t.actionSports, 'action_sports', Flame, actionSportsSpots, '#E0533C', 'Action & Sports')}
-            {renderCategoryRow('nature', t.natureTrails, 'nature', Trees, natureSpots, '#2D6A4F', 'Nature & Trails')}
-            {renderCategoryRow('tech', t.techGaming, 'tech_gaming', Gamepad2, techGamingSpots, '#0284C7', 'Tech & Gaming')}
-            {renderCategoryRow('creative', t.creativeLeisure, 'creative_leisure', Palette, creativeSpots, '#9333EA', 'Creative & Leisure')}
-            {renderCategoryRow('restaurants', t.restaurantsDining, 'restaurants_dining', UtensilsCrossed, restaurantSpots, '#E0533C', 'Dining & Dinner')}
-            {renderCategoryRow('cafes', t.cafesBakeries, 'cafes_bakeries', UtensilsCrossed, cafeSpots, '#D97706', 'Cafés & Bakeries')}
-            {renderCategoryRow('clubs', t.clubsLounges, 'clubs_lounges', Music, clubSpots, '#9C3B28', 'Nightlife & Lounges')}
-            {renderCategoryRow('date', t.dateSpots, 'date_spots', Compass, dateSpots, '#E11D48', 'Date Night')}
+            {/* Near You (device geolocation) */}
+            {(selectedHomeSection === 'all' || selectedHomeSection === 'spots') && <NearYouControl />}
+            {ids.map(id => {
+              const acc = getSpotCategoryAccent(id);
+              return renderCategoryRow(id, acc.label, id, acc.Icon, spotsByCat[id] || [], acc.color, acc.label);
+            })}
           </>
         );
       })()}

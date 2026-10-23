@@ -25,7 +25,8 @@ import {
   Building2,
   X,
   Dumbbell,
-  Trash2
+  Trash2,
+  Navigation
 } from 'lucide-react';
 
 import { SpotItem, MenuItem, SavedItem, Review } from '../types.ts';
@@ -36,7 +37,10 @@ import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUt
 import type { ToastOptions } from './Toast.tsx';
 import { resolveSpotBudget, budgetBadge } from '../lib/spotBudget.ts';
 import { useUnclaimedSpots, spotInCategory, mergeSpots, evictUnclaimedSpot } from '../lib/spotsFeed.ts';
-import { useLocationPreference, sortByProximity } from '../lib/geo.ts';
+import { SPOT_CATEGORIES, getSpotCategoryIds } from '../lib/spotCategories.ts';
+import { getSpotCategoryAccent, accentPillStyle } from '../lib/spotAccents.ts';
+import { rankSpots, useNearYou, formatKm } from '../lib/spotRanking.ts';
+import { NearYouControl } from './NearYouControl.tsx';
 import { spotMatchesSearchWithTags } from '../utils/spotTags.ts';
 import { AdminConfirmModal } from './AdminConfirmModal.tsx';
 import { deleteListing } from '../lib/cloudSync.ts';
@@ -90,7 +94,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [selectedRating, setSelectedRating] = useState<'all' | '4.5' | '4.0' | 'reviewed'>('all');
   const [onlySpecialOffers, setOnlySpecialOffers] = useState(false);
-  const { origin: userLocation } = useLocationPreference();
+  const near = useNearYou();
 
   // Admin Spot Deletion state
   const [spotToDelete, setSpotToDelete] = useState<SpotItem | null>(null);
@@ -367,21 +371,21 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
       .map(d => ({
         ...d,
         title: d.title || 'Untitled Spot',
-        category: d.category || 'restaurants',
+        category: d.category || 'Hangouts & Leisure',
         neighborhood: d.neighborhood || 'Nearby',
         address: d.address || '',
         price: resolveSpotBudget(d),
+        hasCoords: d.lat != null && d.lng != null,
         lat: d.lat ?? -1.2921,
         lng: d.lng ?? 36.8219,
         img: d.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
       }));
 
     const merged = mergeSpots([...spots, ...extraDbSpots], unclaimedSpots);
-    const effectiveOrigin = userLocation || { lat: -1.2864, lng: 36.8219 };
-    const allCombined = sortByProximity(merged, effectiveOrigin);
+    const allCombined = merged;
 
     // Compute live review counts and ratings from actual reviews only (no mock reviews or fake 4.8)
-    return allCombined.map(sp => {
+    const enriched = allCombined.map(sp => {
       const sid = String(sp.id);
       const dbRevs = liveReviews[sid] || [];
       const propRevs = (sp.reviews || []).filter((r: any) => r.id !== 'rev-1');
@@ -398,7 +402,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
       const totalReviews = combinedRevs.length;
       const calculatedRating = totalReviews > 0
         ? (combinedRevs.reduce((sum, r) => sum + Number(r.rating || 0), 0) / totalReviews).toFixed(1)
-        : 'New';
+        : (sp.rating && !isNaN(Number(sp.rating)) ? String(sp.rating) : 'New');
 
       return {
         ...sp,
@@ -408,7 +412,10 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         price: resolveSpotBudget(sp)
       };
     });
-  }, [spots, dbSpots, unclaimedSpots, liveReviews, userLocation]);
+
+    // Default = premium-first (rating, reviews, real photos, verification). Near You = nearest first within radius.
+    return rankSpots(enriched, { nearYou: near.active, origin: near.origin, radiusKm: near.radiusKm });
+  }, [spots, dbSpots, unclaimedSpots, liveReviews, near.active, near.origin, near.radiusKm]);
 
   // Real-time fuzzy natural query search with in-app hidden tags
   const filteredSpots = displaySpots.filter(s => {
@@ -443,24 +450,19 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     return true;
   });
 
-  const restaurants = filteredSpots.filter(s => spotInCategory(s, 'restaurants_dining'));
-  const natureSpots = filteredSpots.filter(s => spotInCategory(s, 'nature'));
-  const creativeSpots = filteredSpots.filter(s => spotInCategory(s, 'creative_leisure'));
-  const techGamingSpots = filteredSpots.filter(s => spotInCategory(s, 'tech_gaming'));
-  const actionSportsSpots = filteredSpots.filter(s => spotInCategory(s, 'action_sports'));
-  const dateSpots = filteredSpots.filter(s => spotInCategory(s, 'date_spots'));
-  const clubsLounges = filteredSpots.filter(s => spotInCategory(s, 'clubs_lounges'));
-  const cafesBakeries = filteredSpots.filter(s => spotInCategory(s, 'cafes_bakeries'));
-  const hotelsLuxury = filteredSpots.filter(s => spotInCategory(s, 'hotels_luxury'));
-  const vacationEscapes = filteredSpots.filter(s => spotInCategory(s, 'vacation_escapes'));
-
+  // One list per category; a spot with extra_categories appears in every category it belongs to.
+  const spotsByCategory = SPOT_CATEGORIES.map(def => ({ def, list: filteredSpots.filter(sp => spotInCategory(sp, def.id)) }));
 
   const isSaved = (id: number | string) => {
     return savedItems.some(s => String(s.id) === String(id) && s.kind === 'spot');
   };
 
   // Render individual Spot Card with multiple images carousel & reviews
-  const renderSpotCard = (spot: SpotItem) => {
+  const renderSpotCard = (spot: SpotItem, contextCategory?: string) => {
+    const catIds = getSpotCategoryIds(spot);
+    const accent = getSpotCategoryAccent(contextCategory || catIds[0] || spot.category);
+    const AccentIcon = accent.Icon;
+    const otherCats = catIds.filter(id => id !== accent.id).slice(0, 2).map(id => getSpotCategoryAccent(id));
     const imagesList = (spot.images && spot.images.length > 0) ? spot.images : [spot.img];
     const currentIndex = activeImageIndices[spot.id] || 0;
     const currentImg = imagesList[currentIndex] || spot.img;
@@ -477,7 +479,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
       <div
         key={spot.id}
         onClick={handleOpenDetails}
-        style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 288px auto 340px' }}
+        style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 288px auto 340px', borderTop: `3px solid ${accent.color}` }}
         className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-[#E0533C] dark:hover:border-[#D17A68] transition group"
       >
         <div>
@@ -596,6 +598,27 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                 <Star className={`w-3 h-3 ${hasReviews ? 'fill-amber-500 text-amber-500' : 'text-slate-400'}`} />
                 <span>{hasReviews ? spot.rating : 'New'}</span>
               </div>
+            </div>
+
+            <div className="flex items-center gap-1 flex-wrap">
+              <span
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black border"
+                style={accentPillStyle(accent, false)}
+              >
+                <AccentIcon className="w-2.5 h-2.5" />
+                <span>{accent.label}</span>
+              </span>
+              {otherCats.map(o => (
+                <span key={o.id} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border" style={accentPillStyle(o, false)}>
+                  {o.label}
+                </span>
+              ))}
+              {(spot as any).distanceKm != null && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-[#2D6A4F] text-white">
+                  <Navigation className="w-2.5 h-2.5" />
+                  {formatKm((spot as any).distanceKm)}
+                </span>
+              )}
             </div>
 
             <p className="text-xs text-[#475569] dark:text-slate-300 flex items-center justify-between font-medium">
@@ -725,27 +748,34 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
             type="button"
             onClick={() => setIsFilterModalOpen(true)}
             className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-xs ${
-              selectedCategory !== 'all' || selectedNeighborhood !== 'all' || selectedPriceTier !== 'all' || selectedRating !== 'all' || onlySpecialOffers
+              selectedCategory !== 'all' || selectedNeighborhood !== 'all' || selectedPriceTier !== 'all' || selectedRating !== 'all' || onlySpecialOffers || near.active
                 ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white border-[#E0533C] shadow-md'
                 : 'bg-white dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
             }`}
             title="Filter Spots (Category, Area, Budget, Rating, Offers)"
           >
             <SlidersHorizontal className="w-4 h-4" />
-            {(selectedCategory !== 'all' || selectedNeighborhood !== 'all' || selectedPriceTier !== 'all' || selectedRating !== 'all' || onlySpecialOffers) && (
+            {(selectedCategory !== 'all' || selectedNeighborhood !== 'all' || selectedPriceTier !== 'all' || selectedRating !== 'all' || onlySpecialOffers || near.active) && (
               <span className="w-2 h-2 rounded-full bg-white ml-1.5" />
             )}
           </button>
         </div>
 
         {/* Active Filter Indicators */}
-        {(selectedCategory !== 'all' || selectedNeighborhood !== 'all' || selectedPriceTier !== 'all' || selectedRating !== 'all' || onlySpecialOffers) && (
+        {(selectedCategory !== 'all' || selectedNeighborhood !== 'all' || selectedPriceTier !== 'all' || selectedRating !== 'all' || onlySpecialOffers || near.active) && (
           <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pt-0.5">
             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider shrink-0">Active:</span>
             {selectedCategory !== 'all' && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#E0533C] text-white shrink-0">
-                <span className="capitalize">{selectedCategory.replace(/_/g, ' ')}</span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold shrink-0" style={accentPillStyle(getSpotCategoryAccent(selectedCategory), true)}>
+                <span>{getSpotCategoryAccent(selectedCategory).label}</span>
                 <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedCategory('all')} />
+              </span>
+            )}
+            {near.active && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#2D6A4F] text-white shrink-0">
+                <Navigation className="w-3 h-3" />
+                <span>Near You{near.radiusKm ? ` • ${near.radiusKm} km` : ''}</span>
+                <X className="w-3 h-3 cursor-pointer" onClick={() => near.clear()} />
               </span>
             )}
             {selectedNeighborhood !== 'all' && (
@@ -780,6 +810,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                 setSelectedPriceTier('all');
                 setSelectedRating('all');
                 setOnlySpecialOffers(false);
+                near.clear();
               }}
               className="text-[10px] text-[#E0533C] font-bold underline ml-1 cursor-pointer shrink-0"
             >
@@ -827,33 +858,24 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                   <Compass className="w-3.5 h-3.5 text-[#E0533C]" />
                   <span>Category:</span>
                 </span>
-                <div className="grid grid-cols-2 gap-1.5 text-xs max-h-48 overflow-y-auto pr-1">
-                  {[
-                    { id: 'all', label: 'All Categories' },
-                    { id: 'restaurants_dining', label: 'Restaurants & Dining' },
-                    { id: 'clubs_lounges', label: 'Clubs & Lounges' },
-                    { id: 'cafes_bakeries', label: 'Cafes & Bakeries' },
-                    { id: 'nature', label: 'Nature & Outdoors' },
-                    { id: 'action_sports', label: 'Action & Sports' },
-                    { id: 'tech_gaming', label: 'Tech & Gaming' },
-                    { id: 'hotels_luxury', label: 'Hotels & Luxury Stays' },
-                    { id: 'date_spots', label: 'Date Spots' },
-                    { id: 'creative_leisure', label: 'Creative & Leisure' },
-                    { id: 'vacation_escapes', label: 'Vacation Escapes' }
-                  ].map((cat) => (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => setSelectedCategory(cat.id)}
-                      className={`p-2 rounded-xl font-bold transition text-left cursor-pointer truncate text-[11px] ${
-                        selectedCategory === cat.id
-                          ? 'bg-[#E0533C] text-white shadow-xs'
-                          : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
-                      }`}
-                    >
-                      {cat.label}
-                    </button>
-                  ))}
+                <div className="grid grid-cols-2 gap-1.5 text-xs max-h-56 overflow-y-auto pr-1">
+                  {[{ id: 'all', label: 'All Categories' }, ...SPOT_CATEGORIES].map((cat) => {
+                    const isSel = selectedCategory === cat.id;
+                    const acc = cat.id === 'all' ? null : getSpotCategoryAccent(cat.id);
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setSelectedCategory(cat.id)}
+                        className={`p-2 rounded-xl font-bold transition text-left cursor-pointer truncate text-[11px] border ${
+                          acc ? '' : isSel ? 'bg-[#E0533C] text-white border-[#E0533C]' : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800'
+                        }`}
+                        style={acc ? accentPillStyle(acc, isSel) : undefined}
+                      >
+                        {cat.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -980,6 +1002,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                     setSelectedPriceTier('all');
                     setSelectedRating('all');
                     setOnlySpecialOffers(false);
+                    near.clear();
                   }}
                   className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 cursor-pointer"
                 >
@@ -997,32 +1020,27 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           </div>
         )}
 
-        {/* Category Filter Pills: Strictly 10 Overhauled Categories */}
+        {/* Near You (device geolocation) */}
+        <NearYouControl />
+
+        {/* Category Filter Pills: all 17 categories, each with its own accent */}
         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
-          {[
-            { id: 'all', label: 'All Categories', icon: Compass },
-            { id: 'restaurants_dining', label: 'Restaurants and dining', icon: UtensilsCrossed },
-            { id: 'clubs_lounges', label: 'Clubs and lounges', icon: Music },
-            { id: 'cafes_bakeries', label: 'Cafes and bakeries', icon: Coffee },
-            { id: 'nature', label: 'Nature trails and outdoor', icon: Trees },
-            { id: 'action_sports', label: 'Action and sports', icon: Dumbbell },
-            { id: 'tech_gaming', label: 'Tech and gaming', icon: Gamepad2 },
-            { id: 'hotels_luxury', label: 'Hotels and luxury stays', icon: Hotel },
-            { id: 'date_spots', label: 'Date spots', icon: Heart },
-            { id: 'creative_leisure', label: 'Creative and leisure', icon: Palette },
-            { id: 'vacation_escapes', label: 'Vacation spots and escapes', icon: Palmtree }
-          ].map((cat) => {
+          {[{ id: 'all', label: 'All Categories', icon: Compass }, ...SPOT_CATEGORIES].map((cat) => {
             const Icon = cat.icon;
             const isSelected = selectedCategory === cat.id;
+            const acc = cat.id === 'all' ? null : getSpotCategoryAccent(cat.id);
             return (
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`px-3 py-1.5 rounded-full text-xs shrink-0 transition-all flex items-center gap-1.5 ${
-                  isSelected
-                    ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white font-black shadow-xs'
-                    : 'bg-white dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                className={`px-3 py-1.5 rounded-full text-xs shrink-0 transition-all flex items-center gap-1.5 border ${
+                  acc
+                    ? 'font-black'
+                    : isSelected
+                      ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white font-black shadow-xs border-transparent'
+                      : 'bg-white dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-300 font-semibold border-slate-200 dark:border-slate-800 hover:border-slate-300'
                 }`}
+                style={acc ? accentPillStyle(acc, isSelected) : undefined}
               >
                 <Icon className="w-3 h-3" />
                 <span>{cat.label}</span>
@@ -1074,7 +1092,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           </div>
           <div className="space-y-1">
             <h4 className="font-black text-sm text-slate-900 dark:text-slate-100">
-              No spots found for "{searchQuery || selectedCategory}"
+              No spots found for "{searchQuery || (selectedCategory === 'all' ? 'your filters' : getSpotCategoryAccent(selectedCategory).label)}"{near.active ? ' near you' : ''}
             </h4>
             <p className="text-xs text-slate-500 max-w-xs mx-auto">
               Know this spot or running a business here? Add it to the RADA interactive map!
@@ -1090,227 +1108,36 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         </div>
       )}
 
-      {/* Categorized Spot Carousels */}
+      {/* Categorized Spot Carousels: one per category, in that category's accent colour */}
       <div className="space-y-6">
-        {/* 1. Restaurants and dining */}
-        {(selectedCategory === 'all' || selectedCategory === 'restaurants_dining') && restaurants.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <UtensilsCrossed className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
-                <span>Restaurants and dining</span>
-              </h3>
-              <button
-                onClick={() => onOpenDedicatedViewAll('Restaurants and dining', 'restaurants_dining')}
-                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
-              >
-                View All ({restaurants.length})
-              </button>
-            </div>
+        {spotsByCategory.map(({ def, list }) => {
+          if (list.length === 0 || (selectedCategory !== 'all' && selectedCategory !== def.id)) return null;
+          const acc = getSpotCategoryAccent(def.id);
+          const Icon = acc.Icon;
+          return (
+            <div key={def.id} className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: acc.soft, color: acc.color }}>
+                    <Icon className="w-3.5 h-3.5" />
+                  </span>
+                  <span>{def.label}</span>
+                </h3>
+                <button
+                  onClick={() => onOpenDedicatedViewAll(def.label, def.id)}
+                  className="text-[11px] font-bold hover:underline"
+                  style={{ color: acc.color }}
+                >
+                  View All ({list.length})
+                </button>
+              </div>
 
-            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {restaurants.map(renderSpotCard)}
+              <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+                {list.map(sp => renderSpotCard(sp, def.id))}
+              </div>
             </div>
-          </div>
-        )}
-
-        {/* 2. Clubs and lounges */}
-        {(selectedCategory === 'all' || selectedCategory === 'clubs_lounges') && clubsLounges.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <Music className="w-3.5 h-3.5 text-purple-600" />
-                <span>Clubs and lounges</span>
-              </h3>
-              <button
-                onClick={() => onOpenDedicatedViewAll('Clubs and lounges', 'clubs_lounges')}
-                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
-              >
-                View All ({clubsLounges.length})
-              </button>
-            </div>
-
-            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {clubsLounges.map(renderSpotCard)}
-            </div>
-          </div>
-        )}
-
-        {/* 3. Cafes and bakeries */}
-        {(selectedCategory === 'all' || selectedCategory === 'cafes_bakeries') && cafesBakeries.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <Coffee className="w-3.5 h-3.5 text-[#E9C46A] dark:text-[#BFA25F]" />
-                <span>Cafes and bakeries</span>
-              </h3>
-              <button
-                onClick={() => onOpenDedicatedViewAll('Cafes and bakeries', 'cafes_bakeries')}
-                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
-              >
-                View All ({cafesBakeries.length})
-              </button>
-            </div>
-
-            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {cafesBakeries.map(renderSpotCard)}
-            </div>
-          </div>
-        )}
-
-        {/* 4. Nature trails and outdoor */}
-        {(selectedCategory === 'all' || selectedCategory === 'nature') && natureSpots.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <Trees className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Nature trails and outdoor</span>
-              </h3>
-              <button
-                onClick={() => onOpenDedicatedViewAll('Nature trails and outdoor', 'nature')}
-                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
-              >
-                View All ({natureSpots.length})
-              </button>
-            </div>
-
-            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {natureSpots.map(renderSpotCard)}
-            </div>
-          </div>
-        )}
-
-        {/* 5. Action and sports */}
-        {(selectedCategory === 'all' || selectedCategory === 'action_sports') && actionSportsSpots.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <Dumbbell className="w-3.5 h-3.5 text-blue-600" />
-                <span>Action and sports</span>
-              </h3>
-              <button
-                onClick={() => onOpenDedicatedViewAll('Action and sports', 'action_sports')}
-                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
-              >
-                View All ({actionSportsSpots.length})
-              </button>
-            </div>
-
-            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {actionSportsSpots.map(renderSpotCard)}
-            </div>
-          </div>
-        )}
-
-        {/* 6. Tech and gaming */}
-        {(selectedCategory === 'all' || selectedCategory === 'tech_gaming') && techGamingSpots.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <Gamepad2 className="w-3.5 h-3.5 text-blue-500" />
-                <span>Tech and gaming</span>
-              </h3>
-              <button
-                onClick={() => onOpenDedicatedViewAll('Tech and gaming', 'tech_gaming')}
-                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
-              >
-                View All ({techGamingSpots.length})
-              </button>
-            </div>
-
-            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {techGamingSpots.map(renderSpotCard)}
-            </div>
-          </div>
-        )}
-
-        {/* 7. Hotels and luxury stays */}
-        {(selectedCategory === 'all' || selectedCategory === 'hotels_luxury') && hotelsLuxury.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <Hotel className="w-3.5 h-3.5 text-[#2D6A4F]" />
-                <span>Hotels and luxury stays</span>
-              </h3>
-              <button
-                onClick={() => onOpenDedicatedViewAll('Hotels and luxury stays', 'hotels_luxury')}
-                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
-              >
-                View All ({hotelsLuxury.length})
-              </button>
-            </div>
-
-            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {hotelsLuxury.map(renderSpotCard)}
-            </div>
-          </div>
-        )}
-
-        {/* 8. Date spots */}
-        {(selectedCategory === 'all' || selectedCategory === 'date_spots') && dateSpots.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <Heart className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
-                <span>Date spots</span>
-              </h3>
-              <button
-                onClick={() => onOpenDedicatedViewAll('Date spots', 'date_spots')}
-                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
-              >
-                View All ({dateSpots.length})
-              </button>
-            </div>
-
-            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {dateSpots.map(renderSpotCard)}
-            </div>
-          </div>
-        )}
-
-        {/* 9. Creative and leisure */}
-        {(selectedCategory === 'all' || selectedCategory === 'creative_leisure') && creativeSpots.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <Palette className="w-3.5 h-3.5 text-[#2D6A4F]" />
-                <span>Creative and leisure</span>
-              </h3>
-              <button
-                onClick={() => onOpenDedicatedViewAll('Creative and leisure', 'creative_leisure')}
-                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
-              >
-                View All ({creativeSpots.length})
-              </button>
-            </div>
-
-            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {creativeSpots.map(renderSpotCard)}
-            </div>
-          </div>
-        )}
-
-        {/* 10. Vacation spots and escapes */}
-        {(selectedCategory === 'all' || selectedCategory === 'vacation_escapes') && vacationEscapes.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <Palmtree className="w-3.5 h-3.5 text-[#E9C46A] dark:text-[#BFA25F]" />
-                <span>Vacation spots and escapes</span>
-              </h3>
-              <button
-                onClick={() => onOpenDedicatedViewAll('Vacation spots and escapes', 'vacation_escapes')}
-                className="text-[11px] font-bold text-[#E0533C] dark:text-[#D17A68] hover:underline"
-              >
-                View All ({vacationEscapes.length})
-              </button>
-            </div>
-
-            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {vacationEscapes.map(renderSpotCard)}
-            </div>
-          </div>
-        )}
+          );
+        })}
       </div>
 
       {/* Quick Review Modal with Deduplication Guard & 5-Photo Limit */}
