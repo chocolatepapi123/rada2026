@@ -4,9 +4,24 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
-const apifyToken = process.env.APIFY_API_TOKEN || '';
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
+const apifyToken = process.env.APIFY_API_TOKEN;
+
+if (!supabaseUrl || !supabaseKey) {
+  const missing: string[] = [];
+  if (!supabaseUrl) missing.push("Supabase URL (set VITE_SUPABASE_URL or SUPABASE_URL)");
+  if (!supabaseKey) missing.push("Supabase service role key (set SUPABASE_SERVICE_ROLE_KEY or SUPABASE_KEY)");
+  throw new Error(
+    `Missing required environment variables:\n - ${missing.join("\n - ")}\n` +
+    `Check your GitHub repository secrets (Settings > Secrets and variables > Actions) ` +
+    `and the env: block in .github/workflows/seed-spots.yml.`
+  );
+}
+
+if (!apifyToken) {
+  throw new Error("Missing required environment variable: APIFY_API_TOKEN (add it as a GitHub secret and export it in the workflow env: block).");
+}
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 const apify = new ApifyClient({ token: apifyToken });
@@ -18,14 +33,14 @@ const MAPS_SEARCH_QUERIES = [
   "restaurants cafes dining Kilimani Nairobi",
   "hangouts spaces Karen Nairobi",
   "spots restaurants CBD Nairobi",
-  
+
   // Thika Road Corridor
   "restaurants lounges Roysambu Kasarani Nairobi",
   "cafes hangouts Juja Ruiru Thika Road",
-  
+
   // Thika Town
   "restaurants lounges Thika Town",
-  
+
   // Mombasa Road Corridor
   "spots restaurants South B South C Mombasa Road",
   "hangouts Syokimau Kitengela Mombasa Road"
@@ -40,19 +55,18 @@ async function runMapsScraperAndSeed() {
     .select('title, location');
 
   if (fetchError) {
-    console.error("❌ Error fetching existing database records:", fetchError.message);
-    return;
+    throw new Error(`Error fetching existing database records: ${fetchError.message}`);
   }
 
   const existingSet = new Set(
     (existingSpots || []).map(s => `${s.title?.toLowerCase().trim()}_${s.location?.toLowerCase().trim()}`)
   );
 
-  let newSpotsBatch = [];
+  const newSpotsBatch: any[] = [];
 
   for (const query of MAPS_SEARCH_QUERIES) {
     console.log(`📍 Querying Google Maps via Apify: "${query}"...`);
-    
+
     try {
       // Calling the official Apify Google Maps Scraper Actor
       const run = await apify.actor("compass/crawler-google-places").call({
@@ -64,7 +78,7 @@ async function runMapsScraperAndSeed() {
 
       const { items } = await apify.dataset(run.defaultDatasetId).listItems();
 
-      for (const place: any of items) {
+      for (const place of items as any[]) {
         const title = place.title;
         const address = place.address || place.city || "Nairobi, Kenya";
         const imageList = place.imageUrls || place.images || [];
@@ -82,26 +96,26 @@ async function runMapsScraperAndSeed() {
         // AUTO-ARRANGE CATEGORY mapping based on Google Maps types/categories
         let category = "dining"; // default fallback
         const categoriesText = (place.categories || []).join(" ").toLowerCase();
-        
+
         if (
-          categoriesText.includes("night club") || 
-          categoriesText.includes("bar") || 
-          categoriesText.includes("pub") || 
+          categoriesText.includes("night club") ||
+          categoriesText.includes("bar") ||
+          categoriesText.includes("pub") ||
           categoriesText.includes("lounge") ||
           categoriesText.includes("night life")
         ) {
           category = "nightlife";
         } else if (
-          categoriesText.includes("park") || 
-          categoriesText.includes("outdoors") || 
-          categoriesText.includes("nature preserve") || 
+          categoriesText.includes("park") ||
+          categoriesText.includes("outdoors") ||
+          categoriesText.includes("nature preserve") ||
           categoriesText.includes("resort") ||
           categoriesText.includes("hiking")
         ) {
           category = "outdoors";
         } else if (
-          categoriesText.includes("shopping mall") || 
-          categoriesText.includes("art gallery") || 
+          categoriesText.includes("shopping mall") ||
+          categoriesText.includes("art gallery") ||
           categoriesText.includes("cultural center") ||
           categoriesText.includes("lifestyle")
         ) {
@@ -133,16 +147,19 @@ async function runMapsScraperAndSeed() {
   }
 
   console.log(`💾 Inserting ${newSpotsBatch.length} verified unique locations into Supabase...`);
-  
+
   const { error: insertError } = await supabase
     .from('spots')
     .insert(newSpotsBatch);
 
   if (insertError) {
-    console.error("❌ Supabase bulk insert failed:", insertError.message);
-  } else {
-    console.log("🎉 Successfully populated RADA with fresh Maps data across Nairobi, Thika Rd, Thika, and Mombasa Rd!");
+    throw new Error(`Supabase bulk insert failed: ${insertError.message}`);
   }
+
+  console.log("🎉 Successfully populated RADA with fresh Maps data across Nairobi, Thika Rd, Thika, and Mombasa Rd!");
 }
 
-runMapsScraperAndSeed();
+runMapsScraperAndSeed().catch((err) => {
+  console.error("❌ Seeding failed:", err);
+  process.exit(1);
+});
