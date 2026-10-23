@@ -86,6 +86,7 @@ function jsonLdEvent(html: string): any | null {
 function categorize(text: string): { category: string; rada: string } {
   const t = text.toLowerCase();
   const rules: [RegExp, string, string][] = [
+    [/book club|poetry|exhibition|museum|theatre|theater|comedy/, 'Arts & Culture', 'arts'],
     [/festival|concert|live music|\blive\b|rnb|r&b|gig|afrobeat|jazz|choir|tour\b/, 'Concerts & Live Music', 'concerts'],
     [/party|club|rave|nightlife|afterparty|dj\b|vibez|vibe check|ladies night/, 'Nightlife & Parties', 'nightlife'],
     [/brunch|food|wine|tasting|dining|cook|bbq|nyama|carnivore|beer/, 'Food & Drink', 'food'],
@@ -112,9 +113,10 @@ async function scrapeMadfun(): Promise<EventRow[]> {
   const html = await getHtml('https://gigs.madfun.com/events');
   if (!html) return [];
   const rows: EventRow[] = [];
-  const anchors = [...html.matchAll(/<a[^>]+href=["'](https:\/\/gigs\.madfun\.com\/event\/\d+)["'][^>]*>([\s\S]*?)<\/a>/gi)];
+  const anchors = [...html.matchAll(/<a[^>]+href=["']((?:https?:\/\/gigs\.madfun\.com)?\/event\/\d+)["'][^>]*>([\s\S]*?)<\/a>/gi)];
+  console.log(`  html length ${html.length}, event anchors ${anchors.length}`);
   for (const a of anchors) {
-    const url = a[1];
+    const url = a[1].startsWith('http') ? a[1] : 'https://gigs.madfun.com' + a[1];
     const text = decode(a[2].replace(/<[^>]+>/g, ' '));
     // "Title organized by Host 24 Oct, 2026 Venue buy tickets"
     const m = text.match(/^(.*?)\s+organized by\s+(.*?)\s+(\d{1,2})\s+([A-Za-z]{3})[a-z]*,?\s+(\d{4})\s*(.*?)\s*(?:buy tickets)?$/i);
@@ -170,7 +172,7 @@ async function scrapeEventPage(source: string, url: string): Promise<EventRow | 
     source, source_url: url, title, category, rada_category: rada,
     start_at: start.toISOString(), end_at: end && !isNaN(end.getTime()) ? end.toISOString() : null,
     venue, host: org, image_url: img || null,
-    price_min: prices.length ? Math.min(...prices) : null,
+    price_min: prices.filter((n: number) => n > 0).length ? Math.min(...prices.filter((n: number) => n > 0)) : null,
     currency: offers[0]?.priceCurrency || 'KES', country: 'KE',
     description: desc || null, address: addr || venue, has_time: hasTime,
     tags: [], tiers: [], gallery: [], scraped_at: new Date().toISOString(),
