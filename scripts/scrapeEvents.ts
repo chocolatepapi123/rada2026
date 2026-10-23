@@ -115,6 +115,20 @@ async function scrapeMadfun(): Promise<EventRow[]> {
   const rows: EventRow[] = [];
   const anchors = [...html.matchAll(/<a[^>]+href=["']((?:https?:\/\/gigs\.madfun\.com)?\/event\/\d+)["'][^>]*>([\s\S]*?)<\/a>/gi)];
   console.log(`  html length ${html.length}, event anchors ${anchors.length}`);
+  if (anchors.length === 0) {
+    const ids = [...new Set([...html.matchAll(/\/event\/(\d+)/g)].map((m) => m[1]))];
+    console.log(`  fallback ids found: ${ids.length} ${ids.slice(0, 10).join(',')}`);
+    const i = html.search(/event\//);
+    if (i >= 0) console.log('  snippet:', html.slice(Math.max(0, i - 200), i + 300).replace(/\s+/g, ' '));
+    const apis = [...new Set([...html.matchAll(/https?:\/\/[^"'\s<>)]*(?:api|json|graphql)[^"'\s<>)]*/gi)].map((m) => m[0]))];
+    console.log('  api-like urls:', apis.slice(0, 8).join(' | '));
+    for (const id of ids) {
+      const url = `https://gigs.madfun.com/event/${id}`;
+      const r = await scrapeEventPage('madfun', url);
+      if (r) rows.push(r);
+    }
+    return rows;
+  }
   for (const a of anchors) {
     const url = a[1].startsWith('http') ? a[1] : 'https://gigs.madfun.com' + a[1];
     const text = decode(a[2].replace(/<[^>]+>/g, ' '));
@@ -149,8 +163,13 @@ async function scrapeEventPage(source: string, url: string): Promise<EventRow | 
   if (!html) return null;
   const ld = jsonLdEvent(html);
   const title = decode(ld?.name || meta(html, 'og:title') || '').replace(/\s*[|\-–]\s*Ticket ?yetu.*$/i, '');
-  const startRaw = ld?.startDate;
-  if (!title || !startRaw) { console.log('  skip (no title/date):', url); return null; }
+  let startRaw = ld?.startDate;
+  if (!startRaw) {
+    const text = decode(html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<[^>]+>/g, ' '));
+    const m = text.match(/(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3})[a-z]*,?\s+(\d{4})/);
+    if (m && MONTHS[m[2].toLowerCase()]) startRaw = `${m[3]}-${MONTHS[m[2].toLowerCase()]}-${m[1].padStart(2, '0')}T00:00:00+03:00`;
+  }
+  if (!title || !startRaw) { console.log('  skip (no title/date):', url, '| title:', title.slice(0, 40)); return null; }
   const start = new Date(startRaw);
   if (isNaN(start.getTime())) return null;
   const end = ld?.endDate ? new Date(ld.endDate) : null;
@@ -186,9 +205,11 @@ async function scrapeTicketyetu(): Promise<EventRow[]> {
   for (const p of pages) {
     const html = await getHtml(p);
     if (!html) continue;
-    for (const m of html.matchAll(/href=["'](\/events\/[A-Za-z0-9_-]+)["']/g)) {
+    for (const m of html.matchAll(/(?:href=["']|["'])(\/events\/[a-z0-9][a-z0-9-]*-[A-Za-z0-9_-]{5,8})(?=["'\\?#])/g)) {
       links.add('https://ticketyetu.com' + m[1]);
     }
+    const apis = [...new Set([...html.matchAll(/(?:https?:\/\/[^"'\s<>)\\]+)?\/(?:api|_next\/data)[^"'\s<>)\\]*/g)].map((m) => m[0]))];
+    console.log(`  ${p} html ${html.length}; api-like: ${apis.slice(0, 6).join(' | ')}`);
   }
   console.log(`  found ${links.size} event links`);
   const rows: EventRow[] = [];
@@ -206,7 +227,11 @@ async function scrapeSolfest(): Promise<EventRow[]> {
   if (!html) return [];
   const links = new Set<string>();
   for (const m of html.matchAll(/href=["'](\/(?:event|events|product)s?\/[^"'#?]+)["']/g)) links.add(base + m[1]);
-  console.log(`  found ${links.size} event links`);
+  console.log(`  found ${links.size} event links; html ${html.length}`);
+  const hrefs = [...new Set([...html.matchAll(/href=["']([^"']+)["']/g)].map((m) => m[1]))].filter((h) => !/logos|_next\/static|facebook|instagram|x\.com|twitter|youtube/.test(h));
+  console.log('  hrefs:', hrefs.slice(0, 15).join(' | '));
+  const apis = [...new Set([...html.matchAll(/https?:\/\/[^"'\s<>)\\]*(?:api|graphql|firebase|firestore)[^"'\s<>)\\]*/gi)].map((m) => m[0]))];
+  console.log('  api-like:', apis.slice(0, 8).join(' | '));
   const rows: EventRow[] = [];
   for (const url of links) {
     const r = await scrapeEventPage('solfest', url);
