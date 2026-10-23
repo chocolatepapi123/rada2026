@@ -1,51 +1,32 @@
 import { useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured } from './supabase.ts';
 
-/** The 10 RADA spot categories. Category filters match ONLY against these. */
-export const RADA_CATEGORIES = [
-  'restaurants_dining',
-  'nature',
-  'creative_leisure',
-  'tech_gaming',
-  'action_sports',
-  'date_spots',
-  'clubs_lounges',
-  'cafes_bakeries',
-  'hotels_luxury',
-  'vacation_escapes',
-] as const;
-export type RadaCategory = (typeof RADA_CATEGORIES)[number];
+import {
+  SPOT_CATEGORIES, resolveSpotCategory, categoryLabelOf, getSpotCategoryIds,
+  parseExtraCategories, isAllKey, spotInCategory,
+} from './spotCategories.ts';
+import { sortPremium } from './spotRanking.ts';
 
-/** Legacy / alias values -> canonical RADA category. */
-const ALIASES: Record<string, RadaCategory> = {
-  restaurants: 'restaurants_dining', dining: 'restaurants_dining', restaurants_dining: 'restaurants_dining',
-  nature: 'nature', connect_with_nature: 'nature', outdoors: 'nature',
-  creative_leisure: 'creative_leisure', creative_arts: 'creative_leisure', creative: 'creative_leisure', social_activities: 'creative_leisure',
-  tech_gaming: 'tech_gaming', tech: 'tech_gaming', gaming: 'tech_gaming',
-  action_sports: 'action_sports', outdoor_fitness: 'action_sports', sports: 'action_sports', action: 'action_sports',
-  date_spots: 'date_spots', date: 'date_spots',
-  clubs_lounges: 'clubs_lounges', nightlife: 'clubs_lounges', clubs: 'clubs_lounges', lounges: 'clubs_lounges', bars: 'clubs_lounges',
-  cafes_bakeries: 'cafes_bakeries', cafes: 'cafes_bakeries', bakeries: 'cafes_bakeries',
-  hotels_luxury: 'hotels_luxury', hotels: 'hotels_luxury', luxury: 'hotels_luxury', stays: 'hotels_luxury',
-  vacation_escapes: 'vacation_escapes', vacation: 'vacation_escapes', escapes: 'vacation_escapes',
-};
+/** The 17 RADA spot categories (ids). Matching uses `category` AND `extra_categories`. */
+export const RADA_CATEGORIES = SPOT_CATEGORIES.map(c => c.id);
+export type RadaCategory = string;
+export const toCanonicalCategory = resolveSpotCategory;
+export { isAllKey, spotInCategory, getSpotCategoryIds, categoryLabelOf };
 
-export function toCanonicalCategory(raw?: string | null): RadaCategory | null {
-  return ALIASES[(raw || '').toLowerCase().trim()] ?? null;
-}
-
-/** True when the key means "no filter / everything" (used by View All for the trending list). */
-export function isAllKey(key?: string | null): boolean {
-  const k = (key || '').toLowerCase().trim();
-  return !k || k === 'all' || k === 'spots' || k === 'trending';
-}
-
-/** Strict category match: the spot's own category must resolve to the requested RADA category. */
-export function spotInCategory(spot: { category?: string | null }, key?: string | null): boolean {
-  if (isAllKey(key)) return true;
-  const want = toCanonicalCategory(key);
-  if (!want) return false;
-  return toCanonicalCategory(spot.category) === want;
+/**
+ * Server-side fetch of one category, including spots that only list it in extra_categories.
+ * `label` must be the exact DB string, e.g. 'Hotels & Stays'. Pass any category id/label and it is resolved.
+ */
+export async function fetchSpotsByCategory(categoryKey: string, table = 'unclaimedspots'): Promise<any[]> {
+  if (!supabase || !isSupabaseConfigured) return [];
+  const label = categoryLabelOf(categoryKey);
+  if (!label) return [];
+  const { data, error } = await supabase
+    .from(table)
+    .select('*')
+    .or(`category.eq.${label},extra_categories.cs.{"${label}"}`);
+  if (error) { console.warn('fetchSpotsByCategory error:', error.message); return []; }
+  return table === 'unclaimedspots' ? (data || []).map(unclaimedRowToSpot) : (data || []);
 }
 
 /** Maps a Google-style label from `unclaimedspots.category` to a RADA category. Label first, name only as fallback. */
@@ -142,7 +123,7 @@ export function enrichSpotDetails(category: string, title: string = '', raw: any
 
   // 2. Real Google category label (e.g. "Hiking area", "Night club", "Bar & grill").
   const label = String(raw.categoryName || raw.category || '').trim();
-  const isFood = /restaurants|cafes|date_spots|clubs/.test(c) || ['restaurants', 'cafes', 'nightlife'].includes(c);
+  const isFood = /restaurants|cafes|date.spots|clubs|bars|nyama|fast food|desserts|rooftops|garden/.test(c) || ['restaurants', 'cafes', 'nightlife'].includes(c);
   if (label) {
     if (isFood) base.diningTypes = label;
     else base.activityType = label;
@@ -173,23 +154,45 @@ export function enrichSpotDetails(category: string, title: string = '', raw: any
   return base;
 }
 
+/** DB category (already one of the 17 labels) -> exact label; legacy/Google labels are inferred. */
+function resolveRowCategory(rawCategory?: string | null, name?: string | null): string {
+  return (
+    categoryLabelOf(rawCategory) ||
+    categoryLabelOf(mapUnclaimedCategory(rawCategory, name)) ||
+    'Hangouts & Leisure'
+  );
+}
+
 export function unclaimedRowToSpot(r: any) {
   const gallery = Array.isArray(r.gallery) ? r.gallery.filter((g: any) => typeof g === 'string' && g) : [];
   const cover = r.thumbnail || gallery[0] || '';
   const img = cover || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop';
-  const category = mapUnclaimedCategory(r.category, r.name);
+  const category = resolveRowCategory(r.category, r.name);
+  const extraCategories = parseExtraCategories(r.extra_categories)
+    .map(c => categoryLabelOf(c))
+    .filter((c): c is string => !!c && c !== category);
   const extraDetails = enrichSpotDetails(category, r.name, r);
+
+  const lat = Number(r.latitude ?? r.lat);
+  const lng = Number(r.longitude ?? r.lng);
+  const hasCoords = Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0);
+  const ratingNum = Number(r.rating ?? r.total_score ?? r.totalScore ?? r.score);
 
   return {
     id: `unclaimed-${r.id}`,
     title: r.name || 'Untitled Spot',
     category,
+    extra_categories: extraCategories,
     subcategory: r.category || undefined,
     neighborhood: neighborhoodFromAddress(r.address),
     address: r.address || '',
     description: r.description || r.category || '',
-    lat: r.latitude ?? -1.2921,
-    lng: r.longitude ?? 36.8219,
+    lat: hasCoords ? lat : -1.2921,
+    lng: hasCoords ? lng : 36.8219,
+    hasCoords,
+    rating: isFinite(ratingNum) && ratingNum > 0 ? String(ratingNum) : undefined,
+    reviewsCount: Number(r.reviews_count ?? r.reviewsCount ?? 0) || undefined,
+    verified: Boolean(r.verified ?? r.is_verified),
     price: undefined,
     img,
     images: gallery.length ? gallery : [img],
@@ -249,7 +252,7 @@ export async function loadUnclaimedSpots(force = false): Promise<any[]> {
           const rawPlaces = (scrapedMod.default || scrapedMod) as any[];
           if (Array.isArray(rawPlaces) && rawPlaces.length > 0) {
             cache = rawPlaces.map((p, idx) => {
-              const category = mapUnclaimedCategory(p.categoryName || (p.categories && p.categories[0]), p.title);
+              const category = resolveRowCategory(mapUnclaimedCategory(p.categoryName || (p.categories && p.categories[0]), p.title), p.title);
               const extraDetails = enrichSpotDetails(category, p.title, p);
               const lat = p.location?.lat ?? -1.2921;
               const lng = p.location?.lng ?? 36.8219;
@@ -333,7 +336,7 @@ export function mergeSpots(local: any[], unclaimed: any[]): any[] {
   return [...local, ...extra];
 }
 
-/** Trending order: spots with real photos first, newest first within each group. */
-export function sortTrending<T extends { hasRealPhoto?: boolean }>(list: T[]): T[] {
-  return [...list].sort((a, b) => Number(Boolean(b.hasRealPhoto)) - Number(Boolean(a.hasRealPhoto)));
+/** Trending order: premium first (rating, reviews, real photos, verification). Stable for ties. */
+export function sortTrending<T>(list: T[]): T[] {
+  return sortPremium(list);
 }
