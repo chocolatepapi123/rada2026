@@ -51,7 +51,8 @@ import {
   ShieldCheck,
   ShieldAlert,
   AlertTriangle,
-  MoreVertical
+  MoreVertical,
+  ChevronDown
 } from 'lucide-react';
 import { EventItem, CinemaMovie, StatusPost, UserProfile, BusinessOffer, OfferCategory, SpotItem, SavedItem, BusinessAccount, isOfficialAdmin } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
@@ -510,6 +511,29 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   const [statusText, setStatusText] = useState('');
   const [statusMediaUrl, setStatusMediaUrl] = useState<string | null>(null);
   const [statusLocation, setStatusLocation] = useState('Westlands');
+  const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
+  const [customLocationInput, setCustomLocationInput] = useState('');
+
+  // Daytime arrangement: 7:00 AM to 8:00 PM (7 <= hour < 20)
+  const isDayTime = useMemo(() => {
+    const hr = new Date().getHours();
+    return hr >= 7 && hr < 20;
+  }, []);
+
+  const nairobiStatusLocations = useMemo(() => [
+    'Westlands',
+    'Kilimani',
+    'Karen',
+    'Nairobi CBD',
+    'Lavington',
+    'Kileleshwa',
+    'Parklands',
+    'Gigiri',
+    'Ngong Road',
+    'Ruaka',
+    'Thika Road',
+    'Langata'
+  ], []);
 
   // Active status replies drawer
   const [activeReplyStatusId, setActiveReplyStatusId] = useState<string | null>(null);
@@ -1882,425 +1906,439 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       )}
 
       {/* ========================================================
-          4B. NATURE TRAILS AND OUTDOOR
-          (Hiking, nature trails, waterfalls, mountains, and outdoor groups)
+          4B & 4C & 4D. DAY/NIGHT DYNAMIC CATEGORIES
+          Daytime (7am-8pm): Action & sports, Nature trails and outdoors, Tech & gaming, Creative & leisure
+          Nighttime (8pm-7am): Nature trails and outdoors, Action & sports, Tech & gaming, Creative & leisure
           ======================================================== */}
-      {(selectedHomeSection === 'all' || selectedHomeSection === 'spots') && natureSpots.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-xs">
-                <Trees className="w-3.5 h-3.5" />
-              </div>
-              <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
-                Nature trails and outdoor
-              </h2>
-            </div>
-            <button
-              onClick={() => onOpenDedicatedViewAll('Nature trails and outdoor', 'nature')}
-              className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
-            >
-              View All ({natureSpots.length})
-            </button>
-          </div>
-
-          <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-            {natureSpots.map((spot) => {
-              const saved = isSaved(spot.id, 'spot');
-              return (
-                <div
-                  key={spot.id}
-                  onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
-                  className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-[#2D6A4F] transition group"
+      {(() => {
+        const renderNatureTrails = () => (
+          (selectedHomeSection === 'all' || selectedHomeSection === 'spots') && natureSpots.length > 0 && (
+            <div key="nature-section" className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-xs">
+                    <Trees className="w-3.5 h-3.5" />
+                  </div>
+                  <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
+                    Nature trails and outdoor
+                  </h2>
+                </div>
+                <button
+                  onClick={() => onOpenDedicatedViewAll('Nature trails and outdoor', 'nature')}
+                  className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
                 >
-                  <div>
-                    <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
-                      <div
-                        className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-all duration-300"
-                        style={{ backgroundImage: `url('${spot.img}')` }}
-                      />
-                      <span className="absolute top-2.5 left-2.5 bg-black/70 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
-                        <Trees className="w-2.5 h-2.5 text-emerald-400" />
-                        <span>Nature & Trails</span>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onToggleSave?.(spot, 'spot');
-                        }}
-                        className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs z-10 ${
-                          saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
-                        }`}
-                        title={saved ? 'Remove from saved' : 'Save experience'}
-                      >
-                        <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
-                      </button>
-                      <span className="absolute bottom-2.5 right-2.5 bg-black/75 text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
-                        {budgetBadge(resolveSpotBudget(spot)) || spot.price}
-                      </span>
-                    </div>
+                  View All ({natureSpots.length})
+                </button>
+              </div>
 
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-emerald-600 transition">
-                          {spot.title}
-                        </h4>
-                        <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
-                          <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
-                          <span>{spot.rating}</span>
+              <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+                {natureSpots.map((spot) => {
+                  const saved = isSaved(spot.id, 'spot');
+                  return (
+                    <div
+                      key={spot.id}
+                      onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
+                      className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-[#2D6A4F] transition group"
+                    >
+                      <div>
+                        <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
+                          <div
+                            className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-all duration-300"
+                            style={{ backgroundImage: `url('${spot.img}')` }}
+                          />
+                          <span className="absolute top-2.5 left-2.5 bg-black/70 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
+                            <Trees className="w-2.5 h-2.5 text-emerald-400" />
+                            <span>Nature & Trails</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onToggleSave?.(spot, 'spot');
+                            }}
+                            className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs z-10 ${
+                              saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
+                            }`}
+                            title={saved ? 'Remove from saved' : 'Save experience'}
+                          >
+                            <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
+                          </button>
+                          <span className="absolute bottom-2.5 right-2.5 bg-black/75 text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
+                            {budgetBadge(resolveSpotBudget(spot)) || spot.price}
+                          </span>
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-emerald-600 transition">
+                              {spot.title}
+                            </h4>
+                            <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
+                              <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
+                              <span>{spot.rating}</span>
+                            </div>
+                          </div>
+
+                          <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
+                            <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
+                            <span className="truncate">{spot.address || spot.neighborhood}</span>
+                          </p>
+
+                          <p className="text-[11px] text-[#475569] dark:text-slate-300 line-clamp-2 mt-1 leading-relaxed">
+                            {spot.description}
+                          </p>
                         </div>
                       </div>
 
-                      <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
-                        <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
-                        <span className="truncate">{spot.address || spot.neighborhood}</span>
-                      </p>
-
-                      <p className="text-[11px] text-[#475569] dark:text-slate-300 line-clamp-2 mt-1 leading-relaxed">
-                        {spot.description}
-                      </p>
+                      <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
+                          {getDisplayHours(spot.openingHours, 'Open Daily')}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenSpotDetails && onOpenSpotDetails(spot);
+                          }}
+                          className="px-3 py-1.5 bg-[#2D6A4F] hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
+                        >
+                          <span>Explore</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
-                      {getDisplayHours(spot.openingHours, 'Open Daily')}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenSpotDetails && onOpenSpotDetails(spot);
-                      }}
-                      className="px-3 py-1.5 bg-[#2D6A4F] hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
-                    >
-                      <span>Explore</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================
-          4D. ACTION & SPORTS CATEGORY
-          (Go-karting, bowling, paintball, tactical sports)
-          ======================================================== */}
-      {(selectedHomeSection === 'all' || selectedHomeSection === 'spots') && actionSportsSpots.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center shadow-xs">
-                <Flame className="w-3.5 h-3.5" />
+                  );
+                })}
               </div>
-              <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
-                Action and sports
-              </h2>
             </div>
-            <button
-              onClick={() => onOpenDedicatedViewAll('Action and sports', 'action_sports')}
-              className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
-            >
-              View All ({actionSportsSpots.length})
-            </button>
-          </div>
+          )
+        );
 
-          <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-            {actionSportsSpots.map((spot) => {
-              const saved = isSaved(spot.id, 'spot');
-              return (
-                <div
-                  key={spot.id}
-                  onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
-                  className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-orange-500 transition group"
+        const renderActionSports = () => (
+          (selectedHomeSection === 'all' || selectedHomeSection === 'spots') && actionSportsSpots.length > 0 && (
+            <div key="action-sports-section" className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center shadow-xs">
+                    <Flame className="w-3.5 h-3.5" />
+                  </div>
+                  <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
+                    Action and sports
+                  </h2>
+                </div>
+                <button
+                  onClick={() => onOpenDedicatedViewAll('Action and sports', 'action_sports')}
+                  className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
                 >
-                  <div>
-                    <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
-                      <div
-                        className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-all duration-300"
-                        style={{ backgroundImage: `url('${spot.img}')` }}
-                      />
-                      <span className="absolute top-2.5 left-2.5 bg-black/70 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
-                        <Flame className="w-2.5 h-2.5 text-orange-400" />
-                        <span>Action & Adrenaline</span>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onToggleSave?.(spot, 'spot');
-                        }}
-                        className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs z-10 ${
-                          saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
-                        }`}
-                        title={saved ? 'Remove from saved' : 'Save experience'}
-                      >
-                        <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
-                      </button>
-                      <span className="absolute bottom-2.5 right-2.5 bg-black/75 text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
-                        {budgetBadge(resolveSpotBudget(spot)) || spot.price}
-                      </span>
-                    </div>
+                  View All ({actionSportsSpots.length})
+                </button>
+              </div>
 
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-orange-600 transition">
-                          {spot.title}
-                        </h4>
-                        <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
-                          <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
-                          <span>{spot.rating}</span>
+              <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+                {actionSportsSpots.map((spot) => {
+                  const saved = isSaved(spot.id, 'spot');
+                  return (
+                    <div
+                      key={spot.id}
+                      onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
+                      className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-orange-500 transition group"
+                    >
+                      <div>
+                        <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
+                          <div
+                            className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-all duration-300"
+                            style={{ backgroundImage: `url('${spot.img}')` }}
+                          />
+                          <span className="absolute top-2.5 left-2.5 bg-black/70 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
+                            <Flame className="w-2.5 h-2.5 text-orange-400" />
+                            <span>Action & Adrenaline</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onToggleSave?.(spot, 'spot');
+                            }}
+                            className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs z-10 ${
+                              saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
+                            }`}
+                            title={saved ? 'Remove from saved' : 'Save experience'}
+                          >
+                            <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
+                          </button>
+                          <span className="absolute bottom-2.5 right-2.5 bg-black/75 text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
+                            {budgetBadge(resolveSpotBudget(spot)) || spot.price}
+                          </span>
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-orange-600 transition">
+                              {spot.title}
+                            </h4>
+                            <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
+                              <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
+                              <span>{spot.rating}</span>
+                            </div>
+                          </div>
+
+                          <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
+                            <MapPin className="w-3 h-3 text-orange-500 shrink-0" />
+                            <span className="truncate">{spot.address || spot.neighborhood}</span>
+                          </p>
+
+                          <p className="text-[11px] text-[#475569] dark:text-slate-300 line-clamp-2 mt-1 leading-relaxed font-medium">
+                            {spot.description}
+                          </p>
                         </div>
                       </div>
 
-                      <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
-                        <MapPin className="w-3 h-3 text-orange-500 shrink-0" />
-                        <span className="truncate">{spot.address || spot.neighborhood}</span>
-                      </p>
-
-                      <p className="text-[11px] text-[#475569] dark:text-slate-300 line-clamp-2 mt-1 leading-relaxed font-medium">
-                        {spot.description}
-                      </p>
+                      <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                        <span className="text-[10px] text-orange-600 dark:text-orange-400 font-bold">
+                          {getDisplayHours(spot.openingHours, 'Open Daily')}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenSpotDetails && onOpenSpotDetails(spot);
+                          }}
+                          className="px-3 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
+                        >
+                          <span>Action</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <span className="text-[10px] text-orange-600 dark:text-orange-400 font-bold">
-                      {getDisplayHours(spot.openingHours, 'Open Daily')}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenSpotDetails && onOpenSpotDetails(spot);
-                      }}
-                      className="px-3 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
-                    >
-                      <span>Action</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-
-      {/* ========================================================
-          4C. TECH & GAMING CATEGORY
-          (VR arcades, gaming lounges, tech entertainment)
-          ======================================================== */}
-      {(selectedHomeSection === 'all' || selectedHomeSection === 'spots') && techGamingSpots.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shadow-xs">
-                <Gamepad2 className="w-3.5 h-3.5" />
+                  );
+                })}
               </div>
-              <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
-                Tech and gaming
-              </h2>
             </div>
-            <button
-              onClick={() => onOpenDedicatedViewAll('Tech and gaming', 'tech_gaming')}
-              className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
-            >
-              View All ({techGamingSpots.length})
-            </button>
-          </div>
+          )
+        );
 
-          <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-            {techGamingSpots.map((spot) => {
-              const saved = isSaved(spot.id, 'spot');
-              return (
-                <div
-                  key={spot.id}
-                  onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
-                  className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-cyan-500 transition group"
+        const renderTechGaming = () => (
+          (selectedHomeSection === 'all' || selectedHomeSection === 'spots') && techGamingSpots.length > 0 && (
+            <div key="tech-gaming-section" className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shadow-xs">
+                    <Gamepad2 className="w-3.5 h-3.5" />
+                  </div>
+                  <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
+                    Tech and gaming
+                  </h2>
+                </div>
+                <button
+                  onClick={() => onOpenDedicatedViewAll('Tech and gaming', 'tech_gaming')}
+                  className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
                 >
-                  <div>
-                    <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
-                      <div
-                        className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-all duration-300"
-                        style={{ backgroundImage: `url('${spot.img}')` }}
-                      />
-                      <span className="absolute top-2.5 left-2.5 bg-black/70 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
-                        <Gamepad2 className="w-2.5 h-2.5 text-cyan-400" />
-                        <span>Tech & VR</span>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onToggleSave?.(spot, 'spot');
-                        }}
-                        className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs z-10 ${
-                          saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
-                        }`}
-                        title={saved ? 'Remove from saved' : 'Save experience'}
-                      >
-                        <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
-                      </button>
-                      <span className="absolute bottom-2.5 right-2.5 bg-black/75 text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
-                        {budgetBadge(resolveSpotBudget(spot)) || spot.price}
-                      </span>
-                    </div>
+                  View All ({techGamingSpots.length})
+                </button>
+              </div>
 
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-cyan-600 transition">
-                          {spot.title}
-                        </h4>
-                        <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
-                          <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
-                          <span>{spot.rating}</span>
+              <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+                {techGamingSpots.map((spot) => {
+                  const saved = isSaved(spot.id, 'spot');
+                  return (
+                    <div
+                      key={spot.id}
+                      onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
+                      className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-cyan-500 transition group"
+                    >
+                      <div>
+                        <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
+                          <div
+                            className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-all duration-300"
+                            style={{ backgroundImage: `url('${spot.img}')` }}
+                          />
+                          <span className="absolute top-2.5 left-2.5 bg-black/70 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
+                            <Gamepad2 className="w-2.5 h-2.5 text-cyan-400" />
+                            <span>Tech & VR</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onToggleSave?.(spot, 'spot');
+                            }}
+                            className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs z-10 ${
+                              saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
+                            }`}
+                            title={saved ? 'Remove from saved' : 'Save experience'}
+                          >
+                            <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
+                          </button>
+                          <span className="absolute bottom-2.5 right-2.5 bg-black/75 text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
+                            {budgetBadge(resolveSpotBudget(spot)) || spot.price}
+                          </span>
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-cyan-600 transition">
+                              {spot.title}
+                            </h4>
+                            <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
+                              <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
+                              <span>{spot.rating}</span>
+                            </div>
+                          </div>
+
+                          <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
+                            <MapPin className="w-3 h-3 text-cyan-500 shrink-0" />
+                            <span className="truncate">{spot.address || spot.neighborhood}</span>
+                          </p>
+
+                          <p className="text-[11px] text-[#475569] dark:text-slate-300 line-clamp-2 mt-1 leading-relaxed font-medium">
+                            {spot.description}
+                          </p>
                         </div>
                       </div>
 
-                      <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
-                        <MapPin className="w-3 h-3 text-cyan-500 shrink-0" />
-                        <span className="truncate">{spot.address || spot.neighborhood}</span>
-                      </p>
-
-                      <p className="text-[11px] text-[#475569] dark:text-slate-300 line-clamp-2 mt-1 leading-relaxed font-medium">
-                        {spot.description}
-                      </p>
+                      <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                        <span className="text-[10px] text-cyan-600 dark:text-cyan-400 font-bold">
+                          {getDisplayHours(spot.openingHours, 'Open Daily')}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenSpotDetails && onOpenSpotDetails(spot);
+                          }}
+                          className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
+                        >
+                          <span>Play</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <span className="text-[10px] text-cyan-600 dark:text-cyan-400 font-bold">
-                      {getDisplayHours(spot.openingHours, 'Open Daily')}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenSpotDetails && onOpenSpotDetails(spot);
-                      }}
-                      className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
-                    >
-                      <span>Play</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================
-          4B. CREATIVE & LEISURE CATEGORY
-          (Paint & sip, crafting, pottery, social craft workshops)
-          ======================================================== */}
-      {(selectedHomeSection === 'all' || selectedHomeSection === 'spots') && creativeSpots.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shadow-xs">
-                <Palette className="w-3.5 h-3.5" />
+                  );
+                })}
               </div>
-              <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
-                Creative and leisure
-              </h2>
             </div>
-            <button
-              onClick={() => onOpenDedicatedViewAll('Creative and leisure', 'creative_leisure')}
-              className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
-            >
-              View All ({creativeSpots.length})
-            </button>
-          </div>
+          )
+        );
 
-          <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-            {creativeSpots.map((spot) => {
-              const saved = isSaved(spot.id, 'spot');
-              return (
-                <div
-                  key={spot.id}
-                  onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
-                  className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-purple-500 transition group"
+        const renderCreativeLeisure = () => (
+          (selectedHomeSection === 'all' || selectedHomeSection === 'spots') && creativeSpots.length > 0 && (
+            <div key="creative-leisure-section" className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shadow-xs">
+                    <Palette className="w-3.5 h-3.5" />
+                  </div>
+                  <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
+                    Creative and leisure
+                  </h2>
+                </div>
+                <button
+                  onClick={() => onOpenDedicatedViewAll('Creative and leisure', 'creative_leisure')}
+                  className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
                 >
-                  <div>
-                    <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
-                      <div
-                        className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-all duration-300"
-                        style={{ backgroundImage: `url('${spot.img}')` }}
-                      />
-                      <span className="absolute top-2.5 left-2.5 bg-black/70 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
-                        <Palette className="w-2.5 h-2.5 text-purple-400" />
-                        <span>Creative</span>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onToggleSave?.(spot, 'spot');
-                        }}
-                        className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs z-10 ${
-                          saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
-                        }`}
-                        title={saved ? 'Remove from saved' : 'Save experience'}
-                      >
-                        <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
-                      </button>
-                      <span className="absolute bottom-2.5 right-2.5 bg-black/75 text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
-                        {budgetBadge(resolveSpotBudget(spot)) || spot.price}
-                      </span>
-                    </div>
+                  View All ({creativeSpots.length})
+                </button>
+              </div>
 
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-purple-600 transition">
-                          {spot.title}
-                        </h4>
-                        <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
-                          <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
-                          <span>{spot.rating}</span>
+              <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+                {creativeSpots.map((spot) => {
+                  const saved = isSaved(spot.id, 'spot');
+                  return (
+                    <div
+                      key={spot.id}
+                      onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
+                      className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-purple-500 transition group"
+                    >
+                      <div>
+                        <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
+                          <div
+                            className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-all duration-300"
+                            style={{ backgroundImage: `url('${spot.img}')` }}
+                          />
+                          <span className="absolute top-2.5 left-2.5 bg-black/70 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
+                            <Palette className="w-2.5 h-2.5 text-purple-400" />
+                            <span>Creative</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onToggleSave?.(spot, 'spot');
+                            }}
+                            className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs z-10 ${
+                              saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
+                            }`}
+                            title={saved ? 'Remove from saved' : 'Save experience'}
+                          >
+                            <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
+                          </button>
+                          <span className="absolute bottom-2.5 right-2.5 bg-black/75 text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
+                            {budgetBadge(resolveSpotBudget(spot)) || spot.price}
+                          </span>
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-purple-600 transition">
+                              {spot.title}
+                            </h4>
+                            <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
+                              <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
+                              <span>{spot.rating}</span>
+                            </div>
+                          </div>
+
+                          <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
+                            <MapPin className="w-3 h-3 text-purple-500 shrink-0" />
+                            <span className="truncate">{spot.address || spot.neighborhood}</span>
+                          </p>
+
+                          <p className="text-[11px] text-[#475569] dark:text-slate-300 line-clamp-2 mt-1 leading-relaxed font-medium">
+                            {spot.description}
+                          </p>
                         </div>
                       </div>
 
-                      <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
-                        <MapPin className="w-3 h-3 text-purple-500 shrink-0" />
-                        <span className="truncate">{spot.address || spot.neighborhood}</span>
-                      </p>
-
-                      <p className="text-[11px] text-[#475569] dark:text-slate-300 line-clamp-2 mt-1 leading-relaxed font-medium">
-                        {spot.description}
-                      </p>
+                      <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                        <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold">
+                          {getDisplayHours(spot.openingHours, 'Open Weekend')}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenSpotDetails && onOpenSpotDetails(spot);
+                          }}
+                          className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
+                        >
+                          <span>Details</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  );
+                })}
+              </div>
+            </div>
+          )
+        );
 
-                  <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold">
-                      {getDisplayHours(spot.openingHours, 'Open Weekend')}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenSpotDetails && onOpenSpotDetails(spot);
-                      }}
-                      className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
-                    >
-                      <span>Details</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+        return isDayTime ? (
+          <>
+            {renderActionSports()}
+            {renderNatureTrails()}
+            {renderTechGaming()}
+            {renderCreativeLeisure()}
+          </>
+        ) : (
+          <>
+            {renderNatureTrails()}
+            {renderActionSports()}
+            {renderTechGaming()}
+            {renderCreativeLeisure()}
+          </>
+        );
+      })()}
 
       {/* ========================================================
           5. LIVE COMMUNITY STATUS FEED - "Where Are You At?" (Last bottom)
@@ -2321,7 +2359,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           {/* Post Creation Box */}
           <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3.5 shadow-sm space-y-3">
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] text-white flex items-center justify-center font-black text-xs shrink-0">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
                 W
               </div>
               <textarea
@@ -2333,9 +2371,27 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               />
             </div>
 
+            {/* Quick Emoji Vibe Bar */}
+            <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar py-0.5">
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 shrink-0 select-none">
+                Vibe:
+              </span>
+              {['🔥', '🎉', '🍹', '🎶', '🍻', '⚡', '✨', '🕺'].map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => setStatusText(prev => prev + emoji)}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-orange-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-sm transition-all hover:scale-110 active:scale-95 shrink-0 cursor-pointer"
+                  title={`Add ${emoji}`}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+
             {myStatusId && (
               <p className="text-[10px] text-slate-500 font-medium">
-                You already have a live status. Broadcasting again replaces it. Statuses disappear after 12 hours.
+                You already have a live status. Posting again replaces it. Statuses disappear after 12 hours.
               </p>
             )}
 
@@ -2351,9 +2407,9 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               </div>
             )}
 
-            <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800/80">
-              <div className="flex items-center gap-1.5">
-                <label className="cursor-pointer p-1.5 text-slate-500 hover:text-[#E0533C] transition" title="Attach Photo">
+            <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800/80 gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <label className="cursor-pointer p-1.5 text-slate-500 hover:text-[#E0533C] transition rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0" title="Attach Photo">
                   <Camera className="w-4 h-4" />
                   <input type="file" accept="image/*" className="hidden" onChange={handleMediaUpload} />
                 </label>
@@ -2361,24 +2417,107 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowStatusEmojiPicker(!showStatusEmojiPicker)}
-                  className={`p-1.5 rounded-lg transition cursor-pointer ${
-                    showStatusEmojiPicker ? 'text-[#E0533C] bg-orange-50 dark:bg-orange-950/40' : 'text-slate-500 hover:text-[#E0533C]'
+                  className={`p-1.5 rounded-lg transition cursor-pointer shrink-0 ${
+                    showStatusEmojiPicker ? 'text-[#E0533C] bg-orange-50 dark:bg-orange-950/40' : 'text-slate-500 hover:text-[#E0533C] hover:bg-slate-100 dark:hover:bg-slate-800'
                   }`}
                   title="Pick Emoji"
                 >
                   <Smile className="w-4 h-4" />
                 </button>
 
-                <span className="text-[10px] text-slate-500 font-medium truncate max-w-[150px]">
-                  📍 {statusLocation}
-                </span>
+                {/* Interactive Location Picker Button with Popover */}
+                <div className="relative min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setIsLocationPickerOpen(!isLocationPickerOpen)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-bold transition cursor-pointer border border-slate-200 dark:border-slate-700 shrink-0 max-w-[130px] sm:max-w-[170px]"
+                    title="Change location"
+                  >
+                    <MapPin className="w-3 h-3 text-[#E0533C] shrink-0" />
+                    <span className="truncate">{statusLocation}</span>
+                    <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
+                  </button>
+
+                  {isLocationPickerOpen && (
+                    <div className="absolute bottom-full left-0 mb-2 w-72 max-w-[85vw] bg-white dark:bg-[#1A181C] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 shadow-2xl z-50 space-y-2.5 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                        <span className="text-xs font-black text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                          <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
+                          <span>Where are you at?</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setIsLocationPickerOpen(false)}
+                          className="w-5 h-5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 text-xs cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      {/* Nairobi Neighborhoods Grid */}
+                      <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
+                        {nairobiStatusLocations.map((loc) => (
+                          <button
+                            key={loc}
+                            type="button"
+                            onClick={() => {
+                              setStatusLocation(loc);
+                              setIsLocationPickerOpen(false);
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition cursor-pointer flex items-center gap-1 ${
+                              statusLocation === loc
+                                ? 'bg-[#E0533C] text-white shadow-xs'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-orange-50 dark:hover:bg-slate-700'
+                            }`}
+                          >
+                            {statusLocation === loc && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                            <span>{loc}</span>
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Custom Area / Spot Name Input */}
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex gap-1.5">
+                        <input
+                          type="text"
+                          placeholder="Or type custom spot..."
+                          value={customLocationInput}
+                          onChange={(e) => setCustomLocationInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && customLocationInput.trim()) {
+                              e.preventDefault();
+                              setStatusLocation(customLocationInput.trim());
+                              setCustomLocationInput('');
+                              setIsLocationPickerOpen(false);
+                            }
+                          }}
+                          className="flex-1 px-2.5 py-1 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#E0533C]"
+                        />
+                        <button
+                          type="button"
+                          disabled={!customLocationInput.trim()}
+                          onClick={() => {
+                            if (customLocationInput.trim()) {
+                              setStatusLocation(customLocationInput.trim());
+                              setCustomLocationInput('');
+                              setIsLocationPickerOpen(false);
+                            }
+                          }}
+                          className="px-3 py-1 bg-[#E0533C] disabled:opacity-40 text-white text-xs font-bold rounded-lg cursor-pointer"
+                        >
+                          Set
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <button
                 onClick={handlePublishStatus}
-                className="px-4 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center gap-1.5 cursor-pointer shrink-0"
               >
-                <span>Broadcast</span>
+                <span>Post</span>
                 <Send className="w-3 h-3" />
               </button>
             </div>

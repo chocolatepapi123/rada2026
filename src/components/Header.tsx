@@ -103,24 +103,24 @@ export const Header: React.FC<HeaderProps> = ({
   }, [currentLocation]);
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 dark:bg-[#121113]/95 border-b border-slate-200 dark:border-slate-800 shadow-xs transition-colors duration-200">
-      <div className="max-w-lg mx-auto w-full px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-2 flex-nowrap">
+    <header className="sticky top-0 z-40 bg-white dark:bg-[#121113] border-b border-slate-200 dark:border-slate-800 shadow-xs transition-colors duration-200">
+      <div className="max-w-lg mx-auto w-full px-3.5 sm:px-4 py-3 sm:py-3.5 min-h-[60px] sm:min-h-[64px] flex items-center justify-between gap-2.5 flex-nowrap">
         {/* Left Side: Brand Logo & Truncated Location Pill */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 shrink">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink">
           <button 
             type="button"
             onClick={() => onSwitchTab('home')} 
-            className="flex items-center gap-1.5 cursor-pointer hover:opacity-90 active:scale-95 transition-all focus:outline-none shrink-0"
+            className="flex items-center gap-2 cursor-pointer hover:opacity-90 active:scale-95 transition-all focus:outline-none shrink-0"
             title="RADA Home"
           >
-            <div className="w-7 h-7 rounded-lg bg-[#E0533C] text-white flex items-center justify-center shadow-xs shrink-0">
-              <svg viewBox="0 0 100 130" className="w-4.5 h-4.5 fill-none stroke-white" strokeLinejoin="round">
+            <div className="w-8 h-8 rounded-xl bg-[#E0533C] text-white flex items-center justify-center shadow-xs shrink-0">
+              <svg viewBox="0 0 100 130" className="w-5 h-5 fill-none stroke-white" strokeLinejoin="round">
                 <path d="M50 6 C26 6 10 26 10 50 C10 76 45 116 48.5 120 C49.3 121 50.7 121 51.5 120 C55 116 90 76 90 50 C90 26 74 6 50 6 Z" strokeWidth="8" />
                 <path d="M22 35 C15 45 16 58 25 74 C34 90 46 106 50 112" strokeWidth="6" strokeLinecap="round" />
                 <circle cx="50" cy="48" r="17" strokeWidth="8" />
               </svg>
             </div>
-            <span className="text-xl sm:text-2xl font-black tracking-tighter text-[#E0533C] shrink-0">
+            <span className="text-2xl sm:text-2xl font-black tracking-tight text-[#E0533C] shrink-0 leading-none">
               RADA
             </span>
           </button>
@@ -128,11 +128,11 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Dynamic Detected Current Location: ONLY single locality name, hidden if unavailable or null */}
           {singleLocality && (
             <div 
-              className="min-w-0 shrink text-xs bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 font-semibold px-2 sm:px-2.5 py-1 rounded-full flex items-center gap-1 sm:gap-1.5 border border-slate-200 dark:border-slate-800 select-none max-w-[42vw] sm:max-w-[220px] cursor-default shadow-2xs overflow-hidden"
+              className="min-w-0 shrink bg-slate-100 dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-200 font-bold px-2.5 sm:px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-slate-200 dark:border-slate-800 select-none max-w-[48vw] sm:max-w-[240px] cursor-default shadow-2xs overflow-hidden"
               title={`Location: ${singleLocality}`}
             >
-              <MapPin className="w-3.5 h-3.5 shrink-0 text-[#E05328]" />
-              <span className="whitespace-nowrap truncate text-[11px] font-bold min-w-0">{singleLocality}</span>
+              <MapPin className="w-3.5 h-3.5 shrink-0 text-[#E0533C]" />
+              <span className="whitespace-nowrap truncate text-xs font-bold leading-normal min-w-0">{singleLocality}</span>
             </div>
           )}
         </div>
@@ -145,7 +145,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={onOpenAuth}
-                className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 flex items-center justify-center rounded-full bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-amber-500/40 dark:border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-white dark:hover:bg-amber-500 dark:hover:text-white active:scale-95 transition-all shadow-xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 flex items-center justify-center rounded-full bg-slate-100 dark:bg-[#1C1A1E] border border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-white dark:hover:bg-amber-500 dark:hover:text-white active:scale-95 transition-all shadow-xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500/30"
                 aria-label="Sign In"
                 title="Sign In"
               >
@@ -165,10 +165,10 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={() => setMenuOpen(!menuOpen)}
-              className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 flex items-center justify-center rounded-full bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-slate-700 dark:text-slate-200 focus:outline-none"
+              className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 flex items-center justify-center rounded-full bg-slate-100 dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
               aria-label="More options"
             >
-              <MoreVertical className="w-4 h-4 sm:w-5 sm:h-5" />
+              <MoreVertical className="w-4.5 h-4.5" />
             </button>
 
             {menuOpen && (
