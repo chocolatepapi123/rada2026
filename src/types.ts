@@ -160,7 +160,8 @@ export type SpotCategory =
   | 'outdoor_fitness'
   | 'creative_arts'
   | 'spa_wellness'
-  | 'event_space';
+  | 'event_space'
+  | (string & {}); // the 17 DB labels, e.g. 'Hotels & Stays'
 
 export interface ActivityItem {
   id: string;
@@ -175,6 +176,14 @@ export interface SpotItem {
   id: number;
   title: string;
   category: SpotCategory;
+  /** Additional categories the spot also belongs to (Supabase `extra_categories`). */
+  extra_categories?: string[];
+  /** Set by rankSpots(): premium score and (with Near You) distance in km. */
+  premiumScore?: number;
+  distanceKm?: number;
+  /** false when lat/lng are a city-centre fallback rather than real coordinates. */
+  hasCoords?: boolean;
+  verified?: boolean;
   subcategory?: string;
   neighborhood: string;
   exactLocationTag?: string;
