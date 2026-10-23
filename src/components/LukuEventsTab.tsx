@@ -477,7 +477,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
                   <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-xs gap-2">
                     <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
                       <Users className="w-3.5 h-3.5 text-slate-500" />
-                      <span>{event.goingCount > 0 ? `${event.goingCount} going` : (event.source ? `via ${getSourceLabel(event.source)}` : 'Be the first to go')}</span>
+                      <span>{event.goingCount > 0 ? `${event.goingCount} going` : (getSourceLabel(event.source) ? `via ${getSourceLabel(event.source)}` : 'Be the first to go')}</span>
                     </span>
 
                     <div className="flex items-center gap-1.5">

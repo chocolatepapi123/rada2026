@@ -35,7 +35,7 @@ export const EventsExplorer: React.FC<EventsExplorerProps> = ({
   const [category, setCategory] = useState<string>(initialCategory);
   const [price, setPrice] = useState<string>('all');
   const [date, setDate] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<EventSort>('date');
+  const [sortBy, setSortBy] = useState<EventSort>('smart');
   const [showFilters, setShowFilters] = useState(false);
   const [visible, setVisible] = useState(PAGE_SIZE);
 
@@ -132,12 +132,12 @@ export const EventsExplorer: React.FC<EventsExplorerProps> = ({
 
         <button
           type="button"
-          onClick={() => setSortBy(s => (s === 'date' ? 'price' : 'date'))}
+          onClick={() => setSortBy(s => (s === 'smart' ? 'date' : s === 'date' ? 'price' : 'smart'))}
           className="px-3 py-1.5 rounded-xl text-[11px] font-black flex items-center gap-1.5 border bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-pointer"
           title="Change sort order"
         >
           <ArrowUpDown className="w-3.5 h-3.5" />
-          <span>{sortBy === 'date' ? 'Soonest first' : 'Cheapest first'}</span>
+          <span>{sortBy === 'smart' ? 'Relevance' : sortBy === 'date' ? 'Soonest first' : 'Cheapest first'}</span>
         </button>
       </div>
 
@@ -265,7 +265,7 @@ export const EventsExplorer: React.FC<EventsExplorerProps> = ({
                     <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 truncate">
                       {getEventPriceLabel(evt)}
                     </span>
-                    {evt.source && (
+                    {evt.source && getSourceLabel(evt.source) && (
                       <span className="text-[9px] font-bold text-slate-400 shrink-0">via {getSourceLabel(evt.source)}</span>
                     )}
                   </div>

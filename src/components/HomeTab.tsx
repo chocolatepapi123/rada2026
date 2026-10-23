@@ -74,6 +74,7 @@ import {
   eventMatchesSearch,
   getEventPriceLabel,
   getSourceLabel,
+  sortEvents,
   isHappeningToday,
   isUpcoming,
   matchesDateFilter,
@@ -297,7 +298,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   const [selectedOfferCategory, setSelectedOfferCategory] = useState<'all' | OfferCategory>('all');
 
   // Events sorting state: Upcoming (date) vs Most Popular (going count)
-  const [eventSortBy, setEventSortBy] = useState<'date' | 'popular'>('date');
+  const [eventSortBy, setEventSortBy] = useState<'smart' | 'date' | 'popular'>('smart');
 
   // Outdoor & Social Activity sub-category filter
   const [selectedActivityCategory, setSelectedActivityCategory] = useState<'all' | 'nature' | 'art' | 'gaming' | 'adrenaline'>('all');
@@ -633,6 +634,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
   // Events Suite: soonest first (or cheapest when asked); capped for the home carousel
   const sortedEvents = useMemo(() => {
+    if (eventSortBy === 'smart') return sortEvents(filteredEvents, 'smart');
     return [...filteredEvents].sort((a, b) => {
       if (eventSortBy === 'popular') {
         return (b.goingCount || 0) - (a.goingCount || 0) || compareByStart(a, b);
@@ -1686,7 +1688,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
                   <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800">
                     <span className="text-[10px] font-bold text-[#475569] dark:text-slate-300">
-                      {evt.goingCount > 0 ? `${evt.goingCount} going` : (evt.source ? `via ${getSourceLabel(evt.source)}` : 'New')}
+                      {evt.goingCount > 0 ? `${evt.goingCount} going` : (getSourceLabel(evt.source) ? `via ${getSourceLabel(evt.source)}` : 'New')}
                     </span>
                     <button
                       onClick={(e) => {
