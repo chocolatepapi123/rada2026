@@ -37,12 +37,17 @@ export interface ExternalEventRow {
 const SOURCE_LABELS: Record<string, string> = {
   mookh: 'Mookh',
   ticketsasa: 'Ticketsasa',
-  tikiti: 'Tikiti'
+  tikiti: 'Tikiti',
+  ticketyetu: 'Ticketyetu',
+  madfun: 'Madfun',
+  manual: ''
 };
 
 export function getSourceLabel(source?: string | null): string {
   if (!source) return '';
-  return SOURCE_LABELS[source.toLowerCase()] || source.charAt(0).toUpperCase() + source.slice(1);
+  const key = source.toLowerCase();
+  if (key in SOURCE_LABELS) return SOURCE_LABELS[key];
+  return source.charAt(0).toUpperCase() + source.slice(1);
 }
 
 const dtf = new Intl.DateTimeFormat('en-US', {
@@ -413,10 +418,38 @@ export function filterEvents(events: EventItem[], f: EventFilterState, now: Date
   );
 }
 
-export type EventSort = 'date' | 'price';
+export type EventSort = 'smart' | 'date' | 'price';
+
+const BIG_VENUE_RE = /uhuru gardens|kasarani|ask arena|kicc|carnivore|masshouse|nyayo/i;
+
+/**
+ * Hidden ranking used for the default event order. Never shown to users.
+ * Mirrors the feed_score in the database view public.external_events_feed.
+ */
+export function getEventRank(e: EventItem, now: number = Date.now()): number {
+  const start = e.startAt ? new Date(e.startAt).getTime() : NaN;
+  const price = getEventMinPrice(e);
+  let score = 0;
+  if (e.img) score += 25;
+  if (price != null || (e.tiers && e.tiers.length > 0)) score += 15;
+  if (e.tags?.includes('trending')) score += 50;
+  if (BIG_VENUE_RE.test(e.location || '')) score += 15;
+  if (price != null && price >= 3000) score += 10;
+  if (e.source === 'ticketsasa' || e.source === 'ticketyetu') score += 5;
+  if (!isNaN(start)) {
+    const days = Math.floor((start - now) / 86400000);
+    score += Math.max(0, 30 - days);
+    if (start < now - 6 * 3600000) score -= 1000; // already over: sink to the bottom
+  }
+  return score;
+}
 
 export function sortEvents(events: EventItem[], by: EventSort): EventItem[] {
   const copy = [...events];
+  if (by === 'smart') {
+    const now = Date.now();
+    return copy.sort((a, b) => getEventRank(b, now) - getEventRank(a, now) || compareByStart(a, b));
+  }
   if (by === 'price') {
     return copy.sort((a, b) => {
       const pa = getEventMinPrice(a), pb = getEventMinPrice(b);
