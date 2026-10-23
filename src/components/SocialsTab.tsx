@@ -128,6 +128,40 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   React.useEffect(() => { writeJSON('rada_pending_requests', pendingRequests); }, [pendingRequests]);
   React.useEffect(() => { writeJSON('rada_sent_requests', sentRequests); }, [sentRequests]);
 
+  // Stop mic/camera streams and timers on unmount or when backgrounded to prevent memory leaks
+  React.useEffect(() => {
+    const handleVis = () => {
+      if (document.visibilityState === 'hidden') {
+        if (audioStreamRef.current) {
+          audioStreamRef.current.getTracks().forEach(t => t.stop());
+          audioStreamRef.current = null;
+        }
+        if (videoStreamRef.current) {
+          videoStreamRef.current.getTracks().forEach(t => t.stop());
+          videoStreamRef.current = null;
+        }
+        clearInterval(recordTimerRef.current);
+        clearInterval(videoTimerRef.current);
+        setIsRecordingAudio(false);
+        setIsRecordingVideo(false);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVis);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVis);
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach(t => t.stop());
+        audioStreamRef.current = null;
+      }
+      if (videoStreamRef.current) {
+        videoStreamRef.current.getTracks().forEach(t => t.stop());
+        videoStreamRef.current = null;
+      }
+      clearInterval(recordTimerRef.current);
+      clearInterval(videoTimerRef.current);
+    };
+  }, []);
+
   // Search filter
   const [userSearchQuery, setUserSearchQuery] = useState('');
 

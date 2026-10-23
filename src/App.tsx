@@ -13,6 +13,7 @@ import { Navigation } from './components/Navigation.tsx';
 import { HomeTab } from './components/HomeTab.tsx';
 import { SplashScreen } from './components/SplashScreen.tsx';
 import { ToastProvider, showToast as triggerToast, type ToastOptions } from './components/Toast.tsx';
+import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 import { getTimeOfDayGreeting } from './utils/greetingUtils';
 import {
   cleanStatuses,
@@ -25,13 +26,23 @@ import {
 import { fetchCinemaShowings, CINEMA_UPDATED_EVENT } from './lib/cinema.ts';
 import { readJSON, writeJSON, writeJSONDebounced, purgeSeedData } from './lib/storage.ts';
 import { useUnclaimedSpots, mergeSpots } from './lib/spotsFeed.ts';
+import { resolveNearestNeighborhood } from './lib/geo.ts';
 
 // One-time removal of the old demo content cached on this device
 purgeSeedData();
 
-// ---- Code splitting: heavy screens and modals load on demand instead of in the first bundle ----
+// ---- Resilient Code splitting: automatic chunk loading retry with backoff on mobile resume ----
+const retryImport = <T,>(fn: () => Promise<T>, retries = 3, delay = 800): Promise<T> => {
+  return fn().catch((err) => {
+    if (retries <= 1) throw err;
+    return new Promise((resolve) => setTimeout(resolve, delay)).then(() =>
+      retryImport(fn, retries - 1, delay * 1.5)
+    );
+  });
+};
+
 const lazyNamed = (loader: () => Promise<any>, name: string): React.ComponentType<any> =>
-  lazy(() => loader().then((m) => ({ default: m[name] })));
+  lazy(() => retryImport(loader).then((m) => ({ default: m[name] })));
 
 const AuthModal = lazyNamed(() => import('./components/AuthModal'), 'AuthModal');
 const AdminDashboard = lazyNamed(() => import('./components/AdminDashboardModal.tsx'), 'AdminDashboard');
@@ -228,16 +239,20 @@ export default function App() {
       });
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-        if (mounted) {
-          if (session?.user?.id) {
-            const isSuspended = await checkSuspensionState(session.user.id);
-            if (isSuspended) return;
+        try {
+          if (mounted) {
+            if (session?.user?.id) {
+              const isSuspended = await checkSuspensionState(session.user.id).catch(() => false);
+              if (isSuspended) return;
+            }
+            setSession(session);
+            if (session) {
+              setIsGuestMode(false);
+              setIsAuthModalOpen(false);
+            }
           }
-          setSession(session);
-          if (session) {
-            setIsGuestMode(false);
-            setIsAuthModalOpen(false);
-          }
+        } catch (err) {
+          console.warn('[RADA Auth] onAuthStateChange caught exception:', err);
         }
       });
 
@@ -477,9 +492,20 @@ export default function App() {
   }, []);
   useEffect(() => {
     loadExternalEvents(true);
-    const onVisible = () => { if (document.visibilityState === 'visible') loadExternalEvents(); };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          loadExternalEvents().catch((err) => console.warn('External events resume error:', err));
+        }, 400);
+      }
+    };
     document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [loadExternalEvents]);
 
   // Everything the UI shows: merchant events first, then live ticketing events (already sorted by start time)
@@ -579,25 +605,11 @@ export default function App() {
 
   // Auto-detect physical location on startup
   useEffect(() => {
-    if ('geolocation' in navigator) {
+    if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const { latitude, longitude } = pos.coords;
-          let detected = 'Westlands';
-          // Approximate Nairobi / Kiambu geographic clustering
-          if (latitude > -1.22 && latitude < -1.0) {
-            detected = 'Kiambu';
-          } else if (latitude >= -1.28 && latitude <= -1.24 && longitude >= 36.78 && longitude <= 36.83) {
-            detected = 'Westlands';
-          } else if (latitude >= -1.31 && latitude <= -1.28 && longitude >= 36.76 && longitude <= 36.81) {
-            detected = 'Kilimani';
-          } else if (latitude >= -1.30 && latitude <= -1.27 && longitude >= 36.81 && longitude <= 36.84) {
-            detected = 'Nairobi CBD';
-          } else if (latitude >= -1.36 && latitude <= -1.31) {
-            detected = 'Karen';
-          } else {
-            detected = 'Westlands';
-          }
+          const detected = resolveNearestNeighborhood(latitude, longitude);
           setCurrentLocation(detected);
           localStorage.setItem('rada_current_location', detected);
           setIsGpsActive(true);
@@ -606,7 +618,7 @@ export default function App() {
           // If geolocation is denied or unavailable, do not force a fallback default like "Westlands"
           setIsGpsActive(false);
         },
-        { enableHighAccuracy: true, timeout: 5000 }
+        { enableHighAccuracy: true, timeout: 6000, maximumAge: 60000 }
       );
     } else {
       setIsGpsActive(false);
@@ -956,14 +968,25 @@ export default function App() {
   // Status lifecycle: every minute, and when the app comes back to the foreground,
   // remove statuses older than 12 hours and refresh the "x ago" labels
   useEffect(() => {
-    const tick = () => setStatuses(prev => cleanStatuses(prev));
+    const tick = () => {
+      try {
+        setStatuses(prev => cleanStatuses(prev));
+      } catch (err) {
+        console.warn('Status tick error:', err);
+      }
+    };
     const id = window.setInterval(tick, 60_000);
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const onVisible = () => {
-      if (document.visibilityState === 'visible') tick();
+      if (document.visibilityState === 'visible') {
+        clearTimeout(timer);
+        timer = setTimeout(tick, 250);
+      }
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       window.clearInterval(id);
+      clearTimeout(timer);
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, []);
@@ -1396,13 +1419,24 @@ export default function App() {
 
     syncRef.current = run;
     run();
+    let resumeTimer: ReturnType<typeof setTimeout> | undefined;
     const onVisible = () => {
       if (document.visibilityState !== 'visible' || inFlight) return;
       if (Date.now() - lastDoneAt < 60_000) return;
-      run();
+      clearTimeout(resumeTimer);
+      resumeTimer = setTimeout(() => {
+        try {
+          run();
+        } catch (err) {
+          console.warn('Cloud sync onVisible error:', err);
+        }
+      }, 500);
     };
     document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
+    return () => {
+      clearTimeout(resumeTimer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [authLoading, session?.user?.id]);
 
   // ---------------------------------------------------------------
@@ -2254,6 +2288,7 @@ export default function App() {
 
           {/* Main Content Viewports */}
           <main className="flex-1 pb-24 max-w-lg mx-auto w-full relative px-0">
+            <ErrorBoundary fallbackTitle="Resuming View">
             <Suspense fallback={<TabFallback />}>
             {activeTab === 'home' && (
               <HomeTab
@@ -2286,6 +2321,8 @@ export default function App() {
                 currentUserId={session?.user?.id || currentUserId}
                 currentUserRole={userRole}
                 businesses={businesses}
+                currentLocation={currentLocation}
+                isGpsActive={isGpsActive}
               />
             )}
 
@@ -2407,6 +2444,7 @@ export default function App() {
               />
             )}
             </Suspense>
+            </ErrorBoundary>
           </main>
 
           {/* Bottom Sticky Navigation */}
@@ -2434,6 +2472,7 @@ export default function App() {
           />
 
           {/* Modals & Overlays */}
+          <ErrorBoundary fallbackTitle="Resuming View">
           <Suspense fallback={null}>
           {isBusinessHubOpen && (
             <div className="fixed inset-0 z-50 bg-[#FBFBF9] dark:bg-[#121113] overflow-y-auto">
@@ -2695,6 +2734,7 @@ export default function App() {
           )}
 
           </Suspense>
+          </ErrorBoundary>
 
           {/* Account Suspended Modal */}
           {suspensionReason && (

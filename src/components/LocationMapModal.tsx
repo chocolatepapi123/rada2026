@@ -81,49 +81,54 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
 
     // Small delay to ensure modal container has dimensions
     timer = setTimeout(() => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
-
-      if (mapContainerRef.current) {
-        const map = L.map(mapContainerRef.current, { zoomControl: false, attributionControl: true }).setView([placeLat, placeLng], 15);
-        mapInstanceRef.current = map;
-
-        // 100% Free OpenStreetMap raster tiles (Zero API key required)
-        const isDark = document.documentElement.classList.contains('dark');
-        const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
-          subdomains: ['a', 'b', 'c'],
-          maxZoom: 19,
-          className: isDark ? 'rada-osm-dark' : '',
-        }).addTo(map);
-
-        if (isDark) {
-          const pane = map.getPane('tilePane');
-          if (pane) {
-            pane.style.filter = 'invert(100%) hue-rotate(180deg) brightness(85%) contrast(110%)';
-          }
+      try {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.remove();
+          mapInstanceRef.current = null;
         }
 
-        const pinIcon = L.divIcon({
-          className: 'rada-map-pin',
-          html: '<svg width="28" height="36" viewBox="0 0 28 36" xmlns="http://www.w3.org/2000/svg"><path d="M14 1C7 1 1.5 6.4 1.5 13.2 1.5 22 14 35 14 35s12.5-13 12.5-21.8C26.5 6.4 21 1 14 1Z" fill="none" stroke="#E0533C" stroke-width="2.4" stroke-linejoin="round"/><circle cx="14" cy="13" r="4.2" fill="#E0533C"/></svg>',
-          iconSize: [28, 36],
-          iconAnchor: [14, 35],
-          popupAnchor: [0, -32]
-        });
+        if (mapContainerRef.current) {
+          (mapContainerRef.current as any)._leaflet_id = null;
+          const map = L.map(mapContainerRef.current, { zoomControl: false, attributionControl: true }).setView([placeLat, placeLng], 15);
+          mapInstanceRef.current = map;
 
-        const marker = L.marker([placeLat, placeLng], { icon: pinIcon }).addTo(map);
-        marker.bindPopup(`
-          <div style="font-family: inherit; font-size: 12px; line-height: 1.4;">
-            <b style="color: #E0533C; font-size: 13px;">${escapeHtml(place.title)}</b><br/>
-            <span>${escapeHtml(place.popupMeta)}</span><br/>
-            <span style="color: #64748b; font-size: 11px;">${escapeHtml(place.address)}</span>
-          </div>
-        `).openPopup();
+          // 100% Free OpenStreetMap raster tiles (Zero API key required)
+          const isDark = document.documentElement.classList.contains('dark');
+          const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
+            subdomains: ['a', 'b', 'c'],
+            maxZoom: 19,
+            className: isDark ? 'rada-osm-dark' : '',
+          }).addTo(map);
 
-        map.invalidateSize();
+          if (isDark) {
+            const pane = map.getPane('tilePane');
+            if (pane) {
+              pane.style.filter = 'invert(100%) hue-rotate(180deg) brightness(85%) contrast(110%)';
+            }
+          }
+
+          const pinIcon = L.divIcon({
+            className: 'rada-map-pin',
+            html: '<svg width="28" height="36" viewBox="0 0 28 36" xmlns="http://www.w3.org/2000/svg"><path d="M14 1C7 1 1.5 6.4 1.5 13.2 1.5 22 14 35 14 35s12.5-13 12.5-21.8C26.5 6.4 21 1 14 1Z" fill="none" stroke="#E0533C" stroke-width="2.4" stroke-linejoin="round"/><circle cx="14" cy="13" r="4.2" fill="#E0533C"/></svg>',
+            iconSize: [28, 36],
+            iconAnchor: [14, 35],
+            popupAnchor: [0, -32]
+          });
+
+          const marker = L.marker([placeLat, placeLng], { icon: pinIcon }).addTo(map);
+          marker.bindPopup(`
+            <div style="font-family: inherit; font-size: 12px; line-height: 1.4;">
+              <b style="color: #E0533C; font-size: 13px;">${escapeHtml(place.title)}</b><br/>
+              <span>${escapeHtml(place.popupMeta)}</span><br/>
+              <span style="color: #64748b; font-size: 11px;">${escapeHtml(place.address)}</span>
+            </div>
+          `).openPopup();
+
+          map.invalidateSize();
+        }
+      } catch (err) {
+        console.warn('Leaflet map container init error on resume:', err);
       }
     }, 150);
     }).catch(() => { /* map stays blank; the directions links still work */ });

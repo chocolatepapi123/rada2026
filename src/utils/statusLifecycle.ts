@@ -65,8 +65,9 @@ const keepNewestPerAuthor = (list: StatusPost[]): StatusPost[] => {
  * Returns the SAME array when nothing changed, so React does not re-render.
  */
 export const cleanStatuses = (list: StatusPost[], now: number = Date.now()): StatusPost[] => {
+  if (!Array.isArray(list)) return [];
   const live = list
-    .filter(s => !isStatusExpired(s, now))
+    .filter(s => Boolean(s) && !isStatusExpired(s, now))
     .map(s => {
       if (!s.createdAt) return s;
       const ago = formatTimeAgo(s.createdAt, now);
@@ -82,8 +83,9 @@ export const addStatusReplacingOwn = (
   post: StatusPost,
   owner: StatusOwner
 ): { next: StatusPost[]; replaced: StatusPost[] } => {
-  const replaced = list.filter(s => isOwnStatus(s, owner));
-  const rest = list.filter(s => !isOwnStatus(s, owner));
+  const safeList = Array.isArray(list) ? list : [];
+  const replaced = safeList.filter(s => Boolean(s) && isOwnStatus(s, owner));
+  const rest = safeList.filter(s => Boolean(s) && !isOwnStatus(s, owner));
   return { next: cleanStatuses([post, ...rest]), replaced };
 };
 
@@ -97,10 +99,14 @@ export const mergeRemoteStatuses = (
   local: StatusPost[],
   seeds: StatusPost[] = []
 ): StatusPost[] => {
-  const localById = new Map(local.map(s => [s.id, s]));
-  const merged = remote.map(r => {
+  const safeLocal = Array.isArray(local) ? local.filter(Boolean) : [];
+  const safeRemote = Array.isArray(remote) ? remote.filter(Boolean) : [];
+  const safeSeeds = Array.isArray(seeds) ? seeds.filter(Boolean) : [];
+
+  const localById = new Map(safeLocal.map(s => [s.id, s]));
+  const merged = safeRemote.map(r => {
     const l = localById.get(r.id);
     return { ...r, createdAt: r.createdAt || l?.createdAt, userId: r.userId || l?.userId };
   });
-  return [...merged, ...seeds.filter(sd => !merged.some(m => m.id === sd.id))];
+  return [...merged, ...safeSeeds.filter(sd => !merged.some(m => m.id === sd.id))];
 };

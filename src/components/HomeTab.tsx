@@ -1,7 +1,7 @@
 import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending, formatOpeningHours } from '../lib/spotsFeed.ts';
 import { resolveSpotBudget, budgetBadge } from '../lib/spotBudget.ts';
-import { useLocationPreference, sortByProximity, NEIGHBORHOOD_COORDS, formatDistance, distanceKm } from '../lib/geo.ts';
-import React, { useState, useMemo, useEffect } from 'react';
+import { useLocationPreference, sortByProximity, NEIGHBORHOOD_COORDS, formatDistance, distanceKm, resolveNearestNeighborhood } from '../lib/geo.ts';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { getStoredLanguage, translations, type AppLanguage } from '../utils/i18n.ts';
 
 const getDisplayHours = (hours: any, fallback = 'Open Daily'): string => {
@@ -53,7 +53,9 @@ import {
   ShieldAlert,
   AlertTriangle,
   MoreVertical,
-  ChevronDown
+  ChevronDown,
+  Loader2,
+  RotateCcw
 } from 'lucide-react';
 import { EventItem, CinemaMovie, StatusPost, UserProfile, BusinessOffer, OfferCategory, SpotItem, SavedItem, BusinessAccount, isOfficialAdmin } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
@@ -105,6 +107,8 @@ interface HomeTabProps {
   currentUserId?: string | null;
   currentUserRole?: string | null;
   businesses?: BusinessAccount[];
+  currentLocation?: string;
+  isGpsActive?: boolean;
 }
 
 export const HomeTab: React.FC<HomeTabProps> = ({
@@ -133,7 +137,9 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   currentUserEmail,
   currentUserId,
   currentUserRole,
-  businesses = []
+  businesses = [],
+  currentLocation,
+  isGpsActive
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedVibe, setSelectedVibe] = useState('all');
@@ -526,9 +532,45 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   // Status creation state
   const [statusText, setStatusText] = useState('');
   const [statusMediaUrl, setStatusMediaUrl] = useState<string | null>(null);
-  const [statusLocation, setStatusLocation] = useState('Westlands');
-  const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
-  const [customLocationInput, setCustomLocationInput] = useState('');
+
+  // Phone Location for "Where Are You At?" — locked to phone's physical location, no manual selection
+  const [phoneLocation, setPhoneLocation] = useState<string>(() => currentLocation || 'Detecting GPS...');
+  const [isLocatingPhone, setIsLocatingPhone] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (currentLocation && (!phoneLocation || phoneLocation === 'Detecting GPS...')) {
+      setPhoneLocation(currentLocation);
+    }
+  }, [currentLocation]);
+
+  const requestPhoneLocation = useCallback(() => {
+    if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+      setIsLocatingPhone(true);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          const detected = resolveNearestNeighborhood(latitude, longitude);
+          setPhoneLocation(detected);
+          setIsLocatingPhone(false);
+        },
+        () => {
+          setIsLocatingPhone(false);
+          if (!phoneLocation || phoneLocation === 'Detecting GPS...') {
+            setPhoneLocation(currentLocation || 'Nairobi');
+          }
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+      );
+    } else {
+      setPhoneLocation(currentLocation || 'Nairobi');
+    }
+  }, [currentLocation, phoneLocation]);
+
+  useEffect(() => {
+    if (!currentLocation || phoneLocation === 'Detecting GPS...') {
+      requestPhoneLocation();
+    }
+  }, [currentLocation, requestPhoneLocation]);
 
   // Daytime arrangement: 7:00 AM to 8:00 PM (7 <= hour < 20)
   const isDayTime = useMemo(() => {
@@ -536,26 +578,9 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     return hr >= 7 && hr < 20;
   }, []);
 
-  const nairobiStatusLocations = useMemo(() => [
-    'Westlands',
-    'Kilimani',
-    'Karen',
-    'Nairobi CBD',
-    'Lavington',
-    'Kileleshwa',
-    'Parklands',
-    'Gigiri',
-    'Ngong Road',
-    'Ruaka',
-    'Thika Road',
-    'Langata'
-  ], []);
-
   // Active status replies drawer
   const [activeReplyStatusId, setActiveReplyStatusId] = useState<string | null>(null);
   const [replyInputText, setReplyInputText] = useState('');
-
-
 
   const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -576,7 +601,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       showToast('Type a status or attach a photo.');
       return;
     }
-    onPostStatus(statusText.trim(), statusMediaUrl || undefined, statusLocation);
+    const loc = phoneLocation && phoneLocation !== 'Detecting GPS...' ? phoneLocation : (currentLocation || 'Nairobi');
+    onPostStatus(statusText.trim(), statusMediaUrl || undefined, loc);
     setStatusText('');
     setStatusMediaUrl(null);
     setShowStatusEmojiPicker(false);
@@ -2155,90 +2181,27 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   <Smile className="w-4 h-4" />
                 </button>
 
-                {/* Interactive Location Picker Button with Popover */}
-                <div className="relative min-w-0">
-                  <button
-                    type="button"
-                    onClick={() => setIsLocationPickerOpen(!isLocationPickerOpen)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-bold transition cursor-pointer border border-slate-200 dark:border-slate-700 shrink-0 max-w-[130px] sm:max-w-[170px]"
-                    title="Change location"
-                  >
-                    <MapPin className="w-3 h-3 text-[#E0533C] shrink-0" />
-                    <span className="truncate">{statusLocation}</span>
-                    <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
-                  </button>
-
-                  {isLocationPickerOpen && (
-                    <div className="absolute bottom-full left-0 mb-2 w-72 max-w-[85vw] bg-white dark:bg-[#1A181C] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 shadow-2xl z-50 space-y-2.5 animate-in fade-in zoom-in-95 duration-150">
-                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-slate-800">
-                        <span className="text-xs font-black text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                          <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
-                          <span>Where are you at?</span>
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setIsLocationPickerOpen(false)}
-                          className="w-5 h-5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 text-xs cursor-pointer"
-                        >
-                          ✕
-                        </button>
-                      </div>
-
-                      {/* Nairobi Neighborhoods Grid */}
-                      <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
-                        {nairobiStatusLocations.map((loc) => (
-                          <button
-                            key={loc}
-                            type="button"
-                            onClick={() => {
-                              setStatusLocation(loc);
-                              setIsLocationPickerOpen(false);
-                            }}
-                            className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition cursor-pointer flex items-center gap-1 ${
-                              statusLocation === loc
-                                ? 'bg-[#E0533C] text-white shadow-xs'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-orange-50 dark:hover:bg-slate-700'
-                            }`}
-                          >
-                            {statusLocation === loc && <Check className="w-2.5 h-2.5 stroke-[3]" />}
-                            <span>{loc}</span>
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Custom Area / Spot Name Input */}
-                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex gap-1.5">
-                        <input
-                          type="text"
-                          placeholder="Or type custom spot..."
-                          value={customLocationInput}
-                          onChange={(e) => setCustomLocationInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && customLocationInput.trim()) {
-                              e.preventDefault();
-                              setStatusLocation(customLocationInput.trim());
-                              setCustomLocationInput('');
-                              setIsLocationPickerOpen(false);
-                            }
-                          }}
-                          className="flex-1 px-2.5 py-1 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#E0533C]"
-                        />
-                        <button
-                          type="button"
-                          disabled={!customLocationInput.trim()}
-                          onClick={() => {
-                            if (customLocationInput.trim()) {
-                              setStatusLocation(customLocationInput.trim());
-                              setCustomLocationInput('');
-                              setIsLocationPickerOpen(false);
-                            }
-                          }}
-                          className="px-3 py-1 bg-[#E0533C] disabled:opacity-40 text-white text-xs font-bold rounded-lg cursor-pointer"
-                        >
-                          Set
-                        </button>
-                      </div>
-                    </div>
+                {/* Phone GPS Location (Automatic from phone's location; no manual selection) */}
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-[11px] font-bold border border-slate-200 dark:border-slate-700/80 shrink-0 select-none shadow-2xs">
+                  <MapPin className="w-3.5 h-3.5 text-[#E0533C] shrink-0" />
+                  <span className="truncate max-w-[110px] sm:max-w-[150px]">
+                    {phoneLocation || 'Detecting GPS...'}
+                  </span>
+                  <span className="text-[9px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-300/40 dark:border-emerald-700/40 flex items-center gap-1 shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Phone GPS</span>
+                  </span>
+                  {isLocatingPhone ? (
+                    <Loader2 className="w-3 h-3 text-slate-400 animate-spin shrink-0 ml-0.5" />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={requestPhoneLocation}
+                      title="Update Phone GPS Location"
+                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded cursor-pointer transition active:scale-90 shrink-0"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                    </button>
                   )}
                 </div>
               </div>

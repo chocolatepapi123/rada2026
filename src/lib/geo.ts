@@ -44,6 +44,23 @@ export function formatDistance(km?: number | null): string {
   return `${km < 10 ? km.toFixed(1) : Math.round(km)} km away`;
 }
 
+/** Resolves nearest Nairobi neighborhood or locality from physical GPS coordinates */
+export function resolveNearestNeighborhood(lat: number, lng: number): string {
+  let closest = 'Westlands';
+  let minDistance = Infinity;
+  for (const [name, coords] of Object.entries(NEIGHBORHOOD_COORDS)) {
+    const dist = distanceKm({ lat, lng }, coords);
+    if (dist < minDistance) {
+      minDistance = dist;
+      closest = name;
+    }
+  }
+  if (minDistance <= 40) {
+    return closest === 'CBD' ? 'Nairobi CBD' : closest;
+  }
+  return 'Nairobi';
+}
+
 function coordsOf(spot: any): LatLng | null {
   if (spot?.hasCoords === false) return null;
   const lat = Number(spot?.lat ?? spot?.latitude);
