@@ -108,49 +108,47 @@ function categorize(text: string): { category: string; rada: string } {
 const isKenya = (s: string) => !/uganda|tanzania|rwanda/i.test(s);
 
 // ---------- Madfun ----------
+function attr(tag: string, name: string): string | null {
+  const m = tag.match(new RegExp(`${name}=["']([^"']*)["']`, 'i'));
+  return m ? decode(m[1]) : null;
+}
+
 async function scrapeMadfun(): Promise<EventRow[]> {
   console.log('Madfun...');
   const html = await getHtml('https://gigs.madfun.com/events');
   if (!html) return [];
   const rows: EventRow[] = [];
-  const anchors = [...html.matchAll(/<a[^>]+href=["']((?:https?:\/\/gigs\.madfun\.com)?\/event\/\d+)["'][^>]*>([\s\S]*?)<\/a>/gi)];
-  console.log(`  html length ${html.length}, event anchors ${anchors.length}`);
-  if (anchors.length === 0) {
-    const ids = [...new Set([...html.matchAll(/\/event\/(\d+)/g)].map((m) => m[1]))];
-    console.log(`  fallback ids found: ${ids.length} ${ids.slice(0, 10).join(',')}`);
-    const i = html.search(/event\//);
-    if (i >= 0) console.log('  snippet:', html.slice(Math.max(0, i - 200), i + 300).replace(/\s+/g, ' '));
-    const apis = [...new Set([...html.matchAll(/https?:\/\/[^"'\s<>)]*(?:api|json|graphql)[^"'\s<>)]*/gi)].map((m) => m[0]))];
-    console.log('  api-like urls:', apis.slice(0, 8).join(' | '));
-    for (const id of ids) {
-      const url = `https://gigs.madfun.com/event/${id}`;
-      const r = await scrapeEventPage('madfun', url);
-      if (r) rows.push(r);
-    }
-    return rows;
-  }
+  const seen = new Set<string>();
+  const anchors = [...html.matchAll(/<a\b([^>]*?href=["'](?:https?:\/\/gigs\.madfun\.com)?\/?event\/(\d+)["'][^>]*)>([\s\S]*?)<\/a>/gi)];
+  console.log(`  event anchors ${anchors.length}`);
   for (const a of anchors) {
-    const url = a[1].startsWith('http') ? a[1] : 'https://gigs.madfun.com' + a[1];
-    const text = decode(a[2].replace(/<[^>]+>/g, ' '));
-    // "Title organized by Host 24 Oct, 2026 Venue buy tickets"
-    const m = text.match(/^(.*?)\s+organized by\s+(.*?)\s+(\d{1,2})\s+([A-Za-z]{3})[a-z]*,?\s+(\d{4})\s*(.*?)\s*(?:buy tickets)?$/i);
-    if (!m) { console.log('  skip (unparsed):', text.slice(0, 80)); continue; }
-    const [, title, host, d, mon, y, venueRaw] = m;
-    const month = MONTHS[mon.toLowerCase()];
-    if (!month) continue;
-    const venue = venueRaw.replace(/buy tickets$/i, '').trim() || null;
+    const tag = a[1];
+    const id = a[2];
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const url = `https://gigs.madfun.com/event/${id}`;
+    const inner = a[3];
+    const text = decode(inner.replace(/<[^>]+>/g, ' '));
+    const date = attr(tag, 'data-date'); // 2026-10-24
+    const venue = attr(tag, 'data-venue');
+    const host = attr(tag, 'data-company');
+    const title = (attr(tag, 'data-title') || attr(tag, 'data-name') || text.split(/\s+organized by\s+/i)[0] || '').trim();
+    if (!title || !date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      console.log('  skip (no title/date):', id, title.slice(0, 40), date);
+      continue;
+    }
+    const imgM = inner.match(/<img[^>]+src=["']([^"']+)["']/i);
+    const img = imgM ? decode(imgM[1]).replace(/ /g, '%20') : null;
     const page = await getHtml(url);
-    const desc = page ? meta(page, 'og:description') || meta(page, 'description') : null;
-    const img = page ? meta(page, 'og:image') : null;
+    let desc = page ? meta(page, 'og:description') || meta(page, 'description') : null;
+    if (desc && /discover popular events/i.test(desc)) desc = null;
     const { category, rada } = categorize(`${title} ${desc || ''}`);
     rows.push({
       source: 'madfun', source_url: url, title, category, rada_category: rada,
-      start_at: new Date(`${y}-${month}-${d.padStart(2, '0')}T00:00:00+03:00`).toISOString(),
-      end_at: null, venue, host: host || null,
-      image_url: img && img.startsWith('http') ? img : null,
+      start_at: new Date(`${date}T00:00:00+03:00`).toISOString(),
+      end_at: null, venue, host, image_url: img,
       price_min: null, currency: 'KES', country: 'KE',
-      description: desc && !/discover popular events/i.test(desc) ? desc : null,
-      address: venue, has_time: false, tags: [], tiers: [], gallery: [],
+      description: desc, address: venue, has_time: false, tags: [], tiers: [], gallery: [],
       scraped_at: new Date().toISOString(),
     });
   }
@@ -212,6 +210,17 @@ async function scrapeTicketyetu(): Promise<EventRow[]> {
     console.log(`  ${p} html ${html.length}; api-like: ${apis.slice(0, 6).join(' | ')}`);
   }
   console.log(`  found ${links.size} event links`);
+  // Diagnostic: find API endpoints inside the site's JS bundles
+  const home = (await getHtml('https://ticketyetu.com/')) || '';
+  const chunks = [...new Set([...home.matchAll(/\/_next\/static\/[^"'\s]+\.js/g)].map((m) => m[0]))].slice(0, 30);
+  const found = new Set<string>();
+  for (const c of chunks) {
+    const js = await getHtml('https://ticketyetu.com' + c);
+    if (!js) continue;
+    for (const m of js.matchAll(/https?:\/\/[a-z0-9.-]*(?:api|backend|server)[a-z0-9.\/_-]*/gi)) found.add(m[0]);
+    for (const m of js.matchAll(/["'`](\/api\/[a-zA-Z0-9\/_-]+)["'`]/g)) found.add(m[1]);
+  }
+  console.log(`  chunks scanned ${chunks.length}; endpoints: ${[...found].slice(0, 12).join(' | ')}`);
   const rows: EventRow[] = [];
   for (const url of links) {
     const r = await scrapeEventPage('ticketyetu', url);
@@ -244,7 +253,6 @@ async function main() {
   const all = [
     ...(await scrapeMadfun()),
     ...(await scrapeTicketyetu()),
-    ...(await scrapeSolfest()),
   ];
   const now = Date.now() - 6 * 3600 * 1000;
   const fresh = all.filter((e) => new Date(e.start_at).getTime() >= now && isKenya(`${e.venue} ${e.address}`));
