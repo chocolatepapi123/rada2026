@@ -1,0 +1,45 @@
+name: Seed spots (new)
+
+on:
+  schedule:
+    - cron: '0 22 * * *'      # 22:00 UTC = 01:00 Nairobi; runs while you sleep
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'What to seed'
+        type: choice
+        default: all
+        options: [all, priority, chains, general]
+      budget_min:
+        description: 'Time budget in minutes (job limit is 360)'
+        default: '300'
+      dry_run:
+        description: 'Dry run (no writes)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: seed-spots
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 345
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Seed
+        run: npx tsx scripts/seedSpots.ts
+        env:
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SEED_MODE: ${{ github.event.inputs.mode || 'all' }}
+          SEED_BUDGET_MIN: ${{ github.event.inputs.budget_min || '300' }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          COPY_TO_BUCKET: 'true'
