@@ -31,8 +31,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-      - run: npm ci --no-audit --no-fund
+      # No package-lock.json in the repo, so no npm cache and no `npm ci`.
+      # This installs the project's dependencies plus the three the seed script needs.
+      - run: npm install --no-audit --no-fund --no-save tsx apify-client @supabase/supabase-js
       - name: Seed
         run: npx tsx scripts/seedSpots.ts
         env:
