@@ -5,18 +5,16 @@ import {
   OTP_LENGTH,
   MIN_PASSWORD_LENGTH,
   normalizeEmail,
-  normalizePhone,
   friendlyAuthError,
   signUpWithEmail,
   sendEmailLoginCode,
-  sendPhoneCode,
   resendSignupCode,
   verifyCode,
   sendPasswordResetCode,
   resetPasswordWithCode,
   type VerifyKind,
 } from '../lib/supabase';
-import { Lock, Mail, User, Phone, ArrowRight, ArrowLeft, ShieldCheck, X, Loader2, KeyRound } from 'lucide-react';
+import { Lock, Mail, User, ArrowRight, ArrowLeft, ShieldCheck, X, Loader2, KeyRound } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -27,7 +25,6 @@ interface AuthModalProps {
 }
 
 type View = 'form' | 'verify' | 'forgot' | 'reset';
-type Method = 'email' | 'phone';
 
 const RESEND_SECONDS = 60;
 
@@ -40,18 +37,16 @@ const linkBtnCls = 'text-amber-500 font-bold hover:underline cursor-pointer disa
 
 export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, customMessage }: AuthModalProps) {
   const [view, setView] = useState<View>('form');
-  const [method, setMethod] = useState<Method>('email');
   const [isSignUp, setIsSignUp] = useState(true);
   const [useCode, setUseCode] = useState(false); // email login: code instead of password
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
 
-  const [target, setTarget] = useState(''); // email or E.164 phone the code was sent to
+  const [target, setTarget] = useState(''); // email the code was sent to
   const [verifyKind, setVerifyKind] = useState<VerifyKind>('signup');
   const [cooldown, setCooldown] = useState(0);
 
@@ -108,30 +103,18 @@ export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, custo
     setErrorMsg('');
   }
 
-  function switchMethod(next: Method) {
-    setMethod(next);
-    setErrorMsg('');
-  }
-
   // ---------- form: sign up / log in ----------
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     run(async () => {
-      if (method === 'phone') {
-        const p = normalizePhone(phone);
-        if (!p) throw new Error('Enter a valid phone number, e.g. 0712 345 678.');
-        await sendPhoneCode(p, isSignUp, fullName.trim());
-        startVerify(p, 'sms');
-        return;
-      }
-
       const em = normalizeEmail(email);
 
       if (isSignUp) {
         if (password.length < MIN_PASSWORD_LENGTH) {
           throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
         }
-        const { signedIn } = await signUpWithEmail(em, password, fullName.trim());
+        // The name becomes the private display name. Blank = the database assigns new_user_NN.
+        const { signedIn } = await signUpWithEmail(em, password, fullName.trim() || undefined);
         if (signedIn) {
           onSuccess();
           return;
@@ -162,8 +145,7 @@ export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, custo
     if (cooldown > 0) return;
     run(async () => {
       if (verifyKind === 'signup') await resendSignupCode(target);
-      else if (verifyKind === 'email') await sendEmailLoginCode(target);
-      else await sendPhoneCode(target, isSignUp, fullName.trim());
+      else await sendEmailLoginCode(target);
       setCooldown(RESEND_SECONDS);
     });
   }
@@ -219,13 +201,13 @@ export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, custo
           : 'Log in to continue to your RADA account');
 
   const submitLabel =
-    method === 'phone' || (!isSignUp && useCode)
+    !isSignUp && useCode
       ? 'Send Code'
       : isSignUp
       ? 'Create Account'
       : 'Sign In';
 
-  const showPassword = method === 'email' && (isSignUp || !useCode);
+  const showPassword = isSignUp || !useCode;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-150">
@@ -273,34 +255,17 @@ export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, custo
         {/* ===== SIGN UP / LOG IN ===== */}
         {view === 'form' && (
           <>
-            {/* Email / Phone switch */}
-            <div className="grid grid-cols-2 gap-1 p-1 mb-4 rounded-xl bg-stone-800/80">
-              {(['email', 'phone'] as Method[]).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => switchMethod(m)}
-                  className={`py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
-                    method === m ? 'bg-stone-700 text-white' : 'text-stone-400 hover:text-white'
-                  }`}
-                >
-                  {m === 'email' ? 'Email' : 'Phone'}
-                </button>
-              ))}
-            </div>
-
             <form onSubmit={handleSubmit} className="space-y-3.5">
               {isSignUp && (
                 <div>
-                  <label className={labelCls}>Full Name</label>
+                  <label className={labelCls}>Display Name (Optional, only you see this)</label>
                   <div className="relative">
                     <User className="w-4 h-4 text-stone-500 absolute left-3 top-3" />
                     <input
                       type="text"
-                      required
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Your full name"
+                      placeholder="Your name, or leave blank"
                       autoComplete="name"
                       className={inputCls}
                     />
@@ -308,40 +273,21 @@ export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, custo
                 </div>
               )}
 
-              {method === 'email' ? (
-                <div>
-                  <label className={labelCls}>Email Address</label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-stone-500 absolute left-3 top-3" />
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@example.com"
-                      autoComplete="email"
-                      className={inputCls}
-                    />
-                  </div>
+              <div>
+                <label className={labelCls}>Email Address</label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-stone-500 absolute left-3 top-3" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    className={inputCls}
+                  />
                 </div>
-              ) : (
-                <div>
-                  <label className={labelCls}>Phone Number</label>
-                  <div className="relative">
-                    <Phone className="w-4 h-4 text-stone-500 absolute left-3 top-3" />
-                    <input
-                      type="tel"
-                      required
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="0712 345 678"
-                      autoComplete="tel"
-                      className={inputCls}
-                    />
-                  </div>
-                  <p className="text-[11px] text-stone-500 mt-1">We will text you a verification code.</p>
-                </div>
-              )}
+              </div>
 
               {showPassword && (
                 <div>
@@ -389,7 +335,7 @@ export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, custo
             </form>
 
             {/* Email login: password <-> code */}
-            {method === 'email' && !isSignUp && (
+            {!isSignUp && (
               <div className="mt-3 text-center">
                 <button
                   type="button"

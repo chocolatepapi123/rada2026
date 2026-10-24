@@ -31,6 +31,7 @@ import {
   uploadAvatar,
   validateUsernameFormat,
 } from '../lib/cloudSync';
+import { isLegacyWayneName, sanitizeDisplayName, sanitizeUsername, generateNewUserName } from '../utils/userUtils';
 import type { ToastOptions } from './Toast.tsx';
 
 /* ------------------------------------------------------------------ */
@@ -68,10 +69,9 @@ export function useOwnProfile({
   onRequireLogin,
   statsFallback,
 }: UseOwnProfileArgs) {
-  const fallbackHandle = profile.handle && profile.handle !== '@explorer' ? profile.handle : '';
-  const currentUsername = normalizeUsername(profile.username || fallbackHandle);
-  // Display name starts blank. The legacy "Explorer" placeholder is never shown or edited as a real name.
-  const currentName = cleanDisplayName(profile.name);
+  const fallbackHandle = profile.handle && !isLegacyWayneName(profile.handle) ? profile.handle : '';
+  const currentUsername = sanitizeUsername(profile.username || fallbackHandle, profile.name);
+  const currentName = sanitizeDisplayName(profile.name);
   const currentBio = profile.bio || '';
   const profileIsPro = profile.is_creator === true || profile.account_type === 'professional';
   const currentStatus: 'single' | 'not_single' = profile.relationshipStatus === 'single' ? 'single' : 'not_single';
