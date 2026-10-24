@@ -478,7 +478,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         key={spot.id}
         onClick={handleOpenDetails}
         style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 288px auto 340px', ...accentVars(accent) }}
-        className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 border-t-[3px] border-t-[color:var(--accent)] dark:border-t-[color:var(--accent-line)] rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer transition group"
+        className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-[#E0533C] dark:hover:border-[#D17A68] transition group"
       >
         <div>
           {/* Multiple Image Carousel Area */}

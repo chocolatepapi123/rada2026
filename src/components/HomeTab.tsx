@@ -1868,7 +1868,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   key={spot.id}
                   onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
                   style={accentVars(spotAccent)}
-                  className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 border-t-[3px] border-t-[color:var(--accent)] dark:border-t-[color:var(--accent-line)] rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer transition group"
+                  className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer transition group"
                 >
                   <div>
                     <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
@@ -2001,7 +2001,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                       key={spot.id}
                       onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
                       style={accentVars({ color: accentColor })}
-                      className="w-72 bg-white dark:bg-[#151319] border border-slate-200 dark:border-slate-800 border-t-[3px] border-t-[color:var(--accent)] dark:border-t-[color:var(--accent-line)] rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer transition group"
+                      className="w-72 bg-white dark:bg-[#151319] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer transition group"
                     >
                       <div>
                         <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">

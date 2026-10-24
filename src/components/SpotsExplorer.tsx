@@ -291,7 +291,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
               <div
                 key={String(spot.id)}
                 onClick={() => onOpenSpot(spot)}
-                className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 border-t-[3px] border-t-[color:var(--accent)] dark:border-t-[color:var(--accent-line)] rounded-3xl p-3 shadow-xs cursor-pointer transition flex flex-col justify-between group"
+                className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shadow-xs cursor-pointer transition flex flex-col justify-between group"
                 style={accentVars(primary)}
               >
                 <div>
