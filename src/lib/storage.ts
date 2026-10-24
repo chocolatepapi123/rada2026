@@ -24,6 +24,8 @@ export function writeJSON(key: string, value: unknown): void {
   }
 }
 
+import { generateNewUserName, isLegacyWayneName } from '../utils/userUtils';
+
 // IDs of the old built-in demo content. Anything cached on a phone with these IDs is removed once.
 const SEED_STATUS_IDS = ['s-1', 's-2'];
 const SEED_CHAT_IDS = ['c-1'];
@@ -32,16 +34,18 @@ const SEED_FLAG = 'rada_seed_purged_v2';
 
 export function purgeSeedData(): void {
   try {
-    // Sanitize any existing cached user profile if it contains 'lowkey wayne' or mock avatar
+    // Sanitize any existing cached user profile if it contains 'Wayne', 'waweru' or mock avatar
     const userRaw = localStorage.getItem('rada_current_user');
     if (userRaw) {
       try {
         const u = JSON.parse(userRaw);
         if (u && typeof u === 'object') {
           let modified = false;
-          if (!u.name || /lowkey\s*wayne|wayne\s*\(owner\)|^wayne$|^Guest Explorer$|^Explorer$/i.test(u.name)) {
-            const num = Math.floor(10 + Math.random() * 90);
-            u.name = `new_user_${num}`;
+          if (isLegacyWayneName(u.name) || isLegacyWayneName(u.username) || isLegacyWayneName(u.handle)) {
+            const randUser = generateNewUserName();
+            u.name = randUser;
+            u.username = randUser;
+            u.handle = `@${randUser}`;
             modified = true;
           }
           if (u.avatar && (u.avatar.includes('photo-1535713875002-d1d0cf377fde') || u.avatar.includes('photo-1534528741775'))) {

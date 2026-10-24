@@ -108,15 +108,18 @@ export async function isIdentifierTaken(args: { email?: string; phone?: string }
 export async function signUpWithEmail(
   email: string,
   password: string,
-  fullName: string
+  displayName?: string
 ): Promise<{ signedIn: boolean }> {
   const taken = await isIdentifierTaken({ email });
   if (taken === true) throw new Error(MSG_EXISTS);
 
+  // The typed name is the private display name. The database always assigns the public
+  // username as new_user_NN (see handle_new_user), and uses new_user_NN as the display name too if blank.
+  const name = (displayName || '').trim().slice(0, 40);
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { full_name: fullName } },
+    ...(name ? { options: { data: { display_name: name, full_name: name } } } : {}),
   });
   if (error) throw error;
 
@@ -146,7 +149,7 @@ export async function sendEmailLoginCode(email: string): Promise<void> {
  * Sends an SMS code. Sign-up first confirms the number is not already registered;
  * login never creates an account.
  */
-export async function sendPhoneCode(phone: string, isSignUp: boolean, fullName?: string): Promise<void> {
+export async function sendPhoneCode(phone: string, isSignUp: boolean): Promise<void> {
   if (isSignUp) {
     const taken = await isIdentifierTaken({ phone });
     if (taken === true) throw new Error(MSG_EXISTS);
@@ -158,7 +161,6 @@ export async function sendPhoneCode(phone: string, isSignUp: boolean, fullName?:
     options: {
       shouldCreateUser: isSignUp,
       channel: 'sms',
-      ...(isSignUp && fullName ? { data: { full_name: fullName } } : {}),
     },
   });
   if (error) throw error;

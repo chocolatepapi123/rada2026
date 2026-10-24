@@ -3,6 +3,7 @@ import type { BusinessAccount, SavedItem, CollectionFolder, OutingPlan, OutingAt
 import { isPlatformAdmin, isOfficialAdmin, DEFAULT_DELEGATED_PERMISSIONS, SUPER_ADMIN_PERMISSIONS } from '../types';
 import { STATUS_TTL_MS } from '../utils/statusLifecycle';
 import { loadUnclaimedSpots } from './spotsFeed';
+import { generateNewUserName, isLegacyWayneName, sanitizeDisplayName, sanitizeUsername } from '../utils/userUtils';
 
 
 export type ListingKind = 'spot' | 'event' | 'offer';
@@ -1231,13 +1232,13 @@ export async function updateUsername(uid: string, raw: string): Promise<{ error:
 export const NAME_MAX = 40;
 
 /**
- * Older signups and DB defaults used "Explorer" or "lowkey wayne" as a stand-in name.
- * A display name is optional and legacy placeholders are sanitized to blank.
+ * Older signups and DB defaults used "Explorer", "lowkey wayne", or "Wayne waweru".
+ * Sanitizes any legacy or blank values to "new_user_(random 2 numbers)".
  */
 export function cleanDisplayName(value?: unknown): string {
   const n = typeof value === 'string' ? value.trim() : '';
-  if (/^explorer$/i.test(n) || /lowkey\s*wayne|wayne\s*\(owner\)|^wayne$|^Guest Explorer$/i.test(n)) {
-    return '';
+  if (!n || isLegacyWayneName(n)) {
+    return generateNewUserName();
   }
   return n;
 }
@@ -1267,6 +1268,7 @@ export function readCachedIdentity(uid?: string): ProfileIdentity | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as ProfileIdentity;
     if (parsed.name) parsed.name = cleanDisplayName(parsed.name);
+    if (parsed.username && isLegacyWayneName(parsed.username)) parsed.username = parsed.name || generateNewUserName();
     if (parsed.avatarUrl) parsed.avatarUrl = cleanAvatarUrl(parsed.avatarUrl);
     return parsed;
   } catch {
@@ -1291,28 +1293,33 @@ export async function fetchProfileIdentity(uid: string): Promise<ProfileIdentity
     return c ? {
       ...c,
       ...(c.name !== undefined ? { name: cleanDisplayName(c.name) } : {}),
+      ...(c.username !== undefined ? { username: sanitizeUsername(c.username, c.name) } : {}),
       ...(c.avatarUrl !== undefined ? { avatarUrl: cleanAvatarUrl(c.avatarUrl) } : {})
     } : null;
   }
 
   // Precedence: profiles row (server truth) > local cache (last save) > auth metadata (gap filler only).
-  // Metadata used to win over the cache, so a stale signup value reverted a name you had just saved.
   const row: ProfileIdentity = {};
   let rowHasName = false;
   try {
     const { data } = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle();
     if (data) {
-      if (typeof data.display_name === 'string') {
-        row.name = cleanDisplayName(data.display_name); // '' is a real, saved "no name"
+      if (typeof data.display_name === 'string' && data.display_name.trim()) {
+        row.name = cleanDisplayName(data.display_name);
         rowHasName = true;
       } else {
         const legacy = data.full_name || data.name;
-        if (legacy) {
+        if (legacy && legacy.trim()) {
           row.name = cleanDisplayName(legacy);
           rowHasName = true;
         }
       }
-      if (data.username) row.username = normalizeUsername(String(data.username));
+      if (data.username) {
+        const u = normalizeUsername(String(data.username));
+        row.username = isLegacyWayneName(u) ? (row.name || generateNewUserName()) : u;
+      } else if (row.name) {
+        row.username = row.name;
+      }
       if (data.avatar_url) row.avatarUrl = cleanAvatarUrl(data.avatar_url);
       if (typeof data.bio === 'string') row.bio = data.bio;
       if (data.is_creator === true || data.account_type === 'professional') row.isCreator = true;
@@ -1326,13 +1333,19 @@ export async function fetchProfileIdentity(uid: string): Promise<ProfileIdentity
       const { data: auth } = await supabase.auth.getUser();
       const m: any = auth?.user?.user_metadata || {};
       if (!rowHasName && (m.display_name || m.full_name)) meta.name = cleanDisplayName(m.display_name || m.full_name);
-      if (!row.username && m.username) meta.username = normalizeUsername(String(m.username));
+      if (!row.username && m.username) {
+        const u = normalizeUsername(String(m.username));
+        meta.username = isLegacyWayneName(u) ? (meta.name || generateNewUserName()) : u;
+      }
       if (m.avatar_url) meta.avatarUrl = cleanAvatarUrl(m.avatar_url);
     } catch {}
   }
 
   const merged: ProfileIdentity = { ...meta, ...(readCachedIdentity(uid) || {}), ...row };
   if (merged.name !== undefined) merged.name = cleanDisplayName(merged.name);
+  if (!merged.username || isLegacyWayneName(merged.username)) {
+    merged.username = merged.name || generateNewUserName();
+  }
   if (merged.avatarUrl !== undefined) merged.avatarUrl = cleanAvatarUrl(merged.avatarUrl);
   if (Object.keys(merged).length === 0) return null;
   cacheIdentity(uid, merged);
@@ -1721,11 +1734,10 @@ export async function fetchOwnProfilePatch(uid: string): Promise<Partial<UserPro
   const patch: Partial<UserProfile> = {};
   if (!uid) return patch;
   const [idn, pro] = await Promise.all([fetchProfileIdentity(uid), fetchProfessionalState(uid)]);
-  if (idn?.name) patch.name = idn.name;
-  if (idn?.username) {
-    patch.username = idn.username;
-    patch.handle = toHandle(idn.username);
-  }
+  if (idn?.name) patch.name = cleanDisplayName(idn.name);
+  const u = idn?.username && !isLegacyWayneName(idn.username) ? idn.username : (patch.name || generateNewUserName());
+  patch.username = u;
+  patch.handle = toHandle(u);
   if (idn?.avatarUrl) patch.avatar = idn.avatarUrl;
   if (typeof idn?.bio === 'string' && idn.bio) patch.bio = idn.bio;
   if (pro) {
