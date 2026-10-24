@@ -1,6 +1,12 @@
 {
-  "name": "RADA - Nairobi Hangouts & Business Hub",
-  "description": "Nairobi's premier guide for where to go, what to wear, and who to go with — featuring an interactive Business Hub for venues, event promoters, and thrift stores.",
-  "requestFramePermissions": ["geolocation", "camera", "microphone"],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "name": "RADA: Spots, Events & Outings in Nairobi",
+  "description": "Discover Nairobi's best spots, events and movies, plan outings with new people, keep your tickets in one place and go out safely.",
+  "requestFramePermissions": [
+    "geolocation",
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
