@@ -45,9 +45,9 @@ jobs:
           cd /tmp/seed
           npx tsx seedSpots.ts
         env:
-          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN || secrets.APIFY_API_TOKEN || secrets.APIFY_KEY || vars.APIFY_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.VITE_SUPABASE_URL || vars.SUPABASE_URL || vars.VITE_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SERVICE_KEY || secrets.SERVICE_ROLE_KEY || vars.SUPABASE_SERVICE_ROLE_KEY }}
           SEED_MODE: ${{ github.event.inputs.mode || 'all' }}
           SEED_BUDGET_MIN: ${{ github.event.inputs.budget_min || '300' }}
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
