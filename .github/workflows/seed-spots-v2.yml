@@ -31,11 +31,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      # No package-lock.json in the repo, so no npm cache and no `npm ci`.
-      # This installs the project's dependencies plus the three the seed script needs.
-      - run: npm install --no-audit --no-fund --no-save tsx apify-client @supabase/supabase-js
+      # The repo's own package.json breaks npm here ("edgesOut" error) and has no lockfile, so the seed
+      # script runs from a clean temp folder with only the three packages it needs.
+      - name: Install seed dependencies
+        run: |
+          mkdir -p /tmp/seed
+          cd /tmp/seed
+          npm init -y
+          npm install --no-audit --no-fund tsx apify-client @supabase/supabase-js
       - name: Seed
-        run: npx tsx scripts/seedSpots.ts
+        run: |
+          cp scripts/seedSpots.ts /tmp/seed/seedSpots.ts
+          cd /tmp/seed
+          npx tsx seedSpots.ts
         env:
           APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
