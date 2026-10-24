@@ -124,7 +124,7 @@ for (const name of names) {
     console.log(`${name}: ${rows.length} usable events, ${matched} matched to spots`);
     if (dry) { console.log(JSON.stringify(rows.slice(0, 2), null, 2)); continue; }
     if (!rows.length) continue;
-    const { error } = await supabase.from("events").upsert(rows, { onConflict: "source_url" });
+    const { error } = await supabase.from("external_events").upsert(rows, { onConflict: "source_url" });
     if (error) throw error;
     console.log(`${name}: upserted ${rows.length}`);
   } catch (e) {
