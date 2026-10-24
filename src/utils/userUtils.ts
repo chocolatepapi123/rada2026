@@ -12,22 +12,40 @@ export const generateNewUserName = (): string => {
 };
 
 /**
- * Checks if a name matches legacy hardcoded defaults like "lowkey wayne", "Wayne", or "Guest Explorer"
+ * True for blank values and the old hard-coded placeholder names ("lowkey wayne", "Wayne",
+ * "Explorer", "Guest Explorer"...). Matches the WHOLE name only, so real people whose names
+ * merely contain "Wayne" (or "Waweru") are never renamed.
  */
+const LEGACY_DEFAULT_NAMES = new Set([
+  'wayne', 'lowkey wayne', 'wayne (owner)', 'guest', 'explorer', 'guest explorer',
+]);
 export const isLegacyWayneName = (name?: string | null): boolean => {
-  if (!name || typeof name !== 'string') return true;
-  const n = name.trim();
-  return !n || /lowkey\s*wayne|wayne\s*\(owner\)|^wayne$|^Guest Explorer$|^Explorer$/i.test(n);
+  const n = (name || '').trim().toLowerCase().replace(/\s+/g, ' ').replace(/^@/, '');
+  return !n || LEGACY_DEFAULT_NAMES.has(n);
 };
 
 /**
- * Ensures display name is never "lowkey wayne" or blank, defaulting to "new_user_(random 2 numbers)"
+ * Ensures display name is never legacy placeholder or blank, defaulting to "new_user_(random 2 numbers)"
  */
 export const sanitizeDisplayName = (name?: string | null): string => {
   if (isLegacyWayneName(name)) {
     return generateNewUserName();
   }
   return (name || '').trim();
+};
+
+/**
+ * Ensures username is never legacy placeholder or blank, defaulting to "new_user_(random 2 numbers)"
+ */
+export const sanitizeUsername = (username?: string | null, fallbackName?: string | null): string => {
+  const cleanU = (username || '').replace(/^@/, '').trim();
+  if (isLegacyWayneName(cleanU)) {
+    if (fallbackName && !isLegacyWayneName(fallbackName)) {
+      return fallbackName.replace(/^@/, '').trim();
+    }
+    return generateNewUserName();
+  }
+  return cleanU;
 };
 
 /**
