@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install @supabase/supabase-js
+      - run: npm install --no-save --legacy-peer-deps @supabase/supabase-js
       - run: node scripts/seed-events.mjs "${{ inputs.source }}" "${{ inputs.max_items }}" ${{ inputs.dry_run && '--dry' || '' }}
         env:
           APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
