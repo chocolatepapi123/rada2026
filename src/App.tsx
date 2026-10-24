@@ -107,13 +107,16 @@ import {
 import {
   generateNewUserName,
   sanitizeDisplayName,
+  sanitizeUsername,
   sanitizeAvatarUrl,
   isLegacyWayneName
 } from './utils/userUtils.ts';
 
+const defaultGuestName = generateNewUserName();
 const GUEST_PROFILE: UserProfile = {
-  name: generateNewUserName(),
-  handle: '@guest',
+  name: defaultGuestName,
+  username: defaultGuestName,
+  handle: `@${defaultGuestName}`,
   avatar: '',
   bio: 'Discovering local spots near you on RADA. Log in or create an account to customize your profile & connect with spots!',
   loc: 'Westlands',
@@ -124,9 +127,11 @@ const GUEST_PROFILE: UserProfile = {
   vibes: ['Nightlife', 'Cocktails', 'Amapiano', 'Art', 'Thrifting']
 };
 
+const defaultExplorerName = generateNewUserName();
 const DEFAULT_PROFILE: UserProfile = {
-  name: generateNewUserName(),
-  handle: '@explorer',
+  name: defaultExplorerName,
+  username: defaultExplorerName,
+  handle: `@${defaultExplorerName}`,
   avatar: '',
   bio: 'Exploring Nairobi spots, events, and fashion setups. Hit me up for hangouts! ✨',
   loc: 'Nairobi',
@@ -672,10 +677,17 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object') {
+          const rawName = parsed.name;
+          const rawUser = parsed.username || (parsed.handle ? parsed.handle.replace(/^@/, '') : '');
+          const isLegacy = isLegacyWayneName(rawName) || isLegacyWayneName(rawUser);
+          const assignedUser = isLegacy ? generateNewUserName() : sanitizeUsername(rawUser, rawName);
+          const assignedName = isLegacy ? assignedUser : sanitizeDisplayName(rawName);
           return {
             ...GUEST_PROFILE,
             ...parsed,
-            name: sanitizeDisplayName(parsed.name),
+            name: assignedName,
+            username: assignedUser,
+            handle: `@${assignedUser.replace(/^@/, '')}`,
             avatar: sanitizeAvatarUrl(parsed.avatar),
             relationshipStatus: parsed.relationshipStatus || parsed.relationship_status || 'single',
             relationship_status: parsed.relationship_status || parsed.relationshipStatus || 'single',
@@ -685,9 +697,12 @@ export default function App() {
         }
       }
     } catch (_) {}
+    const defaultUser = generateNewUserName();
     return {
       ...GUEST_PROFILE,
-      name: generateNewUserName(),
+      name: defaultUser,
+      username: defaultUser,
+      handle: `@${defaultUser}`,
       avatar: ''
     };
   });
@@ -1503,16 +1518,21 @@ export default function App() {
       const remote = await cloud.fetchUserData(uid);
       if (cancelled) return;
       // Brand-new account: name defaults to new_user_(random 2 numbers) and blank avatar
-      const freshProfile = (): UserProfile => ({
-        ...DEFAULT_PROFILE,
-        name: generateNewUserName(),
-        handle: '@explorer',
-        avatar: '',
-        username: undefined,
-        bio: '',
-      });
+      const freshProfile = (): UserProfile => {
+        const u = generateNewUserName();
+        return {
+          ...DEFAULT_PROFILE,
+          name: u,
+          username: u,
+          handle: `@${u}`,
+          avatar: '',
+          bio: '',
+        };
+      };
       let base: UserProfile = remote?.profile ? remote.profile : freshProfile();
       base.name = sanitizeDisplayName(base.name);
+      base.username = sanitizeUsername(base.username, base.name);
+      base.handle = `@${base.username.replace(/^@/, '')}`;
       base.avatar = sanitizeAvatarUrl(base.avatar);
       if (remote) {
         if (remote.tickets) setTickets(remote.tickets);
@@ -1526,7 +1546,9 @@ export default function App() {
         if (patch.name) patch.name = sanitizeDisplayName(patch.name);
         if (patch.avatar !== undefined) patch.avatar = sanitizeAvatarUrl(patch.avatar);
         base = { ...base, ...patch };
-        if (patch.username) base.handle = cloud.toHandle(patch.username);
+        base.name = sanitizeDisplayName(base.name);
+        base.username = sanitizeUsername(base.username, base.name);
+        base.handle = `@${base.username.replace(/^@/, '')}`;
       } catch (e) {
         console.warn('Profile identity load failed:', e);
       }
