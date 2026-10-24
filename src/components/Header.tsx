@@ -12,18 +12,18 @@ import {
   LogIn,
   Crown,
   HelpCircle,
-  Sparkles,
-  Search,
-  X
+  Sparkles
 } from 'lucide-react';
 import { isPlatformAdmin } from '../types';
-import { searchNairobiLocations } from '../data/nairobiLocations.ts';
 
 interface HeaderProps {
   onOpenOverlay: (overlayId: string) => void;
   onSwitchTab: (tabId: string) => void;
-  currentLocation: string;
+  /** @deprecated The header no longer shows a location indicator. Accepted so existing callers still compile. */
+  currentLocation?: string;
+  /** @deprecated See currentLocation. */
   isGpsActive?: boolean;
+  /** @deprecated See currentLocation. */
   onUpdateLocation?: (newLocation: string, isGps: boolean) => void;
   hasBusinessAccount: boolean;
   businessName?: string;
@@ -50,9 +50,6 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   onOpenOverlay,
   onSwitchTab,
-  currentLocation,
-  isGpsActive = true,
-  onUpdateLocation,
   hasBusinessAccount,
   businessName,
   isDarkMode,
@@ -69,17 +66,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSuggestSpot,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
-  const [locQuery, setLocQuery] = useState('');
   const menuRef = useRef<HTMLDivElement>(null);
-
-  // Fast suggestions for exact location search in header
-  const headerLocSuggestions = React.useMemo(() => {
-    const popular = ['Westlands', 'Kilimani', 'Karen', 'CBD', 'Lavington', 'Kileleshwa', 'Gigiri', 'Parklands', 'Ngong Road', 'Ruaka'];
-    if (!locQuery.trim()) return popular;
-    const places = searchNairobiLocations(locQuery).map(p => `${p.name}, ${p.neighborhood}`);
-    return Array.from(new Set([...places, ...popular.filter(p => p.toLowerCase().includes(locQuery.toLowerCase()))])).slice(0, 10);
-  }, [locQuery]);
 
   // hello.rada.app@gmail.com OR role === 'admin'. Guests never qualify.
   const isAdmin = !isGuestMode && isPlatformAdmin({ email: userEmail, role: userRole });
@@ -105,21 +92,10 @@ export const Header: React.FC<HeaderProps> = ({
     onOpenOverlay(overlayId);
   };
 
-  // Primary city/area only: "Kiambu / Thika, Kenya" -> "Kiambu", "Westlands, Nairobi" -> "Westlands"
-  const singleLocality = React.useMemo(() => {
-    if (!currentLocation || typeof currentLocation !== 'string') return '';
-    const primary = currentLocation
-      .trim()
-      .split(/\s*[,/|•·;]\s*|\s+[-–—]\s+/)[0]
-      ?.replace(/\s*\.{2,}$|…$/g, '')
-      .trim();
-    return primary || '';
-  }, [currentLocation]);
-
   return (
     <header className="sticky top-0 z-40 bg-white dark:bg-[#121113] border-b border-slate-200 dark:border-slate-800 shadow-xs transition-colors duration-200">
       <div className="max-w-lg mx-auto w-full px-3.5 sm:px-4 py-3 sm:py-3.5 min-h-[60px] sm:min-h-[64px] flex items-center justify-between gap-2.5 flex-nowrap">
-        {/* Left Side: Brand Logo & Interactive Location Search Trigger */}
+        {/* Left Side: Brand Logo */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink">
           <button 
             type="button"
@@ -136,19 +112,6 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
             <span className="text-2xl sm:text-2xl font-black tracking-tight text-[#E0533C] shrink-0 leading-none">
               RADA
-            </span>
-          </button>
-
-          {/* Interactive Searchbox trigger for exact location */}
-          <button 
-            type="button"
-            onClick={() => setIsLocationModalOpen(true)}
-            className="min-w-0 shrink bg-slate-100 hover:bg-slate-200 dark:bg-[#1C1A1E] dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold px-2.5 sm:px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-slate-200 dark:border-slate-800 select-none max-w-[48vw] sm:max-w-[240px] cursor-pointer shadow-2xs overflow-hidden transition active:scale-95"
-            title={`Location: ${singleLocality || 'Click to search exact location'}`}
-          >
-            <MapPin className="w-3.5 h-3.5 shrink-0 text-[#E0533C]" />
-            <span className="whitespace-nowrap truncate text-xs font-bold leading-normal min-w-0">
-              {singleLocality || 'Exact Location'}
             </span>
           </button>
         </div>
@@ -356,90 +319,6 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Searchbox for Exact Location Modal */}
-      {isLocationModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-[#1C1A1E] w-full max-w-sm rounded-3xl p-4 shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-150 space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-red-50 dark:bg-red-950/60 text-[#E0533C] flex items-center justify-center">
-                  <MapPin className="w-3.5 h-3.5" />
-                </div>
-                <h3 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-wider">
-                  Search Exact Location
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsLocationModalOpen(false)}
-                className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 cursor-pointer"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                autoFocus
-                value={locQuery}
-                onChange={(e) => setLocQuery(e.target.value)}
-                placeholder="Search exact neighborhood, area, or landmark..."
-                className="w-full pl-9 pr-8 py-2.5 bg-[#F8F8F6] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-[#E0533C]"
-              />
-              {locQuery && (
-                <button
-                  type="button"
-                  onClick={() => setLocQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-
-            <div className="max-h-52 overflow-y-auto space-y-1">
-              {locQuery.trim() && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (onUpdateLocation) onUpdateLocation(locQuery.trim(), false);
-                    setIsLocationModalOpen(false);
-                    setLocQuery('');
-                  }}
-                  className="w-full text-left p-2 rounded-xl bg-orange-50 dark:bg-orange-950/30 text-xs font-bold text-[#E0533C] hover:bg-orange-100 dark:hover:bg-orange-950/60 transition flex items-center justify-between cursor-pointer"
-                >
-                  <span className="truncate">Use exact custom: "{locQuery.trim()}"</span>
-                  <span className="text-[10px] bg-[#E0533C] text-white px-2 py-0.5 rounded-full font-bold ml-1 shrink-0">
-                    Select
-                  </span>
-                </button>
-              )}
-
-              {headerLocSuggestions.map((loc) => (
-                <button
-                  key={loc}
-                  type="button"
-                  onClick={() => {
-                    if (onUpdateLocation) onUpdateLocation(loc, false);
-                    setIsLocationModalOpen(false);
-                    setLocQuery('');
-                  }}
-                  className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-between transition cursor-pointer"
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                    <span className="truncate">{loc}</span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 font-normal shrink-0">Pick</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </header>
   );
 };

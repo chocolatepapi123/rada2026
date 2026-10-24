@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Search, X, MapPin, Bookmark, Star, SlidersHorizontal, Compass, Trash2, Navigation } from 'lucide-react';
 import { SpotItem, SavedItem } from '../types.ts';
 import { spotInCategory, getSpotCategoryIds, isAllKey } from '../lib/spotCategories.ts';
-import { getSpotCategoryAccent } from '../lib/spotAccents.ts';
+import { getSpotCategoryAccent, accentVars } from '../lib/spotAccentTheme.ts';
 import { rankSpots, premiumScore, formatKm, useNearYou } from '../lib/spotRanking.ts';
 import { NearYouControl } from './NearYouControl.tsx';
 import { resolveSpotBudget, budgetBadge } from '../lib/spotBudget.ts';
@@ -284,38 +284,21 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
             const hasReviews = reviewCount > 0;
             const budgetText = budgetBadge(resolveSpotBudget(spot)) || spot.price;
             const catIds = getSpotCategoryIds(spot);
-            const accents = (catIds.length ? catIds : [spot.category]).map(c => getSpotCategoryAccent(c));
-            const primary = accents[0];
+            const primary = getSpotCategoryAccent(catIds[0] || spot.category);
             const dist = (spot as any).distanceKm as number | undefined;
 
             return (
               <div
                 key={String(spot.id)}
                 onClick={() => onOpenSpot(spot)}
-                className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shadow-xs cursor-pointer transition flex flex-col justify-between group"
-                style={{ borderTopColor: primary.color, borderTopWidth: 3 }}
+                className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 border-t-[3px] border-t-[color:var(--accent)] dark:border-t-[color:var(--accent-line)] rounded-3xl p-3 shadow-xs cursor-pointer transition flex flex-col justify-between group"
+                style={accentVars(primary)}
               >
                 <div>
                   <div
                     className="h-44 rounded-2xl bg-cover bg-center mb-3 relative overflow-hidden bg-slate-200 dark:bg-slate-800"
                     style={{ backgroundImage: `url('${spot.img}')` }}
                   >
-                    <div className="absolute top-2.5 left-2.5 right-24 flex flex-wrap gap-1">
-                      {accents.slice(0, 2).map(a => (
-                        <span
-                          key={a.id}
-                          className="text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs"
-                          style={{ backgroundColor: a.color, color: a.textOn }}
-                        >
-                          <a.Icon className="w-2.5 h-2.5" />
-                          <span className="truncate">{a.label}</span>
-                        </span>
-                      ))}
-                      {accents.length > 2 && (
-                        <span className="bg-black/70 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md">+{accents.length - 2}</span>
-                      )}
-                    </div>
-
                     {/* Admin Delete shortcut */}
                     {isAdmin && (
                       <button
@@ -369,7 +352,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
                     </div>
 
                     <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
-                      <MapPin className="w-3 h-3 shrink-0" style={{ color: primary.color }} />
+                      <MapPin className="w-3 h-3 shrink-0 text-[color:var(--accent-text)] dark:text-[color:var(--accent-ink)]" />
                       <span className="truncate">{spot.address || spot.neighborhood}</span>
                     </p>
 
@@ -406,8 +389,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
                         e.stopPropagation();
                         onOpenSpot(spot);
                       }}
-                      className="px-3 py-1.5 rounded-xl text-[11px] font-bold transition shadow-xs cursor-pointer hover:opacity-90"
-                      style={{ backgroundColor: primary.color, color: primary.textOn }}
+                      className="px-3 py-1.5 rounded-xl text-[11px] font-bold transition shadow-xs cursor-pointer hover:opacity-90 bg-[var(--accent)] dark:bg-[var(--accent-deep)] text-[color:var(--accent-on)] dark:text-[color:var(--accent-ink)] border border-transparent dark:border-[color:var(--accent-line)]"
                     >
                       View Details
                     </button>

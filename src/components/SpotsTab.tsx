@@ -38,7 +38,7 @@ import type { ToastOptions } from './Toast.tsx';
 import { resolveSpotBudget, budgetBadge } from '../lib/spotBudget.ts';
 import { useUnclaimedSpots, spotInCategory, mergeSpots, evictUnclaimedSpot } from '../lib/spotsFeed.ts';
 import { SPOT_CATEGORIES, getSpotCategoryIds } from '../lib/spotCategories.ts';
-import { getSpotCategoryAccent, accentPillStyle } from '../lib/spotAccents.ts';
+import { getSpotCategoryAccent, accentPillStyle, accentVars } from '../lib/spotAccentTheme.ts';
 import { rankSpots, useNearYou, formatKm } from '../lib/spotRanking.ts';
 import { NearYouControl } from './NearYouControl.tsx';
 import { spotMatchesSearchWithTags } from '../utils/spotTags.ts';
@@ -461,8 +461,6 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   const renderSpotCard = (spot: SpotItem, contextCategory?: string) => {
     const catIds = getSpotCategoryIds(spot);
     const accent = getSpotCategoryAccent(contextCategory || catIds[0] || spot.category);
-    const AccentIcon = accent.Icon;
-    const otherCats = catIds.filter(id => id !== accent.id).slice(0, 2).map(id => getSpotCategoryAccent(id));
     const imagesList = (spot.images && spot.images.length > 0) ? spot.images : [spot.img];
     const currentIndex = activeImageIndices[spot.id] || 0;
     const currentImg = imagesList[currentIndex] || spot.img;
@@ -479,8 +477,8 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
       <div
         key={spot.id}
         onClick={handleOpenDetails}
-        style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 288px auto 340px', borderTop: `3px solid ${accent.color}` }}
-        className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-[#E0533C] dark:hover:border-[#D17A68] transition group"
+        style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 288px auto 340px', ...accentVars(accent) }}
+        className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 border-t-[3px] border-t-[color:var(--accent)] dark:border-t-[color:var(--accent-line)] rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer transition group"
       >
         <div>
           {/* Multiple Image Carousel Area */}
@@ -600,26 +598,14 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-1 flex-wrap">
-              <span
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black border"
-                style={accentPillStyle(accent, false)}
-              >
-                <AccentIcon className="w-2.5 h-2.5" />
-                <span>{accent.label}</span>
-              </span>
-              {otherCats.map(o => (
-                <span key={o.id} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border" style={accentPillStyle(o, false)}>
-                  {o.label}
-                </span>
-              ))}
-              {(spot as any).distanceKm != null && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-[#2D6A4F] text-white">
+            {(spot as any).distanceKm != null && (
+              <div className="flex items-center gap-1">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-[#2D6A4F] dark:bg-[#1F4D3A] text-white">
                   <Navigation className="w-2.5 h-2.5" />
                   {formatKm((spot as any).distanceKm)}
                 </span>
-              )}
-            </div>
+              </div>
+            )}
 
             <p className="text-xs text-[#475569] dark:text-slate-300 flex items-center justify-between font-medium">
               <span className="truncate">{spot.neighborhood} • {spot.address.split(',')[0]}</span>
@@ -629,9 +615,9 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
             </p>
 
             {/* Fills the row when a neighbouring card is taller (carousel cards share one height) */}
-            {(spot.description || (spot.vibes && spot.vibes.length > 0) || (spot.tags && spot.tags.length > 0)) && (
+            {spot.description && (
               <p className="text-[11px] leading-snug text-slate-500 dark:text-slate-400 line-clamp-2 pt-0.5">
-                {spot.description || (spot.vibes?.length ? spot.vibes : spot.tags || []).slice(0, 4).join(' • ')}
+                {spot.description}
               </p>
             )}
 
@@ -659,9 +645,9 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               e.stopPropagation();
               onViewLocation(spot);
             }}
-            className="flex-1 py-2 bg-white dark:bg-[#121113] hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 border border-slate-200 dark:border-slate-800"
+            className="flex-1 py-2 bg-transparent hover:opacity-80 text-[color:var(--accent-text)] dark:text-[color:var(--accent-ink)] border border-[color:var(--accent)] dark:border-[color:var(--accent-line)] rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer"
           >
-            <MapPin className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
+            <MapPin className="w-3.5 h-3.5" />
             <span>Map</span>
           </button>
 
@@ -684,7 +670,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               e.stopPropagation();
               onOpenSpotFullView(spot);
             }}
-            className="flex-1 py-2 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 shadow-xs"
+            className="flex-1 py-2 bg-[var(--accent)] dark:bg-[var(--accent-deep)] text-[color:var(--accent-on)] dark:text-[color:var(--accent-ink)] border border-transparent dark:border-[color:var(--accent-line)] hover:opacity-90 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 shadow-xs cursor-pointer"
           >
             <span>Details</span>
           </button>
@@ -1023,7 +1009,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         {/* Near You (device geolocation) */}
         <NearYouControl />
 
-        {/* Category Filter Pills: all 17 categories, each with its own accent */}
+        {/* Category icon buttons: no fill. Icon + selected outline carry the category accent */}
         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
           {[{ id: 'all', label: 'All Categories', icon: Compass }, ...SPOT_CATEGORIES].map((cat) => {
             const Icon = cat.icon;
@@ -1032,17 +1018,20 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
             return (
               <button
                 key={cat.id}
+                type="button"
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`px-3 py-1.5 rounded-full text-xs shrink-0 transition-all flex items-center gap-1.5 border ${
+                style={acc ? accentVars(acc) : undefined}
+                className={`px-3 py-1.5 rounded-full text-xs shrink-0 transition-all flex items-center gap-1.5 border bg-transparent cursor-pointer ${
                   acc
-                    ? 'font-black'
+                    ? isSelected
+                      ? 'font-black border-[color:var(--accent)] dark:border-[color:var(--accent-line)] ring-1 ring-[color:var(--accent)] dark:ring-[color:var(--accent-line)] text-[color:var(--accent-text)] dark:text-[color:var(--accent-ink)]'
+                      : 'font-semibold border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-[color:var(--accent)] dark:hover:border-[color:var(--accent-line)]'
                     : isSelected
-                      ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white font-black shadow-xs border-transparent'
-                      : 'bg-white dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-300 font-semibold border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                      ? 'font-black border-[#E0533C] dark:border-[#A94F3E] ring-1 ring-[#E0533C] dark:ring-[#A94F3E] text-[#E0533C] dark:text-[#D17A68]'
+                      : 'font-semibold border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300'
                 }`}
-                style={acc ? accentPillStyle(acc, isSelected) : undefined}
               >
-                <Icon className="w-3 h-3" />
+                <Icon className={`w-3 h-3 ${acc ? 'text-[color:var(--accent-text)] dark:text-[color:var(--accent-ink)]' : ''}`} />
                 <span>{cat.label}</span>
               </button>
             );

@@ -2,7 +2,7 @@ import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending, formatOpen
 import { resolveSpotBudget, budgetBadge } from '../lib/spotBudget.ts';
 import { useLocationPreference, sortByProximity, NEIGHBORHOOD_COORDS, formatDistance, distanceKm, resolveNearestNeighborhood } from '../lib/geo.ts';
 import { SPOT_CATEGORIES, getSpotCategoryIds } from '../lib/spotCategories.ts';
-import { getSpotCategoryAccent, accentPillStyle } from '../lib/spotAccents.ts';
+import { getSpotCategoryAccent, accentPillStyle, accentVars } from '../lib/spotAccentTheme.ts';
 import { rankSpots, useNearYou } from '../lib/spotRanking.ts';
 import { NearYouControl } from './NearYouControl.tsx';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
@@ -504,7 +504,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   }, []);
   const t = translations[appLang];
 
-  // Category rows: all 17 RADA categories (category + extra_categories)
+  // Category rows data: all 17 RADA categories (category + extra_categories); Home only renders a few of them
   const spotsByCat = useMemo(() => {
     const out: Record<string, SpotItem[]> = {};
     for (const c of SPOT_CATEGORIES) out[c.id] = homeFilteredSpots.filter(sp => spotInCategory(sp, c.id)) as SpotItem[];
@@ -1862,11 +1862,13 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               const saved = isSaved(spot.id, 'spot');
               const reviewCount = spot.reviews?.length ?? (spot.reviewCount || 0);
               const hasReviews = reviewCount > 0;
+              const spotAccent = getSpotCategoryAccent(getSpotCategoryIds(spot)[0] || spot.category);
               return (
                 <div
                   key={spot.id}
                   onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
-                  className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-[#E0533C] transition group"
+                  style={accentVars(spotAccent)}
+                  className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 border-t-[3px] border-t-[color:var(--accent)] dark:border-t-[color:var(--accent-line)] rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer transition group"
                 >
                   <div>
                     <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
@@ -1874,9 +1876,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-all duration-300"
                         style={{ backgroundImage: `url('${spot.img}')` }}
                       />
-                      <span className="absolute top-2.5 left-2.5 bg-black/70 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
-                        {(() => { const a = getSpotCategoryAccent(getSpotCategoryIds(spot)[0] || spot.category); const I = a.Icon; return (<><I className="w-2.5 h-2.5" style={{ color: a.color }} /><span>{a.label}</span></>); })()}
-                      </span>
                       <button
                         type="button"
                         onClick={(e) => {
@@ -1944,7 +1943,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                           e.stopPropagation();
                           onOpenSpotDetails && onOpenSpotDetails(spot);
                         }}
-                        className="px-3 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
+                        className="px-3 py-1.5 bg-[var(--accent)] dark:bg-[var(--accent-deep)] text-[color:var(--accent-on)] dark:text-[color:var(--accent-ink)] border border-transparent dark:border-[color:var(--accent-line)] hover:opacity-90 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
                       >
                         <span>Explore</span>
                         <ArrowRight className="w-3 h-3" />
@@ -1971,14 +1970,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           IconComp: any,
           spotsList: SpotItem[],
           accentColor: string,
-          badgeText: string
+          _badgeText?: string
         ) => {
           if ((selectedHomeSection !== 'all' && selectedHomeSection !== 'spots') || spotsList.length === 0) return null;
           return (
             <div key={key} className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center shadow-xs" style={{ backgroundColor: `${accentColor}20`, color: accentColor }}>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center shadow-xs text-[color:var(--accent-text)] dark:text-[color:var(--accent-ink)]" style={{ ...accentVars({ color: accentColor }), backgroundColor: `${accentColor}20` }}>
                     <IconComp className="w-3.5 h-3.5" />
                   </div>
                   <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
@@ -2001,7 +2000,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     <div
                       key={spot.id}
                       onClick={() => onOpenSpotDetails && onOpenSpotDetails(spot)}
-                      className="w-72 bg-white dark:bg-[#151319] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer hover:border-[#E0533C] transition group"
+                      style={accentVars({ color: accentColor })}
+                      className="w-72 bg-white dark:bg-[#151319] border border-slate-200 dark:border-slate-800 border-t-[3px] border-t-[color:var(--accent)] dark:border-t-[color:var(--accent-line)] rounded-3xl p-3 shrink-0 shadow-sm flex flex-col justify-between cursor-pointer transition group"
                     >
                       <div>
                         <div className="h-44 rounded-2xl relative overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800">
@@ -2009,10 +2009,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                             className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-all duration-300"
                             style={{ backgroundImage: `url('${spot.img}')` }}
                           />
-                          <span className="absolute top-2.5 left-2.5 bg-black/70 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
-                            <IconComp className="w-2.5 h-2.5" />
-                            <span>{badgeText}</span>
-                          </span>
                           <button
                             type="button"
                             onClick={(e) => {
@@ -2054,7 +2050,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                       </div>
 
                       <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                        <span className="text-[10px] font-bold" style={{ color: accentColor }}>
+                        <span className="text-[10px] font-bold text-[color:var(--accent-text)] dark:text-[color:var(--accent-ink)]">
                           {getDisplayHours(spot.openingHours, 'Open Daily')}
                         </span>
                         <button
@@ -2063,8 +2059,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                             e.stopPropagation();
                             onOpenSpotDetails && onOpenSpotDetails(spot);
                           }}
-                          className="px-3 py-1.5 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
-                          style={{ backgroundColor: accentColor }}
+                          className="px-3 py-1.5 bg-[var(--accent)] dark:bg-[var(--accent-deep)] text-[color:var(--accent-on)] dark:text-[color:var(--accent-ink)] border border-transparent dark:border-[color:var(--accent-line)] hover:opacity-90 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
                         >
                           <span>{t.explore}</span>
                           <ArrowRight className="w-3 h-3" />
@@ -2081,7 +2076,13 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         const NIGHT_ORDER = ['restaurants', 'nyama_choma', 'clubs_lounges', 'bars_chill', 'rooftops', 'date_spots', 'desserts', 'fast_food', 'hangouts_leisure', 'gaming_arcades', 'arts_culture', 'cafes_bakeries', 'hotels_stays', 'getaways_resorts', 'sports_adventure', 'outdoors_nature', 'garden_hangouts'];
         const DAY_ORDER = ['sports_adventure', 'outdoors_nature', 'garden_hangouts', 'gaming_arcades', 'arts_culture', 'cafes_bakeries', 'restaurants', 'nyama_choma', 'fast_food', 'desserts', 'hangouts_leisure', 'getaways_resorts', 'hotels_stays', 'rooftops', 'date_spots', 'bars_chill', 'clubs_lounges'];
         const order = !isDayTime ? NIGHT_ORDER : DAY_ORDER;
-        const ids = [...order, ...SPOT_CATEGORIES.map(c => c.id).filter(id => !order.includes(id))];
+        const allIds = [...order, ...SPOT_CATEGORIES.map(c => c.id).filter(id => !order.includes(id))];
+        // Streamlined Home: only the first few categories (time-of-day order) that actually have spots.
+        // A category picked in the Home filter always shows; the full list lives in the Spots tab.
+        const HOME_CATEGORY_ROWS = 6;
+        const ids = selectedHomeCategory !== 'all'
+          ? [selectedHomeCategory]
+          : allIds.filter(id => (spotsByCat[id] || []).length > 0).slice(0, HOME_CATEGORY_ROWS);
 
         return (
           <>
