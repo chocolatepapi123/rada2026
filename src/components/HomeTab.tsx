@@ -471,9 +471,27 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     return rankSpots(enriched, { nearYou: near.active, origin: near.origin, radiusKm: near.radiusKm });
   }, [spots, dbSpots, unclaimedFeed, liveReviews, near.active, near.origin, near.radiusKm]);
 
+  // Home only shows representable spots: a real photo, complete info and solid ratings.
+  // Imported (unclaimed) spots need a real cover, 3+ photos, 4.0+ rating, 20+ reviews and an address.
+  // Merchant-created spots only need a real photo. displaySpots is already ranked, so order is kept.
+  const HOME_MAX_PER_CATEGORY = 30;
+  const homeSpots = useMemo(() => {
+    const goodImg = (u: any) => typeof u === 'string' && /^https?:\/\//i.test(u) && !/placehold|unsplash\.com\/photo-1517248135467/i.test(u);
+    return displaySpots.filter((sp: any) => {
+      if (!goodImg(sp.img)) return false;
+      if (!sp.isUnclaimedImport) return true;
+      const photos = Array.isArray(sp.images) ? sp.images.filter(goodImg).length : 0;
+      const rating = Number(sp.baseRating ?? sp.rating);
+      const reviews = Number(sp.reviewsCount ?? sp.reviewCount ?? 0);
+      return sp.hasRealPhoto && photos >= 3 && rating >= 4 && reviews >= 20 && !!String(sp.address || '').trim();
+    });
+  }, [displaySpots]);
+
   // Filtered spots for Home Tab based on active Home filters
   const homeFilteredSpots = useMemo(() => {
-    return displaySpots.filter(sp => {
+    // Searching looks through every spot; browsing only shows the representable set.
+    const base = searchQuery.trim() ? displaySpots : homeSpots;
+    return base.filter(sp => {
       if (selectedHomeCategory !== 'all' && !spotInCategory(sp, selectedHomeCategory)) return false;
       if (selectedHomeArea !== 'all') {
         const areaLower = selectedHomeArea.toLowerCase();
@@ -491,7 +509,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       }
       return true;
     });
-  }, [displaySpots, selectedHomeCategory, selectedHomeArea, selectedHomeBudget, searchQuery]);
+  }, [displaySpots, homeSpots, selectedHomeCategory, selectedHomeArea, selectedHomeBudget, searchQuery]);
 
   // Active language hook
   const [appLang, setAppLang] = useState<AppLanguage>(() => getStoredLanguage());
@@ -507,7 +525,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   // Category rows data: all 17 RADA categories (category + extra_categories); Home only renders a few of them
   const spotsByCat = useMemo(() => {
     const out: Record<string, SpotItem[]> = {};
-    for (const c of SPOT_CATEGORIES) out[c.id] = homeFilteredSpots.filter(sp => spotInCategory(sp, c.id)) as SpotItem[];
+    for (const c of SPOT_CATEGORIES) out[c.id] = homeFilteredSpots.filter(sp => spotInCategory(sp, c.id)).slice(0, HOME_MAX_PER_CATEGORY) as SpotItem[];
+    return out;
+  }, [homeFilteredSpots]);
+
+  // Uncapped counts, so "View All (N)" matches what the full list page shows.
+  const spotsByCatTotal = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const c of SPOT_CATEGORIES) out[c.id] = homeFilteredSpots.filter(sp => spotInCategory(sp, c.id)).length;
     return out;
   }, [homeFilteredSpots]);
 
@@ -1836,7 +1861,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       {/* ========================================================
           4A. SPOTS NEAR YOU / TRENDING (LIVE SUPABASE DATABASE)
           ======================================================== */}
-      {(selectedHomeSection === 'all' || selectedHomeSection === 'spots') && displaySpots.length > 0 && (
+      {(selectedHomeSection === 'all' || selectedHomeSection === 'spots') && homeSpots.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -1858,7 +1883,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           </div>
 
           <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-            {displaySpots.slice(0, 20).map((spot) => {
+            {homeSpots.slice(0, HOME_MAX_PER_CATEGORY).map((spot) => {
               const saved = isSaved(spot.id, 'spot');
               const reviewCount = spot.reviews?.length ?? (spot.reviewCount || 0);
               const hasReviews = reviewCount > 0;
@@ -1989,7 +2014,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   onClick={() => onOpenDedicatedViewAll(title, catKey)}
                   className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
                 >
-                  {t.viewAll} ({spotsList.length})
+                  {t.viewAll} ({spotsByCatTotal[catKey] ?? spotsList.length})
                 </button>
               </div>
 
