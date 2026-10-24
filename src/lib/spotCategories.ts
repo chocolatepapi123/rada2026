@@ -7,7 +7,7 @@ import {
 /**
  * Single source of truth for the 17 RADA spot categories.
  * `label` MUST match the exact string stored in Supabase (`category` / `extra_categories`).
- * `color` is the one place to tweak a category's accent: it flows to pills, cards,
+ * `color` is the one place to tweak a category's accent (tuned to match each category's name): it flows to pills, cards,
  * detail headers, map markers and filter buttons via getSpotCategoryAccent().
  */
 export interface SpotCategoryDef {
@@ -20,23 +20,23 @@ export interface SpotCategoryDef {
 }
 
 export const SPOT_CATEGORIES: SpotCategoryDef[] = [
-  { id: 'restaurants',        label: 'Restaurants',            icon: UtensilsCrossed, color: '#E0533C', textOn: '#FFFFFF' },
-  { id: 'hotels_stays',       label: 'Hotels & Stays',         icon: Hotel,           color: '#1D4ED8', textOn: '#FFFFFF' },
-  { id: 'clubs_lounges',      label: 'Clubs & Lounges',        icon: Music,           color: '#A855F7', textOn: '#FFFFFF' },
-  { id: 'cafes_bakeries',     label: 'Cafes & Bakeries',       icon: Coffee,          color: '#8B5E3C', textOn: '#FFFFFF' },
-  { id: 'date_spots',         label: 'Date Spots',             icon: Heart,           color: '#E11D48', textOn: '#FFFFFF' },
-  { id: 'outdoors_nature',    label: 'Outdoors & Nature',      icon: Trees,           color: '#15803D', textOn: '#FFFFFF' },
-  { id: 'sports_adventure',   label: 'Sports & Adventure',     icon: Dumbbell,        color: '#F97316', textOn: '#FFFFFF' },
-  { id: 'fast_food',          label: 'Fast Food',              icon: Pizza,           color: '#EAB308', textOn: '#1F1300' },
-  { id: 'getaways_resorts',   label: 'Getaways & Resorts',     icon: Palmtree,        color: '#14B8A6', textOn: '#04201C' },
-  { id: 'bars_chill',         label: 'Bars & Chill Spots',     icon: Beer,            color: '#6366F1', textOn: '#FFFFFF' },
-  { id: 'arts_culture',       label: 'Arts & Culture',         icon: Palette,         color: '#D946EF', textOn: '#FFFFFF' },
-  { id: 'gaming_arcades',     label: 'Gaming & Arcades',       icon: Gamepad2,        color: '#06B6D4', textOn: '#032126' },
-  { id: 'garden_hangouts',    label: 'Garden Hangouts',        icon: Flower2,         color: '#84CC16', textOn: '#142003' },
-  { id: 'nyama_choma',        label: 'Nyama Choma & Grills',   icon: Flame,           color: '#B91C1C', textOn: '#FFFFFF' },
-  { id: 'rooftops',           label: 'Rooftops',               icon: Sunset,          color: '#0EA5E9', textOn: '#021A26' },
-  { id: 'hangouts_leisure',   label: 'Hangouts & Leisure',     icon: Users,           color: '#F59E0B', textOn: '#1F1300' },
-  { id: 'desserts',           label: 'Desserts & Ice Cream',   icon: Cake,            color: '#F472B6', textOn: '#2A0617' },
+  { id: 'restaurants',        label: 'Restaurants',            icon: UtensilsCrossed, color: '#EA6A24', textOn: '#FFFFFF' },
+  { id: 'hotels_stays',       label: 'Hotels & Stays',         icon: Hotel,           color: '#B8923A', textOn: '#FFFFFF' },
+  { id: 'clubs_lounges',      label: 'Clubs & Lounges',        icon: Music,           color: '#9333EA', textOn: '#FFFFFF' },
+  { id: 'cafes_bakeries',     label: 'Cafes & Bakeries',       icon: Coffee,          color: '#8A5A3B', textOn: '#FFFFFF' },
+  { id: 'date_spots',         label: 'Date Spots',             icon: Heart,           color: '#E0245E', textOn: '#FFFFFF' },
+  { id: 'outdoors_nature',    label: 'Outdoors & Nature',      icon: Trees,           color: '#2E9E5B', textOn: '#FFFFFF' },
+  { id: 'sports_adventure',   label: 'Sports & Adventure',     icon: Dumbbell,        color: '#D92D20', textOn: '#FFFFFF' },
+  { id: 'fast_food',          label: 'Fast Food',              icon: Pizza,           color: '#E9A800', textOn: '#1A1512' },
+  { id: 'getaways_resorts',   label: 'Getaways & Resorts',     icon: Palmtree,        color: '#0891B2', textOn: '#FFFFFF' },
+  { id: 'bars_chill',         label: 'Bars & Chill Spots',     icon: Beer,            color: '#1FA5A0', textOn: '#FFFFFF' },
+  { id: 'arts_culture',       label: 'Arts & Culture',         icon: Palette,         color: '#D6338A', textOn: '#FFFFFF' },
+  { id: 'gaming_arcades',     label: 'Gaming & Arcades',       icon: Gamepad2,        color: '#2563EB', textOn: '#FFFFFF' },
+  { id: 'garden_hangouts',    label: 'Garden Hangouts',        icon: Flower2,         color: '#6FA83A', textOn: '#FFFFFF' },
+  { id: 'nyama_choma',        label: 'Nyama Choma & Grills',   icon: Flame,           color: '#A8381C', textOn: '#FFFFFF' },
+  { id: 'rooftops',           label: 'Rooftops',               icon: Sunset,          color: '#6D7BF2', textOn: '#FFFFFF' },
+  { id: 'hangouts_leisure',   label: 'Hangouts & Leisure',     icon: Users,           color: '#D9822B', textOn: '#FFFFFF' },
+  { id: 'desserts',           label: 'Desserts & Ice Cream',   icon: Cake,            color: '#EC6FA8', textOn: '#FFFFFF' },
 ];
 
 export const FALLBACK_CATEGORY: SpotCategoryDef = {

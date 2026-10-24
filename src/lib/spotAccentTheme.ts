@@ -2,34 +2,16 @@
 //
 // Thin layer on top of lib/spotAccents.ts. It does NOT replace it: every export of the
 // original is re-exported, and only getSpotCategoryAccent() is wrapped so that
-//   1. each of the 17 categories gets a colour that matches its name, and
+//   1. each category's colour comes from SPOT_CATEGORIES (lib/spotCategories.ts), and
 //   2. every accent can hand out CSS variables for a deep, rich dark-mode variant
 //      (so buttons are never neon on dark screens).
 import type { CSSProperties } from 'react';
 import { getSpotCategoryAccent as baseGetSpotCategoryAccent } from './spotAccents.ts';
+import { SPOT_CATEGORIES } from './spotCategories.ts';
 
 export * from './spotAccents.ts';
 
-/** Light-mode accent per category id. Dark-mode shades are derived from these. */
-export const SPOT_ACCENT_COLORS: Record<string, string> = {
-  restaurants: '#EA6A24',       // warm saffron-orange: kitchen heat
-  nyama_choma: '#A8381C',       // ember red-brown: charcoal grill
-  clubs_lounges: '#9333EA',     // nightclub violet
-  bars_chill: '#1FA5A0',        // cool cocktail teal: chill
-  rooftops: '#6D7BF2',          // dusk periwinkle: skyline
-  date_spots: '#E0245E',        // romantic rose
-  desserts: '#EC6FA8',          // candy pink
-  fast_food: '#E9A800',         // mustard yellow
-  hangouts_leisure: '#D9822B',  // warm sunset amber
-  gaming_arcades: '#2563EB',    // arcade screen blue
-  arts_culture: '#D6338A',      // gallery magenta
-  cafes_bakeries: '#8A5A3B',    // coffee brown
-  hotels_stays: '#B8923A',      // champagne gold
-  getaways_resorts: '#0891B2',  // lagoon cyan
-  sports_adventure: '#D92D20',  // high-energy red
-  outdoors_nature: '#2E9E5B',   // forest green
-  garden_hangouts: '#6FA83A',   // leaf green
-};
+/** Light-mode accent colours live in lib/spotCategories.ts (SPOT_CATEGORIES); dark-mode shades are derived from them here. */
 
 const DARK_BASE = '#0B0A0C';
 
@@ -65,12 +47,13 @@ type BaseAccent = ReturnType<typeof baseGetSpotCategoryAccent>;
 
 export function getSpotCategoryAccent(cat: Parameters<typeof baseGetSpotCategoryAccent>[0]): BaseAccent {
   const base = baseGetSpotCategoryAccent(cat);
-  const color = SPOT_ACCENT_COLORS[String((base as any).id)];
-  if (!color) return base;
+  const def = SPOT_CATEGORIES.find(c => c.id === String((base as any).id));
+  if (!def) return base;
+  const color = def.color;
   return {
     ...base,
     color,
-    textOn: readableOn(color),
+    textOn: def.textOn || readableOn(color),
     gradient: `linear-gradient(90deg, ${color}, ${mixHex(color, DARK_BASE, 0.4)})`,
   } as BaseAccent;
 }

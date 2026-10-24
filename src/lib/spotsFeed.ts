@@ -26,7 +26,10 @@ export async function fetchSpotsByCategory(categoryKey: string, table = 'unclaim
     .select('*')
     .or(`category.eq.${label},extra_categories.cs.{"${label}"}`);
   if (error) { console.warn('fetchSpotsByCategory error:', error.message); return []; }
-  return table === 'unclaimedspots' ? (data || []).map(unclaimedRowToSpot) : (data || []);
+  // Re-check after mapping so rows the club guard moved elsewhere don't come back from the server query.
+  return table === 'unclaimedspots'
+    ? (data || []).map(unclaimedRowToSpot).filter(sp => spotInCategory(sp, categoryKey))
+    : (data || []);
 }
 
 /** Maps a Google-style label from `unclaimedspots.category` to a RADA category. Label first, name only as fallback. */
@@ -35,23 +38,49 @@ export function mapUnclaimedCategory(raw?: string | null, name?: string | null):
   const n = (name || '').toLowerCase();
   const test = (re: RegExp) => re.test(c);
 
-  if (test(/night ?club|lounge|\bbar\b|^bar|\bpub\b|liquor|casino|disco|karaoke|hookah|shisha/)) return 'clubs_lounges';
+  // Gaming / cafe labels first so "Gaming lounge" or "Cafe & lounge" never fall into Clubs & Lounges.
+  if (test(/game|gaming|arcade|virtual reality|\bvr\b|esports|escape room|snooker|pool hall|billiard/)) return 'tech_gaming';
   if (test(/cafe|café|coffee|bakery|dessert|ice cream|tea house|patisserie|juice/)) return 'cafes_bakeries';
+  if (test(/night ?club|disco|casino|karaoke|hookah|shisha|\blounge\b/)) return 'clubs_lounges';
+  if (test(/\bbar\b|^bar|\bpub\b|liquor|wine bar|cocktail/)) return 'bars_chill';
   if (test(/resort|campground|camp\b|safari|getaway|vacation|beach|retreat|eco ?lodge|cottage/)) return 'vacation_escapes';
   if (test(/hotel|lodging|guest ?house|accommodation|apartment|villa|hostel|\binn\b|motel|extended stay|serviced/)) return 'hotels_luxury';
   if (test(/restaurant|food|grill|diner|eatery|pizza|burger|steak|barbecue|bbq|nyama|kitchen|bistro|takeaway|meal/)) return 'restaurants_dining';
-  if (test(/game|gaming|arcade|virtual reality|\bvr\b|esports|escape room/)) return 'tech_gaming';
   if (test(/sport|fitness|gym|kart|bowling|paintball|archery|swimming|golf|stadium|climbing|racing|trampoline/)) return 'action_sports';
   if (test(/art |art$|gallery|museum|pottery|craft|studio|paint|cultural|theatre|theater|cinema|workshop|library/)) return 'creative_leisure';
   if (test(/park|forest|garden|hiking|trail|wildlife|national|woods|nature|tourist|attraction|tour|travel agency|outdoor|cycling|waterfall|nature reserve|sanctuary/)) return 'nature';
   if (test(/rooftop|romantic|wine bar/)) return 'date_spots';
 
   // Label gave no signal: fall back to the venue name.
-  if (/lounge|liquor|nightclub|night club|\bclub\b|\bpub\b/.test(n)) return 'clubs_lounges';
+  if (/liquor|\bpub\b/.test(n)) return 'bars_chill';
+  if (/lounge|nightclub|night club|\bclub\b|\bklub\b/.test(n)) return 'clubs_lounges';
   if (/cafe|café|coffee|bakery/.test(n)) return 'cafes_bakeries';
   if (/hotel|suites|lodge|apartments/.test(n)) return 'hotels_luxury';
   if (/restaurant|grill|kitchen|bistro|eatery|pizza|burger/.test(n)) return 'restaurants_dining';
   return 'activities';
+}
+
+/**
+ * Strict Clubs & Lounges: keeps nightclubs and nightlife lounges, and moves venues that merely have
+ * "lounge" in the name (gaming, cafe, grill/restaurant, hotel, arts) to the category they belong to.
+ * A clear club word in the name or Google label ("club", "klub", "nightclub", "disco") always wins.
+ * Only acts on the name + the original Google label; anything unclear stays where the DB put it.
+ */
+const CLUB_WORDS = /night ?club|\bclub\b|\bklub\b|disco|nightlife/i;
+const NOT_CLUB_RULES: Array<[RegExp, string]> = [
+  [/gaming|arcade|playstation|\bps[45]\b|esports?|\bvr\b|snooker|billiard|pool hall|game (zone|room|hub|station|cent(re|er))/i, 'Gaming & Arcades'],
+  [/caf[eé]|coffee|bakery|patisserie/i, 'Cafes & Bakeries'],
+  [/hotel|resort|\blodge\b|suites|apartments|guest ?house/i, 'Hotels & Stays'],
+  [/restaurant|\bgrill\b|kitchen|eatery|bistro|tapas|diner|steakhouse|nyama/i, 'Restaurants'],
+  [/pottery|\bclay\b|gallery|museum|art studio|theat(re|er)/i, 'Arts & Culture'],
+  [/chill ?spot|\bpub\b|liquor|sports bar/i, 'Bars & Chill Spots'],
+];
+export function refineClubCategory(label: string, name?: string | null, googleLabel?: string | null): string {
+  if (label !== 'Clubs & Lounges') return label;
+  const text = `${name || ''} ${googleLabel || ''}`;
+  if (CLUB_WORDS.test(text)) return label;
+  for (const [re, target] of NOT_CLUB_RULES) if (re.test(text)) return target;
+  return label;
 }
 
 /** Best-effort area name from a Google-style address ("Street, Area, City, Country"). */
@@ -167,9 +196,10 @@ export function unclaimedRowToSpot(r: any) {
   const gallery = Array.isArray(r.gallery) ? r.gallery.filter((g: any) => typeof g === 'string' && g) : [];
   const cover = r.thumbnail || gallery[0] || '';
   const img = cover || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop';
-  const category = resolveRowCategory(r.category, r.name);
+  const category = refineClubCategory(resolveRowCategory(r.category, r.name), r.name, r.category);
   const extraCategories = parseExtraCategories(r.extra_categories)
     .map(c => categoryLabelOf(c))
+    .map(c => (c ? refineClubCategory(c, r.name, r.category) : c))
     .filter((c): c is string => !!c && c !== category);
   const extraDetails = enrichSpotDetails(category, r.name, r);
 
@@ -252,7 +282,11 @@ export async function loadUnclaimedSpots(force = false): Promise<any[]> {
           const rawPlaces = (scrapedMod.default || scrapedMod) as any[];
           if (Array.isArray(rawPlaces) && rawPlaces.length > 0) {
             cache = rawPlaces.map((p, idx) => {
-              const category = resolveRowCategory(mapUnclaimedCategory(p.categoryName || (p.categories && p.categories[0]), p.title), p.title);
+              const category = refineClubCategory(
+                resolveRowCategory(mapUnclaimedCategory(p.categoryName || (p.categories && p.categories[0]), p.title), p.title),
+                p.title,
+                p.categoryName,
+              );
               const extraDetails = enrichSpotDetails(category, p.title, p);
               const lat = p.location?.lat ?? -1.2921;
               const lng = p.location?.lng ?? 36.8219;
