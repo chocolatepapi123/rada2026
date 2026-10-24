@@ -62,6 +62,7 @@ export function getCategoryAccent(category?: string, _title?: string, genre?: st
   };
 }
 
-// Spot (venue) accents for the 17 categories live in lib/spotAccents.ts; re-exported here for convenience.
+// Spot (venue) accents for the 17 categories: lib/spotAccentTheme.ts wraps lib/spotAccents.ts
+// (tuned colours + dark-mode variables) and re-exports everything from it.
 // Adjust the relative path if this file is not in src/utils/.
-export * from '../lib/spotAccents.ts';
+export * from '../lib/spotAccentTheme.ts';
