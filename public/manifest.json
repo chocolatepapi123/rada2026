@@ -1,6 +1,6 @@
 {
   "short_name": "RADA",
-  "name": "RADA - Nairobi Discovery & Luku Hub",
+  "name": "RADA: Spots, Events & Outings in Nairobi",
   "icons": [
     {
       "src": "/icon.svg",
@@ -12,5 +12,6 @@
   "background_color": "#121113",
   "theme_color": "#E0533C",
   "display": "standalone",
-  "orientation": "portrait"
+  "orientation": "portrait",
+  "description": "Discover Nairobi's best spots, events and movies, plan outings with new people, keep your tickets in one place and go out safely."
 }
