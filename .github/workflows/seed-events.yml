@@ -1,0 +1,28 @@
+name: Seed events
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: "google, facebook, luma or all"
+        default: "google"
+      max_items:
+        description: "Max events per source"
+        default: "20"
+      dry_run:
+        description: "Print only, don't write to Supabase"
+        type: boolean
+        default: true
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install @supabase/supabase-js
+      - run: node scripts/seed-events.mjs "${{ inputs.source }}" "${{ inputs.max_items }}" ${{ inputs.dry_run && '--dry' || '' }}
+        env:
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
