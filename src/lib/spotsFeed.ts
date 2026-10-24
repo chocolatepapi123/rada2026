@@ -83,6 +83,26 @@ export function refineClubCategory(label: string, name?: string | null, googleLa
   return label;
 }
 
+/**
+ * Strict Outdoors & Nature: parks, forests, waterfalls, trails, gardens-as-nature, wildlife.
+ * Hotels, resorts, lodges, villas and retreats belong in Hotels & Stays / Getaways & Resorts, and a
+ * Getaways or Hotels venue is never cross-listed under Outdoors & Nature.
+ */
+const STAY_WORDS = /hotel|suites|apartments|guest ?house|residence/i;
+const GETAWAY_WORDS = /resort|\blodge\b|villa|cottage|retreat|getaway|cabins?|glamp|homestay|\bbnb\b/i;
+export function refineOutdoorsCategory(label: string, name?: string | null): string {
+  if (label !== 'Outdoors & Nature') return label;
+  const n = name || '';
+  if (STAY_WORDS.test(n)) return 'Hotels & Stays';
+  if (GETAWAY_WORDS.test(n)) return 'Getaways & Resorts';
+  return label;
+}
+
+/** All strict-category guards in one call. */
+export function refineCategory(label: string, name?: string | null, googleLabel?: string | null): string {
+  return refineOutdoorsCategory(refineClubCategory(label, name, googleLabel), name);
+}
+
 /** Best-effort area name from a Google-style address ("Street, Area, City, Country"). */
 export function neighborhoodFromAddress(address?: string | null): string {
   const parts = String(address || '').split(',').map(p => p.trim()).filter(Boolean)
@@ -196,10 +216,12 @@ export function unclaimedRowToSpot(r: any) {
   const gallery = Array.isArray(r.gallery) ? r.gallery.filter((g: any) => typeof g === 'string' && g) : [];
   const cover = r.thumbnail || gallery[0] || '';
   const img = cover || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop';
-  const category = refineClubCategory(resolveRowCategory(r.category, r.name), r.name, r.category);
+  const category = refineCategory(resolveRowCategory(r.category, r.name), r.name, r.category);
   const extraCategories = parseExtraCategories(r.extra_categories)
     .map(c => categoryLabelOf(c))
-    .map(c => (c ? refineClubCategory(c, r.name, r.category) : c))
+    .map(c => (c ? refineCategory(c, r.name, r.category) : c))
+    // Strict Outdoors & Nature: never an extra category on stays/getaways
+    .filter(c => !(c === 'Outdoors & Nature' && (category === 'Getaways & Resorts' || category === 'Hotels & Stays')))
     .filter((c): c is string => !!c && c !== category);
   const extraDetails = enrichSpotDetails(category, r.name, r);
 
@@ -282,7 +304,7 @@ export async function loadUnclaimedSpots(force = false): Promise<any[]> {
           const rawPlaces = (scrapedMod.default || scrapedMod) as any[];
           if (Array.isArray(rawPlaces) && rawPlaces.length > 0) {
             cache = rawPlaces.map((p, idx) => {
-              const category = refineClubCategory(
+              const category = refineCategory(
                 resolveRowCategory(mapUnclaimedCategory(p.categoryName || (p.categories && p.categories[0]), p.title), p.title),
                 p.title,
                 p.categoryName,
