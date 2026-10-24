@@ -4,6 +4,10 @@ import { SpotItem, EventItem } from '../types.ts';
 import { hasEventCoords, resolveEventCoords, eventGoogleMapsUrl } from '../utils/eventUtils.ts';
 import type { ToastOptions } from './Toast.tsx';
 import { loadLeaflet } from '../lib/leaflet.ts';
+import { getSpotCategoryAccent } from '../lib/spotAccents.ts';
+
+// Events (and spots with no category) keep the original RADA terracotta
+const RADA_PIN = '#E0533C';
 
 interface LocationMapModalProps {
   spot: SpotItem | null;
@@ -68,6 +72,8 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
       }
     : null;
 
+  // Pin / header colour follows the spot's category; events keep terracotta
+  const pinColor = spot ? getSpotCategoryAccent(spot.category).color : RADA_PIN;
   const placeLat = place?.lat ?? null;
   const placeLng = place?.lng ?? null;
 
@@ -110,7 +116,7 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
 
           const pinIcon = L.divIcon({
             className: 'rada-map-pin',
-            html: '<svg width="28" height="36" viewBox="0 0 28 36" xmlns="http://www.w3.org/2000/svg"><path d="M14 1C7 1 1.5 6.4 1.5 13.2 1.5 22 14 35 14 35s12.5-13 12.5-21.8C26.5 6.4 21 1 14 1Z" fill="none" stroke="#E0533C" stroke-width="2.4" stroke-linejoin="round"/><circle cx="14" cy="13" r="4.2" fill="#E0533C"/></svg>',
+            html: `<svg width="28" height="36" viewBox="0 0 28 36" xmlns="http://www.w3.org/2000/svg"><path d="M14 1C7 1 1.5 6.4 1.5 13.2 1.5 22 14 35 14 35s12.5-13 12.5-21.8C26.5 6.4 21 1 14 1Z" fill="none" stroke="${pinColor}" stroke-width="2.4" stroke-linejoin="round"/><circle cx="14" cy="13" r="4.2" fill="${pinColor}"/></svg>`,
             iconSize: [28, 36],
             iconAnchor: [14, 35],
             popupAnchor: [0, -32]
@@ -119,7 +125,7 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
           const marker = L.marker([placeLat, placeLng], { icon: pinIcon }).addTo(map);
           marker.bindPopup(`
             <div style="font-family: inherit; font-size: 12px; line-height: 1.4;">
-              <b style="color: #E0533C; font-size: 13px;">${escapeHtml(place.title)}</b><br/>
+              <b style="color: ${pinColor}; font-size: 13px;">${escapeHtml(place.title)}</b><br/>
               <span>${escapeHtml(place.popupMeta)}</span><br/>
               <span style="color: #64748b; font-size: 11px;">${escapeHtml(place.address)}</span>
             </div>
@@ -141,7 +147,7 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
         mapInstanceRef.current = null;
       }
     };
-  }, [spot, event, placeLat, placeLng]);
+  }, [spot, event, placeLat, placeLng, pinColor]);
 
   if (!place) return null;
 
@@ -150,11 +156,14 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
       <div className="bg-white dark:bg-[#1C1A1E] w-full max-w-md rounded-3xl p-4 space-y-4 shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-150">
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-950/80 text-[#E0533C] dark:text-[#D17A68] flex items-center justify-center shrink-0">
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+              style={{ backgroundColor: `${pinColor}26`, color: pinColor }}
+            >
               <MapPin className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <h3 className="font-black text-sm text-[#E0533C] dark:text-[#D17A68] truncate">{place.title}</h3>
+              <h3 className="font-black text-sm truncate" style={{ color: pinColor }}>{place.title}</h3>
               <p className="text-[10px] text-slate-500 truncate">{place.subtitle}</p>
             </div>
           </div>
@@ -174,7 +183,7 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
           />
         ) : (
           <div className="h-60 w-full rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-[#F8F8F6] dark:bg-[#121113] flex flex-col items-center justify-center gap-2 text-center px-6">
-            <MapPin className="w-6 h-6 text-[#E0533C]" />
+            <MapPin className="w-6 h-6" style={{ color: pinColor }} />
             <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
               {geoState === 'loading' ? 'Finding this venue on the map...' : 'We could not pin this venue exactly'}
             </p>

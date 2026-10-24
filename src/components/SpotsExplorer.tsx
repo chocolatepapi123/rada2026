@@ -1,9 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, X, MapPin, Bookmark, Star, SlidersHorizontal, Sparkles, UtensilsCrossed, Compass, Trash2 } from 'lucide-react';
+import { Search, X, MapPin, Bookmark, Star, SlidersHorizontal, Compass, Trash2, Navigation } from 'lucide-react';
 import { SpotItem, SavedItem } from '../types.ts';
-import { spotInCategory } from '../lib/spotsFeed.ts';
+import { spotInCategory, getSpotCategoryIds, isAllKey } from '../lib/spotCategories.ts';
+import { getSpotCategoryAccent } from '../lib/spotAccents.ts';
+import { rankSpots, premiumScore, formatKm, useNearYou } from '../lib/spotRanking.ts';
+import { NearYouControl } from './NearYouControl.tsx';
 import { resolveSpotBudget, budgetBadge } from '../lib/spotBudget.ts';
-import { distanceKm, LatLng, NEIGHBORHOOD_COORDS } from '../lib/geo.ts';
+import type { LatLng } from '../lib/geo.ts';
 import { spotMatchesSearchWithTags } from '../utils/spotTags.ts';
 
 interface SpotsExplorerProps {
@@ -59,33 +62,16 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
   const [query, setQuery] = useState('');
   const [selectedNeighborhood, setSelectedNeighborhood] = useState('All Areas');
   const [selectedBudget, setSelectedBudget] = useState('all');
-  const [sortBy, setSortBy] = useState<'near' | 'rating' | 'reviews'>('near');
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [sortBy, setSortBy] = useState<'featured' | 'rating' | 'reviews'>('featured');
+  const nearYou = useNearYou();
 
-  // Fallback coords for Nairobi (-1.2864, 36.8172)
-  const effectiveOrigin = userCoords || { lat: -1.2864, lng: 36.8172 };
+  // Accent for the whole screen (only when a single category is open)
+  const screenAccent = isAllKey(categoryKey) ? getSpotCategoryAccent(null) : getSpotCategoryAccent(categoryKey);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [query, selectedNeighborhood, selectedBudget, sortBy]);
-
-  const getSpotCoords = (s: SpotItem): LatLng => {
-    const lat = Number(s.lat);
-    const lng = Number(s.lng);
-    if (Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0)) {
-      return { lat, lng };
-    }
-    const neigh = (s.neighborhood || '').trim();
-    if (NEIGHBORHOOD_COORDS[neigh]) {
-      return NEIGHBORHOOD_COORDS[neigh];
-    }
-    for (const [name, coords] of Object.entries(NEIGHBORHOOD_COORDS)) {
-      if (neigh.toLowerCase().includes(name.toLowerCase())) {
-        return coords;
-      }
-    }
-    return { lat: -1.2864, lng: 36.8172 };
-  };
+  }, [query, selectedNeighborhood, selectedBudget, sortBy, nearYou.active, nearYou.radiusKm, categoryKey]);
 
   const isSaved = (id: string | number) =>
     savedItems.some(s => String(s.id) === String(id) && s.kind === 'spot');
@@ -95,7 +81,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
 
     let result = spots.filter(s => {
       // Category match
-      if (effectiveCat && effectiveCat !== 'all' && effectiveCat !== 'spots') {
+      if (effectiveCat && !isAllKey(effectiveCat) && effectiveCat !== 'spots') {
         if (!spotInCategory(s, effectiveCat)) return false;
       }
 
@@ -120,33 +106,34 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
       return true;
     });
 
-    // Sort order: by default sort from near you (silently, without writing or telling the user)
+    // 1) Near You (GPS) wins: nearest first, inside the chosen radius
+    if (nearYou.active && nearYou.origin) {
+      return rankSpots(result, { nearYou: true, origin: nearYou.origin, radiusKm: nearYou.radiusKm });
+    }
+
+    // 2) Explicit sorts
     if (sortBy === 'rating') {
-      result.sort((a, b) => {
-        const rA = Number(a.rating) || 0;
-        const rB = Number(b.rating) || 0;
-        return rB - rA;
-      });
-    } else if (sortBy === 'reviews') {
-      result.sort((a, b) => {
+      return [...result].sort((a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0) || premiumScore(b) - premiumScore(a));
+    }
+    if (sortBy === 'reviews') {
+      return [...result].sort((a, b) => {
         const cA = a.reviews?.length ?? (a.reviewCount || 0);
         const cB = b.reviews?.length ?? (b.reviewCount || 0);
-        return cB - cA;
-      });
-    } else {
-      // Sort closest to user location first
-      result.sort((a, b) => {
-        const distA = distanceKm(effectiveOrigin, getSpotCoords(a));
-        const distB = distanceKm(effectiveOrigin, getSpotCoords(b));
-        return distA - distB;
+        return cB - cA || premiumScore(b) - premiumScore(a);
       });
     }
 
-    return result;
-  }, [spots, categoryKey, selectedNeighborhood, selectedBudget, query, sortBy, effectiveOrigin]);
+    // 3) Default "Featured": premium / high-end first
+    return rankSpots(result);
+  }, [spots, categoryKey, selectedNeighborhood, selectedBudget, query, sortBy, nearYou.active, nearYou.origin, nearYou.radiusKm]);
 
   return (
     <div className="space-y-4">
+      {/* Category accent strip (single-category screens) */}
+      {!isAllKey(categoryKey) && (
+        <div className="h-1 rounded-full" style={{ background: screenAccent.gradient }} />
+      )}
+
       {/* Search Input with hidden in-app tag matching */}
       <div className="relative flex items-center">
         <Search className="w-4 h-4 absolute left-3.5 text-slate-400 pointer-events-none" />
@@ -235,20 +222,22 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
             onChange={(e) => setSortBy(e.target.value as any)}
             className="bg-transparent font-bold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
           >
-            <option value="near" className="bg-white dark:bg-[#1C1A1E]">Featured</option>
+            <option value="featured" className="bg-white dark:bg-[#1C1A1E]">Featured</option>
             <option value="rating" className="bg-white dark:bg-[#1C1A1E]">Top Rated</option>
             <option value="reviews" className="bg-white dark:bg-[#1C1A1E]">Most Popular</option>
           </select>
         </div>
 
-        {(selectedNeighborhood !== 'All Areas' || selectedBudget !== 'all' || query || sortBy !== 'near') && (
+        <NearYouControl />
+
+        {(selectedNeighborhood !== 'All Areas' || selectedBudget !== 'all' || query || sortBy !== 'featured') && (
           <button
             type="button"
             onClick={() => {
               setQuery('');
               setSelectedNeighborhood('All Areas');
               setSelectedBudget('all');
-              setSortBy('near');
+              setSortBy('featured');
             }}
             className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer ml-auto"
           >
@@ -259,16 +248,20 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
 
       {/* Results Header */}
       <div className="flex items-center justify-between text-xs font-bold text-slate-500 pt-1">
-        <span>{filteredSpots.length} {filteredSpots.length === 1 ? 'place' : 'places'} available</span>
+        <span>
+          {filteredSpots.length} {filteredSpots.length === 1 ? 'place' : 'places'} {nearYou.active ? `within ${nearYou.radiusKm ? nearYou.radiusKm + ' km' : 'range'} of you` : 'available'}
+        </span>
       </div>
 
       {/* Spots Grid */}
       {filteredSpots.length === 0 ? (
         <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-dashed border-slate-300 dark:border-slate-800 rounded-3xl p-8 text-center space-y-3">
-          <Compass className="w-8 h-8 text-[#E0533C] mx-auto" />
+          <Compass className="w-8 h-8 mx-auto" style={{ color: screenAccent.color }} />
           <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">No spots found matching your search</h4>
           <p className="text-xs text-slate-500 max-w-xs mx-auto">
-            Try adjusting your search terms or clearing neighborhood/budget filters.
+            {nearYou.active
+              ? 'Nothing in this radius. Try a wider distance or switch off Near You.'
+              : 'Try adjusting your search terms or clearing neighborhood/budget filters.'}
           </p>
           <button
             type="button"
@@ -276,7 +269,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
               setQuery('');
               setSelectedNeighborhood('All Areas');
               setSelectedBudget('all');
-              setSortBy('near');
+              setSortBy('featured');
             }}
             className="px-4 py-2 bg-[#E0533C] text-white font-bold rounded-xl text-xs hover:bg-orange-700 transition cursor-pointer"
           >
@@ -290,22 +283,38 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
             const reviewCount = spot.reviews?.length ?? (spot.reviewCount || 0);
             const hasReviews = reviewCount > 0;
             const budgetText = budgetBadge(resolveSpotBudget(spot)) || spot.price;
+            const catIds = getSpotCategoryIds(spot);
+            const accents = (catIds.length ? catIds : [spot.category]).map(c => getSpotCategoryAccent(c));
+            const primary = accents[0];
+            const dist = (spot as any).distanceKm as number | undefined;
 
             return (
               <div
                 key={String(spot.id)}
                 onClick={() => onOpenSpot(spot)}
-                className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shadow-xs cursor-pointer hover:border-[#E0533C] transition flex flex-col justify-between group"
+                className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shadow-xs cursor-pointer transition flex flex-col justify-between group"
+                style={{ borderTopColor: primary.color, borderTopWidth: 3 }}
               >
                 <div>
                   <div
                     className="h-44 rounded-2xl bg-cover bg-center mb-3 relative overflow-hidden bg-slate-200 dark:bg-slate-800"
                     style={{ backgroundImage: `url('${spot.img}')` }}
                   >
-                    <span className="absolute top-2.5 left-2.5 bg-black/70 backdrop-blur-xs text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
-                      <Compass className="w-2.5 h-2.5 text-orange-400" />
-                      <span className="capitalize">{spot.category?.replace(/_/g, ' ') || 'Hangout'}</span>
-                    </span>
+                    <div className="absolute top-2.5 left-2.5 right-24 flex flex-wrap gap-1">
+                      {accents.slice(0, 2).map(a => (
+                        <span
+                          key={a.id}
+                          className="text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs"
+                          style={{ backgroundColor: a.color, color: a.textOn }}
+                        >
+                          <a.Icon className="w-2.5 h-2.5" />
+                          <span className="truncate">{a.label}</span>
+                        </span>
+                      ))}
+                      {accents.length > 2 && (
+                        <span className="bg-black/70 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md">+{accents.length - 2}</span>
+                      )}
+                    </div>
 
                     {/* Admin Delete shortcut */}
                     {isAdmin && (
@@ -337,6 +346,12 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
                       <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
                     </button>
 
+                    {dist != null && (
+                      <span className="absolute bottom-2.5 left-2.5 bg-black/75 backdrop-blur-xs text-white text-[10px] font-black px-2.5 py-1 rounded-lg flex items-center gap-1">
+                        <Navigation className="w-2.5 h-2.5" /> {formatKm(dist)}
+                      </span>
+                    )}
+
                     <span className="absolute bottom-2.5 right-2.5 bg-black/75 backdrop-blur-xs text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
                       {budgetText}
                     </span>
@@ -344,7 +359,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
 
                   <div className="space-y-1">
                     <div className="flex items-center justify-between gap-1">
-                      <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-[#E0533C] transition">
+                      <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate transition">
                         {spot.title}
                       </h4>
                       <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
@@ -354,7 +369,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
                     </div>
 
                     <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
-                      <MapPin className="w-3 h-3 text-[#E0533C] shrink-0" />
+                      <MapPin className="w-3 h-3 shrink-0" style={{ color: primary.color }} />
                       <span className="truncate">{spot.address || spot.neighborhood}</span>
                     </p>
 
@@ -391,7 +406,8 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
                         e.stopPropagation();
                         onOpenSpot(spot);
                       }}
-                      className="px-3 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-[11px] font-bold transition shadow-xs cursor-pointer"
+                      className="px-3 py-1.5 rounded-xl text-[11px] font-bold transition shadow-xs cursor-pointer hover:opacity-90"
+                      style={{ backgroundColor: primary.color, color: primary.textOn }}
                     >
                       View Details
                     </button>

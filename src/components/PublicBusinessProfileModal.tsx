@@ -29,6 +29,9 @@ import { isBusinessApproved, PublicTierBadges } from './BusinessBadge.tsx';
 import { usePublicTiers } from '../lib/subscriptions';
 
 import { shareContent } from '../utils/shareUtils.ts';
+import { getSpotCategoryAccent } from '../lib/spotAccents.ts';
+import { getSpotCategoryIds } from '../lib/spotCategories.ts';
+import { sortPremium } from '../lib/spotRanking.ts';
 import type { ToastOptions } from './Toast.tsx';
 
 interface PublicBusinessProfileModalProps {
@@ -273,26 +276,43 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
                 <span>Verified Spots ({businessSpots.length})</span>
               </h3>
               <div className="space-y-2">
-                {businessSpots.map(spot => (
+                {sortPremium([...businessSpots]).map(spot => {
+                  const ids = getSpotCategoryIds(spot);
+                  const accents = (ids.length ? ids : [spot.category]).map(c => getSpotCategoryAccent(c));
+                  const primary = accents[0];
+                  return (
                   <div 
                     key={spot.id}
                     onClick={() => {
                       onClose();
                       onOpenSpotDetails && onOpenSpotDetails(spot);
                     }}
-                    className="p-3 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between gap-3 cursor-pointer hover:border-amber-400 transition"
+                    className="p-3 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between gap-3 cursor-pointer transition"
+                    style={{ borderLeftColor: primary.color, borderLeftWidth: 4 }}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <img src={spot.img} alt={spot.title} className="w-12 h-12 rounded-xl object-cover shrink-0" />
                       <div className="min-w-0">
+                        <div className="flex flex-wrap gap-1 mb-0.5">
+                          {accents.slice(0, 2).map(a => (
+                            <span
+                              key={a.id}
+                              className="text-[9px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-1"
+                              style={{ backgroundColor: a.soft, color: a.color, border: `1px solid ${a.border}` }}
+                            >
+                              <a.Icon className="w-2.5 h-2.5" />{a.label}
+                            </span>
+                          ))}
+                        </div>
                         <h4 className="font-extrabold text-xs truncate">{spot.title}</h4>
                         <p className="text-[10px] text-slate-400 truncate">{spot.exactLocationTag || spot.address}</p>
                         <p className="text-[10px] text-amber-600 font-bold">★ {spot.rating} • {spot.menuItems?.length || 0} menu items</p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-bold text-[#E0533C] dark:text-[#D17A68] shrink-0">View Spot →</span>
+                    <span className="text-[10px] font-bold shrink-0" style={{ color: primary.color }}>View Spot →</span>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
