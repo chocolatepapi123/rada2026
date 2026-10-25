@@ -1,6 +1,6 @@
 /* RADA service worker: makes repeat launches fast and gives an offline shell.
  * No build step needed. Bump VERSION to force every device to drop old caches. */
-const VERSION = 'rada-v1';
+const VERSION = 'rada-v2';
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
 const RUNTIME = `${VERSION}-runtime`;
@@ -29,9 +29,18 @@ async function cacheFirst(request) {
   const cache = await caches.open(ASSETS);
   const hit = await cache.match(request);
   if (hit) return hit;
-  const res = await fetch(request);
-  if (res.ok) cache.put(request, res.clone());
-  return res;
+  // Never let a stalled request hang a tab forever: give up after 12s so the app can retry.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 12000);
+  try {
+    const res = await fetch(request, { signal: ctrl.signal });
+    // Only cache real assets. A missing hashed file can come back as index.html (200) and must not be kept.
+    const type = res.headers.get('content-type') || '';
+    if (res.ok && !type.includes('text/html')) cache.put(request, res.clone());
+    return res;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // Fonts, icon CSS, map library, images: show the cached copy now, refresh it in the background.
