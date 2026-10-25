@@ -31,9 +31,20 @@ import { resolveNearestNeighborhood } from './lib/geo.ts';
 // One-time removal of the old demo content cached on this device
 purgeSeedData();
 
-// ---- Resilient Code splitting: automatic chunk loading retry with backoff on mobile resume ----
-const retryImport = <T,>(fn: () => Promise<T>, retries = 3, delay = 800): Promise<T> => {
-  return fn().catch((err) => {
+// ---- Resilient Code splitting: chunk loading with timeout, retry and one-shot reload ----
+// A stalled chunk request (common on mobile data or right after a deploy) never rejects, so the
+// spinner would sit forever. Every attempt now has a timeout, and a final failure triggers ONE reload.
+const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('dynamically imported module timed out')), ms);
+    p.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); }
+    );
+  });
+
+const retryImport = <T,>(fn: () => Promise<T>, retries = 2, delay = 600): Promise<T> => {
+  return withTimeout(fn(), 10000).catch((err) => {
     if (retries <= 1) throw err;
     return new Promise((resolve) => setTimeout(resolve, delay)).then(() =>
       retryImport(fn, retries - 1, delay * 1.5)
@@ -41,8 +52,45 @@ const retryImport = <T,>(fn: () => Promise<T>, retries = 3, delay = 800): Promis
   });
 };
 
+const reloadOnceForChunk = () => {
+  try {
+    const last = Number(sessionStorage.getItem('rada_chunk_reload') || 0);
+    if (Date.now() - last > 30000) {
+      sessionStorage.setItem('rada_chunk_reload', String(Date.now()));
+      window.location.reload();
+    }
+  } catch (_) {}
+};
+
 const lazyNamed = (loader: () => Promise<any>, name: string): React.ComponentType<any> =>
-  lazy(() => retryImport(loader).then((m) => ({ default: m[name] })));
+  lazy(() =>
+    retryImport(loader)
+      .then((m) => ({ default: m[name] }))
+      .catch((err) => {
+        reloadOnceForChunk();
+        throw err;
+      })
+  );
+
+// Warm the main tab chunks right after first paint so tapping a tab is instant.
+const TAB_PREFETCH: Array<() => Promise<any>> = [
+  () => import('./components/SpotsTab.tsx'),
+  () => import('./components/OutingsTab.tsx'),
+  () => import('./components/SocialsTab.tsx'),
+  () => import('./components/VaultTab.tsx'),
+];
+if (typeof window !== 'undefined') {
+  const warmTabs = () => {
+    TAB_PREFETCH.forEach((load, i) => setTimeout(() => load().catch(() => {}), i * 400));
+  };
+  const kick = () => {
+    const ric = (window as any).requestIdleCallback;
+    if (ric) ric(warmTabs, { timeout: 4000 });
+    else setTimeout(warmTabs, 1500);
+  };
+  if (document.readyState === 'complete') kick();
+  else window.addEventListener('load', kick, { once: true });
+}
 
 import { AuthModal } from './components/AuthModal.tsx';
 const AdminDashboard = lazyNamed(() => import('./components/AdminDashboardModal.tsx'), 'AdminDashboard');
@@ -61,11 +109,27 @@ const SavedPlacesModal = lazyNamed(() => import('./components/SavedPlacesModal.t
 const LivenessVerificationModal = lazyNamed(() => import('./components/LivenessVerificationModal.tsx'), 'LivenessVerificationModal');
 const SuggestSpotModal = lazyNamed(() => import('./components/SuggestSpotModal.tsx'), 'SuggestSpotModal');
 
-const TabFallback = () => (
-  <div className="flex items-center justify-center py-24" role="status" aria-label="Loading">
-    <div className="w-7 h-7 rounded-full border-[3px] border-slate-200 dark:border-slate-700 border-t-[#E0533C] animate-spin" />
-  </div>
-);
+const TabFallback = () => {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), 8000);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <div className="flex flex-col items-center justify-center gap-4 py-24" role="status" aria-label="Loading">
+      <div className="w-7 h-7 rounded-full border-[3px] border-slate-200 dark:border-slate-700 border-t-[#E0533C] animate-spin" />
+      {slow && (
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="text-xs font-bold text-[#B83D26] dark:text-[#E0533C] underline"
+        >
+          Taking long? Tap to reload
+        </button>
+      )}
+    </div>
+  );
+};
 
 import {
   initialBusinesses,
