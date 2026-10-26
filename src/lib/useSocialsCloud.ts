@@ -18,6 +18,7 @@ import { isDemoMode } from './demoMode';
 import {
   DEMO_PEOPLE,
   buildDemoConversations,
+  buildDemoOutings,
   buildDemoRequests,
   buildGroupConversation,
   buildMatchConversation,
@@ -342,9 +343,10 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
     async (outingId: string): Promise<{ id: string | null; error: string | null }> => {
       if (demo) {
         const chatId = `grp-outing-${outingId}`;
+        const uid = uidRef.current;
         setConversations(prev => {
           if (prev.some(c => c.id === chatId)) return prev;
-          const title = 'Hosting chat';
+          const title = (uid && buildDemoOutings(uid, { name: '', handle: handleRef.current, avatar: '' }).find(o => o.id === outingId)?.spotTitle) || 'Hosting chat';
           return [buildOutingConversation(outingId, title, handleRef.current), ...prev];
         });
         return { id: chatId, error: null };
