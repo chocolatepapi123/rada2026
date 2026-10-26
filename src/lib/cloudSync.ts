@@ -1181,15 +1181,9 @@ export async function checkUsernameAvailable(raw: string, currentUid?: string): 
     // fall through to the table query
   }
 
-  try {
-    let q = supabase.from('profiles').select('id').ilike('username', username).limit(1);
-    if (currentUid) q = q.neq('id', currentUid);
-    const { data, error } = await q;
-    if (error) return { available: false, error: 'Could not check availability. Try again.' };
-    return { available: !data || data.length === 0, error: null };
-  } catch (err) {
-    return { available: false, error: 'Could not check availability. Try again.' };
-  }
+  // The direct table lookup can no longer see other people's profiles (privacy lockdown),
+  // so it would wrongly report every name as free. Fail safely instead.
+  return { available: false, error: 'Could not check availability. Try again.' };
 }
 
 /** Saves the username (re-validates format and availability first). */
@@ -2118,12 +2112,21 @@ export async function createOuting(rawOuting: OutingPlan): Promise<{ error: stri
 
     const { error } = await supabase.from('outings').upsert(row, { onConflict: 'id' });
     if (error) {
-      console.warn('createOuting Supabase upsert note:', error.message);
+      console.warn('createOuting save failed:', error.message);
+      // The hosting did not reach the server, so nobody else can see it: take it out of the local cache too
+      try {
+        const cachedNow = localStorage.getItem(OUTINGS_LOCAL_KEY);
+        if (cachedNow) {
+          const listNow: OutingPlan[] = JSON.parse(cachedNow);
+          localStorage.setItem(OUTINGS_LOCAL_KEY, JSON.stringify(listNow.filter(o => o.id !== outing.id)));
+        }
+      } catch (e) {}
+      return { error: error.message, data: outing };
     }
     return { error: null, data: outing };
   } catch (err: any) {
     console.warn('createOuting failed:', err);
-    return { error: null, data: outing };
+    return { error: err?.message || 'Save failed', data: outing };
   }
 }
 
@@ -2172,12 +2175,13 @@ export async function requestJoinOuting(
 
     const { error } = await supabase.from('outing_attendees').upsert(row, { onConflict: 'id' });
     if (error) {
-      console.warn('requestJoinOuting Supabase note:', error.message);
+      console.warn('requestJoinOuting save failed:', error.message);
+      return { error: error.message, attendee };
     }
     return { error: null, attendee };
   } catch (err: any) {
     console.warn('requestJoinOuting error:', err);
-    return { error: null, attendee };
+    return { error: err?.message || 'Save failed', attendee };
   }
 }
 
