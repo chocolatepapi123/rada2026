@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured } from './supabase';
+import { isDemoMode } from './demoMode';
+import { DEMO_PROFILE_HITS } from '../data/demoData';
 import type { ChatConversation, ChatMessage } from '../types.ts';
-import { demoSearchPool, isDemoMode } from './demoData.ts';
 
 /**
  * Real, shared Socials backend (chats, match requests, search, group chats).
@@ -255,10 +256,14 @@ export function extFromMime(mime: string, fallback: string): string {
 // ---------------------------------------------------------------------------
 
 export async function searchProfiles(query: string, limit = 20): Promise<CloudProfileHit[]> {
+  if (isDemoMode()) {
+    const dq = String(query || '').trim().replace(/^@/, '').toLowerCase();
+    if (dq.length < 2) return [];
+    return DEMO_PROFILE_HITS.filter(p => p.username.toLowerCase().includes(dq) || (p.bio || '').toLowerCase().includes(dq)).slice(0, limit);
+  }
+  if (!isCloudReady()) return [];
   const q = String(query || '').trim().replace(/^@/, '');
   if (q.length < 2) return [];
-  if (isDemoMode()) return demoSearchPool().filter(p => p.username.toLowerCase().includes(q.toLowerCase())).slice(0, limit);
-  if (!isCloudReady()) return [];
   const { data, error } = await supabase.rpc('search_profiles', { p_query: q, p_limit: limit });
   if (error) throw new Error(error.message);
   return (data || []) as CloudProfileHit[];
@@ -266,7 +271,7 @@ export async function searchProfiles(query: string, limit = 20): Promise<CloudPr
 
 /** Verified singles for the Discover swipe deck (same function, wider net, filtered client-side). */
 export async function fetchDiscoverPool(letters: string[] = ['a', 'e', 'i', 'o', 'u']): Promise<CloudProfileHit[]> {
-  if (isDemoMode()) return demoSearchPool();
+  if (isDemoMode()) return DEMO_PROFILE_HITS;
   if (!isCloudReady()) return [];
   const seen = new Map<string, CloudProfileHit>();
   const results = await Promise.all(letters.map(l => searchProfiles(l, 30).catch(() => [] as CloudProfileHit[])));
