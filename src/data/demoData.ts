@@ -35,9 +35,9 @@ const IMG = {
   burger: U('1568901346375-23c9450c58cd'),
 };
 
-const woman = (n: number) => `https://randomuser.me/api/portraits/women/${n}.jpg`;
-const man = (n: number) => `https://randomuser.me/api/portraits/men/${n}.jpg`;
-const DEFAULT_ME_AVATAR = woman(79);
+// Profile photos live in public/demo/avatars/<key>.jpg (see the README.txt in that folder).
+const avatarFor = (key: string) => `/demo/avatars/${key}.jpg`;
+const DEFAULT_ME_AVATAR = '';
 
 // ---------------------------------------------------------------------------
 // people
@@ -58,38 +58,38 @@ const P = (key: string, username: string, name: string, avatar: string, bio: str
   key,
   username,
   name,
-  avatar,
+  avatar: avatarFor(key),
   bio,
   instantMatch,
 });
 
 export const DEMO_PEOPLE: DemoPerson[] = [
   // sent me a request
-  P('wanjiru', 'wanjiru_k', 'Wanjiru Kamau', woman(44), 'Rooftop sundowners, nyama choma Sundays and anything with live music 🎶'),
-  P('brian', 'brian_otieno', 'Brian Otieno', man(32), 'Karura trails by morning, Kilimani brunch by noon 🌲☕'),
-  P('achieng', 'achieng_a', 'Achieng Akinyi', woman(65), 'Art, coffee and spontaneous road trips. Always down for a gallery night 🎨'),
-  P('kevo', 'kevo254', 'Kevin Mutua', man(45), 'Gaming, bowling and late-night mutura. Challenge me 🎮'),
+  P('wanjiru', 'wanjiru_k', 'Wanjiru Kamau', '', 'Rooftop sundowners, nyama choma Sundays and anything with live music 🎶'),
+  P('brian', 'brian_otieno', 'Brian Otieno', '', 'Karura trails by morning, Kilimani brunch by noon 🌲☕'),
+  P('achieng', 'achieng_a', 'Achieng Akinyi', '', 'Art, coffee and spontaneous road trips. Always down for a gallery night 🎨'),
+  P('kevo', 'kevo254', 'Kevin Mutua', '', 'Gaming, bowling and late-night mutura. Challenge me 🎮'),
   // I sent them a request
-  P('zawadi', 'zawadi_m', 'Zawadi Mwangi', woman(26), 'Brunch snob. Sunday market regular. Looking for a plus-one for Nairobi adventures ✨'),
-  P('ian', 'ian_mwangi', 'Ian Mwangi', man(75), 'Foodie first, everything else second. Will travel for good chips masala 🍟'),
-  P('njeri', 'njeri_wa', 'Njeri Wairimu', woman(12), 'Dancer. Amapiano on repeat. Ask me about my playlist 💃'),
+  P('zawadi', 'zawadi_m', 'Zawadi Mwangi', '', 'Brunch snob. Sunday market regular. Looking for a plus-one for Nairobi adventures ✨'),
+  P('ian', 'ian_mwangi', 'Ian Mwangi', '', 'Foodie first, everything else second. Will travel for good chips masala 🍟'),
+  P('njeri', 'njeri_wa', 'Njeri Wairimu', '', 'Dancer. Amapiano on repeat. Ask me about my playlist 💃'),
   // matched: direct chats
-  P('mwende', 'mwende_k', 'Mwende Kioko', woman(33), 'Weekend explorer. Cafes, bookshops and sunsets 🌅'),
-  P('tito', 'tito_ke', 'Tito Odhiambo', man(22), 'Football, nyama choma and terrible puns ⚽'),
-  P('farida', 'farida_h', 'Farida Hassan', woman(90), 'Paint and sip regular. Beach person stuck in Nairobi 🎨🍷'),
+  P('mwende', 'mwende_k', 'Mwende Kioko', '', 'Weekend explorer. Cafes, bookshops and sunsets 🌅'),
+  P('tito', 'tito_ke', 'Tito Odhiambo', '', 'Football, nyama choma and terrible puns ⚽'),
+  P('farida', 'farida_h', 'Farida Hassan', '', 'Paint and sip regular. Beach person stuck in Nairobi 🎨🍷'),
   // group + hosting chat members
-  P('otis', 'otis_ke', 'Otieno Ouma', man(86), 'DJ on weekends, accountant on weekdays 🎧'),
-  P('shiko', 'shiko_n', 'Shiko Njoroge', woman(53), 'Hiking, photography and strong coffee 📸'),
-  P('dan', 'dan_kamau', 'Daniel Kamau', man(61), 'Trail runner. Karura is my office 🏃🏾'),
+  P('otis', 'otis_ke', 'Otieno Ouma', '', 'DJ on weekends, accountant on weekdays 🎧'),
+  P('shiko', 'shiko_n', 'Shiko Njoroge', '', 'Hiking, photography and strong coffee 📸'),
+  P('dan', 'dan_kamau', 'Daniel Kamau', '', 'Trail runner. Karura is my office 🏃🏾'),
   // discover deck (swipe candidates)
-  P('nina', 'nina_w', 'Nina Wanjiku', woman(68), 'Pottery on Saturdays, Java on Sundays. Looking for someone to explore new spots with ☕', true),
-  P('dennis', 'dennis_m', 'Dennis Maina', man(41), 'Sports bar regular and part-time chef. I make a mean pilau 🍛'),
-  P('caro', 'caro_a', 'Caroline Atieno', woman(21), 'Live music, rooftops and long drives to Naivasha 🚗'),
-  P('jabali', 'jabali_k', 'Jabali Kariuki', man(9), 'Photographer. Golden hour chaser. Will take your portrait for free 📷'),
-  P('lulu', 'lulu_n', 'Lulu Nyambura', woman(5), 'Foodie, bookworm and board game champion 🎲', true),
-  P('sam', 'sam_oduor', 'Samuel Oduor', man(52), 'Climbing Ngong Hills every other weekend. Come keep up ⛰️'),
-  P('amani', 'amani_j', 'Amani Juma', woman(37), 'Karaoke queen. Yes, I will sing Sauti Sol 🎤', true),
-  P('vee', 'vee_ke', 'Valentine Chebet', woman(47), 'Cocktails, comedy nights and spontaneous plans 🍸'),
+  P('nina', 'nina_w', 'Nina Wanjiku', '', 'Pottery on Saturdays, Java on Sundays. Looking for someone to explore new spots with ☕', true),
+  P('dennis', 'dennis_m', 'Dennis Maina', '', 'Sports bar regular and part-time chef. I make a mean pilau 🍛'),
+  P('caro', 'caro_a', 'Caroline Atieno', '', 'Live music, rooftops and long drives to Naivasha 🚗'),
+  P('jabali', 'jabali_k', 'Jabali Kariuki', '', 'Photographer. Golden hour chaser. Will take your portrait for free 📷'),
+  P('lulu', 'lulu_n', 'Lulu Nyambura', '', 'Foodie, bookworm and board game champion 🎲', true),
+  P('sam', 'sam_oduor', 'Samuel Oduor', '', 'Climbing Ngong Hills every other weekend. Come keep up ⛰️'),
+  P('amani', 'amani_j', 'Amani Juma', '', 'Karaoke queen. Yes, I will sing Sauti Sol 🎤', true),
+  P('vee', 'vee_ke', 'Valentine Chebet', '', 'Cocktails, comedy nights and spontaneous plans 🍸'),
 ];
 
 const byKey = (key: string): DemoPerson => DEMO_PEOPLE.find(p => p.key === key) as DemoPerson;
