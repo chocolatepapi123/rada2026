@@ -94,7 +94,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-white dark:bg-[#121113] border-b border-slate-200 dark:border-slate-800 shadow-xs transition-colors duration-200">
-      <div className="max-w-lg lg:max-w-none mx-auto w-full px-3.5 sm:px-4 lg:px-8 py-3 sm:py-3.5 min-h-[60px] sm:min-h-[64px] flex items-center justify-between gap-2.5 flex-nowrap">
+      <div className="max-w-lg min-[900px]:max-w-none mx-auto w-full px-3.5 sm:px-4 min-[900px]:px-8 py-3 sm:py-3.5 min-h-[60px] sm:min-h-[64px] flex items-center justify-between gap-2.5 flex-nowrap">
         {/* Left Side: Brand Logo */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink">
           <button 

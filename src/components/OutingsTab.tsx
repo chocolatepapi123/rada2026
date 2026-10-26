@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { isDemoMode } from '../lib/demoMode.ts';
 import { 
   Users, 
   Calendar, 
@@ -721,7 +722,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   };
 
   return (
-    <section className="px-3 sm:px-4 py-4 space-y-4 max-w-lg lg:max-w-none mx-auto pb-24 lg:pb-8">
+    <section className="px-3 sm:px-4 py-4 space-y-4 max-w-lg min-[900px]:max-w-none mx-auto pb-24 min-[900px]:pb-8">
       {/* =====================================================================
           SECTION 1: HOST A PLAN (own card, separate from search & filters)
           ===================================================================== */}
@@ -737,7 +738,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
             <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
               Got a plan? Host it and let the community join.
             </p>
-            {isUserSignedIn && (
+            {isUserSignedIn && !isDemoMode() && (
               <div className="mt-3.5 space-y-2">
                 <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
                   {quota.limit === null
@@ -955,7 +956,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
 
       {/* Outings Feed Cards */}
       {filteredOutings.length > 0 ? (
-        <div className="space-y-3.5 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-4 lg:items-start">
+        <div className="space-y-3.5 min-[900px]:space-y-0 min-[900px]:grid min-[900px]:grid-cols-2 min-[900px]:gap-4 min-[900px]:items-start">
           {filteredOutings.map((plan) => {
             const attendeeStatus = getAttendeeStatus(plan);
             const joinedAttendees = plan.attendees?.filter(a => a.status === 'joined' || a.status === 'approved') || [];
