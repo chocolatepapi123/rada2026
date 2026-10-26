@@ -26,6 +26,8 @@ import {
 import { fetchCinemaShowings, CINEMA_UPDATED_EVENT } from './lib/cinema.ts';
 import { readJSON, writeJSON, writeJSONDebounced, purgeSeedData } from './lib/storage.ts';
 import { useSocialsCloud } from './lib/useSocialsCloud.ts';
+import { isDemoMode, isDemoId } from './lib/demoMode.ts';
+import { buildDemoOutings } from './data/demoData.ts';
 import { useUnclaimedSpots, mergeSpots, evictUnclaimedSpot } from './lib/spotsFeed.ts';
 import { resolveNearestNeighborhood } from './lib/geo.ts';
 
@@ -647,6 +649,12 @@ export default function App() {
   const [outings, setOutings] = useState<OutingPlan[]>(() => {
     return readJSON<OutingPlan[]>('rada_outings_cache', initialOutings, Array.isArray);
   });
+  // Demo Mode only: mock hostings + anything created while recording. Never saved to Supabase or the cache.
+  const [demoOutings, setDemoOutings] = useState<OutingPlan[]>([]);
+  const allOutings = useMemo(
+    () => (isDemoMode() ? [...demoOutings, ...outings.filter(o => !isDemoId(o.id))] : outings),
+    [demoOutings, outings]
+  );
 
   // Spot Ownership Claims & Verification Requests
   const [spotClaims, setSpotClaims] = useState<SpotClaimRequest[]>(() => {
@@ -885,6 +893,10 @@ export default function App() {
   }, [session]);
 
   const handleCreateOuting = async (newPlan: OutingPlan) => {
+    if (isDemoMode()) {
+      setDemoOutings(prev => [{ ...newPlan, id: newPlan.id.startsWith('demo-') ? newPlan.id : `demo-new-${newPlan.id}` }, ...prev]);
+      return;
+    }
     setOutings(prev => [newPlan, ...prev.filter(o => o.id !== newPlan.id)]);
     const res = await cloud.createOuting(newPlan);
     if (res.error) {
@@ -896,6 +908,14 @@ export default function App() {
   };
 
   const handleRequestJoin = async (outingId: string, attendee: OutingAttendee) => {
+    if (isDemoMode() && isDemoId(outingId)) {
+      setDemoOutings(prev => prev.map(o => {
+        if (o.id !== outingId) return o;
+        const atts = [...(o.attendees || []).filter(a => a.userId !== attendee.userId && a.id !== attendee.id), attendee];
+        return { ...o, attendees: atts, currentAttendeesCount: atts.filter(a => a.status === 'joined' || a.status === 'approved').length + 1 };
+      }));
+      return;
+    }
     setOutings(prev => prev.map(o => {
       if (o.id === outingId) {
         const existing = o.attendees || [];
@@ -923,6 +943,15 @@ export default function App() {
     attendeeId: string,
     status: 'approved' | 'declined'
   ) => {
+    if (isDemoMode() && isDemoId(outingId)) {
+      setDemoOutings(prev => prev.map(o => {
+        if (o.id !== outingId) return o;
+        const atts = (o.attendees || []).map(a => (a.id === attendeeId ? { ...a, status } : a));
+        return { ...o, attendees: atts, currentAttendeesCount: atts.filter(a => a.status === 'joined' || a.status === 'approved').length + 1 };
+      }));
+      if (status === 'approved') await socials.openOutingChat(outingId);
+      return;
+    }
     let targetOuting: OutingPlan | undefined;
     let targetApplicant: OutingAttendee | undefined;
 
@@ -1126,6 +1155,18 @@ export default function App() {
     currentUserProfile?.handle || ''
   );
   const conversations = socials.conversations;
+
+  // Demo Mode: seed mock hostings once signed in (re-seeds only if your profile changes; anything you create is kept)
+  const demoUid = session?.user?.id && !isGuestMode ? session.user.id : undefined;
+  useEffect(() => {
+    if (!isDemoMode() || !demoUid) return;
+    const seed = buildDemoOutings(demoUid, {
+      name: currentUserProfile?.name || 'You',
+      handle: currentUserProfile?.handle || '@you',
+      avatar: currentUserProfile?.avatar || '',
+    });
+    setDemoOutings(prev => [...seed, ...prev.filter(o => !/^demo-out-\d+$/.test(String(o.id)))]);
+  }, [demoUid, currentUserProfile?.handle, currentUserProfile?.name, currentUserProfile?.avatar]);
   const [planDateChatId, setPlanDateChatId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -2530,7 +2571,7 @@ export default function App() {
 
             {(activeTab === 'outings' || activeTab === 'plans') && (
               <OutingsTab
-                outings={outings}
+                outings={allOutings}
                 spots={spots}
                 currentUserProfile={currentUserProfile}
                 currentUserId={session?.user?.id}
@@ -2839,7 +2880,7 @@ export default function App() {
               onOpenAuth={() => setIsAuthModalOpen(true)}
               onSignOut={handleSignOut}
               onProfileChange={handleOwnProfileChange}
-              outings={outings}
+              outings={allOutings}
             />
           )}
 
