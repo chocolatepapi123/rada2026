@@ -38,16 +38,31 @@ import { AudioMessagePlayer } from './AudioMessagePlayer.tsx';
 import { VideoMessagePlayer } from './VideoMessagePlayer.tsx';
 import { generatePlayableWavDataUrl, generateFallbackVideoBlobUrl, formatMediaDuration, deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 import type { ToastOptions } from './Toast.tsx';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { readJSON, writeJSON } from '../lib/storage.ts';
+import {
+  CloudRequest,
+  OutgoingMessage,
+  CloudProfileHit,
+  PLACEHOLDER_AVATAR,
+  dataUrlToBlob,
+  extFromMime,
+  fetchDiscoverPool,
+  searchProfiles,
+  uploadChatMedia,
+} from '../lib/socialsCloud.ts';
 
 interface SocialsTabProps {
   discoveryProfiles: DatingProfile[];
   conversations: ChatConversation[];
   currentUserProfile: UserProfile;
-  onOpenPlanDateModal: () => void;
+  myUserId?: string;
+  requests: CloudRequest[];
+  onSendMatchRequest: (toUserId: string) => Promise<{ status: 'sent' | 'already_sent' | 'matched' | 'error'; conversationId?: string; error?: string }>;
+  onRespondRequest: (requestId: string, accept: boolean) => Promise<{ conversationId: string | null; error: string | null }>;
+  onSendMessage: (conversationId: string, msg: OutgoingMessage) => Promise<string | null>;
+  onLoadHistory: (conversationId: string) => Promise<void>;
+  onRefreshSocials: () => Promise<void>;
+  onOpenPlanDateModal: (chatId?: string) => void;
   onOpenCreateGroupModal: () => void;
-  onAcceptRequest: (name: string, avatar: string) => void;
   onViewUserProfile: (profile: UserProfile) => void;
   onOpenVerificationModal?: () => void;
   showToast: (msg: string, options?: ToastOptions) => void;
@@ -59,9 +74,15 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   discoveryProfiles,
   conversations,
   currentUserProfile,
+  myUserId,
+  requests,
+  onSendMatchRequest,
+  onRespondRequest,
+  onSendMessage,
+  onLoadHistory,
+  onRefreshSocials,
   onOpenPlanDateModal,
   onOpenCreateGroupModal,
-  onAcceptRequest,
   onViewUserProfile,
   onOpenVerificationModal,
   showToast,
@@ -76,7 +97,17 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   const [swipeAnimation, setSwipeAnimation] = useState<'like' | 'pass' | null>(null);
 
   // Active Chat Screen State
-  const [activeChat, setActiveChat] = useState<ChatConversation | null>(null);
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const activeChat: ChatConversation | null = React.useMemo(
+    () => (activeChatId ? conversations.find(c => c.id === activeChatId) || null : null),
+    [activeChatId, conversations]
+  );
+  const setActiveChat = (c: ChatConversation | null) => setActiveChatId(c ? c.id : null);
+  // load the full history whenever a chat is opened
+  React.useEffect(() => {
+    if (activeChatId) onLoadHistory(activeChatId);
+  }, [activeChatId]);
+  const [isSending, setIsSending] = useState(false);
   const [chatInputText, setChatInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
@@ -87,8 +118,8 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
       if (match) {
         setActiveChat(match);
         setSubtab('chats');
+        onClearTargetChatId?.();
       }
-      onClearTargetChatId?.();
     }
   }, [targetChatId, conversations, onClearTargetChatId]);
 
@@ -118,15 +149,15 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   const photoFileInputRef = useRef<HTMLInputElement | null>(null);
   const [attachedPhotos, setAttachedPhotos] = useState<string[]>([]);
 
-  // Pending and sent requests
-  const [pendingRequests, setPendingRequests] = useState<{ id: string; name: string; loc: string; avatar: string }[]>(
-    () => readJSON('rada_pending_requests', [], Array.isArray)
+  // Match requests come from the database: what others sent me, and what I sent
+  const pendingRequests = React.useMemo(
+    () => requests.filter(r => r.status === 'pending' && r.toUser === myUserId),
+    [requests, myUserId]
   );
-  const [sentRequests, setSentRequests] = useState<{ id: string; name: string; avatar: string; handle: string }[]>(
-    () => readJSON('rada_sent_requests', [], Array.isArray)
+  const sentRequests = React.useMemo(
+    () => requests.filter(r => r.status === 'pending' && r.fromUser === myUserId),
+    [requests, myUserId]
   );
-  React.useEffect(() => { writeJSON('rada_pending_requests', pendingRequests); }, [pendingRequests]);
-  React.useEffect(() => { writeJSON('rada_sent_requests', sentRequests); }, [sentRequests]);
 
   // Stop mic/camera streams and timers on unmount or when backgrounded to prevent memory leaks
   React.useEffect(() => {
@@ -164,6 +195,27 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
 
   // Search filter
   const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [searchHits, setSearchHits] = useState<CloudProfileHit[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState(false);
+  React.useEffect(() => {
+    const q = userSearchQuery.trim().replace(/^@/, '');
+    setSearchError(false);
+    if (!myUserId || q.length < 2) { setSearchHits([]); setSearching(false); return; }
+    setSearching(true);
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const hits = await searchProfiles(q, 20);
+        if (!cancelled) setSearchHits(hits);
+      } catch {
+        if (!cancelled) { setSearchHits([]); setSearchError(true); }
+      } finally {
+        if (!cancelled) setSearching(false);
+      }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [userSearchQuery, myUserId]);
 
   // Helper to remove 'nearby' and distance prefixes, leaving just the location
   const cleanLocation = (locStr?: string) => {
@@ -192,50 +244,38 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
 
   React.useEffect(() => {
     let cancelled = false;
-    const loadCommunity = async () => {
-      if (!isSupabaseConfigured || !supabase) return;
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, name, username, avatar_url, bio, relationship_status, is_liveness_verified')
-          .order('updated_at', { ascending: false })
-          .limit(50);
-
-        if (!error && data && !cancelled) {
-          const currentId = currentUserProfile?.id;
-          const currentHandle = currentUserProfile?.handle?.toLowerCase();
-          const clean: DatingProfile[] = data
-            .filter((row: any) => {
-              if (row.id === currentId) return false;
-              if (currentHandle && row.username && `@${row.username.toLowerCase()}` === currentHandle) return false;
-              const isSingle = String(row.relationship_status || '').toLowerCase() === 'single';
-              return isSingle && Boolean(row.is_liveness_verified);
-            })
-            .map((row: any, i: number) => ({
-              id: row.id || `c-${i}`,
-              name: row.name || row.username || 'Nairobi Single',
-              handle: row.username ? `@${row.username.replace('@', '')}` : '@single',
+    if (!myUserId) { setCommunitySingles([]); return; }
+    fetchDiscoverPool()
+      .then(rows => {
+        if (cancelled) return;
+        setCommunitySingles(
+          rows
+            .filter(r => r.id !== myUserId)
+            .map(r => ({
+              id: r.id,
+              name: `@${r.username}`,
+              handle: `@${r.username}`,
               loc: 'Nairobi',
-              img: row.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop',
-              bio: row.bio || 'Exploring Nairobi hangouts, food, and culture.',
-              relationshipStatus: 'single',
-              vibes: ['Nairobi Hangouts', 'Music', 'Outings']
-            }));
-          setCommunitySingles(clean);
-        }
-      } catch (err) {
-        console.warn('Community singles load notice:', err);
-      }
-    };
-    loadCommunity();
+              img: r.avatar_url || PLACEHOLDER_AVATAR,
+              bio: r.bio || 'Exploring Nairobi hangouts, food, and culture.',
+              relationshipStatus: 'single' as const,
+              vibes: ['Nairobi Hangouts', 'Music', 'Outings'],
+            }))
+        );
+      })
+      .catch(() => { if (!cancelled) setCommunitySingles([]); });
     return () => { cancelled = true; };
-  }, [currentUserProfile?.id, currentUserProfile?.handle]);
+  }, [myUserId, isUserVerifiedSingle]);
 
   // Filter out any mock accounts and only show real verified single members
   const candidatePool = React.useMemo(() => {
-    const combined = [...discoveryProfiles, ...communitySingles];
-    return combined.filter(p => p.relationshipStatus === 'single' && !isMockMatchProfile(p));
-  }, [discoveryProfiles, communitySingles]);
+    const blocked = new Set<string>();
+    requests.forEach(r => {
+      if (r.status !== 'declined') { blocked.add(r.fromUser); blocked.add(r.toUser); }
+    });
+    conversations.forEach(c => { const o = (c as any).otherUserId; if (o) blocked.add(o); });
+    return communitySingles.filter(p => p.relationshipStatus === 'single' && !blocked.has(String(p.id)));
+  }, [communitySingles, requests, conversations]);
 
   const currentProfile = candidatePool.length > 0 
     ? candidatePool[profileIndex % candidatePool.length]
@@ -244,19 +284,19 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   const handleSwipe = (action: 'like' | 'pass') => {
     if (!currentProfile) return;
     setSwipeAnimation(action);
-    setTimeout(() => {
+    const person = currentProfile;
+    setTimeout(async () => {
       if (action === 'like') {
-        const likedPerson = currentProfile;
-        if (likedPerson.relationshipStatus !== 'single') {
-          showToast(`${likedPerson.name.split(',')[0]} is Not single. Match requests are for single members.`, { type: 'error' });
+        const res = await onSendMatchRequest(String(person.id));
+        if (res.status === 'error') {
+          showToast(res.error || 'Could not send the request.', { type: 'error' });
+        } else if (res.status === 'matched') {
+          showToast(`It's a match with ${person.handle}!`, { category: 'match' });
+          if (res.conversationId) { setSubtab('chats'); setActiveChatId(res.conversationId); }
+        } else if (res.status === 'already_sent') {
+          showToast(`You already sent ${person.handle} a request.`);
         } else {
-          setSentRequests(prev => [{
-            id: `sent-${Date.now()}`,
-            name: likedPerson.name.split(',')[0],
-            avatar: likedPerson.img,
-            handle: likedPerson.handle
-          }, ...prev]);
-          showToast(`Hangout & Match request sent to ${likedPerson.name.split(',')[0]}!`, { category: 'match' });
+          showToast(`Hangout & Match request sent to ${person.handle}!`, { category: 'match' });
         }
       }
       setSwipeAnimation(null);
@@ -264,9 +304,15 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
     }, 250);
   };
 
-  const handleAcceptPending = (req: { id: string; name: string; avatar: string }) => {
-    setPendingRequests(prev => prev.filter(r => r.id !== req.id));
-    onAcceptRequest(req.name, req.avatar);
+  const handleAcceptPending = async (req: CloudRequest) => {
+    const res = await onRespondRequest(req.id, true);
+    if (res.error) { showToast(res.error, { type: 'error' }); return; }
+    if (res.conversationId) { setSubtab('chats'); setActiveChatId(res.conversationId); }
+  };
+
+  const handleDeclinePending = async (req: CloudRequest) => {
+    const res = await onRespondRequest(req.id, false);
+    if (res.error) showToast(res.error, { type: 'error' });
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -308,30 +354,111 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
     el.style.overflowY = el.scrollHeight > maxHeight ? 'auto' : 'hidden';
   }, [chatInputText]);
 
-  const handleSendMessage = () => {
-    if ((!chatInputText.trim() && attachedPhotos.length === 0) || !activeChat) return;
-    const newMsg: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      sender: 'me',
-      text: chatInputText.trim(),
-      photos: attachedPhotos.length > 0 ? attachedPhotos : undefined,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      replyTo: replyingTo ? {
-        id: replyingTo.id,
-        sender: replyingTo.sender === 'me' ? 'You' : activeChat.name,
-        text: replyingTo.text
-      } : undefined
-    };
-    activeChat.messages.push(newMsg);
-    activeChat.lastMessage = attachedPhotos.length > 0
-      ? `📷 ${attachedPhotos.length} photo${attachedPhotos.length > 1 ? 's' : ''}${chatInputText.trim() ? ': ' + chatInputText.trim() : ''}`
-      : newMsg.text;
+  const replyPayload = () =>
+    replyingTo
+      ? { id: replyingTo.id, sender: replyingTo.sender === 'me' ? 'You' : activeChat?.name || '', text: replyingTo.text }
+      : null;
+
+  const friendlySendError = (err: string) =>
+    /sign in/i.test(err) ? err : "Couldn't send that. Please check your connection and try again.";
+
+  const handleSendMessage = async () => {
+    if ((!chatInputText.trim() && attachedPhotos.length === 0) || !activeChat || !myUserId || isSending) return;
+    const chatId = activeChat.id;
+    const text = chatInputText.trim();
+    const photos = attachedPhotos;
+    const reply = replyPayload();
     setChatInputText('');
     setAttachedPhotos([]);
     setReplyingTo(null);
     setShowEmojiPicker(false);
+
+    if (photos.length === 0) {
+      const err = await onSendMessage(chatId, { kind: 'text', content: text, replyTo: reply });
+      if (err) {
+        setChatInputText(text);
+        showToast(friendlySendError(err), { type: 'error' });
+      }
+      return;
+    }
+
+    setIsSending(true);
+    const urls: string[] = [];
+    for (const dataUrl of photos) {
+      try {
+        const blob = await dataUrlToBlob(dataUrl);
+        const up = await uploadChatMedia(myUserId, blob, extFromMime(blob.type, 'jpg'));
+        if (!up.url) throw new Error(up.error || 'upload');
+        urls.push(up.url);
+      } catch {
+        setIsSending(false);
+        setChatInputText(text);
+        setAttachedPhotos(photos);
+        showToast("Couldn't upload your photos. Please try again.", { type: 'error' });
+        return;
+      }
+    }
+    const err = await onSendMessage(chatId, { kind: 'photo', content: text, media: { photos: urls }, replyTo: reply });
+    setIsSending(false);
+    if (err) {
+      setChatInputText(text);
+      setAttachedPhotos(photos);
+      showToast(friendlySendError(err), { type: 'error' });
+    }
   };
 
+  // Wait for the recorder to hand over its final chunk before building the file
+  const stopRecorder = (rec: MediaRecorder | null): Promise<void> =>
+    new Promise(resolve => {
+      if (!rec || rec.state === 'inactive') return resolve();
+      rec.addEventListener('stop', () => resolve(), { once: true });
+      try { rec.stop(); } catch { resolve(); }
+      setTimeout(resolve, 1500);
+    });
+
+  // Upload a recorded or picked file, then send it as a message everyone in the chat receives
+  const sendMedia = async (
+    kind: 'voice' | 'audio' | 'video_note' | 'video',
+    blob: Blob,
+    extra: { duration: number; content: string }
+  ) => {
+    if (!activeChat || !myUserId) return;
+    if (blob.size > 40 * 1024 * 1024) {
+      showToast('That file is too large. Please keep it under 40 MB.', { type: 'error' });
+      return;
+    }
+    setIsSending(true);
+    const reply = replyPayload();
+    const up = await uploadChatMedia(myUserId, blob, extFromMime(blob.type, kind.startsWith('video') ? 'webm' : 'webm'));
+    if (!up.url) {
+      setIsSending(false);
+      showToast("Couldn't upload that. Please try again.", { type: 'error' });
+      return;
+    }
+    const err = await onSendMessage(activeChat.id, {
+      kind,
+      content: extra.content,
+      media: { url: up.url, duration: extra.duration },
+      replyTo: reply,
+    });
+    setIsSending(false);
+    setReplyingTo(null);
+    if (err) showToast(friendlySendError(err), { type: 'error' });
+  };
+
+  const getMediaDuration = (file: Blob, tag: 'audio' | 'video'): Promise<number> =>
+    new Promise(resolve => {
+      try {
+        const el = document.createElement(tag);
+        const url = URL.createObjectURL(file);
+        const done = (n: number) => { URL.revokeObjectURL(url); resolve(n); };
+        el.preload = 'metadata';
+        el.onloadedmetadata = () => done(Number.isFinite(el.duration) ? Math.round(el.duration) : 0);
+        el.onerror = () => done(0);
+        el.src = url;
+        setTimeout(() => done(0), 3000);
+      } catch { resolve(0); }
+    });
 
   const handleStartVoiceRecording = async () => {
     setIsRecordingAudio(true);
@@ -364,6 +491,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
       }
     } catch (err) {
       console.warn('Microphone permission not granted or unavailable:', err);
+      setIsRecordingAudio(false);
+      showToast('Microphone access is needed to record a voice note.', { type: 'error' });
+      return;
     }
 
     clearInterval(recordTimerRef.current);
@@ -372,55 +502,32 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
     }, 1000);
   };
 
-  const handleStopVoiceRecording = (send: boolean) => {
+  const handleStopVoiceRecording = async (send: boolean) => {
     clearInterval(recordTimerRef.current);
     const dur = Math.max(1, recordSeconds);
     setIsRecordingAudio(false);
 
-    if (audioRecorderRef.current && audioRecorderRef.current.state === 'recording') {
-      try {
-        audioRecorderRef.current.stop();
-      } catch (err) {
-        console.warn('Error stopping audio recorder:', err);
-      }
-    }
-
+    const rec = audioRecorderRef.current;
+    await stopRecorder(rec);
     if (audioStreamRef.current) {
       audioStreamRef.current.getTracks().forEach(t => t.stop());
       audioStreamRef.current = null;
     }
-
-    if (send && activeChat) {
-      let finalAudioUrl = '';
-      if (audioChunksRef.current.length > 0) {
-        const blob = new Blob(audioChunksRef.current, { type: audioRecorderRef.current?.mimeType || 'audio/webm' });
-        finalAudioUrl = URL.createObjectURL(blob);
-      } else {
-        // Fallback to real generated melodic WAV data URL (100% playable offline or when mic denied)
-        finalAudioUrl = generatePlayableWavDataUrl(dur);
-      }
-
-      const newMsg: ChatMessage = {
-        id: `voice-${Date.now()}`,
-        sender: 'me',
-        text: `Voice note (${formatMediaDuration(dur)})`,
-        audioUrl: finalAudioUrl,
-        audioDuration: dur,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        replyTo: replyingTo ? {
-          id: replyingTo.id,
-          sender: replyingTo.sender === 'me' ? 'You' : activeChat.name,
-          text: replyingTo.text
-        } : undefined
-      };
-      activeChat.messages.push(newMsg);
-      activeChat.lastMessage = `🎙️ Voice note (${formatMediaDuration(dur)})`;
-      setReplyingTo(null);
-    }
-
+    const chunks = audioChunksRef.current;
+    const mime = rec?.mimeType || 'audio/webm';
     audioChunksRef.current = [];
     audioRecorderRef.current = null;
     setRecordSeconds(0);
+
+    if (!send || !activeChat) return;
+    if (chunks.length === 0) {
+      showToast('No audio was captured. Please try again.', { type: 'error' });
+      return;
+    }
+    await sendMedia('voice', new Blob(chunks, { type: mime }), {
+      duration: dur,
+      content: `Voice note (${formatMediaDuration(dur)})`,
+    });
   };
 
   const handleStartVideoNoteRecording = async () => {
@@ -462,6 +569,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
       }
     } catch (err) {
       console.warn('Camera access unavailable:', err);
+      setIsRecordingVideo(false);
+      showToast('Camera access is needed to record a video note.', { type: 'error' });
+      return;
     }
 
     clearInterval(videoTimerRef.current);
@@ -475,106 +585,73 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
     const dur = Math.max(2, videoRecordSeconds);
     setIsRecordingVideo(false);
 
-    if (videoRecorderRef.current && videoRecorderRef.current.state === 'recording') {
-      try {
-        videoRecorderRef.current.stop();
-      } catch (err) {
-        console.warn('Error stopping video recorder:', err);
-      }
-    }
-
+    const rec = videoRecorderRef.current;
+    await stopRecorder(rec);
     if (videoStreamRef.current) {
       videoStreamRef.current.getTracks().forEach(t => t.stop());
       videoStreamRef.current = null;
     }
-
-    if (send && activeChat) {
-      let finalVideoUrl = '';
-      if (videoChunksRef.current.length > 0) {
-        const blob = new Blob(videoChunksRef.current, { type: videoRecorderRef.current?.mimeType || 'video/webm' });
-        finalVideoUrl = URL.createObjectURL(blob);
-      } else {
-        // Fallback to client-side animated video note if camera was unavailable
-        finalVideoUrl = await generateFallbackVideoBlobUrl(dur);
-      }
-
-      const newMsg: ChatMessage = {
-        id: `video-note-${Date.now()}`,
-        sender: 'me',
-        text: `Circular video note (${dur}s)`,
-        videoNoteUrl: finalVideoUrl,
-        videoDuration: dur,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        replyTo: replyingTo ? {
-          id: replyingTo.id,
-          sender: replyingTo.sender === 'me' ? 'You' : activeChat.name,
-          text: replyingTo.text
-        } : undefined
-      };
-      activeChat.messages.push(newMsg);
-      activeChat.lastMessage = `📹 Video note (${dur}s)`;
-      setReplyingTo(null);
-    }
-
+    const chunks = videoChunksRef.current;
+    const mime = rec?.mimeType || 'video/webm';
     videoChunksRef.current = [];
     videoRecorderRef.current = null;
     setVideoRecordSeconds(0);
+
+    if (!send || !activeChat) return;
+    if (chunks.length === 0) {
+      showToast('No video was captured. Please try again.', { type: 'error' });
+      return;
+    }
+    await sendMedia('video_note', new Blob(chunks, { type: mime }), {
+      duration: dur,
+      content: `Circular video note (${dur}s)`,
+    });
   };
 
   // Video attachment file upload handler
-  const handleVideoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVideoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !activeChat) return;
-
-    const url = URL.createObjectURL(file);
-    const newMsg: ChatMessage = {
-      id: `video-msg-${Date.now()}`,
-      sender: 'me',
-      text: file.name,
-      videoUrl: url,
-      videoDuration: 10,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      replyTo: replyingTo ? {
-        id: replyingTo.id,
-        sender: replyingTo.sender === 'me' ? 'You' : activeChat.name,
-        text: replyingTo.text
-      } : undefined
-    };
-    activeChat.messages.push(newMsg);
-    activeChat.lastMessage = `🎥 Video: ${file.name}`;
-    setReplyingTo(null);
     e.target.value = '';
+    if (!file || !activeChat) return;
+    const dur = await getMediaDuration(file, 'video');
+    await sendMedia('video', file, { duration: dur, content: file.name });
   };
 
   // Audio attachment file upload handler
-  const handleAudioFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAudioFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !activeChat) return;
-
-    const url = URL.createObjectURL(file);
-    const newMsg: ChatMessage = {
-      id: `audio-msg-${Date.now()}`,
-      sender: 'me',
-      text: file.name,
-      audioUrl: url,
-      audioDuration: 12,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      replyTo: replyingTo ? {
-        id: replyingTo.id,
-        sender: replyingTo.sender === 'me' ? 'You' : activeChat.name,
-        text: replyingTo.text
-      } : undefined
-    };
-    activeChat.messages.push(newMsg);
-    activeChat.lastMessage = `🎙️ Audio: ${file.name}`;
-    setReplyingTo(null);
     e.target.value = '';
+    if (!file || !activeChat) return;
+    const dur = await getMediaDuration(file, 'audio');
+    await sendMedia('audio', file, { duration: dur, content: file.name });
   };
 
-  const handleAcceptDateInvite = (msg: ChatMessage) => {
-    if (msg.dateInvite) {
-      msg.dateInvite.accepted = true;
-    }
+  // A date invite counts as accepted once the other person replied with the acceptance message
+  const isInviteAccepted = (msg: ChatMessage) =>
+    Boolean(msg.dateInvite?.accepted) ||
+    (activeChat?.messages || []).some(
+      m => m.text?.startsWith('✅ Date accepted') && m.text.includes(msg.dateInvite?.spotTitle || '\u0000')
+    );
+
+  const handleAcceptDateInvite = async (msg: ChatMessage) => {
+    if (!msg.dateInvite || !activeChat) return;
+    const d = msg.dateInvite;
+    const err = await onSendMessage(activeChat.id, {
+      kind: 'text',
+      content: `✅ Date accepted: ${d.spotTitle} on ${d.date} at ${d.time}`,
+    });
+    if (err) showToast(friendlySendError(err), { type: 'error' });
+  };
+
+  const formatChatTime = (iso?: string) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    const now = new Date();
+    if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
+    if (diffDays < 7) return d.toLocaleDateString([], { weekday: 'short' });
+    return d.toLocaleDateString([], { day: 'numeric', month: 'short' });
   };
 
   // Clean standard chat styles matching app theme
@@ -627,7 +704,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
 
           <div className="flex items-center gap-2">
             <button
-              onClick={onOpenPlanDateModal}
+              onClick={() => onOpenPlanDateModal(activeChat.id)}
               className="px-3 py-1.5 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition cursor-pointer"
             >
               <Calendar className="w-3.5 h-3.5" />
@@ -678,6 +755,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                 key={msg.id}
                 className={`flex flex-col group ${msg.sender === 'me' ? 'items-end' : 'items-start'}`}
               >
+                {msg.sender === 'them' && activeChat.type === 'group' && (msg as any).senderHandle && (
+                  <span className="text-[10px] font-bold text-slate-400 mb-0.5 px-1">{(msg as any).senderHandle}</span>
+                )}
                 {/* Swipe-to-reply button row */}
                 <div className="flex items-center gap-1 max-w-[85%]">
                   {msg.sender !== 'me' && (
@@ -703,15 +783,17 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                       {msg.dateInvite.date} at {msg.dateInvite.time}
                     </p>
                     <button
-                      disabled={msg.dateInvite.accepted}
+                      disabled={isInviteAccepted(msg) || msg.sender === 'me'}
                       onClick={() => handleAcceptDateInvite(msg)}
                       className={`w-full mt-2 py-2 text-xs font-extrabold rounded-xl shadow transition ${
-                        msg.dateInvite.accepted 
-                          ? 'bg-emerald-800 text-white cursor-default' 
+                        isInviteAccepted(msg)
+                          ? 'bg-emerald-800 text-white cursor-default'
+                          : msg.sender === 'me'
+                          ? 'bg-white/30 text-white cursor-default'
                           : 'bg-white text-slate-900 hover:bg-slate-100'
                       }`}
                     >
-                      {msg.dateInvite.accepted ? '✓ Date Accepted & Synced' : 'Accept Date & Sync Vault Calendar'}
+                      {isInviteAccepted(msg) ? '✓ Date Accepted' : msg.sender === 'me' ? 'Invitation sent' : 'Accept Date'}
                     </button>
                   </div>
                 ) : msg.videoNoteUrl ? (
@@ -1207,6 +1289,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                   className="h-96 rounded-[19px] bg-cover bg-center relative cursor-pointer group overflow-hidden"
                   style={{ backgroundImage: `url('${currentProfile.img}')` }}
                   onClick={() => onViewUserProfile({
+                    id: String(currentProfile.id),
                     name: currentProfile.name,
                     handle: currentProfile.handle,
                     avatar: currentProfile.img,
@@ -1229,6 +1312,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                     onClick={(e) => {
                       e.stopPropagation();
                       onViewUserProfile({
+                        id: String(currentProfile.id),
                         name: currentProfile.name,
                         handle: currentProfile.handle,
                         avatar: currentProfile.img,
@@ -1334,22 +1418,30 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                   key={req.id}
                   className="p-3 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between gap-3 shadow-xs"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div
                       className="w-11 h-11 rounded-full bg-cover bg-center shrink-0 border border-slate-300 dark:border-slate-700"
-                      style={{ backgroundImage: `url('${req.avatar}')` }}
+                      style={{ backgroundImage: `url('${req.fromAvatar}')` }}
                     />
-                    <div>
-                      <h4 className="font-extrabold text-xs">{req.name}</h4>
-                      <p className="text-[10px] text-slate-400">{req.loc}</p>
+                    <div className="min-w-0">
+                      <h4 className="font-extrabold text-xs truncate">{req.fromHandle}</h4>
+                      <p className="text-[10px] text-slate-400">Wants to hang out</p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleAcceptPending(req)}
-                    className="px-4 py-2 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white font-bold rounded-xl text-xs shadow-xs transition"
-                  >
-                    Accept Match
-                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => handleDeclinePending(req)}
+                      className="px-3 py-2 bg-white dark:bg-[#0A0C10] border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold rounded-xl text-xs transition cursor-pointer"
+                    >
+                      Decline
+                    </button>
+                    <button
+                      onClick={() => handleAcceptPending(req)}
+                      className="px-4 py-2 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white font-bold rounded-xl text-xs shadow-xs transition cursor-pointer"
+                    >
+                      Accept
+                    </button>
+                  </div>
                 </div>
               ))
             )}
@@ -1369,12 +1461,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                     <div className="flex items-center gap-2.5">
                       <div
                         className="w-9 h-9 rounded-full bg-cover bg-center"
-                        style={{ backgroundImage: `url('${req.avatar}')` }}
+                        style={{ backgroundImage: `url('${req.toAvatar}')` }}
                       />
-                      <div>
-                        <span className="font-bold text-xs">{req.name}</span>
-                        <p className="text-[10px] text-slate-400">{req.handle}</p>
-                      </div>
+                      <span className="font-bold text-xs">{req.toHandle}</span>
                     </div>
                     <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-md">
                       Pending Response
@@ -1404,6 +1493,11 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           </div>
 
           <div className="space-y-2.5">
+            {conversations.length === 0 && (
+              <p className="text-slate-400 py-6 text-center">
+                No chats yet. Match with someone, or start a group with the + New Group button.
+              </p>
+            )}
             {conversations.map((conv) => (
               <div
                 key={conv.id}
@@ -1437,7 +1531,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <span className="text-[9px] text-slate-400 block">Just now</span>
+                  <span className="text-[9px] text-slate-400 block">{formatChatTime((conv as any).lastMessageAt)}</span>
                   {conv.isTemporary ? (
                     <span className="text-[9px] font-extrabold text-[#E0533C] dark:text-[#D17A68] block mt-0.5">Unlocked</span>
                   ) : (
@@ -1459,51 +1553,58 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
               type="text"
               value={userSearchQuery}
               onChange={(e) => setUserSearchQuery(e.target.value)}
-              placeholder="Search community members by name, vibe or area..."
-              className="w-full pl-10 pr-4 py-3 bg-[#FAFAFC] dark:bg-[#14171F] border border-slate-200 dark:border-[#222735] rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#FF5733] dark:focus:ring-[#D17A68] text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+              placeholder="Search members by @username"
+              className="w-full pl-10 pr-4 py-3 bg-[#FAFAFC] dark:bg-[#14171F] border border-slate-200 dark:border-[#222735] rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#FF5733]/40"
             />
           </div>
 
           <div className="space-y-2">
-            {candidatePool
-              .filter(p => !userSearchQuery.trim() || 
-                p.name.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
-                p.loc.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
-                (p.vibes && p.vibes.some(v => v.toLowerCase().includes(userSearchQuery.toLowerCase())))
-              )
-              .map((p) => (
+            {!myUserId && <p className="text-slate-400 py-4 text-center">Log in to search for members.</p>}
+            {myUserId && userSearchQuery.trim().replace(/^@/, '').length < 2 && (
+              <p className="text-slate-400 py-4 text-center">Type at least 2 letters of a username.</p>
+            )}
+            {myUserId && searching && <p className="text-slate-400 py-2 text-center">Searching…</p>}
+            {myUserId && !searching && searchError && (
+              <p className="text-slate-400 py-4 text-center">Search isn't working right now. Please try again.</p>
+            )}
+            {myUserId && !searching && !searchError && userSearchQuery.trim().replace(/^@/, '').length >= 2 && searchHits.length === 0 && (
+              <p className="text-slate-400 py-4 text-center">No members found with that username.</p>
+            )}
+            {searchHits.map((p) => {
+              const isSingle = String(p.relationship_status || '').toLowerCase() === 'single';
+              return (
                 <div
                   key={p.id}
                   onClick={() => onViewUserProfile({
-                    name: p.name,
-                    handle: p.handle,
-                    avatar: p.img,
+                    id: p.id,
+                    name: `@${p.username}`,
+                    handle: `@${p.username}`,
+                    avatar: p.avatar_url || PLACEHOLDER_AVATAR,
                     bio: p.bio || 'Exploring Nairobi hangouts, good music and vibes.',
-                    loc: cleanLocation(p.loc),
-                    relationshipStatus: p.relationshipStatus,
-                    vibes: p.vibes
+                    loc: 'Nairobi',
+                    relationshipStatus: isSingle ? 'single' : 'not_single',
+                    vibes: []
                   })}
-                  className="p-3 bg-white dark:bg-[#14171F] border border-slate-200/90 dark:border-[#222735] rounded-2xl flex items-center justify-between cursor-pointer hover:border-[#FF5733] dark:hover:border-[#D17A68] transition"
+                  className="p-3 bg-white dark:bg-[#14171F] border border-slate-200/90 dark:border-[#222735] rounded-2xl flex items-center justify-between cursor-pointer hover:border-[#FF5733]/50 transition"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="p-[2px] bg-gradient-to-tr from-[#F43F5E] to-[#FF5733] dark:to-[#A94F3E] rounded-full shrink-0 shadow-xs">
                       <div
                         className="w-10 h-10 rounded-full bg-cover bg-center border border-white dark:border-[#14171F]"
-                        style={{ backgroundImage: `url('${p.img}')` }}
+                        style={{ backgroundImage: `url('${p.avatar_url || PLACEHOLDER_AVATAR}')` }}
                       />
                     </div>
-                    <div className="min-w-0">
-                      <h4 className="font-bold text-xs truncate text-slate-900 dark:text-slate-100">{p.name}</h4>
-                      <p className="text-[10px] text-slate-400 truncate">{cleanLocation(p.loc)}</p>
-                    </div>
+                    <h4 className="font-bold text-xs truncate text-slate-900 dark:text-slate-100">@{p.username}</h4>
                   </div>
-                  {/* Verified Single Badge */}
-                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-gradient-to-r from-[#F43F5E]/15 to-[#FF5733]/15 dark:to-[#A94F3E]/15 text-[#FF5733] dark:text-[#D17A68] border border-[#FF5733]/30 dark:border-[#D17A68]/30 flex items-center gap-1">
-                    <UserCheck className="w-3 h-3" />
-                    <span>Single</span>
-                  </span>
+                  {isSingle && p.is_liveness_verified && (
+                    <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-gradient-to-r from-[#F43F5E]/15 to-[#FF5733]/15 text-[#FF5733] dark:text-[#D17A68] flex items-center gap-1 shrink-0">
+                      <UserCheck className="w-3 h-3" />
+                      <span>Single</span>
+                    </span>
+                  )}
                 </div>
-              ))}
+              );
+            })}
           </div>
         </div>
       )}

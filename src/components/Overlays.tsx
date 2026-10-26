@@ -1,6 +1,7 @@
 
 import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending, formatOpeningHours } from '../lib/spotsFeed.ts';
 import React, { useState, useEffect, useRef } from 'react';
+import { searchProfiles, type CloudProfileHit } from '../lib/socialsCloud.ts';
 import { getStoredLanguage, saveStoredLanguage, translations, type AppLanguage } from '../utils/i18n.ts';
 import { 
   X, 
@@ -314,6 +315,26 @@ export const Overlays: React.FC<OverlaysProps> = ({
   // Create Group State
   const [newGroupName, setNewGroupName] = useState('');
   const [selectedGroupMemberNames, setSelectedGroupMemberNames] = useState<string[]>([]);
+  const [groupSearch, setGroupSearch] = useState('');
+  const [groupHits, setGroupHits] = useState<CloudProfileHit[]>([]);
+  const [groupSearching, setGroupSearching] = useState(false);
+  useEffect(() => {
+    const q = groupSearch.trim().replace(/^@/, '');
+    if (q.length < 2) { setGroupHits([]); setGroupSearching(false); return; }
+    setGroupSearching(true);
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const hits = await searchProfiles(q, 12);
+        if (!cancelled) setGroupHits(hits);
+      } catch {
+        if (!cancelled) setGroupHits([]);
+      } finally {
+        if (!cancelled) setGroupSearching(false);
+      }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [groupSearch]);
 
   // Emergency contact creation
   const [newContactName, setNewContactName] = useState('');
@@ -1601,10 +1622,37 @@ export const Overlays: React.FC<OverlaysProps> = ({
               </div>
 
               <div className="space-y-2">
-                <label className="font-bold text-slate-600 dark:text-slate-300">Select Members</label>
+                <label className="font-bold text-slate-600 dark:text-slate-300">Add Members by @username</label>
+                <input
+                  type="text"
+                  value={groupSearch}
+                  onChange={(e) => setGroupSearch(e.target.value)}
+                  placeholder="Type at least 2 letters of a username"
+                  className="w-full p-3 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E0533C]"
+                />
+                {selectedGroupMemberNames.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedGroupMemberNames.map((h) => (
+                      <button
+                        key={h}
+                        type="button"
+                        onClick={() => setSelectedGroupMemberNames(prev => prev.filter(n => n !== h))}
+                        className="px-2.5 py-1 rounded-full bg-[#E0533C]/10 text-[#E0533C] dark:text-[#D17A68] text-[11px] font-bold flex items-center gap-1"
+                      >
+                        <span>{h}</span>
+                        <X className="w-3 h-3" />
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <div className="space-y-2 max-h-56 overflow-y-auto">
-                  {discoveryProfiles.map((p) => {
-                    const isChecked = selectedGroupMemberNames.includes(p.name);
+                  {groupSearching && <p className="text-[11px] text-slate-400 px-1">Searching…</p>}
+                  {!groupSearching && groupSearch.trim().replace(/^@/, '').length >= 2 && groupHits.length === 0 && (
+                    <p className="text-[11px] text-slate-400 px-1">No members found with that username.</p>
+                  )}
+                  {groupHits.map((p) => {
+                    const handle = '@' + p.username;
+                    const isChecked = selectedGroupMemberNames.includes(handle);
                     return (
                       <label
                         key={p.id}
@@ -1612,20 +1660,17 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       >
                         <div className="flex items-center gap-2.5">
                           <div
-                            className="w-8 h-8 rounded-full bg-cover bg-center"
-                            style={{ backgroundImage: `url('${p.img}')` }}
+                            className="w-8 h-8 rounded-full bg-cover bg-center bg-slate-200 dark:bg-slate-700"
+                            style={p.avatar_url ? { backgroundImage: `url('${p.avatar_url}')` } : undefined}
                           />
-                          <div>
-                            <h5 className="font-bold text-xs">{p.name}</h5>
-                            <p className="text-[10px] text-slate-400">{p.handle}</p>
-                          </div>
+                          <h5 className="font-bold text-xs">{handle}</h5>
                         </div>
                         <input
                           type="checkbox"
                           checked={isChecked}
                           onChange={(e) => {
-                            if (e.target.checked) setSelectedGroupMemberNames(prev => [...prev, p.name]);
-                            else setSelectedGroupMemberNames(prev => prev.filter(n => n !== p.name));
+                            if (e.target.checked) setSelectedGroupMemberNames(prev => prev.includes(handle) ? prev : [...prev, handle]);
+                            else setSelectedGroupMemberNames(prev => prev.filter(n => n !== handle));
                           }}
                           className="w-4 h-4 accent-[#E0533C]"
                         />
@@ -1648,6 +1693,8 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   onCreateGroup(newGroupName.trim(), selectedGroupMemberNames);
                   setNewGroupName('');
                   setSelectedGroupMemberNames([]);
+                  setGroupSearch('');
+                  setGroupHits([]);
                 }}
                 className="w-full py-3 bg-[#2D6A4F] hover:bg-emerald-800 text-white font-black rounded-xl shadow-md transition"
               >
