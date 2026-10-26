@@ -119,7 +119,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({
   ];
 
   return (
-    <section className="w-full max-w-full min-w-0 overflow-x-hidden px-3 sm:px-4 py-4 space-y-6">
+    <section className="w-full max-w-full min-w-0 overflow-x-hidden px-3 sm:px-4 py-4 space-y-6 lg:max-w-3xl lg:mx-auto">
       {/* Calendar Card */}
       <div className="w-full max-w-full min-w-0 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 sm:p-4 shadow-sm space-y-4 overflow-hidden">
         {/* Month Navigation & Selector */}

@@ -721,7 +721,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   };
 
   return (
-    <section className="px-3 sm:px-4 py-4 space-y-4 max-w-lg mx-auto pb-24">
+    <section className="px-3 sm:px-4 py-4 space-y-4 max-w-lg lg:max-w-none mx-auto pb-24 lg:pb-8">
       {/* =====================================================================
           SECTION 1: HOST A PLAN (own card, separate from search & filters)
           ===================================================================== */}
@@ -955,7 +955,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
 
       {/* Outings Feed Cards */}
       {filteredOutings.length > 0 ? (
-        <div className="space-y-3.5">
+        <div className="space-y-3.5 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-4 lg:items-start">
           {filteredOutings.map((plan) => {
             const attendeeStatus = getAttendeeStatus(plan);
             const joinedAttendees = plan.attendees?.filter(a => a.status === 'joined' || a.status === 'approved') || [];

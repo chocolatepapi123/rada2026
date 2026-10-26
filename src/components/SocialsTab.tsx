@@ -1176,7 +1176,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   }
 
   return (
-    <section className="px-4 py-4 space-y-4">
+    <section className="px-4 py-4 space-y-4 lg:max-w-2xl lg:mx-auto">
       {/* Socials Subtabs Navigation */}
       <div className="grid grid-cols-4 gap-1 bg-slate-100 dark:bg-[#14171F] p-1 rounded-2xl text-center shadow-inner text-xs border border-slate-200/80 dark:border-[#222735]">
         {[
