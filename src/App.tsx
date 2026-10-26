@@ -26,7 +26,6 @@ import {
 import { fetchCinemaShowings, CINEMA_UPDATED_EVENT } from './lib/cinema.ts';
 import { readJSON, writeJSON, writeJSONDebounced, purgeSeedData } from './lib/storage.ts';
 import { useSocialsCloud } from './lib/useSocialsCloud.ts';
-import { buildDemoOutings, isDemoMode } from './lib/demoData.ts';
 import { useUnclaimedSpots, mergeSpots, evictUnclaimedSpot } from './lib/spotsFeed.ts';
 import { resolveNearestNeighborhood } from './lib/geo.ts';
 
@@ -886,10 +885,6 @@ export default function App() {
   }, [session]);
 
   const handleCreateOuting = async (newPlan: OutingPlan) => {
-    if (isDemoMode()) {
-      setDemoOutings(prev => [newPlan, ...prev.filter(o => o.id !== newPlan.id)]);
-      return;
-    }
     setOutings(prev => [newPlan, ...prev.filter(o => o.id !== newPlan.id)]);
     const res = await cloud.createOuting(newPlan);
     if (res.error) {
@@ -901,14 +896,6 @@ export default function App() {
   };
 
   const handleRequestJoin = async (outingId: string, attendee: OutingAttendee) => {
-    if (isDemoMode()) {
-      setDemoOutings(prev => prev.map(o => {
-        if (o.id !== outingId) return o;
-        const atts = [...(o.attendees || []).filter(a => a.userId !== attendee.userId && a.id !== attendee.id), attendee];
-        return { ...o, attendees: atts, currentAttendeesCount: atts.filter(a => a.status === 'joined' || a.status === 'approved').length + 1 };
-      }));
-      return;
-    }
     setOutings(prev => prev.map(o => {
       if (o.id === outingId) {
         const existing = o.attendees || [];
@@ -936,14 +923,6 @@ export default function App() {
     attendeeId: string,
     status: 'approved' | 'declined'
   ) => {
-    if (isDemoMode()) {
-      setDemoOutings(prev => prev.map(o => {
-        if (o.id !== outingId) return o;
-        const atts = (o.attendees || []).map(a => (a.id === attendeeId ? { ...a, status } : a));
-        return { ...o, attendees: atts, currentAttendeesCount: atts.filter(a => a.status === 'joined' || a.status === 'approved').length + 1 };
-      }));
-      return;
-    }
     let targetOuting: OutingPlan | undefined;
     let targetApplicant: OutingAttendee | undefined;
 
@@ -1144,24 +1123,8 @@ export default function App() {
   }, []);
   const socials = useSocialsCloud(
     session?.user?.id && !isGuestMode ? session.user.id : undefined,
-    currentUserProfile?.handle || '',
-    currentUserProfile?.avatar || ''
+    currentUserProfile?.handle || ''
   );
-  // Promo demo mode: mock hostings kept only on this phone (never saved to the database)
-  const [demoOutings, setDemoOutings] = useState<OutingPlan[]>([]);
-  useEffect(() => {
-    if (isDemoMode() && session?.user?.id) {
-      setDemoOutings(buildDemoOutings(
-        session.user.id,
-        currentUserProfile?.handle || '@you',
-        currentUserProfile?.name || '',
-        currentUserProfile?.avatar || ''
-      ));
-    } else {
-      setDemoOutings([]);
-    }
-  }, [session?.user?.id]);
-  const outingsView = isDemoMode() ? demoOutings : outings;
   const conversations = socials.conversations;
   const [planDateChatId, setPlanDateChatId] = useState<string | null>(null);
 
@@ -2501,7 +2464,8 @@ export default function App() {
           />
 
           {/* Main Content Viewports */}
-          <main className="flex-1 pb-24 max-w-lg mx-auto w-full relative px-0">
+          <main className="flex-1 pb-24 min-[900px]:pb-10 max-w-lg min-[900px]:max-w-none mx-auto w-full relative px-0 min-[900px]:pl-60">
+            <div className="w-full min-[900px]:max-w-5xl min-[900px]:mx-auto min-[900px]:px-8 min-[900px]:py-6">
             <ErrorBoundary fallbackTitle="Resuming View">
             <Suspense fallback={<TabFallback />}>
             {activeTab === 'home' && (
@@ -2566,7 +2530,7 @@ export default function App() {
 
             {(activeTab === 'outings' || activeTab === 'plans') && (
               <OutingsTab
-                outings={outingsView}
+                outings={outings}
                 spots={spots}
                 currentUserProfile={currentUserProfile}
                 currentUserId={session?.user?.id}
@@ -2667,6 +2631,7 @@ export default function App() {
             )}
             </Suspense>
             </ErrorBoundary>
+            </div>
           </main>
 
           {/* Bottom Sticky Navigation */}
@@ -2874,7 +2839,7 @@ export default function App() {
               onOpenAuth={() => setIsAuthModalOpen(true)}
               onSignOut={handleSignOut}
               onProfileChange={handleOwnProfileChange}
-              outings={outingsView}
+              outings={outings}
             />
           )}
 
