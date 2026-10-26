@@ -38,6 +38,7 @@ import { AudioMessagePlayer } from './AudioMessagePlayer.tsx';
 import { VideoMessagePlayer } from './VideoMessagePlayer.tsx';
 import { generatePlayableWavDataUrl, generateFallbackVideoBlobUrl, formatMediaDuration, deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 import type { ToastOptions } from './Toast.tsx';
+import { isDemoMode } from '../lib/demoMode.ts';
 import {
   CloudRequest,
   OutgoingMessage,
@@ -89,8 +90,8 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   targetChatId,
   onClearTargetChatId
 }) => {
-  const isUserSingle = currentUserProfile?.relationshipStatus === 'single' || currentUserProfile?.relationship_status?.toLowerCase() === 'single';
-  const isUserVerifiedSingle = isUserSingle && Boolean(currentUserProfile?.isLivenessVerified || currentUserProfile?.is_liveness_verified);
+  const isUserSingle = isDemoMode() || currentUserProfile?.relationshipStatus === 'single' || currentUserProfile?.relationship_status?.toLowerCase() === 'single';
+  const isUserVerifiedSingle = isDemoMode() || (isUserSingle && Boolean(currentUserProfile?.isLivenessVerified || currentUserProfile?.is_liveness_verified));
   const [subtab, setSubtab] = useState<'discover' | 'queue' | 'chats' | 'search'>('discover');
   const [showGateModal, setShowGateModal] = useState(false);
   const [profileIndex, setProfileIndex] = useState(0);
