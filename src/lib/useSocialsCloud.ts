@@ -14,6 +14,17 @@ import {
   subscribeSocials,
   unlockOutingChat,
 } from './socialsCloud';
+import { isDemoMode } from './demoMode';
+import {
+  DEMO_PEOPLE,
+  buildDemoConversations,
+  buildDemoRequests,
+  buildGroupConversation,
+  buildMatchConversation,
+  buildOutingConversation,
+  demoReplyFor,
+  getDemoPerson,
+} from '../data/demoData';
 
 const previewOf = (m: OutgoingMessage): string => {
   switch (m.kind) {
@@ -45,7 +56,10 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
   handleRef.current = myHandle;
   uidRef.current = userId;
 
+  const demo = isDemoMode();
+
   const refresh = useCallback(async () => {
+    if (demo) return; // Demo Mode keeps everything local
     const uid = uidRef.current;
     if (!uid || !isCloudReady()) return;
     try {
@@ -76,6 +90,7 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
     setConversations([]);
     setRequests([]);
     setLoaded(false);
+    if (demo) return; // seeded by the Demo Mode effect below
     if (!userId || !isCloudReady()) return;
     refresh();
 
@@ -138,8 +153,17 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
     };
   }, [userId, refresh]);
 
+  // Demo Mode: seed mock chats + requests (re-seeds only if the signed-in id or handle changes)
+  useEffect(() => {
+    if (!demo || !userId) return;
+    setConversations(buildDemoConversations(userId, myHandle));
+    setRequests(buildDemoRequests(userId, myHandle));
+    setLoaded(true);
+  }, [userId, myHandle]);
+
   /** Full history when a chat is opened (the list only carries the most recent messages). */
   const loadHistory = useCallback(async (conversationId: string) => {
+    if (demo) return;
     const uid = uidRef.current;
     if (!uid) return;
     try {
@@ -176,6 +200,40 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
       ...(msg.kind === 'photo' ? { photos: msg.media?.photos || [] } : {}),
       ...(msg.kind === 'date_invite' ? { dateInvite: msg.media?.dateInvite } : {}),
     };
+    if (demo) {
+      const sent: ChatMessage = { ...optimistic, id: `demo-msg-${clientId}` };
+      delete (sent as any).pending;
+      setConversations(prev => {
+        const idx = prev.findIndex(c => c.id === conversationId);
+        if (idx < 0) return prev;
+        const conv = prev[idx];
+        const updated = { ...conv, messages: [...conv.messages, sent], lastMessage: previewOf(msg) || conv.lastMessage };
+        (updated as any).lastMessageAt = new Date().toISOString();
+        return [updated, ...prev.filter((_, i) => i !== idx)];
+      });
+      // scripted reply so the chat feels alive on camera
+      setTimeout(() => {
+        setConversations(prev => {
+          const idx = prev.findIndex(c => c.id === conversationId);
+          if (idx < 0) return prev;
+          const conv = prev[idx];
+          const reply = demoReplyFor(conv, handleRef.current);
+          if (!reply) return prev;
+          const incoming: ChatMessage = {
+            id: `demo-reply-${Date.now()}`,
+            sender: 'them',
+            text: reply.text,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          };
+          if (reply.senderHandle) (incoming as any).senderHandle = reply.senderHandle;
+          const updated = { ...conv, messages: [...conv.messages, incoming], lastMessage: reply.text };
+          (updated as any).lastMessageAt = new Date().toISOString();
+          return [updated, ...prev.filter((_, i) => i !== idx)];
+        });
+      }, 1500);
+      return null;
+    }
+
     setConversations(prev => {
       const idx = prev.findIndex(c => c.id === conversationId);
       if (idx < 0) return prev;
@@ -208,7 +266,36 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
   }, []);
 
   const sendRequest = useCallback(
-    async (toUserId: string) => {
+    async (
+      toUserId: string
+    ): Promise<{ status: 'sent' | 'already_sent' | 'matched' | 'error'; conversationId?: string; error?: string }> => {
+      if (demo) {
+        const uid = uidRef.current;
+        const person = getDemoPerson(toUserId);
+        if (!uid || !person) return { status: 'error', error: 'Demo profile not found.' };
+        if (person.instantMatch) {
+          const conv = buildMatchConversation(person);
+          setConversations(prev => [conv, ...prev.filter(c => c.id !== conv.id)]);
+          setRequests(prev => [
+            {
+              id: `demo-req-ok-${person.key}`, fromUser: uid, toUser: person.id,
+              fromHandle: handleRef.current, fromAvatar: '', toHandle: `@${person.username}`, toAvatar: person.avatar,
+              status: 'accepted', conversationId: conv.id, createdAt: new Date().toISOString(),
+            },
+            ...prev,
+          ]);
+          return { status: 'matched', conversationId: conv.id };
+        }
+        setRequests(prev => [
+          {
+            id: `demo-req-out-${person.key}`, fromUser: uid, toUser: person.id,
+            fromHandle: handleRef.current, fromAvatar: '', toHandle: `@${person.username}`, toAvatar: person.avatar,
+            status: 'pending', createdAt: new Date().toISOString(),
+          },
+          ...prev,
+        ]);
+        return { status: 'sent' };
+      }
       const res = await sendMatchRequest(toUserId);
       if (res.status !== 'error') refresh();
       return res;
@@ -217,7 +304,19 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
   );
 
   const respondRequest = useCallback(
-    async (requestId: string, accept: boolean) => {
+    async (requestId: string, accept: boolean): Promise<{ conversationId: string | null; error: string | null }> => {
+      if (demo) {
+        const key = requestId.replace('demo-req-in-', '');
+        const person = DEMO_PEOPLE.find(p => p.key === key);
+        if (!accept || !person) {
+          setRequests(prev => prev.map(r => (r.id === requestId ? { ...r, status: 'declined' as const } : r)));
+          return { conversationId: null, error: null };
+        }
+        const conv = buildMatchConversation(person);
+        setConversations(prev => [conv, ...prev.filter(c => c.id !== conv.id)]);
+        setRequests(prev => prev.map(r => (r.id === requestId ? { ...r, status: 'accepted' as const, conversationId: conv.id } : r)));
+        return { conversationId: conv.id, error: null };
+      }
       const res = await respondMatchRequest(requestId, accept);
       await refresh();
       return res;
@@ -226,7 +325,12 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
   );
 
   const createGroup = useCallback(
-    async (name: string, handles: string[], avatar?: string) => {
+    async (name: string, handles: string[], avatar?: string): Promise<{ id: string | null; missing: string[]; error: string | null }> => {
+      if (demo) {
+        const conv = buildGroupConversation(name, handles, handleRef.current);
+        setConversations(prev => [conv, ...prev]);
+        return { id: conv.id, missing: [], error: null };
+      }
       const res = await createGroupChat(name, handles, avatar);
       if (res.id) await refresh();
       return res;
@@ -235,7 +339,16 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
   );
 
   const openOutingChat = useCallback(
-    async (outingId: string) => {
+    async (outingId: string): Promise<{ id: string | null; error: string | null }> => {
+      if (demo) {
+        const chatId = `grp-outing-${outingId}`;
+        setConversations(prev => {
+          if (prev.some(c => c.id === chatId)) return prev;
+          const title = 'Hosting chat';
+          return [buildOutingConversation(outingId, title, handleRef.current), ...prev];
+        });
+        return { id: chatId, error: null };
+      }
       const res = await unlockOutingChat(outingId);
       if (res.id) await refresh();
       return res;
