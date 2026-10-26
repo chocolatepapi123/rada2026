@@ -2464,7 +2464,8 @@ export default function App() {
           />
 
           {/* Main Content Viewports */}
-          <main className="flex-1 pb-24 max-w-lg mx-auto w-full relative px-0">
+          <main className="flex-1 pb-24 lg:pb-10 max-w-lg lg:max-w-none mx-auto w-full relative px-0 lg:pl-60">
+            <div className="w-full lg:max-w-5xl lg:mx-auto lg:px-8 lg:py-6">
             <ErrorBoundary fallbackTitle="Resuming View">
             <Suspense fallback={<TabFallback />}>
             {activeTab === 'home' && (
@@ -2630,6 +2631,7 @@ export default function App() {
             )}
             </Suspense>
             </ErrorBoundary>
+            </div>
           </main>
 
           {/* Bottom Sticky Navigation */}
