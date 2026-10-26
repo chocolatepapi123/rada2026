@@ -25,6 +25,7 @@ import {
 
 import { fetchCinemaShowings, CINEMA_UPDATED_EVENT } from './lib/cinema.ts';
 import { readJSON, writeJSON, writeJSONDebounced, purgeSeedData } from './lib/storage.ts';
+import { useSocialsCloud } from './lib/useSocialsCloud.ts';
 import { useUnclaimedSpots, mergeSpots, evictUnclaimedSpot } from './lib/spotsFeed.ts';
 import { resolveNearestNeighborhood } from './lib/geo.ts';
 
@@ -621,10 +622,6 @@ export default function App() {
     return cleanStatuses(base);
   });
 
-  const [conversations, setConversations] = useState<ChatConversation[]>(() => {
-    return readJSON<ChatConversation[]>('rada_conversations', initialConversations, Array.isArray);
-  });
-
   const [tickets, setTickets] = useState<VaultTicket[]>(() => {
     return readJSON<VaultTicket[]>('rada_tickets', initialTickets, Array.isArray);
   });
@@ -889,7 +886,13 @@ export default function App() {
 
   const handleCreateOuting = async (newPlan: OutingPlan) => {
     setOutings(prev => [newPlan, ...prev.filter(o => o.id !== newPlan.id)]);
-    await cloud.createOuting(newPlan);
+    const res = await cloud.createOuting(newPlan);
+    if (res.error) {
+      // Not saved online: take it back off the list instead of pretending it worked
+      setOutings(prev => prev.filter(o => o.id !== newPlan.id));
+      writeJSON('rada_outings_cache', outings.filter(o => o.id !== newPlan.id));
+      showToast(/plan/i.test(res.error) ? res.error : "Your hosting couldn't be saved. Please try again.", { type: 'error' });
+    }
   };
 
   const handleRequestJoin = async (outingId: string, attendee: OutingAttendee) => {
@@ -906,7 +909,13 @@ export default function App() {
       }
       return o;
     }));
-    await cloud.requestJoinOuting(outingId, attendee);
+    const res = await cloud.requestJoinOuting(outingId, attendee);
+    if (res.error) {
+      setOutings(prev => prev.map(o => o.id === outingId
+        ? { ...o, attendees: (o.attendees || []).filter(a => a.id !== attendee.id) }
+        : o));
+      showToast("Your request couldn't be sent. Please try again.", { type: 'error' });
+    }
   };
 
   const handleUpdateAttendeeStatus = async (
@@ -943,22 +952,31 @@ export default function App() {
     });
 
     // Supabase update for outing_attendees status
-    await cloud.updateOutingAttendeeStatus(attendeeId, status);
+    const upd = await cloud.updateOutingAttendeeStatus(attendeeId, status);
+    if (upd.error) {
+      // Put the guest back to pending so the host can try again
+      setOutings(prev => prev.map(o => o.id === outingId
+        ? { ...o, attendees: (o.attendees || []).map(a => a.id === attendeeId ? { ...a, status: 'pending' as const } : a) }
+        : o));
+      showToast("That request couldn't be updated. Please try again.", { type: 'error' });
+      return;
+    }
 
     // If approved, automatically create / link temporary Group Chat and add host + confirmed members
     if (status === 'approved') {
-      const basePlan = targetOuting || outings.find(o => o.id === outingId);
-      if (basePlan) {
-        const updatedConversations = cloud.createOrUnlockOutingGroupChat(basePlan, targetApplicant);
-        setConversations(updatedConversations);
-      }
+      const res = await socials.openOutingChat(outingId);
+      if (res.error) showToast('Approved, but the group chat could not be set up: ' + res.error, { type: 'error' });
     }
   };
 
-  const handleOpenOutingChat = (outing: OutingPlan) => {
-    // Ensure temporary group chat is unlocked and synced
-    const updatedConversations = cloud.createOrUnlockOutingGroupChat(outing);
-    setConversations(updatedConversations);
+  const handleOpenOutingChat = async (outing: OutingPlan) => {
+    const isHost = Boolean(session?.user?.id) && outing.hostId === session.user.id;
+    // Only the host can unlock the chat; approved guests are added automatically and just need a refresh
+    const res = isHost ? await socials.openOutingChat(outing.id) : (await socials.refresh(), { id: `grp-outing-${outing.id}`, error: null as string | null });
+    if (res.error) {
+      showToast(res.error, { type: 'error' });
+      return;
+    }
     setTargetChatId(`grp-outing-${outing.id}`);
     setActiveTab('socials');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1098,10 +1116,17 @@ export default function App() {
     writeJSONDebounced('rada_tickets', tickets);
   }, [tickets]);
 
-  // Chats and emergency contacts were never saved, so they vanished on every restart
+  // Chats, match requests and group chats now live in Supabase (shared between people and devices).
+  // The old on-device demo chats are discarded once.
   useEffect(() => {
-    writeJSONDebounced('rada_conversations', conversations);
-  }, [conversations]);
+    try { localStorage.removeItem('rada_conversations'); localStorage.removeItem('rada_pending_requests'); localStorage.removeItem('rada_sent_requests'); } catch {}
+  }, []);
+  const socials = useSocialsCloud(
+    session?.user?.id && !isGuestMode ? session.user.id : undefined,
+    currentUserProfile?.handle || ''
+  );
+  const conversations = socials.conversations;
+  const [planDateChatId, setPlanDateChatId] = useState<string | null>(null);
 
   useEffect(() => {
     writeJSONDebounced('rada_contacts', emergencyContacts);
@@ -1560,7 +1585,6 @@ export default function App() {
       if (localStorage.getItem('rada_last_uid')) {
         setTickets([]);
         setEmergencyContacts([]);
-        setConversations([]);
         localStorage.removeItem('rada_last_uid');
       }
       return;
@@ -1572,7 +1596,6 @@ export default function App() {
     if (lastUid && lastUid !== uid) {
       setTickets(initialTickets);
       setEmergencyContacts(initialContacts);
-      setConversations(initialConversations);
       setGoingEventIds([]);
       setCurrentUserProfile(GUEST_PROFILE);
     }
@@ -2217,83 +2240,55 @@ export default function App() {
   const handlePlanDateFromSpot = (spot: SpotItem) => {
     setSelectedSpotModal(null);
     setDatePlanningSpot(spot);
+    setPlanDateChatId(null);
     setIsPlanDateModalOpen(true);
   };
 
-  const handleConfirmDateInvite = (spot: SpotItem, date: string, time: string) => {
+  const handleConfirmDateInvite = async (spot: SpotItem, date: string, time: string) => {
     setIsPlanDateModalOpen(false);
     setDatePlanningSpot(null);
 
-    const activeConv = conversations[0];
-    if (activeConv) {
-      activeConv.messages.push({
-        id: `invite-${Date.now()}`,
-        sender: 'me',
-        text: `Sent a Date Invitation for ${spot.title}`,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        dateInvite: {
-          spotTitle: spot.title,
-          address: spot.address,
-          date,
-          time,
-          accepted: false
-        }
-      });
-      activeConv.lastMessage = `Date Invite: ${spot.title} on ${date}`;
+    // Send into the chat Plan a Date was opened from, otherwise the most recent one-to-one chat
+    const target =
+      conversations.find(c => c.id === planDateChatId) ||
+      conversations.find(c => c.type === 'direct');
+    if (!target) {
+      showToast('Match with someone first, then plan a date from your chat with them.', { type: 'error' });
+      return;
     }
-
+    const err = await socials.sendMessage(target.id, {
+      kind: 'date_invite',
+      content: `Date Invite: ${spot.title} on ${date}`,
+      media: { dateInvite: { spotTitle: spot.title, address: spot.address, date, time, accepted: false } },
+    });
+    if (err) {
+      showToast(err, { type: 'error' });
+      return;
+    }
     setTickets(prev => [{
       id: `date-${Date.now()}`,
-      title: `Date with Jane @ ${spot.title}`,
+      title: `Date with ${target.name} @ ${spot.title}`,
       dateStr: `${date} (${time})`,
       locationStr: spot.address,
       type: 'Vault Synced Outing'
     }, ...prev]);
-
+    setPlanDateChatId(null);
+    setTargetChatId(target.id);
     setActiveTab('socials');
   };
 
-  // Accept Dating Request
-  const handleAcceptRequest = (name: string, avatar: string) => {
-    const newConv: ChatConversation = {
-      id: `c-${Date.now()}`,
-      name,
-      avatar,
-      type: 'direct',
-      lastMessage: 'Matched! Say hi ✨',
-      messages: [
-        {
-          id: `m-init-${Date.now()}`,
-          sender: 'them',
-          text: `Hey! Excited to connect on RADA. Where do you like to hang out in Nairobi?`,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      ]
-    };
-    setConversations(prev => [newConv, ...prev]);
-    setActiveTab('socials');
-  };
-
-  // Create Group Chat
-  const handleCreateGroup = (name: string, members: string[]) => {
+  // Create Group Chat (real members, looked up by @username)
+  const handleCreateGroup = async (name: string, handles: string[]) => {
+    const res = await socials.createGroup(name, handles);
+    if (res.error || !res.id) {
+      showToast(res.error || 'Could not create the group.', { type: 'error' });
+      return;
+    }
     setIsCreateGroupOpen(false);
-    const newGroupConv: ChatConversation = {
-      id: `group-${Date.now()}`,
-      name,
-      avatar: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=500&auto=format&fit=crop',
-      type: 'group',
-      lastMessage: `Group created with ${members.length} members`,
-      members,
-      messages: [
-        {
-          id: `m-grp-1`,
-          sender: 'system',
-          text: `Created group "${name}" with ${members.join(', ')}`,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      ]
-    };
-    setConversations(prev => [newGroupConv, ...prev]);
+    if (res.missing.length > 0) {
+      showToast('Group created. Not found: ' + res.missing.map(h => '@' + h).join(', '), { type: 'error' });
+    }
+    setTargetChatId(res.id);
     setActiveTab('socials');
   };
 
@@ -2587,9 +2582,15 @@ export default function App() {
                 discoveryProfiles={discoveryProfiles}
                 conversations={conversations}
                 currentUserProfile={currentUserProfile}
-                onOpenPlanDateModal={() => requireAuth('send messages', () => setIsPlanDateModalOpen(true))}
+                myUserId={session?.user?.id && !isGuestMode ? session.user.id : undefined}
+                requests={socials.requests}
+                onSendMatchRequest={socials.sendRequest}
+                onRespondRequest={socials.respondRequest}
+                onSendMessage={socials.sendMessage}
+                onLoadHistory={socials.loadHistory}
+                onRefreshSocials={socials.refresh}
+                onOpenPlanDateModal={(chatId) => requireAuth('send messages', () => { setPlanDateChatId(chatId || null); setIsPlanDateModalOpen(true); })}
                 onOpenCreateGroupModal={() => requireAuth('send messages', () => setIsCreateGroupOpen(true))}
-                onAcceptRequest={(name, avatar) => requireAuth('send messages', () => handleAcceptRequest(name, avatar))}
                 onViewUserProfile={(profile) => setViewingProfile(profile)}
                 onOpenVerificationModal={() => setIsLivenessModalOpen(true)}
                 targetChatId={targetChatId}
@@ -2784,16 +2785,26 @@ export default function App() {
 
           <UserProfileModal
             user={viewingProfile}
-            isMutualMatch={Boolean(viewingProfile?.name && conversations.some(c => c?.name && c.name.toLowerCase().includes(viewingProfile.name.split(',')[0].toLowerCase())))}
+            isMutualMatch={Boolean(viewingProfile?.id && conversations.some(c => c.type === 'direct' && (c as any).otherUserId === viewingProfile.id))}
             onClose={() => setViewingProfile(null)}
             onSendMatchRequest={(u) => {
-              requireAuth('send messages', () => {
-                showToast(`Hangout & Match request sent to ${u.name}!`, { category: 'match' });
+              requireAuth('send messages', async () => {
+                if (!u.id) { showToast('This profile cannot receive requests yet.', { type: 'error' }); return; }
+                const res = await socials.sendRequest(u.id);
+                if (res.status === 'error') showToast(res.error || 'Could not send the request.', { type: 'error' });
+                else if (res.status === 'matched') {
+                  showToast(`It's a match with ${u.handle}!`, { category: 'match' });
+                  if (res.conversationId) setTargetChatId(res.conversationId);
+                  setActiveTab('socials');
+                } else if (res.status === 'already_sent') showToast(`You already sent ${u.handle} a request.`);
+                else showToast(`Hangout & Match request sent to ${u.handle}!`, { category: 'match' });
                 setViewingProfile(null);
               });
             }}
             onSendMessage={(u) => {
               requireAuth('send messages', () => {
+                const dm = conversations.find(c => c.type === 'direct' && (c as any).otherUserId === u.id);
+                if (dm) setTargetChatId(dm.id);
                 setActiveTab('socials');
                 setViewingProfile(null);
               });

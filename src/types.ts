@@ -387,7 +387,7 @@ export interface StatusPost {
 }
 
 export interface DatingProfile {
-  id: number;
+  id: number | string;
   name: string;
   handle: string;
   loc: string;
