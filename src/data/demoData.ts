@@ -3,7 +3,7 @@
  * All ids start with "demo-". Dates are generated relative to today, so everything is always upcoming.
  * Every person and event here is fictional.
  */
-import type { ChatConversation, ChatMessage } from '../types.ts';
+import type { ChatConversation, ChatMessage, OutingAttendee, OutingPlan } from '../types.ts';
 import type { CloudProfileHit, CloudRequest } from '../lib/socialsCloud.ts';
 
 // ---------------------------------------------------------------------------
@@ -362,4 +362,87 @@ export function demoReplyFor(conv: ChatConversation, myHandle: string): { text: 
   const others = (conv.members || []).filter(h => h && h !== me);
   if (others.length === 0) return null;
   return { text: GROUP_REPLIES[n % GROUP_REPLIES.length], senderHandle: others[n % others.length] };
+}
+
+// ---------------------------------------------------------------------------
+// outings (hosting + joining)
+// ---------------------------------------------------------------------------
+export function buildDemoOutings(
+  myId: string,
+  me: { name: string; handle: string; avatar: string }
+): OutingPlan[] {
+  const att = (outingId: string, key: string, status: OutingAttendee['status'], minsAgo: number): OutingAttendee => {
+    const p = byKey(key);
+    return { id: `demo-att-${outingId}-${key}`, outingId, userId: p.id, userName: p.name, userAvatar: p.avatar, userHandle: handleOf(p), status, isVerified: true, requestedAt: agoIso(minsAgo) };
+  };
+  const meAtt = (outingId: string, status: OutingAttendee['status']): OutingAttendee => ({
+    id: `demo-att-${outingId}-me`, outingId, userId: myId, userName: me.name, userAvatar: me.avatar, userHandle: me.handle, status, isVerified: true, requestedAt: agoIso(500),
+  });
+  const host = (key: string) => {
+    const p = byKey(key);
+    return { hostId: p.id, hostName: p.name, hostAvatar: p.avatar, hostHandle: handleOf(p), isHostVerified: true };
+  };
+  const mine = { hostId: myId, hostName: me.name, hostAvatar: me.avatar, hostHandle: me.handle, isHostVerified: true };
+
+  const out1Att = [
+    att('demo-out-1', 'mwende', 'approved', 2000),
+    att('demo-out-1', 'tito', 'approved', 1900),
+    att('demo-out-1', 'otis', 'approved', 1800),
+    att('demo-out-1', 'shiko', 'approved', 1700),
+    att('demo-out-1', 'nina', 'pending', 50),
+    att('demo-out-1', 'dennis', 'pending', 35),
+    att('demo-out-1', 'caro', 'pending', 10),
+  ];
+  const out2Att = [att('demo-out-2', 'dan', 'approved', 900), att('demo-out-2', 'jabali', 'pending', 120), att('demo-out-2', 'sam', 'pending', 80)];
+  const out3Att = [att('demo-out-3', 'mwende', 'approved', 900), att('demo-out-3', 'dan', 'approved', 800), meAtt('demo-out-3', 'approved')];
+
+  const count = (a: OutingAttendee[]) => a.filter(x => x.status === 'approved' || x.status === 'joined').length + 1;
+
+  return [
+    {
+      id: 'demo-out-1', ...mine,
+      spotTitle: 'Sundowners at Ole Sereni Rooftop', spotAddress: 'Mombasa Road, Nairobi', spotImage: IMG.rooftop, spotCategory: 'Rooftops',
+      date: ymd(4), time: hm(17, 30), maxAttendees: 8, currentAttendeesCount: count(out1Att),
+      description: 'Golden hour drinks above the city. Good music, great views and even better company. Smart casual 🌇',
+      accessType: 'open', tags: ['All Plans', 'Group Hangouts', 'Rooftops'], status: 'active', createdAt: agoIso(3000), attendees: out1Att,
+    },
+    {
+      id: 'demo-out-2', ...mine,
+      spotTitle: 'Karura Forest Sunday Hike & Brunch', spotAddress: 'Karura Forest, Limuru Road', spotImage: IMG.forest, spotCategory: 'Outdoors & Nature',
+      date: ymd(6), time: hm(7, 0), maxAttendees: 10, currentAttendeesCount: count(out2Att),
+      description: 'Easy 8km loop through the forest, then brunch at the gate. All fitness levels welcome 🌲',
+      accessType: 'open', tags: ['All Plans', 'Group Hangouts', 'Nature'], status: 'active', createdAt: agoIso(2000), attendees: out2Att,
+    },
+    {
+      id: 'demo-out-3', ...host('farida'),
+      spotTitle: 'Paint & Sip Night', spotAddress: 'Kilimani, Nairobi', spotImage: IMG.art, spotCategory: 'Arts & Culture',
+      date: ymd(2), time: hm(18, 30), maxAttendees: 6, currentAttendeesCount: count(out3Att),
+      description: 'No talent required. Canvas, paint and your first glass of wine are on us 🎨🍷',
+      accessType: 'open', tags: ['All Plans', 'Group Hangouts', 'Creative'], status: 'active', createdAt: agoIso(2500), attendees: out3Att,
+    },
+    {
+      id: 'demo-out-4', ...host('kevo'),
+      spotTitle: 'Bowling League Night', spotAddress: 'Westlands, Nairobi', spotImage: IMG.gaming, spotCategory: 'Gaming & Arcades',
+      date: ymd(5), time: hm(19, 0), maxAttendees: 8, currentAttendeesCount: 4,
+      description: 'Friendly competition, loud music and terrible bowling form. Losers buy the first round 🎳',
+      accessType: 'open', tags: ['All Plans', 'Group Hangouts', 'Action'], status: 'active', createdAt: agoIso(1500),
+      attendees: [meAtt('demo-out-4', 'pending'), att('demo-out-4', 'tito', 'approved', 800), att('demo-out-4', 'otis', 'approved', 700)],
+    },
+    {
+      id: 'demo-out-5', ...host('zawadi'),
+      spotTitle: 'Singles Brunch & Board Games', spotAddress: 'Kilimani, Nairobi', spotImage: IMG.cafe, spotCategory: 'Cafes & Bakeries',
+      date: ymd(7), time: hm(11, 0), maxAttendees: 8, currentAttendeesCount: 3,
+      description: 'Pancakes, mimosas and a mountain of board games. A relaxed way to meet other singles ☕🎲',
+      accessType: 'singles_only', tags: ['All Plans', 'Singles Only', 'Cafes'], status: 'active', createdAt: agoIso(900),
+      attendees: [att('demo-out-5', 'lulu', 'approved', 400), att('demo-out-5', 'amani', 'approved', 300)],
+    },
+    {
+      id: 'demo-out-6', ...host('ian'),
+      spotTitle: 'Nairobi Night Market Food Crawl', spotAddress: 'Westlands, Nairobi', spotImage: IMG.burger, spotCategory: 'Restaurants',
+      date: ymd(3), time: hm(19, 30), maxAttendees: 12, currentAttendeesCount: 6,
+      description: 'Six stalls, six bites each. Come hungry and bring your appetite for street food 🍢',
+      accessType: 'open', tags: ['All Plans', 'Group Hangouts', 'Food'], status: 'active', createdAt: agoIso(600),
+      attendees: [att('demo-out-6', 'vee', 'approved', 300), att('demo-out-6', 'jabali', 'approved', 280)],
+    },
+  ];
 }
