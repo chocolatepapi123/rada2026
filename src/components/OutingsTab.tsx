@@ -535,7 +535,10 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       }
 
       return true;
-    });
+    }).map((plan, i) => ({ plan, i }))
+      // Early-registered hosts' outings are listed first; otherwise the original (newest first) order is kept
+      .sort((a, b) => (Number(Boolean((b.plan as any).isEarlyHost)) - Number(Boolean((a.plan as any).isEarlyHost))) || (a.i - b.i))
+      .map(x => x.plan);
   }, [outings, spots, selectedLocation, selectedCategory, accessTypeFilter, searchQuery]);
 
   // Spots search inside Host modal
