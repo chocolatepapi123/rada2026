@@ -308,6 +308,41 @@ export const Overlays: React.FC<OverlaysProps> = ({
   const { spots: unclaimedFeed } = useUnclaimedSpots();
   const { origin } = useLocationPreference();
 
+  // SOS: read the person's real position whenever the SOS screen opens (never a fixed point).
+  const [sosCoords, setSosCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [sosLocStatus, setSosLocStatus] = useState<'idle' | 'locating' | 'ready' | 'unavailable'>('idle');
+  useEffect(() => {
+    if (activeOverlay !== 'sosOverlay') return;
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setSosLocStatus('unavailable');
+      return;
+    }
+    let cancelled = false;
+    setSosLocStatus('locating');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        if (cancelled) return;
+        setSosCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setSosLocStatus('ready');
+      },
+      () => {
+        if (cancelled) return;
+        setSosCoords(null);
+        setSosLocStatus('unavailable');
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 15000 }
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOverlay]);
+  const sosLocationUrl = sosCoords
+    ? `https://maps.google.com/?q=${sosCoords.lat.toFixed(6)},${sosCoords.lng.toFixed(6)}`
+    : null;
+  const sosLocationText = sosLocationUrl
+    ? `My live location: ${sosLocationUrl}`
+    : 'I could not get my location. Please call me right away.';
+
   useEffect(() => {
     setLocalCategoryOverride(null);
   }, [viewAllCategory]);
@@ -1752,9 +1787,14 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   <p className="text-slate-600 dark:text-slate-400 text-[11px] mt-0.5">
                     Share an instant emergency SOS message with your contacts or group chat.
                   </p>
+                  <p className="text-[10px] mt-1 font-semibold text-slate-500 dark:text-slate-400">
+                    {sosLocStatus === 'locating' && 'Finding your location...'}
+                    {sosLocStatus === 'ready' && 'Your current location will be included.'}
+                    {sosLocStatus === 'unavailable' && 'Location unavailable. Allow location access so help can find you.'}
+                  </p>
                 </div>
                 <a
-                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent('🚨 EMERGENCY SOS: Urgent help needed! My live location: https://maps.google.com/?q=-1.286389,36.817223')}`}
+                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`🚨 EMERGENCY SOS (RADA): Urgent help needed! ${sosLocationText}`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs text-center transition flex items-center justify-center gap-1.5 shrink-0"
@@ -1852,7 +1892,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   ) : (
                     emergencyContacts.map((c) => {
                       const cleanPhone = c.phone.replace(/[^0-9+]/g, '');
-                      const emergencyDraftMsg = `🚨 EMERGENCY SOS (RADA): Urgent assistance needed! My live location is https://maps.google.com/?q=-1.286389,36.817223. Please check on me immediately.`;
+                      const emergencyDraftMsg = `🚨 EMERGENCY SOS (RADA): Urgent assistance needed! ${sosLocationText} Please check on me immediately.`;
                       return (
                         <div key={c.id} className="p-3 bg-[#F8F8F6] dark:bg-[#151319] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between gap-2">
                           <div className="min-w-0 flex-1">

@@ -11,7 +11,9 @@ import {
   Bookmark,
   ChevronRight,
   UserCog,
+  Flag,
 } from 'lucide-react';
+import { ReportUserModal } from './ReportUserModal';
 import { UserProfile } from '../types';
 import { VerifiedBadge } from './VerifiedBadge';
 import { PublicTierBadges } from './BusinessBadge';
@@ -105,6 +107,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     showToast('Please sign in first.', { type: 'error' });
     onOpenAuth?.();
   };
+
+  const [reportOpen, setReportOpen] = React.useState(false);
 
   // Same hook as AccountSettingsModal: both read/write the one parent-owned user object
   const own = useOwnProfile({
@@ -292,14 +296,29 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <Sparkles className="w-3.5 h-3.5 text-[#E9C46A] dark:text-[#BFA25F]" />
               <span>RADA profile</span>
             </span>
-            <button
-              onClick={onClose}
-              className="w-8 h-8 rounded-full bg-black/60 hover:bg-black/85 backdrop-blur-md text-white flex items-center justify-center transition cursor-pointer shadow-md"
-              title="Close profile"
-              aria-label="Close profile"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-2">
+              {user.id && (
+                <button
+                  onClick={() => {
+                    if (!currentUserId) { requireLogin(); return; }
+                    setReportOpen(true);
+                  }}
+                  className="w-8 h-8 rounded-full bg-black/60 hover:bg-black/85 backdrop-blur-md text-white flex items-center justify-center transition cursor-pointer shadow-md"
+                  title="Report or block"
+                  aria-label="Report or block this person"
+                >
+                  <Flag className="w-4 h-4" />
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="w-8 h-8 rounded-full bg-black/60 hover:bg-black/85 backdrop-blur-md text-white flex items-center justify-center transition cursor-pointer shadow-md"
+                title="Close profile"
+                aria-label="Close profile"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           <div className="absolute bottom-3 left-3 right-3 z-20 flex items-center justify-between">
@@ -438,6 +457,15 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           </div>
         </div>
       </div>
+      <ReportUserModal
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        targetId={user.id}
+        targetHandle={handle}
+        context="profile"
+        onBlocked={onClose}
+        showToast={showToast}
+      />
     </div>
   );
 };

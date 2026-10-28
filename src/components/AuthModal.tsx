@@ -15,6 +15,7 @@ import {
   type VerifyKind,
 } from '../lib/supabase';
 import { Lock, Mail, User, ArrowRight, ArrowLeft, ShieldCheck, X, Loader2, KeyRound } from 'lucide-react';
+import { LegalModal, LEGAL_VERSION, type LegalDoc } from './LegalModal';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -52,6 +53,11 @@ export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, custo
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Sign-up consent (18+ and Terms/Privacy). Required before an account can be created.
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [legalDoc, setLegalDoc] = useState<LegalDoc | null>(null);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -114,7 +120,13 @@ export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, custo
           throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
         }
         // The name becomes the private display name. Blank = the database assigns new_user_NN.
-        const { signedIn } = await signUpWithEmail(em, password, fullName.trim() || undefined);
+        if (!ageConfirmed) throw new Error('You must be 18 or older to use RADA.');
+        if (!termsAccepted) throw new Error('Please agree to the Terms and Privacy Policy to continue.');
+        const { signedIn } = await signUpWithEmail(em, password, fullName.trim() || undefined, {
+          ageConfirmed,
+          termsAccepted,
+          legalVersion: LEGAL_VERSION,
+        });
         if (signedIn) {
           onSuccess();
           return;
@@ -319,7 +331,52 @@ export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, custo
                 </div>
               )}
 
-              <button type="submit" disabled={loading} className={primaryBtnCls}>
+              {isSignUp && (
+                <div className="space-y-2 pt-1">
+                  <label className="flex items-start gap-2 text-[11px] text-stone-300 leading-snug cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={ageConfirmed}
+                      onChange={(e) => setAgeConfirmed(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 accent-amber-500 shrink-0"
+                    />
+                    <span>I confirm that I am 18 years or older.</span>
+                  </label>
+                  <label className="flex items-start gap-2 text-[11px] text-stone-300 leading-snug cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={termsAccepted}
+                      onChange={(e) => setTermsAccepted(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 accent-amber-500 shrink-0"
+                    />
+                    <span>
+                      I agree to the{' '}
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); setLegalDoc('terms'); }}
+                        className="text-amber-500 font-bold underline cursor-pointer"
+                      >
+                        Terms of Use
+                      </button>{' '}
+                      and{' '}
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); setLegalDoc('privacy'); }}
+                        className="text-amber-500 font-bold underline cursor-pointer"
+                      >
+                        Privacy Policy
+                      </button>
+                      .
+                    </span>
+                  </label>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading || (isSignUp && !(ageConfirmed && termsAccepted))}
+                className={primaryBtnCls}
+              >
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -508,6 +565,7 @@ export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, custo
           </form>
         )}
       </div>
+      <LegalModal doc={legalDoc} onClose={() => setLegalDoc(null)} />
     </div>
   );
 }
