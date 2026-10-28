@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
+import { ClaimUsernamePrompt, hasAutoUsername } from './components/ClaimUsernamePrompt';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import * as cloud from './lib/cloudSync';
 import { fetchExternalEvents } from './lib/externalEvents';
@@ -233,6 +234,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isGuestMode, setIsGuestMode] = useState<boolean>(false);
+  const [claimPromptDismissed, setClaimPromptDismissed] = useState<boolean>(false);
   const [authModalMessage, setAuthModalMessage] = useState<string>('');
   const [showSplash, setShowSplash] = useState<boolean>(true);
   const [userRole, setUserRole] = useState<'user' | 'merchant' | 'admin'>('user');
@@ -1397,14 +1399,12 @@ export default function App() {
   // ---------------------------------------------------------------
   // CLOUD SYNC (Supabase): businesses + listings are shared across devices
   // ---------------------------------------------------------------
-  const [localUserId] = useState<string>(() => {
-    const saved = localStorage.getItem('rada_local_user_id');
-    if (saved) return saved;
-    const newId = `user-local-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    localStorage.setItem('rada_local_user_id', newId);
-    return newId;
-  });
-  const currentUserId: string = session?.user?.id || localUserId;
+  // Guests have NO identity: currentUserId is '' until someone signs in, so every
+  // `if (currentUserId)` cloud write is skipped for guests (browse-only, no Supabase writes).
+  useEffect(() => {
+    try { localStorage.removeItem('rada_local_user_id'); } catch { /* storage unavailable */ }
+  }, []);
+  const currentUserId: string = session?.user?.id || '';
 
   // Active business reference for the logged-in merchant (strictly owned only)
   const userOwnedBusinesses = (session?.user?.id && !isGuestMode)
@@ -1731,7 +1731,7 @@ export default function App() {
       return 'Please sign in or create an account to register your business.';
     }
 
-    const effectiveOwner = session?.user?.id || currentUserId || newBiz.ownerId || localUserId;
+    const effectiveOwner = session?.user?.id || newBiz.ownerId || '';
     const finalBizId = cloud.toValidUuid(newBiz.id);
     const biz: BusinessAccount = {
       ...newBiz,
@@ -2935,6 +2935,24 @@ export default function App() {
               showToast={showToast}
               currentUserId={session?.user?.id}
               currentUserProfile={currentUserProfile}
+            />
+          )}
+
+          {session?.user?.id && !isGuestMode && !isAuthModalOpen && !claimPromptDismissed &&
+            hasAutoUsername(currentUserProfile?.username || currentUserProfile?.handle) &&
+            !sessionStorage.getItem('rada_claim_prompt_dismissed') && (
+            <ClaimUsernamePrompt
+              uid={session.user.id}
+              currentUsername={currentUserProfile?.username || currentUserProfile?.handle || ''}
+              onDismiss={() => {
+                try { sessionStorage.setItem('rada_claim_prompt_dismissed', '1'); } catch { /* ignore */ }
+                setClaimPromptDismissed(true);
+              }}
+              onClaimed={(username) => {
+                setCurrentUserProfile(prev => ({ ...prev, username, handle: `@${username}` }));
+                setClaimPromptDismissed(true);
+                showToast(`You are now @${username}`);
+              }}
             />
           )}
 
