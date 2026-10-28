@@ -80,11 +80,24 @@ export async function isIdentifierTaken(args: { email: string }): Promise<boolea
 }
 
 /** Email sign-up. Returns signedIn=true only when "Confirm email" is off in Supabase. */
+export interface SignUpConsent {
+  /** The person ticked "I am 18 or older". */
+  ageConfirmed: boolean;
+  /** The person ticked "I agree to the Terms and Privacy Policy". */
+  termsAccepted: boolean;
+  /** LEGAL_VERSION of the documents they saw. */
+  legalVersion: string;
+}
+
 export async function signUpWithEmail(
   email: string,
   password: string,
-  displayName?: string
+  displayName: string | undefined,
+  consent: SignUpConsent
 ): Promise<{ signedIn: boolean }> {
+  if (!consent?.ageConfirmed) throw new Error('You must be 18 or older to use RADA.');
+  if (!consent?.termsAccepted) throw new Error('Please agree to the Terms and Privacy Policy to continue.');
+
   const taken = await isIdentifierTaken({ email });
   if (taken === true) throw new Error(MSG_EXISTS);
 
@@ -94,7 +107,14 @@ export async function signUpWithEmail(
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    ...(name ? { options: { data: { display_name: name, full_name: name } } } : {}),
+    options: {
+      data: {
+        ...(name ? { display_name: name, full_name: name } : {}),
+        age_confirmed_18: true,
+        terms_accepted_at: new Date().toISOString(),
+        legal_version: consent.legalVersion,
+      },
+    },
   });
   if (error) throw error;
 
