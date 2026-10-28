@@ -204,10 +204,7 @@ async function fetchBusinessesImpl(): Promise<BusinessAccount[] | null> {
   if (!isSupabaseConfigured) return null;
   const list: BusinessAccount[] = [];
   const seenIds = new Set<string>();
-  // Both tables load at the same time; results are still merged in the original order
-  const businessesReq = startQuery(supabase.from('businesses').select('*').order('created_at', { ascending: false }));
-
-  // 1. Query 'rada_businesses' table (primary RADA business table)
+  // 'rada_businesses' is the single source of truth for businesses.
   try {
     let res = await supabase
       .from('rada_businesses')
@@ -230,27 +227,6 @@ async function fetchBusinessesImpl(): Promise<BusinessAccount[] | null> {
     }
   } catch (err) {
     console.warn('fetch from rada_businesses table failed:', err);
-  }
-
-  // 2. Query 'businesses' table (if populated or used in some environments)
-  try {
-    let res: any = await businessesReq;
-
-    if (res.error) {
-      res = await supabase.from('businesses').select('*');
-    }
-
-    if (!res.error && res.data && res.data.length > 0) {
-      for (const row of res.data) {
-        const b = rowToBusiness(row);
-        if (!seenIds.has(b.id)) {
-          seenIds.add(b.id);
-          list.push(b);
-        }
-      }
-    }
-  } catch (err) {
-    console.warn('fetch from businesses table failed:', err);
   }
 
   return list;
@@ -366,28 +342,6 @@ export async function updateBusiness(biz: BusinessAccount, uid: string): Promise
     console.warn('rada_businesses update warning:', e);
   }
 
-  // 2. Also try businesses table
-  try {
-    const flatUpdates: any = {
-      name: biz.name,
-      category: biz.category,
-      email: biz.email || '',
-      phone: biz.phone || '',
-      whatsapp: biz.whatsapp || '',
-      neighborhood: biz.neighborhood || '',
-      address: biz.address || '',
-      bio: biz.bio || '',
-      logo: biz.logo || '',
-      cover_image: biz.coverImage || '',
-      verification_status: status,
-      verification_note: biz.verificationNote || null,
-      data: businessDataPayload,
-    };
-    await supabase
-      .from('businesses')
-      .update(flatUpdates)
-      .eq('id', biz.id);
-  } catch {}
 
   return null;
 }
@@ -440,21 +394,6 @@ export async function reviewBusiness(
     console.warn('reviewBusiness rada_businesses warning:', e);
   }
 
-  // 2. Also update 'businesses' table if present
-  try {
-    const flatUpdates: any = {
-      verification_status: newStatus,
-      verification_note: updates.verificationNote || null,
-      verified_at: updates.verifiedAt || new Date().toISOString(),
-      verified_by: updates.verifiedBy || 'admin',
-    };
-    const { error: bErr } = await supabase
-      .from('businesses')
-      .update(flatUpdates)
-      .eq('id', id);
-    if (!bErr) hadSuccess = true;
-  } catch {}
-
   return hadSuccess ? null : 'Could not update verification status in database.';
 }
 
@@ -468,78 +407,9 @@ async function fetchListingsImpl(): Promise<CloudListings | null> {
   if (!isSupabaseConfigured) return null;
   const out: CloudListings = { spot: [], event: [], offer: [] };
   const seenSpotIds = new Set<string>();
-  // Both tables load at the same time; results are still merged in the original order
   const listingsReq = startQuery(supabase.from('rada_listings').select('*').order('created_at', { ascending: false }));
 
-  // 1. Fetch from 'spots' table (standard Supabase table used across RADA)
-  try {
-    const { data: spotRows, error: sErr } = await supabase
-      .from('spots')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (!sErr && spotRows && spotRows.length > 0) {
-      for (const row of spotRows) {
-        const d = row.data && typeof row.data === 'object' ? row.data : {};
-        if (row.status === 'pending_approval' || row.status === 'rejected' || d.status === 'pending_approval' || d.status === 'rejected') {
-          continue;
-        }
-        const sid = String(row.id);
-        seenSpotIds.add(sid);
-        out.spot.push({
-          id: row.id,
-          title: row.title || d.title || 'Untitled Spot',
-          category: row.category || d.category || 'restaurants',
-          neighborhood: row.neighborhood || d.neighborhood || 'Nairobi',
-          address: row.address || d.address || '',
-          exactLocationTag: row.exact_location_tag || row.exactLocationTag || d.exactLocationTag || row.address || '',
-          landmark: row.landmark || d.landmark || row.neighborhood || '',
-          lat: row.lat ?? d.lat ?? -1.2675,
-          lng: row.lng ?? d.lng ?? 36.8115,
-          price: row.price || d.price || 'KES $$',
-          rating: row.rating && Number(row.rating) > 0 ? Number(row.rating).toFixed(1) : (d.rating || 'New'),
-          reviewCount: Number(row.review_count || row.reviewCount || d.reviewCount || 0),
-          img: row.img || (row.images && row.images[0]) || d.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
-          images: Array.isArray(row.images) && row.images.length > 0
-            ? row.images
-            : (d.images || [row.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop']),
-          description: row.description || d.description || '',
-          phone: row.phone || d.phone || '',
-          openingHours: row.opening_hours || row.openingHours || d.openingHours || '',
-          businessId: row.business_id || row.businessId || d.businessId,
-          merchantId: row.merchant_id || row.merchantId || row.owner_id || row.ownerId || d.merchantId,
-          isUserUploaded: row.is_user_uploaded ?? row.isUserUploaded ?? d.isUserUploaded ?? false,
-          // Only an explicit false means "unclaimed"; every pre-existing spot stays owned.
-          is_claimed: row.is_claimed ?? d.is_claimed,
-          menuItems: row.menu_items || row.menuItems || d.menuItems || [],
-          reviews: row.reviews || d.reviews || [],
-          // Category-specific metadata
-          cuisineTypes: row.cuisine_types || d.cuisineTypes || [],
-          featuredDishes: row.featured_dishes || d.featuredDishes || [],
-          menuImages: row.menu_images || d.menuImages || [],
-          menuUploadUrl: row.menu_upload_url || d.menuUploadUrl,
-          equipmentNeeded: row.equipment_needed || d.equipmentNeeded,
-          equipmentProvided: row.equipment_provided || d.equipmentProvided,
-          skillLevel: row.skill_level || d.skillLevel,
-          whatToBring: row.what_to_bring || d.whatToBring,
-          capacity: row.capacity || d.capacity,
-          amenitiesAV: row.amenities_av || row.amenitiesAV || d.amenitiesAV || [],
-          bookingPolicies: row.booking_policies || d.bookingPolicies,
-          website: row.website || d.website || d.socialLinks?.website,
-          instagram: row.instagram || d.instagram || d.socialLinks?.instagram,
-          socialLinks: d.socialLinks || {
-            website: row.website || d.website,
-            instagram: row.instagram || d.instagram
-          },
-          ...d
-        });
-      }
-    }
-  } catch (err) {
-    console.warn('fetchListings spots table failed:', err);
-  }
-
-  // 2. Fetch from 'rada_listings'
+  // Listings come from 'rada_listings' (single source of truth). RLS hides other people's drafts.
   try {
     const { data, error } = await listingsReq;
 
@@ -675,68 +545,7 @@ export async function upsertListing(
     businessId: bizRef,
   };
 
-  // 1. Explicitly persist to 'spots' table with merchant_id when saving a spot
-  if (kind === 'spot') {
-    try {
-      const spotRow: any = {
-        title: String(payload.title || item.title || 'Untitled Spot').slice(0, 300),
-        category: payload.category || item.category || 'restaurants',
-        neighborhood: payload.neighborhood || item.neighborhood || 'Nairobi',
-        address: payload.address || item.address || '',
-        exact_location_tag: payload.exactLocationTag || item.exactLocationTag || payload.address || '',
-        landmark: payload.landmark || item.landmark || '',
-        lat: payload.lat ?? item.lat ?? -1.2675,
-        lng: payload.lng ?? item.lng ?? 36.8115,
-        price: payload.price || item.price || 'KES $$',
-        img: payload.img || (payload.images && payload.images[0]) || '',
-        images: Array.isArray(payload.images) && payload.images.length > 0 ? payload.images : (payload.img ? [payload.img] : []),
-        description: payload.description || item.description || '',
-        phone: payload.phone || item.phone || '',
-        opening_hours: payload.openingHours || item.openingHours || '',
-        business_id: safeBizUuid,
-        merchant_id: safeOwnerUuid,
-        is_user_uploaded: payload.isUserUploaded ?? item.isUserUploaded ?? false,
-        menu_items: payload.menuItems || item.menuItems || [],
-        updated_at: new Date().toISOString(),
-      };
-
-      if (typeof payload.is_claimed === 'boolean') {
-        spotRow.is_claimed = payload.is_claimed;
-      }
-
-      if (typeof item.id === 'number') {
-        spotRow.id = item.id;
-      }
-
-      let { error: spotErr } = await supabase.from('spots').upsert(spotRow, { onConflict: 'id' });
-      if (spotErr) {
-        console.warn('spots table upsert warning:', spotErr.message);
-        if (spotErr.message?.includes('column') || spotErr.message?.includes('schema cache')) {
-          const minimalRow: any = {
-            title: spotRow.title,
-            category: spotRow.category,
-            neighborhood: spotRow.neighborhood,
-            address: spotRow.address,
-            price: spotRow.price,
-            img: spotRow.img,
-            images: spotRow.images,
-            description: spotRow.description,
-            phone: spotRow.phone,
-            opening_hours: spotRow.opening_hours,
-            business_id: spotRow.business_id,
-            merchant_id: spotRow.merchant_id,
-            updated_at: spotRow.updated_at
-          };
-          if (spotRow.id) minimalRow.id = spotRow.id;
-          await supabase.from('spots').upsert(minimalRow, { onConflict: 'id' });
-        }
-      }
-    } catch (sErr) {
-      console.warn('spots table upsert exception:', sErr);
-    }
-  }
-
-  // 2. Also persist to rada_listings table
+  // Persist to rada_listings (status is decided server-side: only approved businesses can publish)
   const row: any = {
     id: listingUuid(kind, item.id),
     kind,
@@ -762,15 +571,6 @@ export async function upsertListing(
 
 export async function deleteListing(kind: ListingKind, id: string | number): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
-  if (kind === 'spot') {
-    try {
-      if (typeof id === 'number') {
-        await supabase.from('spots').delete().eq('id', id);
-      }
-    } catch (e) {
-      console.warn('delete from spots table error:', e);
-    }
-  }
   const { error } = await supabase
     .from('rada_listings')
     .delete()
@@ -786,46 +586,8 @@ async function fetchReviewsImpl(): Promise<Record<string, any[]> | null> {
   if (!isSupabaseConfigured) return null;
   const out: Record<string, any[]> = {};
   const seenIds = new Set<string>();
-  // Both tables load at the same time; results are still merged in the original order
   const radaReviewsReq = startQuery(supabase.from('rada_reviews').select('*').order('created_at', { ascending: false }));
 
-  // 1. Fetch from 'reviews' table (standard Supabase table)
-  try {
-    const { data: revData, error: revError } = await supabase
-      .from('reviews')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (!revError && revData) {
-      for (const row of revData) {
-        const spotId = String(row.spot_id ?? row.spotId ?? '');
-        if (spotId) {
-          const revId = String(row.id);
-          seenIds.add(revId);
-          const revObj = {
-            id: revId,
-            spotId,
-            userId: row.user_id || row.userId || '',
-            userName: toHandle(row.user_handle || row.userHandle || row.data?.userHandle),
-            userHandle: toHandle(row.user_handle || row.userHandle || row.data?.userHandle),
-            userAvatar: row.user_avatar || row.userAvatar || row.data?.userAvatar || '',
-            rating: Number(row.rating ?? row.data?.rating ?? 5),
-            comment: row.comment || row.content || row.data?.comment || '',
-            images: Array.isArray(row.images) ? row.images : (row.data?.images || []),
-            date: row.created_at ? new Date(row.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : (row.date || 'Recent'),
-            ...(row.data || {})
-          };
-          revObj.userHandle = toHandle(revObj.userHandle);
-          revObj.userName = revObj.userHandle;
-          (out[spotId] = out[spotId] || []).push(revObj);
-        }
-      }
-    }
-  } catch (err) {
-    console.warn('fetchReviews from reviews table failed:', err);
-  }
-
-  // 2. Fetch from 'rada_reviews' table
   try {
     const { data, error } = await radaReviewsReq;
 
@@ -836,7 +598,7 @@ async function fetchReviewsImpl(): Promise<Record<string, any[]> | null> {
         if (spotId && !seenIds.has(revId)) {
           seenIds.add(revId);
           const h = toHandle(row.data?.userHandle);
-          (out[spotId] = out[spotId] || []).push({ ...row.data, id: revId, spotId, userHandle: h, userName: h });
+          (out[spotId] = out[spotId] || []).push({ rating: row.rating ?? undefined, comment: row.comment ?? undefined, ...row.data, id: revId, spotId, userHandle: h, userName: h });
         }
       }
     }
@@ -860,68 +622,29 @@ export async function insertReview(spotId: number | string, review: any, userId:
   clean.userHandle = toHandle(clean.userHandle);
   clean.userName = clean.userHandle;
   const sId = String(spotId);
-  const ratingNum = Number(clean.rating || 5);
-  let hasSuccess = false;
+  const ratingNum = Math.min(5, Math.max(1, Math.round(Number(clean.rating || 5))));
 
-  // 1. Insert into 'reviews' table
-  try {
-    const reviewRow: any = {
-      spot_id: isValidUuid(sId) ? sId : null,
-      user_id: isValidUuid(userId) ? userId : null,
-      rating: ratingNum,
-      comment: clean.comment || '',
-      user_name: clean.userHandle,
-      user_handle: clean.userHandle,
-      user_avatar: clean.userAvatar || '',
-      images: clean.images || [],
-    };
-    if (isValidUuid(clean.id)) {
-      reviewRow.id = clean.id;
-    }
-
-    const { error: revErr } = await supabase.from('reviews').insert(reviewRow);
-    if (!revErr) {
-      hasSuccess = true;
-    }
-  } catch (err) {
-    console.warn('insert into reviews table failed:', err);
-  }
-
-  // 2. Upsert into 'rada_reviews' table (guarantees persistence across any ID type)
+  // 'rada_reviews' is the single source of truth. Rules (one review per user per spot,
+  // 1-5 rating, hourly limit, no reviewing your own listing) are enforced in the database.
   try {
     const radaRow = {
       id: String(clean.id),
       spot_id: sId,
       user_id: userId,
+      rating: ratingNum,
+      comment: clean.comment ? String(clean.comment).slice(0, 2000) : null,
       data: clean,
     };
     const { error: radaErr } = await supabase.from('rada_reviews').upsert(radaRow, { onConflict: 'id' });
-    if (!radaErr) {
-      hasSuccess = true;
+    if (radaErr) {
+      console.warn('insert into rada_reviews failed:', radaErr.message);
+      return radaErr.message || 'Could not save review to database';
     }
+    return null;
   } catch (err) {
     console.warn('insert into rada_reviews failed:', err);
+    return errMsg(err) || 'Could not save review to database';
   }
-
-  // 3. Live update the spot row in 'spots' table with dynamic count & average rating
-  try {
-    const allReviews = await fetchReviews();
-    const spotRevs = (allReviews && allReviews[sId]) || [clean];
-    const totalCount = spotRevs.length;
-    const avgRating = (spotRevs.reduce((acc, r) => acc + Number(r.rating || 0), 0) / totalCount).toFixed(1);
-
-    await supabase
-      .from('spots')
-      .update({
-        rating: avgRating,
-        review_count: totalCount,
-      })
-      .eq('id', sId);
-  } catch (err) {
-    // optional update
-  }
-
-  return hasSuccess ? null : 'Could not save review to database';
 }
 
 // =====================================================================
@@ -2957,44 +2680,21 @@ export async function reviewSpotClaim(
 // =====================================================================
 
 /**
- * Uploads a spot photo file to Supabase storage.
- * Tries 'spot-photos', then 'public', then 'rada-media'.
- * Falls back to base64 Data URL if storage bucket fails or offline.
+ * Uploads a spot photo to the 'rada-media' bucket (resized + compressed, in the user's own folder).
+ * Falls back to a local base64 Data URL if the upload fails or the user is offline.
  */
 async function uploadSpotPhotoFile(file: File, uid: string): Promise<string> {
-  const safeUid = uid || 'community';
-  const fileExt = file.name.split('.').pop() || 'jpg';
-  const fileName = `${safeUid}/${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${fileExt}`;
-
-  if (isSupabaseConfigured && supabase?.storage) {
-    // Attempt 'spot-photos' bucket first as requested, then 'public', then 'rada-media'
-    const targetBuckets = ['spot-photos', 'public', MEDIA_BUCKET];
-    for (const bucket of targetBuckets) {
-      try {
-        const { data, error } = await supabase.storage.from(bucket).upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: true,
-          contentType: file.type || 'image/jpeg',
-        });
-        if (!error && data?.path) {
-          const { data: pubData } = supabase.storage.from(bucket).getPublicUrl(fileName);
-          if (pubData?.publicUrl) {
-            return pubData.publicUrl;
-          }
-        }
-      } catch {
-        // Try next bucket
-      }
-    }
-  }
-
-  // Resilient fallback: convert to base64 Data URL so photo is never lost
-  return new Promise((resolve) => {
+  const dataUrl: string = await new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result || ''));
     reader.onerror = () => resolve('');
     reader.readAsDataURL(file);
   });
+  if (!dataUrl) return '';
+  // Storage only accepts writes into your own <uid>/ folder, so signed-out users keep the local copy
+  if (!isSupabaseConfigured || !uid || uid === 'community') return dataUrl;
+  // Resizes to 1280px, compresses, uploads to the media bucket; falls back to the local copy on failure
+  return uploadDataUrl(dataUrl, uid);
 }
 
 /**
