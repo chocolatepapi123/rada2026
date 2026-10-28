@@ -19,15 +19,10 @@
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "maskable"
-    },
-    {
-      "src": "/icon.svg",
-      "type": "image/svg+xml",
-      "sizes": "any"
     }
   ],
   "start_url": "/",
-  "background_color": "#121113",
+  "background_color": "#E9562A",
   "theme_color": "#E0533C",
   "display": "standalone",
   "orientation": "portrait",
