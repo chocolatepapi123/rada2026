@@ -534,6 +534,8 @@ export interface OutingAttendee {
 
 export interface OutingPlan {
   id: string;
+  /** True when the host registered during the early-registration window (listed first in Outings). */
+  isEarlyHost?: boolean;
   hostId: string;
   hostName: string;
   hostAvatar: string;
