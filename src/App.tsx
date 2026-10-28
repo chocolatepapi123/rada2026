@@ -145,6 +145,8 @@ import {
   initialConversations,
   initialTickets,
   initialContacts,
+  LEGACY_SAMPLE_TICKET_IDS,
+  LEGACY_SAMPLE_CONTACT_IDS,
   initialOutings,
   initialSpotClaims
 } from './data/initialData.ts';
@@ -625,11 +627,15 @@ export default function App() {
   });
 
   const [tickets, setTickets] = useState<VaultTicket[]>(() => {
-    return readJSON<VaultTicket[]>('rada_tickets', initialTickets, Array.isArray);
+    // Strip the old built-in sample tickets that earlier versions saved on this device
+    return readJSON<VaultTicket[]>('rada_tickets', initialTickets, Array.isArray)
+      .filter(t => !LEGACY_SAMPLE_TICKET_IDS.includes(String(t?.id)));
   });
 
   const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>(() => {
-    return readJSON<EmergencyContact[]>('rada_contacts', initialContacts, Array.isArray);
+    // Strip the old fake sample contacts (Mom / Best Friend) so SOS never texts numbers the person did not add
+    return readJSON<EmergencyContact[]>('rada_contacts', initialContacts, Array.isArray)
+      .filter(c => !LEGACY_SAMPLE_CONTACT_IDS.includes(String(c?.id)));
   });
 
   // Independent Offers & Promotions State (12 items)
@@ -2855,6 +2861,8 @@ export default function App() {
             showToast={showToast}
             onOpenSavedItems={() => requireAuth('view saved collections', () => setIsSavedModalOpen(true))}
             onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
+            currentUserId={session?.user?.id}
+            onOpenAuth={() => setIsAuthModalOpen(true)}
           />
 
           {selectedPublicBusiness && (
