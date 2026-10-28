@@ -292,35 +292,15 @@ export const discoveryProfiles: DatingProfile[] = [];
 
 export const initialConversations: ChatConversation[] = [];
 
-export const initialTickets: VaultTicket[] = [
-  {
-    id: 't-1',
-    title: 'Blankets & Wine Nairobi: Sunburst Festival',
-    dateStr: '25 Oct 2026',
-    locationStr: 'Ngong Racecourse Waterfront, Nairobi',
-    type: 'Verified Ticket Pass'
-  },
-  {
-    id: 't-2',
-    title: 'Amapiano & Chill Nairobi: All-White Rave',
-    dateStr: '14 Oct 2026',
-    locationStr: 'The Carnivore Grounds, Langata Rd',
-    type: 'Verified Ticket Pass'
-  }
-];
+// No sample tickets: every person starts with an empty Vault.
+export const initialTickets: VaultTicket[] = [];
 
-export const initialContacts: EmergencyContact[] = [
-  {
-    id: 'ec-1',
-    name: 'Mom (Nairobi Residence)',
-    phone: '+254 700 000 000'
-  },
-  {
-    id: 'ec-2',
-    name: 'Best Friend (Alex M.)',
-    phone: '+254 722 999 888'
-  }
-];
+// No sample contacts: SOS must only ever message numbers the person added themselves.
+export const initialContacts: EmergencyContact[] = [];
+
+/** Ids of the old built-in sample items. They are stripped from any data already saved on a device. */
+export const LEGACY_SAMPLE_TICKET_IDS = ['t-1', 't-2'];
+export const LEGACY_SAMPLE_CONTACT_IDS = ['ec-1', 'ec-2'];
 
 export const initialFolders: CollectionFolder[] = [
   { id: 'folder-1', name: 'Birthday Move', emoji: '🎂', createdAt: '2026-10-14T10:00:00Z', description: 'Birthday celebrations and group dining' },
