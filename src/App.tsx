@@ -77,10 +77,7 @@ const lazyNamed = (loader: () => Promise<any>, name: string): React.ComponentTyp
 
 // Warm the main tab chunks right after first paint so tapping a tab is instant.
 const TAB_PREFETCH: Array<() => Promise<any>> = [
-  () => import('./components/SpotsTab.tsx'),
-  () => import('./components/OutingsTab.tsx'),
-  () => import('./components/SocialsTab.tsx'),
-  () => import('./components/VaultTab.tsx'),
+  () => import('./components/MerchantHubTab.tsx'),
 ];
 if (typeof window !== 'undefined') {
   const warmTabs = () => {
@@ -99,10 +96,10 @@ import { AuthModal } from './components/AuthModal.tsx';
 const AdminDashboard = lazyNamed(() => import('./components/AdminDashboardModal.tsx'), 'AdminDashboard');
 const MerchantHubTab = lazyNamed(() => import('./components/MerchantHubTab.tsx'), 'MerchantHubTab');
 const PublicBusinessProfileModal = lazyNamed(() => import('./components/PublicBusinessProfileModal.tsx'), 'PublicBusinessProfileModal');
-const SpotsTab = lazyNamed(() => import('./components/SpotsTab.tsx'), 'SpotsTab');
-const OutingsTab = lazyNamed(() => import('./components/OutingsTab.tsx'), 'OutingsTab');
-const SocialsTab = lazyNamed(() => import('./components/SocialsTab.tsx'), 'SocialsTab');
-const VaultTab = lazyNamed(() => import('./components/VaultTab.tsx'), 'VaultTab');
+import { SpotsTab } from './components/SpotsTab.tsx';
+import { OutingsTab } from './components/OutingsTab.tsx';
+import { SocialsTab } from './components/SocialsTab.tsx';
+import { VaultTab } from './components/VaultTab.tsx';
 const LukuEventsTab = lazyNamed(() => import('./components/LukuEventsTab.tsx'), 'LukuEventsTab');
 const Overlays = lazyNamed(() => import('./components/Overlays.tsx'), 'Overlays');
 const LocationMapModal = lazyNamed(() => import('./components/LocationMapModal.tsx'), 'LocationMapModal');
@@ -312,22 +309,26 @@ export default function App() {
         }
       });
 
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-        try {
-          if (mounted) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        // Run outside the callback: awaiting Supabase queries inside it holds the auth lock and
+        // stalls every other request until something else wakes it up.
+        setTimeout(async () => {
+          try {
+            if (!mounted) return;
             if (session?.user?.id) {
               const isSuspended = await checkSuspensionState(session.user.id).catch(() => false);
               if (isSuspended) return;
             }
+            if (!mounted) return;
             setSession(session);
             if (session) {
               setIsGuestMode(false);
               setIsAuthModalOpen(false);
             }
+          } catch (err) {
+            console.warn('[RADA Auth] onAuthStateChange caught exception:', err);
           }
-        } catch (err) {
-          console.warn('[RADA Auth] onAuthStateChange caught exception:', err);
-        }
+        }, 0);
       });
 
       return () => {
