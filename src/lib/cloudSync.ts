@@ -2053,8 +2053,9 @@ export async function fetchOutings(): Promise<OutingPlan[] | null> {
           tags: row.tags || d.tags || ['All Plans', 'Group Hangouts'],
           status: row.status || d.status || 'active',
           createdAt: row.created_at || d.createdAt || new Date().toISOString(),
+          isEarlyHost: Boolean(row.host_is_early),
           attendees: attList
-        };
+        } as OutingPlan;
       });
 
       localStorage.setItem(OUTINGS_LOCAL_KEY, JSON.stringify(formatted));

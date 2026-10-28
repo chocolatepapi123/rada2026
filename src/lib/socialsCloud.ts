@@ -72,6 +72,7 @@ export function rowToMessage(row: any, myId: string): ChatMessage {
     time: timeLabel(row.created_at),
   };
   if (row.sender_id !== myId && row.sender_handle) (msg as any).senderHandle = row.sender_handle;
+  if (row.sender_id) (msg as any).senderId = row.sender_id;
   if (row.reply_to) msg.replyTo = row.reply_to;
   if (kind === 'voice' || kind === 'audio') {
     msg.audioUrl = media.url;

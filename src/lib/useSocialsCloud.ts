@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChatConversation, ChatMessage } from '../types.ts';
 import {
   CloudRequest,
@@ -15,6 +15,7 @@ import {
   unlockOutingChat,
 } from './socialsCloud';
 import { isDemoMode } from './demoMode';
+import { fetchBlockedIds, getCachedBlockedIds, onBlockedChanged } from './safety';
 import {
   DEMO_PEOPLE,
   buildDemoConversations,
@@ -58,6 +59,32 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
   uidRef.current = userId;
 
   const demo = isDemoMode();
+
+  // People this user has blocked: their DMs, requests and group messages are hidden.
+  const [blockedIds, setBlockedIds] = useState<string[]>(() => getCachedBlockedIds());
+  useEffect(() => {
+    if (!userId || demo) return;
+    let alive = true;
+    fetchBlockedIds().then(ids => { if (alive) setBlockedIds(ids); });
+    const off = onBlockedChanged(() => setBlockedIds(getCachedBlockedIds()));
+    return () => { alive = false; off(); };
+  }, [userId, demo]);
+  const visibleConversations = useMemo(() => {
+    if (!blockedIds.length) return conversations;
+    const blocked = new Set(blockedIds);
+    return conversations
+      .filter(c => !(c.type === 'direct' && blocked.has((c as any).otherUserId)))
+      .map(c =>
+        c.type === 'direct'
+          ? c
+          : { ...c, messages: (c.messages || []).filter(m => !blocked.has((m as any).senderId)) }
+      );
+  }, [conversations, blockedIds]);
+  const visibleRequests = useMemo(() => {
+    if (!blockedIds.length) return requests;
+    const blocked = new Set(blockedIds);
+    return requests.filter(r => !blocked.has(r.fromUser) && !blocked.has(r.toUser));
+  }, [requests, blockedIds]);
 
   const refresh = useCallback(async () => {
     if (demo) return; // Demo Mode keeps everything local
@@ -359,8 +386,8 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
   );
 
   return {
-    conversations,
-    requests,
+    conversations: visibleConversations,
+    requests: visibleRequests,
     loaded,
     loadError,
     refresh,
