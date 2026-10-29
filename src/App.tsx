@@ -25,6 +25,7 @@ import {
 } from './utils/statusLifecycle';
 
 import { fetchCinemaShowings, CINEMA_UPDATED_EVENT } from './lib/cinema.ts';
+import { fetchSeededCinema } from './lib/cinemaDb.ts';
 import { readJSON, writeJSON, writeJSONDebounced, purgeSeedData } from './lib/storage.ts';
 import { useSocialsCloud } from './lib/useSocialsCloud.ts';
 import { isDemoMode, isDemoId } from './lib/demoMode.ts';
@@ -502,9 +503,12 @@ export default function App() {
   const [cinemaMovies, setCinemaMovies] = useState<CinemaMovie[]>([]);
   useEffect(() => {
     let cancelled = false;
-    const load = () => fetchCinemaShowings().then(list => {
+    const load = async () => {
+      // Seeded multi-provider data (Anga, Century, Unseen...) first; old feed as fallback.
+      let list = await fetchSeededCinema();
+      if (!list.length) list = await fetchCinemaShowings();
       if (!cancelled) setCinemaMovies(list);
-    });
+    };
     load();
     window.addEventListener(CINEMA_UPDATED_EVENT, load);
     return () => { cancelled = true; window.removeEventListener(CINEMA_UPDATED_EVENT, load); };

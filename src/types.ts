@@ -341,13 +341,36 @@ export interface EventItem {
   tags?: string[];
 }
 
+/** One purchasable showing, with a direct link to buy that exact time. */
+export interface CinemaShowtime {
+  id: string;
+  venue: string;
+  venueKey: string;
+  /** YYYY-MM-DD */
+  date: string;
+  /** "19:20" (24h, Nairobi time) */
+  time: string | null;
+  startsAt?: string | null;
+  format?: string | null;
+  screen?: string | null;
+  priceKes?: number | null;
+  bookingUrl: string;
+}
+
+/** A cinema the film plays at, with that cinema's own booking page. */
+export interface CinemaVenueLink {
+  venue: string;
+  venueKey: string;
+  bookingUrl: string;
+}
+
 export interface CinemaMovie {
   id: number | string;
   title: string;
   genre?: string;
   /** Release date (YYYY-MM-DD) from the live feed. */
   date: string;
-  /** Rating or "Now Showing" label. */
+  /** "2D" | "3D" | "IMAX" (older feed: rating or "Now Showing" label). */
   format: string;
   img: string;
   /** Direct movie page link. */
@@ -357,8 +380,20 @@ export interface CinemaMovie {
   /** Cinema name (used as the filter key). */
   location?: string;
   locationName?: string;
-  /** Showtimes text entered by the admin. */
+  /** Showtimes text (summary). */
   times?: string;
+  /** anga | century | kenyabuzz | unseen */
+  provider?: string;
+  synopsis?: string;
+  rating?: string;
+  runtimeMin?: number;
+  language?: string;
+  trailerUrl?: string;
+  status?: 'now_showing' | 'coming_soon' | 'special';
+  /** Every cinema this film plays at on this provider. */
+  venues?: CinemaVenueLink[];
+  /** Individual showtimes (providers that expose them, e.g. Anga). */
+  showtimes?: CinemaShowtime[];
 }
 
 export interface StatusReply {
