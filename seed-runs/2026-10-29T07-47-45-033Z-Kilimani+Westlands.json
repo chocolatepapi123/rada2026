@@ -1,0 +1,746 @@
+{
+  "ranAt": "2026-10-29T07:47:45.033Z",
+  "areas": [
+    "Kilimani",
+    "Westlands"
+  ],
+  "categories": [
+    "Clubs & Lounges",
+    "Restaurants",
+    "Date Spots",
+    "Bars & Chill Spots"
+  ],
+  "target": 30,
+  "summary": [
+    {
+      "area": "Kilimani",
+      "category": "Clubs & Lounges",
+      "qualified": 36,
+      "alreadyInDb": 21,
+      "new": 15
+    },
+    {
+      "area": "Kilimani",
+      "category": "Restaurants",
+      "qualified": 37,
+      "alreadyInDb": 16,
+      "new": 1
+    },
+    {
+      "area": "Kilimani",
+      "category": "Date Spots",
+      "qualified": 82,
+      "alreadyInDb": 44,
+      "new": 25
+    },
+    {
+      "area": "Kilimani",
+      "category": "Bars & Chill Spots",
+      "qualified": 14,
+      "alreadyInDb": 4,
+      "new": 10
+    },
+    {
+      "area": "Westlands",
+      "category": "Clubs & Lounges",
+      "qualified": 25,
+      "alreadyInDb": 15,
+      "new": 10
+    },
+    {
+      "area": "Westlands",
+      "category": "Restaurants",
+      "qualified": 33,
+      "alreadyInDb": 15,
+      "new": 18
+    },
+    {
+      "area": "Westlands",
+      "category": "Date Spots",
+      "qualified": 40,
+      "alreadyInDb": 24,
+      "new": 16
+    },
+    {
+      "area": "Westlands",
+      "category": "Bars & Chill Spots",
+      "qualified": 26,
+      "alreadyInDb": 9,
+      "new": 17
+    }
+  ],
+  "spots": [
+    {
+      "google_place_id": "ChIJ0csNd5EQLxgRTJa63X3DI8Y",
+      "name": "Royal Nairobi Golf Club",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJ-Zs6wNsRLxgR2-i9dgGVDz4",
+      "name": "QUIVER KILIMANI",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJxVElXn0RLxgR3EEfzGn5j4E",
+      "name": "Nairobi west mall",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJh9pPfVAQLxgRvSyL_zSVbC4",
+      "name": "Airport Lounge",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJSSaoqMcbLxgRaacp-qIUmCo",
+      "name": "The Orchid Lounge & Grill",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJJYwdAQAXLxgRVoQ55gxgHtU",
+      "name": "The Summer Lounge",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJox8AEGoQLxgRqho6q6T1SAg",
+      "name": "Pitstop Grill",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJx6a0lEgXLxgRj73iO8fkBf0",
+      "name": "Barrels and Stools Lounge",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJoSEHax0RLxgRTZwzMJIoBv4",
+      "name": "XS Millionaires Club",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJE_CiIgARLxgR60QEMxq9LfI",
+      "name": "1824 CLUB NAIROBI",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJLxBvLAMXLxgRl8H4kS35LEE",
+      "name": "MUZE",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJAegfjFQXLxgRrc3kDpfdqPk",
+      "name": "Dollarz Gentlemen's Club Westlands",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJ96HTu2kRLxgRAIpb-Hiu-9Y",
+      "name": "MDCCCXXIV",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJd4FgJGkRLxgRyWC23s0ZxPI",
+      "name": "Florida Night Club",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJAcn6dPIRLxgRT4_3cnG9o9s",
+      "name": "Ray Spot",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJ0c-b_7QXLxgRwQvk1fbWLCc",
+      "name": "The BigFish - Westlands",
+      "category": "Restaurants",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJ2YfT_hQQLxgRdeY1YhwWyyo",
+      "name": "The Carnivore Restaurant",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJ6bxLs50QLxgR2bgFMWNwfIc",
+      "name": "DoubleTree by Hilton Nairobi Hurlingham",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJQTx8TycbLxgRKUlEKlkgr0A",
+      "name": "CHEKAFE - Japanese Restaurant",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJs0E5iOsRLxgRaO8mX3_WrIw",
+      "name": "Artcaffé Restaurant Kenyatta Avenue",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJI8uX39UQLxgRJhkBLJH9r50",
+      "name": "Bihi Towers",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJiWicnZQXLxgRfpi-vwQyKCE",
+      "name": "Artcaffé Restaurant Rhapta Road Westlands",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJKTY9c5wQLxgRY3j0Q5JptJ0",
+      "name": "Java House - Prestige Plaza",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJsb_k5V49LxgRjiMZMXa8yt4",
+      "name": "Fonda's Taqueria, Westlands",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJt7HRDyUXLxgRzLC2sC8SGb0",
+      "name": "Mister Wok Parklands",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJM10O9NMQLxgRoLIel7reVjQ",
+      "name": "After 40 Hotel",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJUdpc0MsaLxgRIXBUYdg5A68",
+      "name": "Stedmak Gardens and Recreation Centre",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJqxqwY2MXLxgREveR6P4xmgY",
+      "name": "Abyssinia Exotic Ethiopian Restaurant",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJ13Cz3isRLxgRn4th9cq9bWE",
+      "name": "Unseen Nairobi",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJOZHQfqEQLxgRuhsFqgH-_gw",
+      "name": "Sushi Soo",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJP3G3IZEQLxgRlTeLwVQX9pE",
+      "name": "Wildebeest Eco Camp",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJT4hL12sXLxgRdnATNPTxxm8",
+      "name": "Măm Măm Westlands",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJfcJQL90RLxgRFPfzagEkPzc",
+      "name": "Lazy Lizard | House of Briskets & Beer",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJczkXNlcZLxgRKM-lOIYP0Dc",
+      "name": "Thai-Chi by Sarova",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJ3cw9u6sRLxgRKcSpRveme6w",
+      "name": "Artcaffé Restaurant Woodlands",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJu7djX2oaLxgRdaGrI__CPI8",
+      "name": "Mediterraneo Ristorante",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJ_2G4H9sXLxgRaj_1X45mC1I",
+      "name": "Slate - Kitchen & Bar",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJ-1Ot39sQLxgRc8y7k9ltIwI",
+      "name": "Chester Hotel & Suites Nairobi, City Centre CBD",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJF7bnL6QRLxgRN6gujkTuvZQ",
+      "name": "OLIVE RESTAURANT",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJyfEJUGUXLxgRtUJXMn7ryR8",
+      "name": "The Tavern",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJIZX7FpoRLxgR8_QU0vsJ1sY",
+      "name": "Artcaffé Restaurant Koinange Street",
+      "category": "Date Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJVcej47EQLxgRlgo2Z_Z2xQw",
+      "name": "Road House Grill - Dennis Pritt",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJi5oPJdIQLxgR_QN-oswI55A",
+      "name": "Mwenda's Pub and cocktails",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJ1WB3ONQQLxgR6jdOCkfr9EI",
+      "name": "K'Osewe Ranalo Foods",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJFVVeA9MQLxgRAm-V3tZrPxk",
+      "name": "Number 7 Cocktail bar",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJHyvCENYQLxgR1AJI-Shmpe0",
+      "name": "Scratch Bar",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJFVy4w2ARLxgRIqRJpWgdV4k",
+      "name": "Road House Grill - Hurlingham",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJ48UusIERLxgRdFPLQB6ssKA",
+      "name": "Sippers & Diners",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJ8c2brtcQLxgRX7H9FrspySA",
+      "name": "Wine Bar",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJb08QLQARLxgROj-MNAbdggY",
+      "name": "Juiced Beautician Beauty Salon Nairobi Make Up Artist {MUA} Brows/Lash Bar",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJt4aBitIRLxgRLIpmnrVYJtY",
+      "name": "Nail'd It Beauty Bar",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Kilimani"
+    },
+    {
+      "google_place_id": "ChIJoQ9HabIbLxgRt36gUyNJpIg",
+      "name": "105 Davidus Garden",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJx6a0lEgXLxgRj73iO8fkBf0",
+      "name": "Barrels and Stools Lounge",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJ48UusIERLxgRdFPLQB6ssKA",
+      "name": "Sippers & Diners",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJ1zMHYZERLxgRqy9u3Sat4lU",
+      "name": "Gemini Bistro",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJC0ihs8EXLxgRzsiiFB-tmsw",
+      "name": "KODA Nairobi",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJO-o5S_gZLxgRRdEj1QatgIQ",
+      "name": "Triple Two Loresho",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJLxBvLAMXLxgRl8H4kS35LEE",
+      "name": "MUZE",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJAegfjFQXLxgRrc3kDpfdqPk",
+      "name": "Dollarz Gentlemen's Club Westlands",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJ_clcV-kbLxgR-8l4JeD73eU",
+      "name": "Evan's Lounge",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJa5Z2A20XLxgRQIp-wAbvVmA",
+      "name": "GROOVE 33 KE",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJ32RNAxMXLxgR3kTXzryrwcM",
+      "name": "Artcaffé Restaurant Mwanzi Road",
+      "category": "Restaurants",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJIQspLQoaLxgReDdFrs1ofj0",
+      "name": "Habesha Ethiopian Restaurant",
+      "category": "Restaurants",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJOZHQfqEQLxgRuhsFqgH-_gw",
+      "name": "Sushi Soo",
+      "category": "Restaurants",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJJ1aclcsRLxgRoUnpsxo8Sc8",
+      "name": "Artcaffé Restaurant Ring Road Parklands",
+      "category": "Restaurants",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJQQJjCOYRLxgR4eKaEphwvPE",
+      "name": "The Royale House Restaurant",
+      "category": "Restaurants",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJXTe6D3QaLxgRp48PDyFKCYo",
+      "name": "Korea Garden Restaurant",
+      "category": "Restaurants",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJK9djdUEXLxgRR-Fvg1i-6qU",
+      "name": "Anghiti Restaurant",
+      "category": "Restaurants",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJuyjxhcgXLxgRLWRE44K52mk",
+      "name": "Nana Swahili Restaurant",
+      "category": "Restaurants",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJJd79M24bLxgRq04BsEw7vgc",
+      "name": "Coco Jambo Restaurant",
+      "category": "Restaurants",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJcUunScUbLxgRPSsOPf1Wcz0",
+      "name": "Dau Swahili Restaurant",
+      "category": "Restaurants",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJ2a1HHLIXLxgRyM01iO3B3IE",
+      "name": "The Chai Story by Social8 Restaurant",
+      "category": "Restaurants",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJHarZSu0ZLxgR86yOjy-XYIQ",
+      "name": "Golden Spoon Barbeque Restaurant",
+      "category": "Restaurants",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJn3pMAW0XLxgRvGfIFAPfODI",
+      "name": "Ventana Restaurant",
+      "category": "Restaurants",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJgSWX9nkRLxgRWrbQZ6Hms0w",
+      "name": "Queen sheba Habesha Ethiopian Restaurant",
+      "category": "Restaurants",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJu-X3vX8RLxgRn3ALQ4M_fUQ",
+      "name": "Fez Restaurant",
+      "category": "Restaurants",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJ1yYQbAAXLxgRLs-aQgDJMYU",
+      "name": "Garden Kitchen Chinese Restaurant",
+      "category": "Restaurants",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJtwc9MyUbLxgRmOpScGjrK0M",
+      "name": "ROYAL MINGZHU BRILLIANT RESTAURANT",
+      "category": "Restaurants",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJg4V-fbYRLxgRP3nWoLvDJs4",
+      "name": "Regis Restaurant & Cafe - FCB Mihrab, Kilimani",
+      "category": "Restaurants",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJiWicnZQXLxgRfpi-vwQyKCE",
+      "name": "Artcaffé Restaurant Rhapta Road Westlands",
+      "category": "Date Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJn6qcNTkXLxgRjDin82B7V7w",
+      "name": "Capital Club",
+      "category": "Date Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJsb_k5V49LxgRjiMZMXa8yt4",
+      "name": "Fonda's Taqueria, Westlands",
+      "category": "Date Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJ-Z_3uOIXLxgRECO2F-pCBqE",
+      "name": "Sweet N pillipilli",
+      "category": "Date Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJw72DUGYXLxgRdW1058VLJNs",
+      "name": "Jenga Leo Coworking Offices Nairobi (Westlands)",
+      "category": "Date Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJ13Cz3isRLxgRn4th9cq9bWE",
+      "name": "Unseen Nairobi",
+      "category": "Date Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJ3cw9u6sRLxgRKcSpRveme6w",
+      "name": "Artcaffé Restaurant Woodlands",
+      "category": "Date Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJyfEJUGUXLxgRtUJXMn7ryR8",
+      "name": "The Tavern",
+      "category": "Date Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJ5SE3-W4XLxgRbQr9TjuKNxs",
+      "name": "Cloud Nine",
+      "category": "Date Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJGzOeXXUXLxgRBFySpm0F8Ns",
+      "name": "The Garden Chinese Restaurant",
+      "category": "Date Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJqwsYptIXLxgR2A8wzB30NrQ",
+      "name": "Level 24 Eatery",
+      "category": "Date Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJhd-1OSsXLxgRz4IC_P8Yhx0",
+      "name": "DHABA",
+      "category": "Date Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJx2uzLyIXLxgR189WBUwHMX8",
+      "name": "MeSo - Modern Asian Izakaya",
+      "category": "Date Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJ7SlFwN4XLxgR4ZtQliekQEU",
+      "name": "ALTITUDE Lounge & Restaurant",
+      "category": "Date Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJo_I5tagXLxgRprQTuOvmBT0",
+      "name": "Sierra wine&tapas sarit center",
+      "category": "Date Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJLa1C7bIRLxgRf-v34qYrzyQ",
+      "name": "Truth Lounge and Grill",
+      "category": "Date Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJi5oPJdIQLxgR_QN-oswI55A",
+      "name": "Mwenda's Pub and cocktails",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJCTtnzj8XLxgR0b9rhRSwCLU",
+      "name": "Nazir Pan House Limited",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJ_2G4H9sXLxgRaj_1X45mC1I",
+      "name": "Slate - Kitchen & Bar",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJd48lQL4XLxgRLmgkgOCqKQ8",
+      "name": "Bambino - Kitchen & Bar",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJQe-AtBsXLxgR2YCcMAhyb1U",
+      "name": "Shabz Bar Be Que",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJs0k4LaoXLxgR50QSC_W1jpw",
+      "name": "The Pot Belly Restaurant & Bar",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJJyPeqDEXLxgRFIiTmN5s2MQ",
+      "name": "Yamas coffee kitchen bar",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJMbq-i74bLxgRfxMiPDWxl0M",
+      "name": "Edu's Bar",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJyycGOQMRLxgRWDrIeMmKiDE",
+      "name": "Frangos Bar & Churrasqueira",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJ5UWwHH0XLxgRGPixZt5klM4",
+      "name": "Region Restaurant & Bar",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJ8yKWc9cXLxgR6xuakBfTX7g",
+      "name": "Yunion - Brunch Café & Bar",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJR56abYMbLxgRfWI0XtnTMvc",
+      "name": "Coco Jambo King'ara Bar & Restaurant",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJSVcJgKMQLxgRrLQcdfvMLMo",
+      "name": "Raza Bar & Restaurant- Eritrean, Ethiopian,kenyan & Italian cuisine",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJ7YtvwU8XLxgRn0Nyj-x48z8",
+      "name": "The Perch Restaurant & Bar, Westlands, Near Westgate Mall",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJgxW6rwoXLxgR-5zTAdsxQ6o",
+      "name": "Flavours Fiesta Restaurant & Bar",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJb9Ws_6gXLxgRXoEDeq6axv4",
+      "name": "Bar'dayez Bistro",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJ-cKobgQbLxgRcgxBbSWKGLs",
+      "name": "Roberto Cavalli Restaurant & Bar",
+      "category": "Bars & Chill Spots",
+      "neighborhood": "Westlands"
+    }
+  ]
+}
