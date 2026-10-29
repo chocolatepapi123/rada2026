@@ -29,9 +29,9 @@ const MIN_RATING = Number(env('MIN_RATING', '4'));
 const MIN_REVIEWS = Number(env('MIN_REVIEWS', '20'));
 const MIN_PHOTOS = Number(env('MIN_PHOTOS', '3')); // Home rail needs 3+ photos for imported spots
 
-const APIFY_TOKEN = env('apify_api_BwNIlrgSHRLy8JSYfPutfcwQv2E9tL3DJQ6J');
-const SB_URL = env('https://yobauhydhkptiuwvrntm.supabase.co').replace(/\/$/, '');
-const SB_KEY = env('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlvYmF1aHlkaGtwdGl1d3ZybnRtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MTg5NjE4OSwiZXhwIjoyMTA3NDcyMTg5fQ.4tneSLMmEHcvhWxiDx45POKfUGnFUWwfUI3S4QH6TAs');
+const APIFY_TOKEN = env('APIFY_TOKEN');
+const SB_URL = env('SUPABASE_URL').replace(/\/$/, '');
+const SB_KEY = env('SUPABASE_SERVICE_ROLE_KEY');
 
 // RADA category -> Google Maps search terms. Names must match the app's existing categories.
 const TERMS = {
@@ -55,7 +55,8 @@ const TERMS = {
 };
 
 function fail(msg) { console.error('✖ ' + msg); process.exit(1); }
-if (!APIFY_TOKEN || !SB_URL || !SB_KEY) fail('Missing APIFY_TOKEN / SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY');
+const missing = [['APIFY_TOKEN', APIFY_TOKEN], ['SUPABASE_URL', SB_URL], ['SUPABASE_SERVICE_ROLE_KEY', SB_KEY]].filter(([, v]) => !v).map(([k]) => k);
+if (missing.length) fail('Empty in GitHub secrets: ' + missing.join(', ') + ' (check exact name, and that it is a Repository secret with a value)');
 if (!CATEGORIES.length) fail('Tick at least one category');
 if (AREAS.length < 1 || AREAS.length > 2) fail('Give 1–2 areas per run (got ' + AREAS.length + ')');
 const unknown = CATEGORIES.filter(c => !TERMS[c]);
