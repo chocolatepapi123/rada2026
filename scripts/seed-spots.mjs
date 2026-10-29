@@ -78,19 +78,21 @@ async function scrapeArea(area, cats, perSearch) {
   const input = {
     searchStringsArray: terms,
     locationQuery: `${area}, ${CITY}, Kenya`,
-    maxCrawledPlacesPerSearch: Math.min(perSearch * 3, 150), // buffer: some get filtered out or already exist
+    maxCrawledPlacesPerSearch: Math.min(perSearch * 2, 60), // buffer: some get filtered out or already exist (kept small to save Apify credits)
     language: 'en',
     skipClosedPlaces: true,
-    maxImages: 6,
+    maxImages: 5,
     maxReviews: 0,
   };
   const run = (await apify('/acts/compass~crawler-google-places/runs', { method: 'POST', body: JSON.stringify(input) })).data;
   console.log(`▶ ${area}: Apify run ${run.id}`);
-  let status = run.status;
-  while (!['SUCCEEDED', 'FAILED', 'ABORTED', 'TIMED-OUT'].includes(status)) {
-    status = (await apify(`/actor-runs/${run.id}?waitForFinish=60`)).data.status;
+  let info = run;
+  while (!['SUCCEEDED', 'FAILED', 'ABORTED', 'TIMED-OUT'].includes(info.status)) {
+    info = (await apify(`/actor-runs/${run.id}?waitForFinish=60`)).data;
   }
-  if (status !== 'SUCCEEDED') throw new Error(`Apify run ${run.id} ended ${status}`);
+  if (info.status !== 'SUCCEEDED') {
+    throw new Error(`Apify run ${run.id} ended ${info.status}: ${info.statusMessage || 'no message'} (open https://console.apify.com/actors/runs/${run.id} for the log)`);
+  }
   const res = await fetch(`https://api.apify.com/v2/datasets/${run.defaultDatasetId}/items?clean=true&format=json`, {
     headers: { Authorization: 'Bearer ' + APIFY_TOKEN },
   });
@@ -154,7 +156,9 @@ async function main() {
   const toInsert = [];
   const report = [];
 
+  const errors = [];
   for (const area of AREAS) {
+   try {
     // How many each category still needs to reach TARGET.
     const need = {};
     for (const cat of CATEGORIES) {
@@ -194,6 +198,10 @@ async function main() {
       fresh.forEach(p => toInsert.push(toRow(p, area, cat)));
       report.push({ area, category: cat, qualified: byCat[cat].length, alreadyInDb: byCat[cat].length - byCat[cat].filter(p => !existing.has(p.placeId)).length, new: fresh.length });
     }
+   } catch (e) {
+    console.error(`✖ ${area} failed: ${e.message}`);
+    errors.push(`${area}: ${e.message}`);
+   }
   }
 
   console.table(report);
@@ -218,6 +226,8 @@ async function main() {
       spots: toInsert.map(r => ({ google_place_id: r.google_place_id, name: r.name, category: r.category, neighborhood: r.neighborhood })),
     }, null, 2));
   }
+
+  if (errors.length) { console.error('Some areas failed:\n' + errors.join('\n')); process.exitCode = 1; }
 
   if (process.env.GITHUB_STEP_SUMMARY) {
     const md = ['### Seed run ' + (DRY_RUN ? '(dry run)' : ''), '', '| Area | Category | Qualified | Already in DB | New |', '|---|---|---|---|---|',
