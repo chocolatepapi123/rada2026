@@ -103,6 +103,29 @@ export function refineCategory(label: string, name?: string | null, googleLabel?
   return refineOutdoorsCategory(refineClubCategory(label, name, googleLabel), name);
 }
 
+
+/** Extra places/roads that count as an area when filtering (matched against neighborhood + address). */
+const AREA_ALIASES: Record<string, string[]> = {
+  'thika road': ['thika rd', 'thika superhighway', 'roysambu', 'kasarani', 'ruaraka', 'githurai', 'kahawa', 'zimmerman', 'juja', 'ruiru', 'thika', 'garden city', 'trm', 'safari park'],
+  'ngong road': ['ngong rd', 'adams arcade', 'dagoretti', 'prestige', 'junction mall', 'ngong'],
+  'mombasa road': ['mombasa rd', 'syokimau', 'athi river', 'imara daima', 'south b', 'south c', 'embakasi'],
+  'cbd': ['nairobi central', 'central business district', 'town', 'kenyatta avenue', 'moi avenue', 'tom mboya'],
+  'westlands': ['parklands', 'waiyaki way', 'sarit', 'westgate'],
+  'karen': ['langata', 'ngong road'],
+  'ruaka': ['limuru road', 'two rivers', 'village market'],
+};
+
+/** True when the spot belongs to the chosen area. 'all'/'All Areas'/empty always matches; blank spot data never does. */
+export function spotMatchesArea(spot: any, area: string): boolean {
+  const target = String(area || '').trim().toLowerCase();
+  if (!target || target === 'all' || target === 'all areas') return true;
+  const hay = [spot?.neighborhood, spot?.address, spot?.exactLocationTag]
+    .map(v => String(v || '').toLowerCase()).filter(Boolean).join(' | ');
+  if (!hay) return false;
+  const needles = [target, ...(AREA_ALIASES[target] || [])];
+  return needles.some(n => hay.includes(n));
+}
+
 /** Best-effort area name from a Google-style address ("Street, Area, City, Country"). */
 export function neighborhoodFromAddress(address?: string | null): string {
   const parts = String(address || '').split(',').map(p => p.trim()).filter(Boolean)
@@ -236,7 +259,8 @@ export function unclaimedRowToSpot(r: any) {
     category,
     extra_categories: extraCategories,
     subcategory: r.category || undefined,
-    neighborhood: neighborhoodFromAddress(r.address),
+    // Prefer the neighborhood column the seeder writes; fall back to parsing the address
+    neighborhood: String(r.neighborhood || '').trim() || neighborhoodFromAddress(r.address),
     address: r.address || '',
     description: r.description || r.category || '',
     lat: hasCoords ? lat : -1.2921,
