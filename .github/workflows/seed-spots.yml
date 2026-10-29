@@ -1,1 +1,135 @@
+name: Seed spots
 
+on:
+  workflow_dispatch:
+    inputs:
+      area1:
+        description: 'Area 1'
+        type: choice
+        default: Kilimani
+        options:
+          - Kilimani
+          - Westlands
+          - South C
+          - South B
+          - Imara Daima
+          - Embakasi
+          - Donholm
+      area2:
+        description: 'Area 2 (optional)'
+        type: choice
+        default: '(none)'
+        options:
+          - '(none)'
+          - Kilimani
+          - Westlands
+          - South C
+          - South B
+          - Imara Daima
+          - Embakasi
+          - Donholm
+      target:
+        description: 'Target spots per area per category (only the shortfall is added)'
+        default: '30'
+      dry_run:
+        description: 'Dry run: preview only, nothing written'
+        type: boolean
+        default: true
+      cat_clubs:
+        description: 'Clubs & Lounges'
+        type: boolean
+        default: true
+      cat_restaurants:
+        description: 'Restaurants'
+        type: boolean
+        default: true
+      cat_dates:
+        description: 'Date Spots'
+        type: boolean
+        default: true
+      cat_cafes:
+        description: 'Cafes & Bakeries'
+        type: boolean
+        default: false
+      cat_bars:
+        description: 'Bars & Chill Spots'
+        type: boolean
+        default: false
+      cat_rooftops:
+        description: 'Rooftops'
+        type: boolean
+        default: false
+      cat_nyama:
+        description: 'Nyama Choma & Grills'
+        type: boolean
+        default: false
+      cat_hotels:
+        description: 'Hotels & Stays'
+        type: boolean
+        default: false
+      cat_outdoors:
+        description: 'Outdoors & Nature'
+        type: boolean
+        default: false
+      cat_desserts:
+        description: 'Desserts & Ice Cream'
+        type: boolean
+        default: false
+      cat_fastfood:
+        description: 'Fast Food'
+        type: boolean
+        default: false
+      cat_arts:
+        description: 'Arts & Culture'
+        type: boolean
+        default: false
+      cat_gaming:
+        description: 'Gaming & Arcades'
+        type: boolean
+        default: false
+      cat_sports:
+        description: 'Sports & Adventure'
+        type: boolean
+        default: false
+      cat_gardens:
+        description: 'Garden Hangouts'
+        type: boolean
+        default: false
+      cat_getaways:
+        description: 'Getaways & Resorts'
+        type: boolean
+        default: false
+      cat_hangouts:
+        description: 'Hangouts & Leisure'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # to commit the seed-runs log
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Seed
+        env:
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          AREAS: ${{ inputs.area1 }},${{ inputs.area2 }}
+          TARGET: ${{ inputs.target }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          INPUTS: ${{ toJSON(inputs) }}
+        run: node scripts/seed-spots.mjs
+      - name: Commit run log
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git config user.name "rada-seed-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add seed-runs || true
+          git diff --cached --quiet || (git commit -m "seed: ${{ inputs.area1 }} ${{ inputs.area2 }}" && git push)
