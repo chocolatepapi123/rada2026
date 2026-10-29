@@ -118,8 +118,8 @@ jobs:
           node-version: 20
       - name: Seed
         env:
-          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN || secrets.APIFY_API_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           AREAS: ${{ inputs.area1 }},${{ inputs.area2 }}
           TARGET: ${{ inputs.target }}
