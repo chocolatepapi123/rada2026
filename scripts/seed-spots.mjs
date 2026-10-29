@@ -157,6 +157,7 @@ async function main() {
   const report = [];
 
   const errors = [];
+  const picked = new Set(); // place IDs already chosen for an earlier area this run
   for (const area of AREAS) {
    try {
     // How many each category still needs to reach TARGET.
@@ -192,10 +193,10 @@ async function main() {
     const existing = await existingIds([...seen]);
     for (const cat of cats) {
       const fresh = byCat[cat]
-        .filter(p => !existing.has(p.placeId))
+        .filter(p => !existing.has(p.placeId) && !picked.has(p.placeId))
         .sort((a, b) => b.totalScore * Math.log10(b.reviewsCount + 1) - a.totalScore * Math.log10(a.reviewsCount + 1))
         .slice(0, need[cat]);
-      fresh.forEach(p => toInsert.push(toRow(p, area, cat)));
+      fresh.forEach(p => { picked.add(p.placeId); toInsert.push(toRow(p, area, cat)); });
       report.push({ area, category: cat, qualified: byCat[cat].length, alreadyInDb: byCat[cat].length - byCat[cat].filter(p => !existing.has(p.placeId)).length, new: fresh.length });
     }
    } catch (e) {
