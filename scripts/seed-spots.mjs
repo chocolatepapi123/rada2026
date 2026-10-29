@@ -29,9 +29,9 @@ const MIN_RATING = Number(env('MIN_RATING', '4'));
 const MIN_REVIEWS = Number(env('MIN_REVIEWS', '20'));
 const MIN_PHOTOS = Number(env('MIN_PHOTOS', '3')); // Home rail needs 3+ photos for imported spots
 
-const APIFY_TOKEN = env('APIFY_TOKEN');
-const SB_URL = env('SUPABASE_URL').replace(/\/$/, '');
-const SB_KEY = env('SUPABASE_SERVICE_ROLE_KEY');
+const APIFY_TOKEN = env('apify_api_BwNIlrgSHRLy8JSYfPutfcwQv2E9tL3DJQ6J');
+const SB_URL = env('https://yobauhydhkptiuwvrntm.supabase.co').replace(/\/$/, '');
+const SB_KEY = env('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlvYmF1aHlkaGtwdGl1d3ZybnRtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MTg5NjE4OSwiZXhwIjoyMTA3NDcyMTg5fQ.4tneSLMmEHcvhWxiDx45POKfUGnFUWwfUI3S4QH6TAs');
 
 // RADA category -> Google Maps search terms. Names must match the app's existing categories.
 const TERMS = {
