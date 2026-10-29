@@ -84,6 +84,7 @@ import { EventsExplorer } from './EventsExplorer.tsx';
 import { CinemaExplorer } from './CinemaExplorer.tsx';
 import { SpotsExplorer } from './SpotsExplorer.tsx';
 import { useLocationPreference } from '../lib/geo.ts';
+import { pickTrendingSpots } from '../lib/trendingSpots.ts';
 import { getSourceLabel } from '../utils/eventUtils.ts';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 import { AdminConfirmModal } from './AdminConfirmModal.tsx';
@@ -2515,7 +2516,9 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 <SpotsExplorer
                   categoryKey={localCategoryOverride || viewAllCategory}
                   categoryTitle={viewAllTitle}
-                  spots={mergeSpots(spots, unclaimedFeed)}
+                  spots={viewAllTitle === 'Trending Spots'
+                    ? pickTrendingSpots(mergeSpots(spots, unclaimedFeed), origin)
+                    : mergeSpots(spots, unclaimedFeed)}
                   savedItems={savedItems}
                   onToggleSave={onToggleSave}
                   onOpenSpot={(spot) => {

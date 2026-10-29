@@ -5,6 +5,7 @@ import { SPOT_CATEGORIES, getSpotCategoryIds } from '../lib/spotCategories.ts';
 import { getSpotCategoryAccent, accentPillStyle, accentVars } from '../lib/spotAccentTheme.ts';
 import { rankSpots, useNearYou } from '../lib/spotRanking.ts';
 import { NearYouControl } from './NearYouControl.tsx';
+import { pickTrendingSpots, isHomeSpot } from '../lib/trendingSpots.ts';
 import { CinemaMovieSheet } from './CinemaExplorer.tsx';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { getStoredLanguage, translations, type AppLanguage } from '../utils/i18n.ts';
@@ -442,46 +443,10 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   // Imported (unclaimed) spots need a real cover, 3+ photos, 4.0+ rating, 20+ reviews and an address.
   // Merchant-created spots only need a real photo. displaySpots is already ranked, so order is kept.
   const HOME_MAX_PER_CATEGORY = 30;
-  const homeSpots = useMemo(() => {
-    const goodImg = (u: any) => typeof u === 'string' && /^https?:\/\//i.test(u) && !/placehold|unsplash\.com\/photo-1517248135467/i.test(u);
-    return displaySpots.filter((sp: any) => {
-      if (!goodImg(sp.img)) return false;
-      if (!sp.isUnclaimedImport) return true;
-      const photos = Array.isArray(sp.images) ? sp.images.filter(goodImg).length : 0;
-      const rating = Number(sp.baseRating ?? sp.rating);
-      const reviews = Number(sp.reviewsCount ?? sp.reviewCount ?? 0);
-      return sp.hasRealPhoto && photos >= 3 && rating >= 4 && reviews >= 20 && !!String(sp.address || '').trim();
-    });
-  }, [displaySpots]);
+  const homeSpots = useMemo(() => displaySpots.filter(isHomeSpot), [displaySpots]);
 
-  // "Trending Spots" rail: max 30, nearest -> farthest from the user.
-  // Ranks by real taps among nearby spots; until taps exist, falls back to the most exclusive nearby places.
-  const TRENDING_MAX = 30;
-  const trendingSpots = useMemo(() => {
-    const origin = feedOrigin || { lat: -1.2864, lng: 36.8172 };
-    const tapsOf = (sp: any) => Number(sp.taps ?? sp.tapCount ?? sp.tap_count ?? sp.clicks ?? sp.views ?? sp.viewCount ?? 0) || 0;
-    const exclusivity = (sp: any) => {
-      const rating = Number(sp.baseRating ?? sp.rating) || 0;
-      const reviews = Number(sp.reviewsCount ?? sp.reviewCount ?? 0) || 0;
-      const budget = resolveSpotBudget(sp);
-      const photos = Array.isArray(sp.images) ? sp.images.length : 0;
-      return (budget === 'High' ? 4 : budget === 'Mid' ? 1.5 : 0)
-        + rating * 1.5
-        + Math.log10(reviews + 1)
-        + (sp.verified || sp.isVerified ? 1.5 : 0)
-        + Math.min(photos, 6) * 0.2;
-    };
-    const withDist = homeSpots
-      .filter((sp: any) => Number.isFinite(Number(sp.lat)) && Number.isFinite(Number(sp.lng)) && sp.hasCoords !== false)
-      .map((sp: any) => ({ sp, d: distanceKm(origin, { lat: Number(sp.lat), lng: Number(sp.lng) }), taps: tapsOf(sp), ex: exclusivity(sp) }));
-
-    // Only consider what's actually near: the closest 100 spots.
-    const pool = [...withDist].sort((a, b) => a.d - b.d).slice(0, 100);
-    // Most tapped first, then most exclusive to fill the rest.
-    const picked = [...pool].sort((a, b) => b.taps - a.taps || b.ex - a.ex).slice(0, TRENDING_MAX);
-    // Display order: nearest to farthest.
-    return picked.sort((a, b) => a.d - b.d).map(x => x.sp);
-  }, [homeSpots, feedOrigin]);
+  // "Trending Spots" rail: max 30 near the user, nearest -> farthest (shared with the View All page).
+  const trendingSpots = useMemo(() => pickTrendingSpots(displaySpots, feedOrigin), [displaySpots, feedOrigin]);
 
   // Filtered spots for Home Tab based on active Home filters
   const homeFilteredSpots = useMemo(() => {
