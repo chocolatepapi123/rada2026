@@ -36,7 +36,7 @@ import { LocationCombobox } from './LocationCombobox.tsx';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 import type { ToastOptions } from './Toast.tsx';
 import { resolveSpotBudget, budgetBadge } from '../lib/spotBudget.ts';
-import { useUnclaimedSpots, spotInCategory, mergeSpots, evictUnclaimedSpot } from '../lib/spotsFeed.ts';
+import { useUnclaimedSpots, spotInCategory, mergeSpots, evictUnclaimedSpot, spotMatchesArea } from '../lib/spotsFeed.ts';
 import { SPOT_CATEGORIES, getSpotCategoryIds } from '../lib/spotCategories.ts';
 import { getSpotCategoryAccent, accentPillStyle, accentVars } from '../lib/spotAccentTheme.ts';
 import { rankSpots, useNearYou, formatKm } from '../lib/spotRanking.ts';
@@ -380,9 +380,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     const matchesCategory = spotInCategory(s, selectedCategory);
 
     // Neighborhood filter
-    const matchesNeigh = selectedNeighborhood === 'all' || 
-      s.neighborhood.toLowerCase().includes(selectedNeighborhood.toLowerCase()) ||
-      selectedNeighborhood.toLowerCase().includes(s.neighborhood.toLowerCase());
+    const matchesNeigh = spotMatchesArea(s, selectedNeighborhood);
 
     // Price Tier filter
     const matchesPrice = selectedPriceTier === 'all' || resolveSpotBudget(s) === selectedPriceTier;
@@ -1026,6 +1024,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
             spots={displaySpots}
             placeholder="Filter by neighborhood, area, or location..."
             allowAll={true}
+            liveFilter
           />
         </div>
       </div>

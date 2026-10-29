@@ -8,6 +8,7 @@ import { NearYouControl } from './NearYouControl.tsx';
 import { resolveSpotBudget, budgetBadge } from '../lib/spotBudget.ts';
 import type { LatLng } from '../lib/geo.ts';
 import { spotMatchesSearchWithTags } from '../utils/spotTags.ts';
+import { spotMatchesArea } from '../lib/spotsFeed.ts';
 
 interface SpotsExplorerProps {
   categoryKey?: string | null;
@@ -86,11 +87,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
       }
 
       // Neighborhood match
-      if (selectedNeighborhood !== 'All Areas') {
-        const sNeigh = (s.neighborhood || '').toLowerCase();
-        const target = selectedNeighborhood.toLowerCase();
-        if (!sNeigh.includes(target) && !target.includes(sNeigh)) return false;
-      }
+      if (!spotMatchesArea(s, selectedNeighborhood)) return false;
 
       // Budget filter
       if (selectedBudget !== 'all') {

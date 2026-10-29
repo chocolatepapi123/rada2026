@@ -11,6 +11,7 @@ interface LocationComboboxProps {
   label?: string;
   allowAll?: boolean;
   showSelectedChip?: boolean;
+  liveFilter?: boolean;
   className?: string;
 }
 
@@ -22,6 +23,7 @@ export const LocationCombobox: React.FC<LocationComboboxProps> = ({
   label,
   allowAll = false,
   showSelectedChip = false,
+  liveFilter = false,
   className = ''
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -114,6 +116,8 @@ export const LocationCombobox: React.FC<LocationComboboxProps> = ({
             setIsOpen(true);
             if (!newVal.trim() && allowAll) {
               onChange('all');
+            } else if (liveFilter && newVal.trim()) {
+              onChange(newVal.trim());
             }
           }}
           onFocus={() => setIsOpen(true)}
