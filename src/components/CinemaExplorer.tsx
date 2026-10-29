@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
-  Search, X, Film, MapPin, Ticket, Clapperboard, Clock, ExternalLink, PlayCircle, CalendarDays,
+  Search, X, Film, MapPin, Ticket, Clapperboard, Clock, ExternalLink, CalendarDays,
 } from 'lucide-react';
 import { CinemaMovie, CinemaShowtime } from '../types.ts';
 import { distanceKm, LatLng } from '../lib/geo.ts';
@@ -232,12 +232,6 @@ const MovieSheet: React.FC<SheetProps> = ({ group, onClose, onBook }) => {
               {group.comingSoon && group.releaseDate && (
                 <p className="text-[12px] font-extrabold text-[#2D6A4F]">Opens {fmtShortDate(group.releaseDate)}</p>
               )}
-              {group.trailerUrl && (
-                <a href={group.trailerUrl} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#E0533C] hover:underline">
-                  <PlayCircle className="w-4 h-4" /> Watch trailer
-                </a>
-              )}
             </div>
           </div>
 
@@ -368,6 +362,37 @@ const MovieSheet: React.FC<SheetProps> = ({ group, onClose, onBook }) => {
       </div>
     </div>
   );
+};
+
+// ───────────────────────── standalone sheet (use from Home etc.) ─────────────────────────
+interface CinemaMovieSheetProps {
+  /** The movie card the user tapped (any entry of the film). */
+  movie: CinemaMovie;
+  /** The full cinema list, so every provider/venue/showtime for the film shows up. */
+  allMovies: CinemaMovie[];
+  onClose: () => void;
+  /** Same handler the explorer uses (App's handleBookCinema). */
+  onBookMovie?: (movie: CinemaMovie) => void;
+}
+
+export const CinemaMovieSheet: React.FC<CinemaMovieSheetProps> = ({ movie, allMovies, onClose, onBookMovie }) => {
+  const group = useMemo(() => {
+    const key = titleKey(movie.title) || String(movie.id);
+    return buildGroups(allMovies).find(g => g.key === key) ?? buildGroups([movie])[0];
+  }, [movie, allMovies]);
+
+  const book = useCallback((entry: CinemaMovie, url: string, venue?: string, date?: string) => {
+    const payload: CinemaMovie = {
+      ...entry,
+      bookingUrl: url,
+      locationName: venue || entry.locationName,
+      date: date || entry.date,
+    };
+    if (onBookMovie) onBookMovie(payload);
+    else window.open(url, '_blank', 'noopener');
+  }, [onBookMovie]);
+
+  return <MovieSheet key={group.key} group={group} onClose={onClose} onBook={book} />;
 };
 
 // ───────────────────────── explorer ─────────────────────────
