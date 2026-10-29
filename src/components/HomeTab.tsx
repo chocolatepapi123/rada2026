@@ -454,6 +454,35 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     });
   }, [displaySpots]);
 
+  // "Trending Spots" rail: max 30, nearest -> farthest from the user.
+  // Ranks by real taps among nearby spots; until taps exist, falls back to the most exclusive nearby places.
+  const TRENDING_MAX = 30;
+  const trendingSpots = useMemo(() => {
+    const origin = feedOrigin || { lat: -1.2864, lng: 36.8172 };
+    const tapsOf = (sp: any) => Number(sp.taps ?? sp.tapCount ?? sp.tap_count ?? sp.clicks ?? sp.views ?? sp.viewCount ?? 0) || 0;
+    const exclusivity = (sp: any) => {
+      const rating = Number(sp.baseRating ?? sp.rating) || 0;
+      const reviews = Number(sp.reviewsCount ?? sp.reviewCount ?? 0) || 0;
+      const budget = resolveSpotBudget(sp);
+      const photos = Array.isArray(sp.images) ? sp.images.length : 0;
+      return (budget === 'High' ? 4 : budget === 'Mid' ? 1.5 : 0)
+        + rating * 1.5
+        + Math.log10(reviews + 1)
+        + (sp.verified || sp.isVerified ? 1.5 : 0)
+        + Math.min(photos, 6) * 0.2;
+    };
+    const withDist = homeSpots
+      .filter((sp: any) => Number.isFinite(Number(sp.lat)) && Number.isFinite(Number(sp.lng)) && sp.hasCoords !== false)
+      .map((sp: any) => ({ sp, d: distanceKm(origin, { lat: Number(sp.lat), lng: Number(sp.lng) }), taps: tapsOf(sp), ex: exclusivity(sp) }));
+
+    // Only consider what's actually near: the closest 100 spots.
+    const pool = [...withDist].sort((a, b) => a.d - b.d).slice(0, 100);
+    // Most tapped first, then most exclusive to fill the rest.
+    const picked = [...pool].sort((a, b) => b.taps - a.taps || b.ex - a.ex).slice(0, TRENDING_MAX);
+    // Display order: nearest to farthest.
+    return picked.sort((a, b) => a.d - b.d).map(x => x.sp);
+  }, [homeSpots, feedOrigin]);
+
   // Filtered spots for Home Tab based on active Home filters
   const homeFilteredSpots = useMemo(() => {
     // Searching looks through every spot; browsing only shows the representable set.
@@ -1828,7 +1857,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       {/* ========================================================
           4A. SPOTS NEAR YOU / TRENDING (LIVE SUPABASE DATABASE)
           ======================================================== */}
-      {(selectedHomeSection === 'all' || selectedHomeSection === 'spots') && homeSpots.length > 0 && (
+      {(selectedHomeSection === 'all' || selectedHomeSection === 'spots') && trendingSpots.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -1845,12 +1874,12 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               onClick={() => onOpenDedicatedViewAll('Trending Spots', 'spots')}
               className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
             >
-              View All ({displaySpots.length})
+              View All ({trendingSpots.length})
             </button>
           </div>
 
           <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-            {homeSpots.slice(0, HOME_MAX_PER_CATEGORY).map((spot) => {
+            {trendingSpots.map((spot) => {
               const saved = isSaved(spot.id, 'spot');
               const reviewCount = spot.reviews?.length ?? (spot.reviewCount || 0);
               const hasReviews = reviewCount > 0;
