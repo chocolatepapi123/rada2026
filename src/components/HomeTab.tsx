@@ -280,7 +280,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     } else if (actionType === 'delete_spot') {
       try {
         if (supabase) {
-          await supabase.from('spots').delete().eq('id', target.id);
           await supabase.from('rada_listings').delete().eq('id', target.id);
         }
         setDbSpots(prev => prev.filter(s => String(s.id) !== String(target.id)));
@@ -327,41 +326,10 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     async function fetchLiveReviewsAndSpots() {
       try {
         if (!supabase) return;
-        const [spotsRes, reviewsRes, radaReviewsRes] = await Promise.all([
-          supabase.from('spots').select('*').order('created_at', { ascending: false }),
-          supabase.from('reviews').select('*').order('created_at', { ascending: false }),
-          supabase.from('rada_reviews').select('*').order('created_at', { ascending: false }),
-        ]);
-
-        if (spotsRes.data && spotsRes.data.length > 0) {
-          setDbSpots(spotsRes.data);
-        }
+        const radaReviewsRes = await supabase.from('rada_reviews').select('*').order('created_at', { ascending: false });
 
         const revMap: Record<string, any[]> = {};
         const seenRevIds = new Set<string>();
-
-        if (reviewsRes.data) {
-          for (const row of reviewsRes.data) {
-            const sid = String(row.spot_id ?? row.spotId ?? '');
-            if (sid) {
-              const rid = String(row.id);
-              seenRevIds.add(rid);
-              (revMap[sid] = revMap[sid] || []).push({
-                id: rid,
-                spotId: sid,
-                rating: Number(row.rating || 5),
-                comment: row.comment || row.content || '',
-                userName: row.user_name || row.userName || 'Anonymous',
-                userAvatar: row.user_avatar || row.userAvatar,
-                userHandle: row.user_handle || row.userHandle || '@explorer',
-                images: row.images || [],
-                createdAt: row.created_at,
-                ...(row.data || {})
-              });
-            }
-          }
-        }
-
         if (radaReviewsRes.data) {
           for (const row of radaReviewsRes.data) {
             const sid = String(row.spot_id);
@@ -392,9 +360,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       if (supabase && typeof supabase.channel === 'function') {
         channel = supabase
           .channel('home-spots-realtime')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'spots' }, () => {
-            fetchLiveReviewsAndSpots();
-          })
           .on('postgres_changes', { event: '*', schema: 'public', table: 'rada_listings' }, () => {
             fetchLiveReviewsAndSpots();
           })

@@ -205,7 +205,8 @@ export function AdminDashboardModal({
     if (onApproveClaim) {
       onApproveClaim(claim);
     } else {
-      await reviewSpotClaim(claim.id, 'approved');
+      const err = await reviewSpotClaim(claim.id, 'approved');
+      if (err) { toast(err, { type: 'error' }); return; }
     }
     setLiveClaims(prev => prev.map(c => c.id === claim.id ? { ...c, status: 'approved', reviewedAt: new Date().toISOString(), reviewedBy: 'admin' } : c));
     setSelectedClaim(null);
@@ -221,7 +222,8 @@ export function AdminDashboardModal({
     if (onRejectClaim) {
       onRejectClaim(claim.id, reason);
     } else {
-      await reviewSpotClaim(claim.id, 'rejected', reason);
+      const err = await reviewSpotClaim(claim.id, 'rejected', reason);
+      if (err) { toast(err, { type: 'error' }); return; }
     }
     setLiveClaims(prev => prev.map(c => c.id === claim.id ? { ...c, status: 'rejected', rejectionReason: reason, reviewedAt: new Date().toISOString(), reviewedBy: 'admin' } : c));
     setSelectedClaim(null);

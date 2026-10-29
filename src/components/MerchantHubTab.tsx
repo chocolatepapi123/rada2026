@@ -489,58 +489,6 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
         return Boolean(isOwner);
       })];
 
-      // Query Supabase spots table directly for live synced records
-      if (isSupabaseConfigured && supabase) {
-        try {
-          const { data: dbSpots, error: sErr } = await supabase
-            .from('spots')
-            .select('*');
-
-          if (!sErr && dbSpots && dbSpots.length > 0) {
-            for (const row of dbSpots) {
-              const rowMerchantId = row.merchant_id || row.merchantId || row.owner_id || row.data?.merchantId;
-              const rowBizId = row.business_id || row.businessId || row.data?.businessId;
-              const isMatch =
-                (effectiveUid && rowMerchantId === effectiveUid) ||
-                (bizId && rowBizId === bizId);
-
-              if (isMatch) {
-                const sid = row.id;
-                const existingIndex = matchedSpots.findIndex(s => String(s.id) === String(sid));
-                if (existingIndex === -1) {
-                  matchedSpots.push({
-                    id: sid,
-                    title: row.title || row.data?.title || 'Spot',
-                    category: row.category || row.data?.category || 'restaurants',
-                    neighborhood: row.neighborhood || row.data?.neighborhood || '',
-                    rating: row.rating ? String(row.rating) : 'New',
-                    reviewCount: Number(row.review_count || 0),
-                    price: normalizeAnalyticsPriceTier(row.price || row.data?.price),
-                    lat: row.lat || -1.2675,
-                    lng: row.lng || 36.8115,
-                    address: row.address || (row.neighborhood ? `${row.neighborhood}, Kenya` : 'Kenya'),
-                    img: row.img || (row.images && row.images[0]) || row.data?.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
-                    merchantId: rowMerchantId,
-                    businessId: rowBizId,
-                    ...row.data
-                  });
-                } else {
-                  // Merge updated Supabase row data
-                  matchedSpots[existingIndex] = {
-                    ...matchedSpots[existingIndex],
-                    rating: row.rating ? String(row.rating) : matchedSpots[existingIndex].rating,
-                    reviewCount: Number(row.review_count || matchedSpots[existingIndex].reviewCount || 0),
-                    ...row.data
-                  };
-                }
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('[SpotInsightsAnalytics] spots fetch warning:', e);
-        }
-      }
-
       // If merchant has no spots, set empty state
       if (matchedSpots.length === 0) {
         setData(prev => ({
@@ -585,44 +533,13 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
         }
       }
 
-      // b) Supabase 'reviews' table
       if (isSupabaseConfigured && supabase) {
-        try {
-          const { data: revRows } = await supabase
-            .from('reviews')
-            .select('*');
-
-          if (revRows) {
-            for (const r of revRows) {
-              if (spotIdStrs.includes(String(r.spot_id))) {
-                const rid = String(r.id);
-                if (!seenReviewIds.has(rid)) {
-                  seenReviewIds.add(rid);
-                  const matchingSpot = matchedSpots.find(s => String(s.id) === String(r.spot_id));
-                  allReviews.push({
-                    id: rid,
-                    userName: r.user_name || 'Verified Explorer',
-                    userHandle: r.user_handle || '@explorer',
-                    userAvatar: r.user_avatar || '',
-                    rating: Number(r.rating || 5),
-                    comment: r.comment || '',
-                    date: r.created_at ? new Date(r.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent',
-                    spotId: r.spot_id,
-                    spotTitle: matchingSpot?.title || 'Spot'
-                  });
-                }
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('[SpotInsightsAnalytics] reviews query warning:', e);
-        }
-
         // c) Supabase 'rada_reviews' table
         try {
           const { data: radaRevRows } = await supabase
             .from('rada_reviews')
-            .select('*');
+            .select('*')
+            .in('spot_id', spotIdStrs);
 
           if (radaRevRows) {
             for (const r of radaRevRows) {
@@ -681,34 +598,6 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
           console.warn('[SpotInsightsAnalytics] rada_user_data query warning:', e);
         }
 
-        // Check if explicit saved tables exist in project
-        try {
-          const { data: savedItemsRows } = await supabase
-            .from('saved_items')
-            .select('spot_id');
-          if (savedItemsRows) {
-            for (const item of savedItemsRows) {
-              const sid = String(item.spot_id);
-              if (spotIdStrs.includes(sid)) {
-                spotBookmarkCounts[sid] = (spotBookmarkCounts[sid] || 0) + 1;
-              }
-            }
-          }
-        } catch {}
-
-        try {
-          const { data: savedPlacesRows } = await supabase
-            .from('saved_places')
-            .select('spot_id');
-          if (savedPlacesRows) {
-            for (const item of savedPlacesRows) {
-              const sid = String(item.spot_id);
-              if (spotIdStrs.includes(sid)) {
-                spotBookmarkCounts[sid] = (spotBookmarkCounts[sid] || 0) + 1;
-              }
-            }
-          }
-        } catch {}
       }
 
       // Also check localStorage saves for current client session
@@ -2038,7 +1927,8 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       if (onSubmitClaimRequest) {
         onSubmitClaimRequest(newClaim);
       } else {
-        await submitSpotClaim(newClaim);
+        const claimErr = await submitSpotClaim(newClaim);
+        if (claimErr) throw new Error(claimErr);
       }
       setIsClaimModalOpen(false);
       setClaimTargetSpot(null);
