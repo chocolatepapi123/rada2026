@@ -1847,7 +1847,14 @@ export default function App() {
       }
       return s;
     }));
-    await cloud.submitSpotClaim(claim);
+    const claimErr = await cloud.submitSpotClaim(claim);
+    if (claimErr) {
+      showToast(`Claim not sent: ${claimErr}`, { type: 'error' });
+      setSpotClaims(prev => prev.filter(c => c.id !== claim.id));
+      setSpots(prev => prev.map(s => String(s.id) === String(claim.spotId) && s.pendingClaimId === claim.id
+        ? { ...s, hasPendingClaim: false, pendingClaimId: undefined, pendingClaimBusinessId: undefined }
+        : s));
+    }
   };
 
   const handleApproveClaim = async (claim: SpotClaimRequest) => {
@@ -1872,7 +1879,11 @@ export default function App() {
       }
       return s;
     }));
-    await cloud.reviewSpotClaim(claim.id, 'approved', undefined, 'admin');
+    const reviewErr = await cloud.reviewSpotClaim(claim.id, 'approved', undefined, 'admin');
+    if (reviewErr) {
+      showToast(`Could not approve the claim: ${reviewErr}`, { type: 'error' });
+      cloud.fetchSpotClaims().then(setSpotClaims).catch(() => {});
+    }
   };
 
   const handleRejectClaim = async (claimId: string, reason?: string) => {
@@ -1899,7 +1910,11 @@ export default function App() {
         return s;
       }));
     }
-    await cloud.reviewSpotClaim(claimId, 'rejected', reason, 'admin');
+    const rejectErr = await cloud.reviewSpotClaim(claimId, 'rejected', reason, 'admin');
+    if (rejectErr) {
+      showToast(`Could not reject the claim: ${rejectErr}`, { type: 'error' });
+      cloud.fetchSpotClaims().then(setSpotClaims).catch(() => {});
+    }
   };
 
   const handleClaimSpot = (spotId: number, businessId: string) => {
@@ -2377,24 +2392,6 @@ export default function App() {
         }
       }
 
-      // 2. Supabase spots table
-      if (isSupabaseConfigured && supabase) {
-        const numId = Number(spotId);
-        if (Number.isFinite(numId) && !isNaN(numId)) {
-          try {
-            await supabase.from('spots').delete().eq('id', numId);
-          } catch (_) {}
-        } else {
-          try {
-            await supabase.from('spots').delete().eq('id', spotId);
-          } catch (_) {}
-        }
-        if (spotTitle) {
-          try {
-            await supabase.from('spots').delete().eq('title', spotTitle);
-          } catch (_) {}
-        }
-      }
 
       // 3. Supabase rada_listings table
       try {
