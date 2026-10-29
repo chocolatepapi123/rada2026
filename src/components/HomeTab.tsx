@@ -5,6 +5,7 @@ import { SPOT_CATEGORIES, getSpotCategoryIds } from '../lib/spotCategories.ts';
 import { getSpotCategoryAccent, accentPillStyle, accentVars } from '../lib/spotAccentTheme.ts';
 import { rankSpots, useNearYou } from '../lib/spotRanking.ts';
 import { NearYouControl } from './NearYouControl.tsx';
+import { CinemaMovieSheet } from './CinemaExplorer.tsx';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { getStoredLanguage, translations, type AppLanguage } from '../utils/i18n.ts';
 
@@ -151,6 +152,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   const [selectedVibe, setSelectedVibe] = useState('all');
   const [selectedGenre, setSelectedGenre] = useState('all');
   const [selectedCinemaLoc, setSelectedCinemaLoc] = useState('all');
+  const [sheetMovie, setSheetMovie] = useState<CinemaMovie | null>(null);
 
   // Comprehensive Home Tab Modal Filters
   const [isHomeFilterModalOpen, setIsHomeFilterModalOpen] = useState(false);
@@ -1777,7 +1779,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             {filteredCinemaMovies.map((movie) => (
               <div
                 key={movie.id}
-                onClick={() => onBookCinema(movie)}
+                onClick={() => setSheetMovie(movie)}
                 className="cinema-card flex flex-col justify-between w-52 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-2.5 shrink-0 shadow-sm cursor-pointer hover:border-[#2D6A4F] transition group"
               >
                 <div>
@@ -1810,12 +1812,12 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onBookCinema(movie);
+                    setSheetMovie(movie);
                   }}
-                  className="mt-3 w-full py-2 bg-[#2D6A4F] hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center justify-center gap-1.5"
+                  className="mt-3 w-full py-2 bg-[#2D6A4F] hover:bg-emerald-800 text-white rounded-xl text-[11px] font-black transition shadow-xs flex items-center justify-center gap-1.5"
                 >
-                  <span>Book & Sync Vault</span>
-                  <Ticket className="w-3 h-3" />
+                  <Ticket className="w-3.5 h-3.5" />
+                  <span>Showtimes & Tickets</span>
                 </button>
               </div>
             ))}
@@ -2407,6 +2409,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             ))}
           </div>
         </div>
+      )}
+      {sheetMovie && (
+        <CinemaMovieSheet
+          movie={sheetMovie}
+          allMovies={cinemaMovies}
+          onBookMovie={onBookCinema}
+          onClose={() => setSheetMovie(null)}
+        />
       )}
     </section>
   );
