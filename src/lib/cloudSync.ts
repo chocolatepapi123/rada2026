@@ -2296,9 +2296,7 @@ export async function deleteAccountAdmin(
   };
 
   await step('rada_listings', () => supabase.from('rada_listings').delete().eq('owner_id', uid));
-  await step('spots', () => supabase.from('spots').delete().eq('merchant_id', uid));
   await step('rada_businesses', () => supabase.from('rada_businesses').delete().eq('owner_id', uid));
-  await step('businesses', () => supabase.from('businesses').delete().eq('owner_id', uid));
   await step('rada_user_data', () => supabase.from('rada_user_data').delete().eq('user_id', uid));
   await step('profiles', () => supabase.from('profiles').delete().eq('id', uid));
 
@@ -2519,97 +2517,137 @@ export async function claimUnclaimedSpot(
     .eq('id', rowId);
   if (error) return error.message;
 
-  if (typeof spotId === 'number') {
-    try {
-      let { error: sErr } = await supabase
-        .from('spots')
-        .update({ is_claimed: true, business_id: safeBiz, merchant_id: safeOwner, updated_at: now })
-        .eq('id', spotId);
-      if (sErr && isColumnError(sErr.message)) {
-        await supabase.from('spots').update({ business_id: safeBiz, merchant_id: safeOwner, updated_at: now }).eq('id', spotId);
-      }
-    } catch (e) {
-      console.warn('claimUnclaimedSpot spots update warning:', e);
-    }
-  }
   return null;
 }
 
 // ---------- Spot Claim Requests with Proof of Ownership ----------
-export async function fetchSpotClaims(): Promise<SpotClaimRequest[]> {
-  let localClaims: SpotClaimRequest[] = [];
+const CLAIM_PROOF_BUCKET = 'claim-proofs';
+const CLAIM_PROOF_PREFIX = 'claimproof:';
+
+function readLocalClaims(): SpotClaimRequest[] {
   try {
     const raw = localStorage.getItem('rada_spot_claims');
-    if (raw) localClaims = JSON.parse(raw);
-  } catch {}
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
 
+function writeLocalClaims(list: SpotClaimRequest[]) {
+  try {
+    localStorage.setItem('rada_spot_claims', JSON.stringify(list));
+  } catch {}
+}
+
+/** Proof documents go to a PRIVATE bucket (only the applicant and admins can read them). */
+async function uploadClaimProofs(docs: string[], uid: string, claimId: string): Promise<string[]> {
+  const out: string[] = [];
+  let n = 0;
+  for (const d of docs || []) {
+    n++;
+    if (typeof d !== 'string' || !d.startsWith('data:')) {
+      if (d) out.push(d); // already a stored path
+      continue;
+    }
+    const blob = d.startsWith('data:image/') ? await dataUrlToBlob(d) : await (await fetch(d)).blob();
+    const ext = blob.type === 'application/pdf' ? 'pdf' : blob.type === 'image/png' ? 'png' : blob.type === 'image/webp' ? 'webp' : 'jpg';
+    const path = `${uid}/${String(claimId).replace(/[^a-zA-Z0-9_-]/g, '')}-${n}.${ext}`;
+    const { error } = await supabase.storage.from(CLAIM_PROOF_BUCKET).upload(path, blob, {
+      contentType: blob.type || 'image/jpeg',
+      upsert: false,
+    });
+    if (error && !/exist|duplicate/i.test(error.message)) throw new Error(`proof upload failed: ${error.message}`);
+    out.push(CLAIM_PROOF_PREFIX + path);
+  }
+  return out;
+}
+
+/** Turns stored proof paths into short-lived links the viewer is allowed to open. */
+async function signClaimProofs(docs: string[]): Promise<string[]> {
+  const paths = docs.filter(d => typeof d === 'string' && d.startsWith(CLAIM_PROOF_PREFIX)).map(d => d.slice(CLAIM_PROOF_PREFIX.length));
+  if (paths.length === 0) return docs;
+  const { data } = await supabase.storage.from(CLAIM_PROOF_BUCKET).createSignedUrls(paths, 3600);
+  const map = new Map<string, string>();
+  for (const x of data || []) if (x.path && x.signedUrl) map.set(x.path, x.signedUrl);
+  return docs
+    .map(d => (typeof d === 'string' && d.startsWith(CLAIM_PROOF_PREFIX) ? map.get(d.slice(CLAIM_PROOF_PREFIX.length)) || '' : d))
+    .filter(Boolean);
+}
+
+export async function fetchSpotClaims(): Promise<SpotClaimRequest[]> {
+  const localClaims = readLocalClaims();
   if (!isSupabaseConfigured) return localClaims;
 
   try {
-    const { data, error } = await supabase
-      .from('rada_listings')
-      .select('*')
-      .eq('kind', 'spot_claim')
-      .order('created_at', { ascending: false });
-
-    if (!error && data && data.length > 0) {
-      const remoteClaims: SpotClaimRequest[] = data.map(r => r.data).filter(Boolean);
-      const map = new Map<string, SpotClaimRequest>();
-      for (const c of remoteClaims) map.set(c.id, c);
-      for (const c of localClaims) {
-        if (!map.has(c.id)) map.set(c.id, c);
-      }
-      return Array.from(map.values());
+    // RLS: admins see every claim, everyone else only their own
+    const { data, error } = await supabase.from('spot_claims').select('*').order('created_at', { ascending: false });
+    if (error) {
+      console.warn('fetchSpotClaims failed:', error.message);
+      return localClaims;
     }
+    const remote: SpotClaimRequest[] = [];
+    for (const r of data || []) {
+      const d = (r.data || {}) as any;
+      remote.push({
+        ...d,
+        id: r.id,
+        spotId: d.spotId ?? r.spot_id,
+        businessId: d.businessId ?? r.business_id,
+        applicantUserId: r.applicant_user_id,
+        status: r.status,
+        rejectionReason: r.rejection_reason ?? undefined,
+        reviewedAt: r.reviewed_at ?? undefined,
+        reviewedBy: r.reviewed_by ?? undefined,
+        createdAt: d.createdAt || r.created_at,
+        proofDocuments: await signClaimProofs(Array.isArray(d.proofDocuments) ? d.proofDocuments : []),
+      });
+    }
+    const map = new Map<string, SpotClaimRequest>();
+    for (const c of remote) map.set(c.id, c);
+    for (const c of localClaims) if (!map.has(c.id)) map.set(c.id, c);
+    return Array.from(map.values());
   } catch (err) {
     console.warn('fetchSpotClaims failed:', err);
+    return localClaims;
   }
-
-  return localClaims;
 }
 
 export async function submitSpotClaim(claim: SpotClaimRequest): Promise<string | null> {
-  try {
-    const raw = localStorage.getItem('rada_spot_claims');
-    const existing: SpotClaimRequest[] = raw ? JSON.parse(raw) : [];
-    const updated = [claim, ...existing.filter(c => c.id !== claim.id)];
-    localStorage.setItem('rada_spot_claims', JSON.stringify(updated));
-  } catch {}
+  writeLocalClaims([claim, ...readLocalClaims().filter(c => c.id !== claim.id)]);
+  const err = await submitSpotClaimRemote(claim);
+  // if the server refused it, don't leave a phantom "pending" claim on this device
+  if (err) writeLocalClaims(readLocalClaims().filter(c => c.id !== claim.id));
+  return err;
+}
 
+async function submitSpotClaimRemote(claim: SpotClaimRequest): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
 
   try {
-    const rowId = listingUuid('spot_claim', claim.id);
-    const ownerId = claim.applicantUserId && isValidUuid(claim.applicantUserId) ? claim.applicantUserId : toValidUuid(claim.applicantUserId || 'guest');
-    const bizId = isValidUuid(claim.businessId) ? claim.businessId : toValidUuid(claim.businessId);
+    const { data: u } = await supabase.auth.getUser();
+    const uid = u?.user?.id;
+    if (!uid) return 'Sign in to submit a claim.';
+    if (!isValidUuid(String(claim.businessId))) return 'Save your business to your account before claiming a spot.';
 
-    await supabase.from('rada_listings').upsert({
-      id: rowId,
-      kind: 'spot_claim',
-      business_id: bizId,
-      owner_id: ownerId,
-      data: claim,
-      created_at: claim.createdAt,
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'id' });
+    const proofs = await uploadClaimProofs(claim.proofDocuments || [], uid, claim.id);
+    const stored = { ...claim, applicantUserId: uid, proofDocuments: proofs };
 
-    // Mark spot as hasPendingClaim in database
-    const spotRowId = listingUuid('spot', claim.spotId);
-    const { data: spotRow } = await supabase.from('rada_listings').select('data').eq('id', spotRowId).maybeSingle();
-    if (spotRow?.data) {
-      const patched = {
-        ...spotRow.data,
-        hasPendingClaim: true,
-        pendingClaimId: claim.id,
-        pendingClaimBusinessId: claim.businessId
-      };
-      await supabase.from('rada_listings').update({ data: patched }).eq('id', spotRowId);
+    const { error } = await supabase.from('spot_claims').insert({
+      id: String(claim.id),
+      spot_id: String(claim.spotId),
+      applicant_user_id: uid,
+      business_id: claim.businessId,
+      data: stored,
+    });
+    if (error) {
+      if (error.code === '23505') return 'You already have a pending claim for this spot.';
+      return error.message;
     }
+    return null;
   } catch (err) {
-    console.warn('submitSpotClaim remote sync warning:', err);
+    console.warn('submitSpotClaim failed:', err);
+    return errMsg(err) || 'Could not submit the claim.';
   }
-
-  return null;
 }
 
 export async function reviewSpotClaim(
@@ -2619,59 +2657,39 @@ export async function reviewSpotClaim(
   reviewedBy = 'admin'
 ): Promise<string | null> {
   const now = new Date().toISOString();
-  let matchedClaim: SpotClaimRequest | null = null;
-  try {
-    const raw = localStorage.getItem('rada_spot_claims');
-    if (raw) {
-      const list: SpotClaimRequest[] = JSON.parse(raw);
-      const updated = list.map(c => {
-        if (c.id === claimId) {
-          matchedClaim = {
-            ...c,
-            status,
-            rejectionReason: status === 'rejected' ? rejectionReason : undefined,
-            reviewedAt: now,
-            reviewedBy
-          };
-          return matchedClaim;
-        }
-        return c;
-      });
-      localStorage.setItem('rada_spot_claims', JSON.stringify(updated));
-    }
-  } catch {}
+  const local = readLocalClaims();
+  if (local.some(c => c.id === claimId)) {
+    writeLocalClaims(local.map(c => c.id === claimId
+      ? { ...c, status, rejectionReason: status === 'rejected' ? rejectionReason : undefined, reviewedAt: now, reviewedBy }
+      : c));
+  }
 
   if (!isSupabaseConfigured) return null;
 
-  try {
-    const rowId = listingUuid('spot_claim', claimId);
-    const { data: row } = await supabase.from('rada_listings').select('data').eq('id', rowId).maybeSingle();
-    const existing = row?.data || matchedClaim;
-    if (existing) {
-      const patched = {
-        ...existing,
-        status,
-        rejectionReason: status === 'rejected' ? rejectionReason : undefined,
-        reviewedAt: now,
-        reviewedBy
-      };
-      await supabase.from('rada_listings').update({ data: patched, updated_at: now }).eq('id', rowId);
+  const guard = await requireAdmin();
+  if (guard.error) return guard.error;
 
-      if (status === 'approved') {
-        await claimUnclaimedSpot(existing.spotId, existing.businessId, existing.applicantUserId || 'admin');
-      } else {
-        const spotRowId = listingUuid('spot', existing.spotId);
-        const { data: sRow } = await supabase.from('rada_listings').select('data').eq('id', spotRowId).maybeSingle();
-        if (sRow?.data) {
-          const sPatched = { ...sRow.data, hasPendingClaim: false };
-          await supabase.from('rada_listings').update({ data: sPatched }).eq('id', spotRowId);
-        }
-      }
+  const { data: row, error: readErr } = await supabase.from('spot_claims').select('*').eq('id', claimId).maybeSingle();
+  if (readErr) return readErr.message;
+  if (!row) return 'This claim was never sent to the server, so it cannot be reviewed.';
+
+  const { error: upErr } = await supabase.from('spot_claims').update({
+    status,
+    rejection_reason: status === 'rejected' ? (rejectionReason || null) : null,
+    reviewed_at: now,
+    reviewed_by: reviewedBy,
+  }).eq('id', claimId);
+  if (upErr) return upErr.message;
+
+  if (status === 'approved') {
+    const d = (row.data || {}) as any;
+    const err = await claimUnclaimedSpot(d.spotId ?? row.spot_id, row.business_id, row.applicant_user_id);
+    if (err) {
+      // put it back so the admin can retry
+      await supabase.from('spot_claims').update({ status: 'pending', reviewed_at: null, reviewed_by: null }).eq('id', claimId);
+      return `Claim approved but not applied: ${err}`;
     }
-  } catch (err) {
-    console.warn('reviewSpotClaim remote sync warning:', err);
   }
-
   return null;
 }
 
@@ -2714,11 +2732,13 @@ export async function submitCommunitySpot(
     let userId = spotData.submitted_by_user_id || '';
     let userEmail = spotData.submitted_by_email || '';
     let userName = spotData.submitted_by_name || '';
+    let signedIn = false;
 
     if (isSupabaseConfigured && supabase?.auth) {
       try {
         const { data: userData } = await supabase.auth.getUser();
         if (userData?.user) {
+          signedIn = true;
           userId = userData.user.id;
           userEmail = userData.user.email || userEmail;
           userName = userData.user.user_metadata?.name || userData.user.user_metadata?.full_name || userName;
@@ -2788,50 +2808,31 @@ export async function submitCommunitySpot(
       console.warn('Local community spot storage error:', e);
     }
 
-    // 3. Insert into Supabase if configured
+    // 3. Send it to Supabase for admin review (saved as a draft; invisible to others until approved)
+    let syncError: string | null = null;
     if (isSupabaseConfigured && supabase) {
-      const rowId = listingUuid('spot', newSpot.id);
-      const safeOwnerId = isValidUuid(userId) ? userId : toValidUuid(userId);
-
-      // Insert into rada_listings with kind 'spot' and status 'pending_approval'
-      try {
-        await supabase.from('rada_listings').upsert({
-          id: rowId,
+      if (!signedIn) {
+        syncError = 'Sign in to send this spot for review';
+      } else {
+        const { error: insErr } = await supabase.from('rada_listings').upsert({
+          id: listingUuid('spot', newSpot.id),
           kind: 'spot',
-          owner_id: safeOwnerId,
+          owner_id: userId,
+          status: 'draft',
           data: newSpot,
           created_at: now,
           updated_at: now,
-        });
-      } catch (err) {
-        console.warn('rada_listings community spot insert error:', err);
-      }
-
-      // Try inserting into spots table
-      try {
-        await supabase.from('spots').insert({
-          id: newSpot.id,
-          title: newSpot.title,
-          category: newSpot.category,
-          neighborhood: newSpot.neighborhood,
-          address: newSpot.address,
-          description: newSpot.description,
-          price: newSpot.price,
-          img: newSpot.img,
-          images: newSpot.images,
-          photos: newSpot.photos,
-          status: 'pending_approval',
-          is_claimed: false,
-          is_user_uploaded: true,
-          submitted_by_user_id: isValidUuid(userId) ? userId : null,
-          data: newSpot,
-          created_at: now,
-        });
-      } catch (err) {
-        console.warn('spots table community insert error:', err);
+        }, { onConflict: 'id' });
+        if (insErr) {
+          console.warn('community spot insert error:', insErr.message);
+          syncError = insErr.message;
+        }
       }
     }
 
+    if (syncError) {
+      return { spot: newSpot, error: `Saved on this device, but it could not be sent for review: ${syncError}` };
+    }
     return { spot: newSpot, error: null };
   } catch (err: any) {
     console.error('submitCommunitySpot error:', err);
@@ -2880,51 +2881,6 @@ export async function fetchPendingUserSpots(): Promise<SpotItem[]> {
       console.warn('fetchPendingUserSpots rada_listings error:', err);
     }
 
-    try {
-      const { data: spotRows } = await supabase
-        .from('spots')
-        .select('*')
-        .eq('status', 'pending_approval')
-        .order('created_at', { ascending: false });
-
-      if (spotRows) {
-        for (const row of spotRows) {
-          const d = (row.data && typeof row.data === 'object' ? row.data : {}) as Partial<SpotItem>;
-          const sid = String(row.id);
-          const existing = pendingMap.get(sid);
-          const spot: SpotItem = {
-            id: row.id,
-            title: row.title || d.title || 'Untitled Community Spot',
-            category: row.category || d.category || 'restaurants_dining',
-            neighborhood: row.neighborhood || d.neighborhood || 'Nairobi',
-            address: row.address || d.address || '',
-            description: row.description || d.description || '',
-            price: row.price || d.price || 'KES $$',
-            img: row.img || d.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
-            images: Array.isArray(row.images) ? row.images : (d.images || [row.img || d.img]),
-            photos: Array.isArray(row.photos) ? row.photos : (d.photos || row.images || [row.img]),
-            tags: row.tags || d.tags || [],
-            status: 'pending_approval',
-            is_claimed: false,
-            isUserUploaded: true,
-            submitted_by_user_id: row.submitted_by_user_id || d.submitted_by_user_id,
-            submitted_by_name: d.submitted_by_name || 'Community Explorer',
-            submitted_by_email: d.submitted_by_email,
-            submittedAt: row.created_at || d.submittedAt,
-            lat: row.lat ?? d.lat ?? -1.2921,
-            lng: row.lng ?? d.lng ?? 36.8219,
-            rating: 'New',
-            reviewCount: 0,
-            reviews: [],
-            ...existing,
-            ...d,
-          };
-          pendingMap.set(sid, spot);
-        }
-      }
-    } catch (err) {
-      console.warn('fetchPendingUserSpots spots error:', err);
-    }
   }
 
   return Array.from(pendingMap.values());
@@ -2971,34 +2927,19 @@ export async function approveCommunitySpot(
     console.warn('approveCommunitySpot local error:', err);
   }
 
-  // 2. Update in Supabase
+  // 2. Publish in Supabase (admin only: the listing moves from draft to published)
   if (isSupabaseConfigured && supabase) {
     const rowId = listingUuid('spot', spotId);
-    try {
-      const { data: row } = await supabase.from('rada_listings').select('data').eq('id', rowId).maybeSingle();
-      if (row?.data) {
-        approvedSpot = {
-          ...row.data,
-          status: 'approved',
-          is_claimed: false,
-        };
-        await supabase.from('rada_listings').update({
-          data: approvedSpot,
-          updated_at: now,
-        }).eq('id', rowId);
-      }
-    } catch (err) {
-      console.warn('approveCommunitySpot rada_listings error:', err);
-    }
-
-    try {
-      await supabase.from('spots').update({
-        status: 'approved',
-        is_claimed: false,
+    const { data: row, error: readErr } = await supabase.from('rada_listings').select('data').eq('id', rowId).maybeSingle();
+    if (readErr) return { spot: approvedSpot, error: readErr.message };
+    if (row?.data) {
+      approvedSpot = { ...row.data, status: 'approved', is_claimed: false };
+      const { error: upErr } = await supabase.from('rada_listings').update({
+        status: 'published',
+        data: approvedSpot,
         updated_at: now,
-      }).eq('id', spotId);
-    } catch (err) {
-      console.warn('approveCommunitySpot spots table error:', err);
+      }).eq('id', rowId);
+      if (upErr) return { spot: approvedSpot, error: upErr.message };
     }
   }
 
@@ -3036,33 +2977,23 @@ export async function rejectCommunitySpot(
     console.warn('rejectCommunitySpot local error:', err);
   }
 
-  // 2. Update Supabase
+  // 2. Archive in Supabase (stays hidden from everyone but the admin)
   if (isSupabaseConfigured && supabase) {
     const rowId = listingUuid('spot', spotId);
-    try {
-      const { data: row } = await supabase.from('rada_listings').select('data').eq('id', rowId).maybeSingle();
-      if (row?.data) {
-        const rejected = {
-          ...row.data,
-          status: 'rejected',
-          rejectionReason: reason || 'Not approved for publication',
-        };
-        await supabase.from('rada_listings').update({
-          data: rejected,
-          updated_at: now,
-        }).eq('id', rowId);
-      }
-    } catch (err) {
-      console.warn('rejectCommunitySpot rada_listings error:', err);
-    }
-
-    try {
-      await supabase.from('spots').update({
+    const { data: row, error: readErr } = await supabase.from('rada_listings').select('data').eq('id', rowId).maybeSingle();
+    if (readErr) return { success: false, error: readErr.message };
+    if (row?.data) {
+      const rejected = {
+        ...row.data,
         status: 'rejected',
+        rejectionReason: reason || 'Not approved for publication',
+      };
+      const { error: upErr } = await supabase.from('rada_listings').update({
+        status: 'archived',
+        data: rejected,
         updated_at: now,
-      }).eq('id', spotId);
-    } catch (err) {
-      console.warn('rejectCommunitySpot spots table error:', err);
+      }).eq('id', rowId);
+      if (upErr) return { success: false, error: upErr.message };
     }
   }
 
