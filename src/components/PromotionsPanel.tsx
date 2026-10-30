@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { BarChart3, Loader2, Megaphone, X } from 'lucide-react';
 import {
-  DOW, STATUS_LABEL, SPONSORED_LABEL, cancelMyPromotion, fetchMyPromotions, fetchPromoProducts, fetchPromotionReport,
-  nextStartDate, priceLabel, requestPromotion,
+  DOW, STATUS_LABEL, cancelMyPromotion, fetchMyPromotions, fetchPromoProducts, fetchPromotionReport,
+  nextStartDate, priceLabel, requestPromotion, startPromoPayment,
   type PromoProduct, type Promotion, type PromotionReport, type PromoTargetType,
 } from '../lib/promotions';
-import { SUPPORT_EMAIL } from '../lib/subscriptions';
+import { normalizeKenyanPhone } from '../lib/payments';
 
 export interface PromoTarget {
   type: PromoTargetType;
@@ -35,6 +35,9 @@ export const PromotionsPanel: React.FC<Props> = ({ targets, audience, categories
   const [category, setCategory] = useState('');
   const [start, setStart] = useState('');
   const [busy, setBusy] = useState(false);
+  const [payId, setPayId] = useState<string | null>(null);
+  const [payPhone, setPayPhone] = useState('');
+  const [payBusy, setPayBusy] = useState(false);
   const [report, setReport] = useState<{ promo: Promotion; data: PromotionReport } | null>(null);
 
   const load = useCallback(async () => {
@@ -99,6 +102,24 @@ export const PromotionsPanel: React.FC<Props> = ({ targets, audience, categories
     }
   };
 
+  const pay = async (id: string) => {
+    if (!normalizeKenyanPhone(payPhone)) {
+      setErr('Enter a valid Safaricom number, like 0712 345 678.');
+      return;
+    }
+    setPayBusy(true);
+    setErr('');
+    try {
+      await startPromoPayment(id, normalizeKenyanPhone(payPhone)!);
+      setPayId(null);
+      await load();
+    } catch (e: any) {
+      setErr(e?.message || 'Could not start the payment');
+    } finally {
+      setPayBusy(false);
+    }
+  };
+
   const openReport = async (promo: Promotion) => {
     try {
       setReport({ promo, data: await fetchPromotionReport(promo.id) });
@@ -116,7 +137,7 @@ export const PromotionsPanel: React.FC<Props> = ({ targets, audience, categories
           <span className="w-10 h-10 rounded-2xl bg-[#E0533C]/10 text-[#E0533C] flex items-center justify-center"><Megaphone className="w-5 h-5" /></span>
           <div>
             <p className="text-[15px] font-black">Promote on RADA</p>
-            <p className="text-[12px] text-slate-500">Paid slots are always labelled &ldquo;{SPONSORED_LABEL}&rdquo;. Results are not guaranteed.</p>
+            <p className="text-[12px] text-slate-500">Send a request. Once RADA approves it, you pay here and it goes live. Results are not guaranteed.</p>
           </div>
         </div>
 
@@ -169,10 +190,10 @@ export const PromotionsPanel: React.FC<Props> = ({ targets, audience, categories
                   className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-3 text-[13px] font-semibold"
                 />
                 <button type="button" disabled={!canSubmit} onClick={submit} className="w-full py-3.5 rounded-2xl bg-[#E0533C] disabled:opacity-40 text-white text-[13px] font-black cursor-pointer">
-                  {busy ? 'Requesting…' : `Request · ${priceLabel(product.price_kes)}`}
+                  {busy ? 'Sending…' : 'Send request'}
                 </button>
                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Requesting reserves your slot for 3 days. To confirm it, pay the amount and send the M-Pesa receipt to {SUPPORT_EMAIL}. Your promo goes live once the RADA team confirms payment.
+                  Not everything can be promoted, so RADA reviews each request first. You only pay ({priceLabel(product.price_kes)}) after it is approved.
                 </p>
               </div>
             )}
@@ -196,8 +217,22 @@ export const PromotionsPanel: React.FC<Props> = ({ targets, audience, categories
                 <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-slate-100 dark:bg-slate-800 shrink-0">{STATUS_LABEL[p.status]}</span>
               </div>
               {p.admin_note && <p className="text-[11px] text-slate-500 mt-2">{p.admin_note}</p>}
+              {payId === p.id && (
+                <div className="mt-3 flex gap-2">
+                  <input inputMode="tel" value={payPhone} onChange={(e) => setPayPhone(e.target.value)} placeholder="M-Pesa number, 0712 345 678"
+                    className="flex-1 min-w-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-[13px] font-semibold" />
+                  <button type="button" disabled={payBusy} onClick={() => pay(p.id)} className="px-4 py-2 rounded-xl bg-[#E0533C] disabled:opacity-50 text-white text-[12px] font-black cursor-pointer">
+                    {payBusy ? '…' : 'Send prompt'}
+                  </button>
+                </div>
+              )}
               <div className="mt-3 flex gap-2">
-                {p.status === 'pending_payment' && (
+                {p.status === 'approved' && (
+                  <button type="button" onClick={() => setPayId(payId === p.id ? null : p.id)} className="px-3.5 py-2 rounded-xl bg-[#E0533C] text-white text-[12px] font-black cursor-pointer">
+                    Pay {priceLabel(p.amount_kes)}
+                  </button>
+                )}
+                {(p.status === 'requested' || p.status === 'approved' || p.status === 'pending_payment') && (
                   <button type="button" onClick={() => cancel(p.id)} className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-[12px] font-bold cursor-pointer">Cancel</button>
                 )}
                 {(p.status === 'active' || p.status === 'completed') && (

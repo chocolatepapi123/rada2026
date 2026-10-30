@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { track } from '../lib/tracking';
+import { useActivePromotions, outingRankMap, sortOutingsByPromotion } from '../lib/promotions';
 import { isDemoMode } from '../lib/demoMode.ts';
 import { 
   Users, 
@@ -339,6 +340,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
     `${window.location.origin}/?tab=outings&outing=${encodeURIComponent(String(plan.id))}&ref=share`;
 
   const handleShareOutingLink = (plan: OutingPlan) => {
+    track('share', 'outing', plan.id);
     const link = buildOutingLink(plan);
     shareContent({
       title: `RADA Outing: ${plan.spotTitle}`,
@@ -511,8 +513,10 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   }, []);
 
   // Real-Time Feed Filtering
+  const outingPromos = useActivePromotions('event_boost');
+  const outingRanks = useMemo(() => outingRankMap(outingPromos), [outingPromos]);
   const filteredOutings = useMemo(() => {
-    return outings.filter(plan => {
+    const list = outings.filter(plan => {
       const spot = spots.find(s => s.id === plan.spotId);
 
       // Access Type Filter ("All Plans", "Open Plans", "Singles Only")
@@ -551,7 +555,9 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       // Early-registered hosts' outings are listed first; otherwise the original (newest first) order is kept
       .sort((a, b) => (Number(Boolean((b.plan as any).isEarlyHost)) - Number(Boolean((a.plan as any).isEarlyHost))) || (a.i - b.i))
       .map(x => x.plan);
-  }, [outings, spots, selectedLocation, selectedCategory, accessTypeFilter, searchQuery]);
+    // Boosted outings first, in the order RADA chose; everything else keeps its order.
+    return sortOutingsByPromotion(list, (p) => p.id, outingRanks);
+  }, [outings, spots, selectedLocation, selectedCategory, accessTypeFilter, searchQuery, outingRanks]);
 
   // Spots search inside Host modal
   const filteredSpotsForHosting = useMemo(() => {

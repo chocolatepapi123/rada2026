@@ -2,6 +2,7 @@
 import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending, formatOpeningHours } from '../lib/spotsFeed.ts';
 import React, { useState, useEffect, useRef } from 'react';
 import { track } from '../lib/tracking';
+import { useActivePromotions, businessRankMap, sortByPromotion } from '../lib/promotions';
 import { searchProfiles, type CloudProfileHit } from '../lib/socialsCloud.ts';
 import { getStoredLanguage, saveStoredLanguage, translations, type AppLanguage } from '../utils/i18n.ts';
 import { 
@@ -272,6 +273,13 @@ export const Overlays: React.FC<OverlaysProps> = ({
     setReviewPhotos(prev => prev.filter((_, idx) => idx !== indexToRemove));
     showToast('Photo removed from review.');
   };
+
+  // View All offers: same order as Home (promoted first as chosen by RADA, then latest to earliest).
+  const activePromos = useActivePromotions();
+  const sortedOffers = React.useMemo(
+    () => sortByPromotion(offers || [], (o) => o.businessId, businessRankMap(activePromos), (o) => o.createdAt),
+    [offers, activePromos]
+  );
 
   // Spot analytics: one view per spot per session.
   useEffect(() => {
@@ -2463,7 +2471,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
               ) : (viewAllCategory === 'offers' || viewAllCategory === 'promotions') ? (
                 /* DISPLAY ALL RUNNING OFFERS & PROMOTIONS */
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {offers.map((offer) => (
+                  {sortedOffers.map((offer) => (
                     <div
                       key={offer.id}
                       className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 shadow-xs space-y-2 flex flex-col justify-between hover:border-[#E0533C] transition"

@@ -704,7 +704,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       );
     });
     // Admin-chosen order for promoted businesses (no label shown to users).
-    return sortByPromotion(base, (o) => o.businessId, promoRanks);
+    return sortByPromotion(base, (o) => o.businessId, promoRanks, (o) => o.createdAt);
   }, [offers, selectedOfferCategory, selectedHomeCategory, searchQuery, promoRanks]);
 
   // Admin users filtering
