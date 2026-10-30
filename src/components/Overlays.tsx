@@ -90,6 +90,7 @@ import { pickTrendingSpots } from '../lib/trendingSpots.ts';
 import { getSourceLabel } from '../utils/eventUtils.ts';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 import { AdminConfirmModal } from './AdminConfirmModal.tsx';
+import { ClaimOfferButton, ReviewReplyBlock } from './RetentionBits';
 
 interface OverlaysProps {
   // Overlays state
@@ -1257,6 +1258,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                         </div>
                       </div>
                       <p className="text-slate-700 dark:text-slate-300 text-xs">{rev.comment}</p>
+                      <ReviewReplyBlock reviewId={String(rev.id)} />
                       {rev.images && rev.images.length > 0 && (
                         <div className="flex gap-2 pt-1">
                           {rev.images.map((img, idx) => (
@@ -2498,6 +2500,9 @@ export const Overlays: React.FC<OverlaysProps> = ({
                         </div>
                       </div>
 
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                        <ClaimOfferButton offerId={offer.id} onMessage={showToast} />
+                      </div>
                       <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
                         <span className="text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-700 dark:text-slate-300">
                           {offer.claimCode || 'RADA-DEAL'}

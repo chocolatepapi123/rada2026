@@ -3,6 +3,7 @@ import { Crown as PlanCrownIcon } from 'lucide-react';
 import { useMySubscriptions } from '../lib/subscriptions';
 import { SubscriptionPlans, TrialBanner } from './SubscriptionPlans';
 import PromotionsPanel from './PromotionsPanel';
+import { RedeemCodePanel, OfferStatsLine, ReviewReplyBlock } from './RetentionBits';
 import { SPOT_CATEGORIES } from '../lib/spotCategories';
 import { 
   Store, 
@@ -1078,6 +1079,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
                     "{rev.comment}"
                   </p>
                 )}
+                <ReviewReplyBlock reviewId={String(rev.id)} canReply className="pl-9" />
 
                 <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800/80 pl-9">
                   <span>{(rev as any).spotTitle ? `Spot: ${(rev as any).spotTitle}` : 'Verified Spot'}</span>
@@ -2109,6 +2111,9 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   const [offerPosterUrl, setOfferPosterUrl] = useState('https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&auto=format&fit=crop');
   const [offerValidUntil, setOfferValidUntil] = useState('Valid this weekend');
   const [offerClaimCode, setOfferClaimCode] = useState('RADA-DEAL');
+  const [offerEndsAt, setOfferEndsAt] = useState('');
+  const [offerMax, setOfferMax] = useState('');
+  const [offerTerms, setOfferTerms] = useState('');
 
   const openCreateOfferModal = () => {
     setEditingOfferId(null);
@@ -2119,6 +2124,9 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setOfferPosterUrl(currentBiz?.coverImage || 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&auto=format&fit=crop');
     setOfferValidUntil('Valid through end of month');
     setOfferClaimCode(`RADA-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
+    setOfferEndsAt('');
+    setOfferMax('');
+    setOfferTerms('');
     setIsOfferFormOpen(true);
   };
 
@@ -2131,6 +2139,9 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setOfferPosterUrl(offer.posterUrl || currentBiz?.coverImage || '');
     setOfferValidUntil(offer.validUntil || 'Valid this month');
     setOfferClaimCode(offer.claimCode || 'RADA-DEAL');
+    setOfferEndsAt(offer.endsAt || '');
+    setOfferMax(offer.maxRedemptions ? String(offer.maxRedemptions) : '');
+    setOfferTerms(offer.terms || '');
     setIsOfferFormOpen(true);
   };
 
@@ -2153,7 +2164,10 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       posterUrl: offerPosterUrl,
       validUntil: offerValidUntil.trim() || 'Valid while stocks last',
       claimCode: offerClaimCode.trim() || 'RADADEAL',
-      createdAt: new Date().toISOString().split('T')[0]
+      createdAt: new Date().toISOString().split('T')[0],
+      endsAt: offerEndsAt || undefined,
+      maxRedemptions: Number(offerMax) > 0 ? Math.floor(Number(offerMax)) : undefined,
+      terms: offerTerms.trim() || undefined
     };
 
     if (editingOfferId) {
@@ -4466,6 +4480,8 @@ isSpotFormOpen && (
                 </button>
               </div>
 
+              {myOffers.length > 0 && <RedeemCodePanel />}
+
               {myOffers.length === 0 ? (
                 <div className="text-center py-6 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
                   <Percent className="w-7 h-7 text-slate-300 mx-auto mb-1.5" />
@@ -4498,6 +4514,7 @@ isSpotFormOpen && (
                           </div>
                           <h4 className="font-extrabold text-xs truncate mt-0.5">{offer.title}</h4>
                           <p className="text-[10px] text-slate-400 truncate">{offer.validUntil}</p>
+                          <OfferStatsLine offerId={offer.id} />
                         </div>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
@@ -5879,6 +5896,40 @@ isSpotFormOpen && (
                     className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-2.5 focus:outline-none"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold mb-1">Last day to claim</label>
+                  <input
+                    type="date"
+                    value={offerEndsAt}
+                    onChange={(e) => setOfferEndsAt(e.target.value)}
+                    className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-2.5 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold mb-1">Max claims (optional)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    inputMode="numeric"
+                    value={offerMax}
+                    onChange={(e) => setOfferMax(e.target.value)}
+                    placeholder="e.g. 50"
+                    className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-2.5 focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold mb-1">Terms (optional)</label>
+                <input
+                  type="text"
+                  value={offerTerms}
+                  onChange={(e) => setOfferTerms(e.target.value)}
+                  placeholder="e.g. One per table. Dine-in only."
+                  className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-2.5 focus:outline-none"
+                />
               </div>
 
               <button 

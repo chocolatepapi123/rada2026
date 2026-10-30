@@ -32,6 +32,7 @@ import { track } from '../lib/tracking';
 import { shareContent } from '../utils/shareUtils.ts';
 import { getSpotCategoryAccent } from '../lib/spotAccents.ts';
 import { getSpotCategoryIds } from '../lib/spotCategories.ts';
+import { ClaimOfferButton } from './RetentionBits';
 import { sortPremium } from '../lib/spotRanking.ts';
 import type { ToastOptions } from './Toast.tsx';
 
@@ -267,6 +268,8 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
                           )}
                         </button>
                       </div>
+                      {offer.terms && <p className="text-[10px] text-slate-400 pt-1">{offer.terms}</p>}
+                      <div className="pt-2"><ClaimOfferButton offerId={offer.id} /></div>
                     </div>
                   </div>
                 ))}
