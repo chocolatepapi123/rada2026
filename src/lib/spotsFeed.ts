@@ -7,6 +7,9 @@ import {
 } from './spotCategories.ts';
 import { sortPremium } from './spotRanking.ts';
 
+/** Photo-only view of unclaimedspots (spots without a photo are hidden from public feeds). */
+const SPOTS_FEED_VIEW = 'unclaimedspots_with_photos';
+
 /** The 17 RADA spot categories (ids). Matching uses `category` AND `extra_categories`. */
 export const RADA_CATEGORIES = SPOT_CATEGORIES.map(c => c.id);
 export type RadaCategory = string;
@@ -17,7 +20,7 @@ export { isAllKey, spotInCategory, getSpotCategoryIds, categoryLabelOf };
  * Server-side fetch of one category, including spots that only list it in extra_categories.
  * `label` must be the exact DB string, e.g. 'Hotels & Stays'. Pass any category id/label and it is resolved.
  */
-export async function fetchSpotsByCategory(categoryKey: string, table = 'unclaimedspots'): Promise<any[]> {
+export async function fetchSpotsByCategory(categoryKey: string, table = SPOTS_FEED_VIEW): Promise<any[]> {
   if (!supabase || !isSupabaseConfigured) return [];
   const label = categoryLabelOf(categoryKey);
   if (!label) return [];
@@ -27,7 +30,7 @@ export async function fetchSpotsByCategory(categoryKey: string, table = 'unclaim
     .or(`category.eq.${label},extra_categories.cs.{"${label}"}`);
   if (error) { console.warn('fetchSpotsByCategory error:', error.message); return []; }
   // Re-check after mapping so rows the club guard moved elsewhere don't come back from the server query.
-  return table === 'unclaimedspots'
+  return table === SPOTS_FEED_VIEW || table === 'unclaimedspots'
     ? (data || []).map(unclaimedRowToSpot).filter(sp => spotInCategory(sp, categoryKey))
     : (data || []);
 }
@@ -302,12 +305,12 @@ export async function loadUnclaimedSpots(force = false): Promise<any[]> {
         // PostgREST caps a single response (usually 1000 rows), so page through the table.
         for (let from = 0; from < MAX_ROWS; from += PAGE) {
           const { data, error } = await supabase
-            .from('unclaimedspots')
+            .from(SPOTS_FEED_VIEW)
             .select('*')
             .order('created_at', { ascending: false })
             .range(from, from + PAGE - 1);
           if (error) {
-            console.warn('unclaimedspots fetch error:', error.message);
+            console.warn('spots feed fetch error:', error.message);
             failed = true;
             break;
           }
