@@ -68,6 +68,12 @@ export interface BusinessOffer {
   claimCode?: string;
   actionUrl?: string;
   createdAt?: string;
+  /** Offer builder: last day the offer can be claimed (YYYY-MM-DD). Enforced by the database. */
+  endsAt?: string;
+  /** Offer builder: total number of codes that can be claimed. Empty = unlimited. */
+  maxRedemptions?: number;
+  /** Offer builder: fine print shown to customers. */
+  terms?: string;
 }
 
 export interface SpecialOffer {
