@@ -14,7 +14,7 @@ import {
   type SubKind,
   type SubscriptionRecord,
 } from '../lib/subscriptions';
-import { fetchPlanPrices, type PlanPrice } from '../lib/payments';
+import { fetchPlanPrices, type BillingPeriod, type PlanPrice } from '../lib/payments';
 import PayWithMpesaSheet from './PayWithMpesaSheet';
 
 // ---------------------------------------------------------------------------
@@ -196,7 +196,13 @@ export const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({
       live = false;
     };
   }, []);
-  const priceFor = (plan: PlanId) => prices.find((p) => p.kind === kind && p.plan === plan) || null;
+  const [period, setPeriod] = useState<BillingPeriod>('monthly');
+  const hasWeekly = prices.some((p) => p.kind === kind && p.billing_period === 'weekly');
+  // a plan with no weekly price falls back to its monthly price (the card always shows the real number of days)
+  const priceFor = (plan: PlanId) =>
+    prices.find((p) => p.kind === kind && p.plan === plan && p.billing_period === period) ||
+    prices.find((p) => p.kind === kind && p.plan === plan && p.billing_period === 'monthly') ||
+    null;
   const current: PlanId = record?.effective_plan || 'free';
   const features = PLAN_FEATURES[kind];
   const kindLabel = kind === 'creator' ? 'Creator' : 'Merchant';
@@ -283,7 +289,25 @@ export const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({
 
       {/* Plan cards */}
       <div className="space-y-4">
-        <h3 className="text-[15px] font-black px-1">Plans</h3>
+        <div className="flex items-center justify-between gap-3 px-1">
+          <h3 className="text-[15px] font-black">Plans</h3>
+          {hasWeekly && (
+            <div className="inline-flex rounded-full bg-slate-100 dark:bg-slate-800 p-1 text-[12px] font-black" role="tablist" aria-label="Billing period">
+              {(['weekly', 'monthly'] as BillingPeriod[]).map((b) => (
+                <button
+                  key={b}
+                  type="button"
+                  role="tab"
+                  aria-selected={period === b}
+                  onClick={() => setPeriod(b)}
+                  className={`px-3.5 py-1.5 rounded-full cursor-pointer transition ${period === b ? 'bg-white dark:bg-[#1C1A1E] shadow-sm text-slate-900 dark:text-white' : 'text-slate-500'}`}
+                >
+                  {b === 'weekly' ? 'Weekly' : 'Monthly'}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         {PLAN_ORDER.map((plan) => {
           const isCurrent = plan === current;
           const higher = planRank(plan) > planRank(current);
@@ -417,6 +441,7 @@ export const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({
           plan={paying.plan}
           amountKes={paying.amount_kes!}
           periodDays={paying.period_days}
+          period={paying.billing_period}
           onClose={() => setPaying(null)}
           onPaid={() => onRefresh?.()}
         />

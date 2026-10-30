@@ -9,6 +9,7 @@ import { resolveSpotBudget, budgetBadge } from '../lib/spotBudget.ts';
 import type { LatLng } from '../lib/geo.ts';
 import { spotMatchesSearchWithTags } from '../utils/spotTags.ts';
 import { spotMatchesArea } from '../lib/spotsFeed.ts';
+import { useActivePromotions, sortSpotsByCategoryPromotion } from '../lib/promotions.ts';
 
 interface SpotsExplorerProps {
   categoryKey?: string | null;
@@ -65,6 +66,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
   const [selectedBudget, setSelectedBudget] = useState('all');
   const [sortBy, setSortBy] = useState<'featured' | 'rating' | 'reviews'>('featured');
   const nearYou = useNearYou();
+  const categorySlotPromos = useActivePromotions('spots_category');
 
   // Accent for the whole screen (only when a single category is open)
   const screenAccent = isAllKey(categoryKey) ? getSpotCategoryAccent(null) : getSpotCategoryAccent(categoryKey);
@@ -120,9 +122,13 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
       });
     }
 
-    // 3) Default "Featured": premium / high-end first
-    return rankSpots(result);
-  }, [spots, categoryKey, selectedNeighborhood, selectedBudget, query, sortBy, nearYou.active, nearYou.origin, nearYou.radiusKm]);
+    // 3) Default "Featured": premium / high-end first; paid category slots (no labels) go first in admin order
+    const featured = rankSpots(result);
+    if (effectiveCat && !isAllKey(effectiveCat) && effectiveCat !== 'spots') {
+      return sortSpotsByCategoryPromotion(featured, effectiveCat, categorySlotPromos);
+    }
+    return featured;
+  }, [spots, categorySlotPromos, categoryKey, selectedNeighborhood, selectedBudget, query, sortBy, nearYou.active, nearYou.origin, nearYou.radiusKm]);
 
   return (
     <div className="space-y-4">

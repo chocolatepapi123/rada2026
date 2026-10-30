@@ -5,7 +5,7 @@ import {
   nextStartDate, priceLabel, requestPromotion, startPromoPayment,
   type PromoProduct, type Promotion, type PromotionReport, type PromoTargetType,
 } from '../lib/promotions';
-import { normalizeKenyanPhone } from '../lib/payments';
+import { normalizeKenyanPhone, waitForPayment } from '../lib/payments';
 
 export interface PromoTarget {
   type: PromoTargetType;
@@ -38,6 +38,7 @@ export const PromotionsPanel: React.FC<Props> = ({ targets, audience, categories
   const [payId, setPayId] = useState<string | null>(null);
   const [payPhone, setPayPhone] = useState('');
   const [payBusy, setPayBusy] = useState(false);
+  const [payMsg, setPayMsg] = useState('');
   const [report, setReport] = useState<{ promo: Promotion; data: PromotionReport } | null>(null);
 
   const load = useCallback(async () => {
@@ -109,11 +110,22 @@ export const PromotionsPanel: React.FC<Props> = ({ targets, audience, categories
     }
     setPayBusy(true);
     setErr('');
+    setPayMsg('Check your phone and enter your M-Pesa PIN…');
     try {
-      await startPromoPayment(id, normalizeKenyanPhone(payPhone)!);
-      setPayId(null);
+      const started = await startPromoPayment(id, normalizeKenyanPhone(payPhone)!);
+      const row = await waitForPayment(started.payment_id);
+      if (row?.status === 'succeeded') {
+        setPayMsg('Payment received. Your promotion is confirmed.');
+        setPayId(null);
+      } else if (!row || row.status === 'pending') {
+        setPayMsg("We haven't heard back from M-Pesa yet. If you entered your PIN, your promotion will update shortly.");
+      } else {
+        setPayMsg('');
+        setErr(row.failure_reason || 'The payment did not go through. You have not been charged.');
+      }
       await load();
     } catch (e: any) {
+      setPayMsg('');
       setErr(e?.message || 'Could not start the payment');
     } finally {
       setPayBusy(false);
@@ -205,6 +217,7 @@ export const PromotionsPanel: React.FC<Props> = ({ targets, audience, categories
       {mine.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-[15px] font-black px-1">Your promotions</h3>
+          {payMsg && <p className="px-1 text-[12px] font-semibold text-slate-600 dark:text-slate-300">{payMsg}</p>}
           {mine.map((p) => (
             <div key={p.id} className="rounded-3xl bg-white dark:bg-[#1C1A1E] p-4 shadow-sm">
               <div className="flex items-start justify-between gap-3">
@@ -227,8 +240,8 @@ export const PromotionsPanel: React.FC<Props> = ({ targets, audience, categories
                 </div>
               )}
               <div className="mt-3 flex gap-2">
-                {p.status === 'approved' && (
-                  <button type="button" onClick={() => setPayId(payId === p.id ? null : p.id)} className="px-3.5 py-2 rounded-xl bg-[#E0533C] text-white text-[12px] font-black cursor-pointer">
+                {(p.status === 'approved' || p.status === 'pending_payment') && (
+                  <button type="button" onClick={() => { setPayMsg(''); setPayId(payId === p.id ? null : p.id); }} className="px-3.5 py-2 rounded-xl bg-[#E0533C] text-white text-[12px] font-black cursor-pointer">
                     Pay {priceLabel(p.amount_kes)}
                   </button>
                 )}

@@ -44,6 +44,7 @@ import { NearYouControl } from './NearYouControl.tsx';
 import { spotMatchesSearchWithTags } from '../utils/spotTags.ts';
 import { AdminConfirmModal } from './AdminConfirmModal.tsx';
 import { deleteListing } from '../lib/cloudSync.ts';
+import { useActivePromotions, sortSpotsByCategoryPromotion } from '../lib/promotions.ts';
 
 interface SpotsTabProps {
   spots: SpotItem[];
@@ -239,6 +240,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
 
   const [dbSpots, setDbSpots] = useState<any[]>([]);
   const { spots: unclaimedSpots } = useUnclaimedSpots();
+  const categorySlotPromos = useActivePromotions('spots_category');
   const [liveReviews, setLiveReviews] = useState<Record<string, any[]>>({});
 
 
@@ -406,7 +408,11 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   });
 
   // One list per category; a spot with extra_categories appears in every category it belongs to.
-  const spotsByCategory = SPOT_CATEGORIES.map(def => ({ def, list: filteredSpots.filter(sp => spotInCategory(sp, def.id)) }));
+  // Spots tab category slots (paid packs): promoted spots first in admin order, the rest keep their order.
+  const spotsByCategory = SPOT_CATEGORIES.map(def => ({
+    def,
+    list: sortSpotsByCategoryPromotion(filteredSpots.filter(sp => spotInCategory(sp, def.id)), def.id, categorySlotPromos),
+  }));
 
   const isSaved = (id: number | string) => {
     return savedItems.some(s => String(s.id) === String(id) && s.kind === 'spot');

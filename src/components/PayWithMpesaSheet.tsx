@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, Loader2, Smartphone, X, XCircle } from 'lucide-react';
 import { PLAN_META, type PlanId, type SubKind } from '../lib/subscriptions';
-import { normalizeKenyanPhone, startPlanPayment, waitForPayment } from '../lib/payments';
+import { normalizeKenyanPhone, startPlanPayment, waitForPayment, type BillingPeriod } from '../lib/payments';
 
 interface Props {
   kind: SubKind;
   plan: Exclude<PlanId, 'free'>;
   amountKes: number;
   periodDays: number;
+  period?: BillingPeriod;
   onClose: () => void;
   /** Called once the payment has succeeded so the caller can refresh the plan. */
   onPaid: () => void;
@@ -15,7 +16,7 @@ interface Props {
 
 type Phase = 'form' | 'waiting' | 'done' | 'failed';
 
-export const PayWithMpesaSheet: React.FC<Props> = ({ kind, plan, amountKes, periodDays, onClose, onPaid }) => {
+export const PayWithMpesaSheet: React.FC<Props> = ({ kind, plan, amountKes, periodDays, period = 'monthly', onClose, onPaid }) => {
   const [phone, setPhone] = useState('');
   const [phase, setPhase] = useState<Phase>('form');
   const [msg, setMsg] = useState('');
@@ -31,7 +32,7 @@ export const PayWithMpesaSheet: React.FC<Props> = ({ kind, plan, amountKes, peri
     setMsg('');
     setPhase('waiting');
     try {
-      const started = await startPlanPayment(kind, plan, phone);
+      const started = await startPlanPayment(kind, plan, phone, period);
       abort.current = new AbortController();
       const row = await waitForPayment(started.payment_id, { signal: abort.current.signal });
       if (row?.status === 'succeeded') {

@@ -289,6 +289,8 @@ interface OutingsTabProps {
   isUserSignedIn: boolean;
   onOpenAuth: () => void;
   onCreateOuting: (outing: OutingPlan) => Promise<void>;
+  /** Opens the account area where plans live (Creator Hub > Plan). */
+  onOpenPlans?: () => void;
   onRequestJoin: (outingId: string, attendee: OutingAttendee) => Promise<void>;
   onUpdateAttendeeStatus?: (outingId: string, attendeeId: string, status: 'approved' | 'declined') => Promise<void>;
   onOpenOutingChat?: (outing: OutingPlan) => void;
@@ -304,6 +306,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   isUserSignedIn,
   onOpenAuth,
   onCreateOuting,
+  onOpenPlans,
   onRequestJoin,
   onUpdateAttendeeStatus,
   onOpenOutingChat,
@@ -319,6 +322,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   const [accessTypeFilter, setAccessTypeFilter] = useState<'All Plans' | 'Open Plans' | 'Singles Only'>('All Plans');
   const [searchQuery, setSearchQuery] = useState('');
   const [isHostModalOpen, setIsHostModalOpen] = useState(false);
+  const [upgradePrompt, setUpgradePrompt] = useState<{ kind: 'outing_limit' | 'attendee_cap'; message: string } | null>(null);
   const [selectedOutingDetail, setSelectedOutingDetail] = useState<OutingPlan | null>(null);
   // Host analytics: one view per outing and one profile view per host, per session.
   useEffect(() => {
@@ -738,7 +742,12 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       setCustomSpotImage('');
       setVenueMode('catalog');
     } catch (err: any) {
-      showToast(err?.message || 'Could not publish outing plan');
+      if (err?.kind === 'outing_limit' || err?.kind === 'attendee_cap') {
+        // The server said no because of the plan: explain it and offer the upgrade instead of an error toast
+        setUpgradePrompt({ kind: err.kind, message: String(err.message || '') });
+      } else {
+        showToast(err?.message || 'Could not publish outing plan');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -2172,6 +2181,47 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
           </div>
         </div>
       )}
+      {upgradePrompt && (() => {
+        const onPro = /\bpro\b/i.test(upgradePrompt.message);
+        const next = onPro ? 'Elite' : 'Pro';
+        const isCap = upgradePrompt.kind === 'attendee_cap';
+        return (
+          <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" role="dialog" aria-modal="true">
+            <div className="w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl bg-white dark:bg-[#1C1A1E] p-6 space-y-4 shadow-xl">
+              <p className="text-[11px] font-extrabold uppercase tracking-wider text-[#E0533C]">Plan limit reached</p>
+              <h3 className="text-lg font-black tracking-tight">
+                {isCap ? 'That is more guests than your plan allows' : 'You have used all your outings this month'}
+              </h3>
+              <p className="text-[13px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                {isCap
+                  ? 'Pick a smaller group size, or move up a plan to host bigger outings.'
+                  : 'Your count resets at the start of next month, or you can move up a plan to host more now.'}
+              </p>
+              <p className="text-[12px] text-slate-500 leading-relaxed">
+                Free: 4 outings a month, up to 10 guests. Pro: 10 outings, up to 30 guests. Elite: unlimited.
+              </p>
+              <div className="flex gap-2 pt-1">
+                {onOpenPlans && (
+                  <button
+                    type="button"
+                    onClick={() => { setUpgradePrompt(null); setIsHostModalOpen(false); onOpenPlans(); }}
+                    className="flex-1 py-3 rounded-2xl bg-[#E0533C] hover:bg-orange-700 text-white text-[13px] font-black cursor-pointer"
+                  >
+                    See {next} plan
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setUpgradePrompt(null)}
+                  className="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-[13px] font-black cursor-pointer"
+                >
+                  {isCap ? 'Change group size' : 'Not now'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </section>
   );
 };
