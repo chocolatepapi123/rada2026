@@ -2,10 +2,9 @@ import { EventItem, TicketTier } from '../types.ts';
 
 // Reference "Today" in RADA 2026 calendar dataset (14 Oct 2026)
 export const isDateToday = (year: number, monthIndex: number, dayNumber: number): boolean => {
-  const isFixedToday = year === 2026 && monthIndex === 9 && dayNumber === 14;
   const now = new Date();
   const isRealToday = now.getFullYear() === year && now.getMonth() === monthIndex && now.getDate() === dayNumber;
-  return isFixedToday || isRealToday;
+  return isRealToday;
 };
 
 // Check if an event date string matches a given calendar year, month, and day
