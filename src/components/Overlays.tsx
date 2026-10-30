@@ -1,6 +1,7 @@
 
 import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending, formatOpeningHours } from '../lib/spotsFeed.ts';
 import React, { useState, useEffect, useRef } from 'react';
+import { track } from '../lib/tracking';
 import { searchProfiles, type CloudProfileHit } from '../lib/socialsCloud.ts';
 import { getStoredLanguage, saveStoredLanguage, translations, type AppLanguage } from '../utils/i18n.ts';
 import { 
@@ -271,6 +272,11 @@ export const Overlays: React.FC<OverlaysProps> = ({
     setReviewPhotos(prev => prev.filter((_, idx) => idx !== indexToRemove));
     showToast('Photo removed from review.');
   };
+
+  // Spot analytics: one view per spot per session.
+  useEffect(() => {
+    if (selectedSpot?.id !== undefined && selectedSpot?.id !== null) track('view', 'spot', selectedSpot.id);
+  }, [selectedSpot?.id]);
 
   const handleSubmitReview = (e: React.FormEvent) => {
     e.preventDefault();
@@ -721,6 +727,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   {selectedSpot.phone && (
                     <a
                       href={`tel:${selectedSpot.phone}`}
+                      onClick={() => track('call', 'spot', selectedSpot.id)}
                       className="px-2.5 py-1 rounded-xl bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-800 dark:text-slate-200 hover:text-[#E0533C] flex items-center gap-1.5 transition"
                     >
                       <Phone className="w-3 h-3 text-[#E0533C]" />
@@ -730,6 +737,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   {(selectedSpot.website || selectedSpot.socialLinks?.website) && (
                     <a
                       href={selectedSpot.website || selectedSpot.socialLinks?.website}
+                      onClick={() => track('website', 'spot', selectedSpot.id)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="px-2.5 py-1 rounded-xl bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-800 dark:text-slate-200 hover:text-[#E0533C] flex items-center gap-1.5 transition"
@@ -741,6 +749,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   {(selectedSpot.instagram || selectedSpot.socialLinks?.instagram) && (
                     <a
                       href={`https://instagram.com/${(selectedSpot.instagram || selectedSpot.socialLinks?.instagram || '').replace('@', '')}`}
+                      onClick={() => track('website', 'spot', selectedSpot.id)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="px-2.5 py-1 rounded-xl bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-800 dark:text-slate-200 hover:text-pink-600 flex items-center gap-1.5 transition"

@@ -27,6 +27,7 @@ import { VerifiedBadge } from './VerifiedBadge';
 import { TierBadge } from './BusinessBadge';
 import { SubscriptionPlans, TrialBanner } from './SubscriptionPlans';
 import PromotionsPanel from './PromotionsPanel';
+import { fetchMyAnalytics, type MyAnalytics } from '../lib/tracking';
 import {
   PLAN_META,
   fetchMyOutingUsage,
@@ -157,6 +158,19 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
   );
 
   const goPlan = () => setTab('plan');
+
+  // Real tracked numbers for hosts (views, profile views, link taps, RSVPs). Falls back to the old estimates.
+  const [ana, setAna] = useState<MyAnalytics | null>(null);
+  useEffect(() => {
+    if (tab !== 'analytics' || !userId) return;
+    let off = false;
+    fetchMyAnalytics(30).then((a) => !off && setAna(a)).catch(() => undefined);
+    return () => { off = true; };
+  }, [tab, userId]);
+  const tot = ana?.totals || {};
+  const profileViewsTracked = (ana?.targets || []).filter((t) => t.target_type === 'profile').reduce((n, t) => n + (t.counts.view || 0), 0);
+  const linkTaps = (tot.website || 0) + (tot.whatsapp || 0) + (tot.call || 0) + (tot.directions || 0);
+  const outingViews = (id: string) => (ana?.targets || []).find((t) => t.target_type === 'outing' && t.target_id === String(id))?.counts.view || 0;
 
   const tabs: { id: HubTab; label: string; icon: React.ReactNode }[] = [
     { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="w-3.5 h-3.5" /> },
@@ -390,15 +404,15 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
             </div>
 
             <div className="grid grid-cols-2 gap-2">
-              <Stat label="Total impressions" value={fmt(own.stats.impressions)} icon={<BarChart3 className="w-4 h-4" />} loading={own.hubLoading} />
-              <Stat label="Profile views" value={fmt(own.stats.profileViews)} icon={<Eye className="w-4 h-4" />} loading={own.hubLoading} />
+              <Stat label="Total views (30 days)" value={fmt(ana ? (tot.view || 0) : own.stats.impressions)} icon={<BarChart3 className="w-4 h-4" />} loading={own.hubLoading} />
+              <Stat label="Profile views" value={fmt(ana ? profileViewsTracked : own.stats.profileViews)} icon={<Eye className="w-4 h-4" />} loading={own.hubLoading} />
               {caps.analytics !== 'basic' && (
-                <Stat label="Link clicks" value="—" icon={<Link2 className="w-4 h-4" />} />
+                <Stat label="Link clicks" value={ana ? fmt(linkTaps) : '—'} icon={<Link2 className="w-4 h-4" />} />
               )}
               {caps.analytics === 'expanded' && (
                 <>
                   <Stat label="Event saves" value={fmt(own.stats.eventSaves)} icon={<Bookmark className="w-4 h-4" />} loading={own.hubLoading} />
-                  <Stat label="RSVPs" value={fmt(own.stats.rsvps)} icon={<Users className="w-4 h-4" />} loading={own.hubLoading} />
+                  <Stat label="RSVPs" value={fmt(ana ? (tot.rsvp || 0) : own.stats.rsvps)} icon={<Users className="w-4 h-4" />} loading={own.hubLoading} />
                 </>
               )}
             </div>
@@ -424,7 +438,7 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
                       <div key={o.id}>
                         <div className="flex justify-between text-[11px] font-semibold">
                           <span className="truncate pr-2">{o.spotTitle}</span>
-                          <span>{going}/{o.maxAttendees}</span>
+                          <span>{ana ? `${outingViews(o.id)} views · ` : ''}{going}/{o.maxAttendees}</span>
                         </div>
                         <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 mt-1 overflow-hidden">
                           <div className="h-full bg-amber-500 rounded-full" style={{ width: `${pct}%` }} />

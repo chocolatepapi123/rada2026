@@ -1,3 +1,4 @@
+import { track } from '../lib/tracking';
 import React, { useEffect, useRef, useState } from 'react';
 import { X, MapPin, Car, Navigation, ExternalLink } from 'lucide-react';
 import { SpotItem, EventItem } from '../types.ts';
@@ -206,6 +207,10 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
           </div>
           <a
             href={place.mapsUrl}
+            onClick={() => {
+              if (spot) track('directions', 'spot', (spot as any).id);
+              else if (event) track('directions', 'event', (event as any).id);
+            }}
             target="_blank"
             rel="noreferrer"
             className="px-3 py-1.5 bg-slate-900 text-white dark:bg-white dark:text-slate-900 rounded-xl font-bold text-[11px] flex items-center gap-1 hover:opacity-90 transition shrink-0"

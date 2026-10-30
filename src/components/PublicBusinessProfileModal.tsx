@@ -75,6 +75,7 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
   const handleCopyCode = (offerId: string, code?: string) => {
     if (!code) return;
     navigator.clipboard.writeText(code);
+    if (business) track('offer_redeem', 'business', business.id);
     setCopiedCodeId(offerId);
     setTimeout(() => setCopiedCodeId(null), 2500);
   };

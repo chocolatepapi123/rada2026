@@ -1,4 +1,5 @@
 import React from 'react';
+import { track } from '../lib/tracking';
 import {
   X,
   Heart,
@@ -109,6 +110,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   };
 
   const [reportOpen, setReportOpen] = React.useState(false);
+
+  // Host/creator analytics: someone else opened this profile.
+  React.useEffect(() => {
+    if (!isOwnProfile && user?.id) track('view', 'profile', user.id);
+  }, [isOwnProfile, user?.id]);
 
   // Same hook as AccountSettingsModal: both read/write the one parent-owned user object
   const own = useOwnProfile({

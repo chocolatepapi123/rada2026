@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { track } from '../lib/tracking';
 import { isDemoMode } from '../lib/demoMode.ts';
 import { 
   Users, 
@@ -318,6 +319,12 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [isHostModalOpen, setIsHostModalOpen] = useState(false);
   const [selectedOutingDetail, setSelectedOutingDetail] = useState<OutingPlan | null>(null);
+  // Host analytics: one view per outing and one profile view per host, per session.
+  useEffect(() => {
+    if (!selectedOutingDetail) return;
+    track('view', 'outing', selectedOutingDetail.id);
+    if (selectedOutingDetail.hostId) track('view', 'profile', selectedOutingDetail.hostId);
+  }, [selectedOutingDetail?.id]);
   const [managingOuting, setManagingOuting] = useState<OutingPlan | null>(null);
   const [isProcessingAction, setIsProcessingAction] = useState<string | null>(null);
 
@@ -623,6 +630,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       showToast('This outing has reached maximum attendee capacity.');
       return;
     }
+    track('rsvp', 'outing', plan.id);
 
     const newAttendee: OutingAttendee = {
       id: `att-${Date.now()}`,

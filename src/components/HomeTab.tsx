@@ -1,3 +1,4 @@
+import { useActivePromotions, businessRankMap, sortByPromotion } from '../lib/promotions.ts';
 import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending, formatOpeningHours } from '../lib/spotsFeed.ts';
 import { resolveSpotBudget, budgetBadge } from '../lib/spotBudget.ts';
 import { useLocationPreference, sortByProximity, NEIGHBORHOOD_COORDS, formatDistance, distanceKm, resolveNearestNeighborhood } from '../lib/geo.ts';
@@ -682,8 +683,10 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   }, [cinemaMovies, selectedCinemaLoc, selectedGenre, searchQuery, feedOrigin, selectedHomeArea]);
 
   // Filter offers by category and search query
+  const activePromos = useActivePromotions();
+  const promoRanks = useMemo(() => businessRankMap(activePromos), [activePromos]);
   const filteredOffers = useMemo(() => {
-    return (offers || []).filter(o => {
+    const base = (offers || []).filter(o => {
       if (selectedOfferCategory !== 'all' && o.category !== selectedOfferCategory) return false;
       if (selectedHomeCategory !== 'all') {
         const cat = o.category.toLowerCase();
@@ -700,7 +703,9 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         o.discount.toLowerCase().includes(q)
       );
     });
-  }, [offers, selectedOfferCategory, selectedHomeCategory, searchQuery]);
+    // Admin-chosen order for promoted businesses (no label shown to users).
+    return sortByPromotion(base, (o) => o.businessId, promoRanks);
+  }, [offers, selectedOfferCategory, selectedHomeCategory, searchQuery, promoRanks]);
 
   // Admin users filtering
   const filteredAdminUsers = useMemo(() => {
