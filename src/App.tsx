@@ -6,6 +6,9 @@
 import { track } from './lib/tracking';
 import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import { ClaimUsernamePrompt, hasAutoUsername } from './components/ClaimUsernamePrompt';
+
+// Claim-username popup is switched off for now. Flip to true to bring it back.
+const SHOW_CLAIM_USERNAME_PROMPT = false;
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import * as cloud from './lib/cloudSync';
 import { fetchExternalEvents } from './lib/externalEvents';
@@ -921,7 +924,9 @@ export default function App() {
       // Not saved online: take it back off the list instead of pretending it worked
       setOutings(prev => prev.filter(o => o.id !== newPlan.id));
       writeJSON('rada_outings_cache', outings.filter(o => o.id !== newPlan.id));
-      showToast(/plan/i.test(res.error) ? res.error : "Your hosting couldn't be saved. Please try again.", { type: 'error' });
+      // Let the Outings screen react: a plan limit gets an upgrade prompt, anything else an honest error
+      if (res.limit) throw new cloud.OutingLimitError(res.limit, res.error);
+      throw new Error("Your hosting couldn't be saved. Please try again.");
     }
   };
 
@@ -2591,6 +2596,7 @@ export default function App() {
                 isUserSignedIn={Boolean(session?.user?.id)}
                 onOpenAuth={() => setIsAuthModalOpen(true)}
                 onCreateOuting={handleCreateOuting}
+                onOpenPlans={() => setIsAccountSettingsOpen(true)}
                 onRequestJoin={handleRequestJoin}
                 onUpdateAttendeeStatus={handleUpdateAttendeeStatus}
                 onOpenOutingChat={handleOpenOutingChat}
@@ -2944,7 +2950,7 @@ export default function App() {
             />
           )}
 
-          {session?.user?.id && !isGuestMode && !isAuthModalOpen && !claimPromptDismissed &&
+          {SHOW_CLAIM_USERNAME_PROMPT && session?.user?.id && !isGuestMode && !isAuthModalOpen && !claimPromptDismissed &&
             hasAutoUsername(currentUserProfile?.username || currentUserProfile?.handle) &&
             !sessionStorage.getItem('rada_claim_prompt_dismissed') && (
             <ClaimUsernamePrompt
