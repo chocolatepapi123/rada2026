@@ -250,11 +250,45 @@ export function businessRankMap(promos: ActivePromo[]): Map<string, number> {
   return out;
 }
 
-/** Stable: promoted businesses first in the chosen order, everyone else keeps their existing order. */
-export function sortByPromotion<T>(items: T[], businessIdOf: (x: T) => string | undefined, ranks: Map<string, number>): T[] {
+/**
+ * Order used by the offers lists: promoted businesses first, in the admin-chosen order (newest first within
+ * the same business); then every other item from latest to earliest. Nothing is hidden.
+ */
+export function sortByPromotion<T>(
+  items: T[],
+  businessIdOf: (x: T) => string | undefined,
+  ranks: Map<string, number>,
+  createdAtOf?: (x: T) => string | undefined
+): T[] {
+  const time = (x: T) => {
+    const t = createdAtOf ? Date.parse(createdAtOf(x) || '') : NaN;
+    return Number.isNaN(t) ? -Infinity : t;
+  };
+  return items
+    .map((x, i) => ({ x, i, r: ranks.get(String(businessIdOf(x) ?? '')) ?? Infinity, t: time(x) }))
+    .sort((a, b) => {
+      if (a.r !== b.r) return a.r - b.r;           // promoted first, in the chosen order
+      if (a.t !== b.t) return b.t - a.t;           // then latest to earliest
+      return a.i - b.i;                            // undated items keep their order
+    })
+    .map((o) => o.x);
+}
+
+/** Map of outing id -> rank for approved outing boosts, in the admin-chosen order. */
+export function outingRankMap(promos: ActivePromo[]): Map<string, number> {
+  const out = new Map<string, number>();
+  promos
+    .filter((p) => p.target_type === 'outing' && p.placement === 'event_boost')
+    .sort((a, b) => (a.slot_order ?? 1e9) - (b.slot_order ?? 1e9))
+    .forEach((p, i) => { if (!out.has(p.target_id)) out.set(p.target_id, i); });
+  return out;
+}
+
+/** Boosted outings first in the chosen order; the rest keep the order they already had. */
+export function sortOutingsByPromotion<T>(items: T[], idOf: (x: T) => string | number, ranks: Map<string, number>): T[] {
   if (ranks.size === 0) return items;
   return items
-    .map((x, i) => ({ x, i, r: ranks.get(String(businessIdOf(x) ?? '')) ?? Infinity }))
+    .map((x, i) => ({ x, i, r: ranks.get(String(idOf(x))) ?? Infinity }))
     .sort((a, b) => (a.r === b.r ? a.i - b.i : a.r - b.r))
     .map((o) => o.x);
 }
