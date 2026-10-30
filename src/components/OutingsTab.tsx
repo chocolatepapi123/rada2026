@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { OutingPlan, OutingAttendee, SpotItem, UserProfile } from '../types.ts';
 import { shareContent } from '../utils/shareUtils.ts';
+import OutingShareCard from './OutingShareCard';
 import { uploadCoverImage } from '../lib/cloudSync.ts';
 import { useUnclaimedSpots, mergeSpots, sortTrending } from '../lib/spotsFeed.ts';
 import { VerifiedBadge } from './VerifiedBadge.tsx';
@@ -343,7 +344,14 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   const buildOutingLink = (plan: OutingPlan) =>
     `${window.location.origin}/?tab=outings&outing=${encodeURIComponent(String(plan.id))}&ref=share`;
 
+  const [shareCardFor, setShareCardFor] = useState<OutingPlan | null>(null);
+
   const handleShareOutingLink = (plan: OutingPlan) => {
+    // Pro and Elite get a share card; Free keeps the plain link share
+    if (myPlan === 'pro' || myPlan === 'elite') {
+      setShareCardFor(plan);
+      return;
+    }
     track('share', 'outing', plan.id);
     const link = buildOutingLink(plan);
     shareContent({
@@ -2181,6 +2189,17 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
           </div>
         </div>
       )}
+      {shareCardFor && (myPlan === 'pro' || myPlan === 'elite') && (
+        <OutingShareCard
+          plan={shareCardFor}
+          tier={myPlan}
+          link={buildOutingLink(shareCardFor)}
+          onClose={() => setShareCardFor(null)}
+          onShared={() => track('share', 'outing', shareCardFor.id)}
+          showToast={showToast}
+        />
+      )}
+
       {upgradePrompt && (() => {
         const onPro = /\bpro\b/i.test(upgradePrompt.message);
         const next = onPro ? 'Elite' : 'Pro';

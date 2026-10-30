@@ -132,6 +132,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   const [recordSeconds, setRecordSeconds] = useState(0);
   const recordTimerRef = useRef<any>(null);
   const audioStreamRef = useRef<MediaStream | null>(null);
+  const [viewerPhoto, setViewerPhoto] = useState<string | null>(null);
   const audioRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<BlobPart[]>([]);
 
@@ -850,7 +851,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                     {msg.photos && msg.photos.length > 0 && (
                       <div className={`grid gap-1.5 mb-1.5 ${msg.photos.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
                         {msg.photos.map((photoUrl, pIdx) => (
-                          <div key={pIdx} className="rounded-xl overflow-hidden max-h-48 border border-black/10 dark:border-white/10 bg-black/10">
+                          <div key={pIdx} onClick={() => setViewerPhoto(photoUrl)} className="rounded-xl overflow-hidden max-h-48 border border-black/10 dark:border-white/10 bg-black/10 cursor-pointer">
                             <img src={photoUrl} alt={`Attachment ${pIdx + 1}`} className="w-full h-full object-cover" />
                           </div>
                         ))}
@@ -1679,6 +1680,21 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {viewerPhoto && (
+        <div className="fixed inset-0 z-[300] bg-black flex items-center justify-center" onClick={() => setViewerPhoto(null)} role="dialog" aria-modal="true">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setViewerPhoto(null); }}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/15 text-white text-lg font-bold flex items-center justify-center"
+            aria-label="Close photo"
+            style={{ marginTop: 'env(safe-area-inset-top, 0px)' }}
+          >
+            ✕
+          </button>
+          <img src={viewerPhoto} alt="Photo" onClick={(e) => e.stopPropagation()} className="max-w-full max-h-full object-contain" />
         </div>
       )}
     </section>

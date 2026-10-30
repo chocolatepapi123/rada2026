@@ -116,6 +116,37 @@ export const VideoMessagePlayer: React.FC<VideoMessagePlayerProps> = ({
     setShowFullModal(true);
   };
 
+  // Full-screen viewer shared by round video notes and normal videos
+  const fullModal = showFullModal && (
+    <div
+      className="fixed inset-0 z-[300] bg-black flex items-center justify-center"
+      onClick={() => setShowFullModal(false)}
+      role="dialog"
+      aria-modal="true"
+    >
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setShowFullModal(false); }}
+        className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/15 text-white flex items-center justify-center z-10"
+        aria-label="Close video"
+        style={{ marginTop: 'env(safe-area-inset-top, 0px)' }}
+      >
+        <X className="w-5 h-5" />
+      </button>
+      <video
+        ref={modalVideoRef}
+        src={videoUrl}
+        controls
+        autoPlay
+        playsInline
+        onClick={(e) => e.stopPropagation()}
+        className={isCircular
+          ? 'rounded-full object-cover border-4 border-[#E0533C] bg-black w-[min(80vw,380px)] h-[min(80vw,380px)]'
+          : 'max-w-full max-h-full bg-black'}
+      />
+    </div>
+  );
+
   // Circular video progress calculations
   const progressRatio = duration > 0 ? Math.min(1, currentTime / duration) : 0;
   const strokeDashoffset = 100 - progressRatio * 100;
@@ -163,9 +194,9 @@ export const VideoMessagePlayer: React.FC<VideoMessagePlayerProps> = ({
         )}
 
         <div
-          onClick={handleTogglePlay}
+          onClick={handleOpenFullscreen}
           className="relative w-32 h-32 sm:w-36 sm:h-36 rounded-full overflow-hidden border-4 border-[#E0533C] dark:border-[#D17A68] shadow-xl bg-black group select-none cursor-pointer"
-          title={isPlaying ? 'Pause video note' : 'Play video note'}
+          title="Open video"
         >
           {/* Real video tag */}
           <video
@@ -239,46 +270,7 @@ export const VideoMessagePlayer: React.FC<VideoMessagePlayerProps> = ({
 
         {time && <span className="text-[9px] opacity-70 mt-1">{time}</span>}
 
-        {/* Fullscreen Video Modal */}
-        {showFullModal && (
-          <div 
-            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4"
-            onClick={() => setShowFullModal(false)}
-          >
-            <div 
-              className="relative max-w-sm w-full bg-[#1C1A1E] rounded-3xl overflow-hidden border border-slate-800 shadow-2xl p-4 flex flex-col items-center space-y-3"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between w-full border-b border-slate-800 pb-2">
-                <span className="font-extrabold text-xs text-slate-200 flex items-center gap-1.5">
-                  <Film className="w-4 h-4 text-[#E0533C] dark:text-[#D17A68]" />
-                  <span>Circular Video Note</span>
-                </span>
-                <button
-                  onClick={() => setShowFullModal(false)}
-                  className="w-7 h-7 rounded-full bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center transition"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="w-64 h-64 rounded-full overflow-hidden border-4 border-[#E0533C] dark:border-[#D17A68] shadow-2xl bg-black relative">
-                <video
-                  ref={modalVideoRef}
-                  src={videoUrl}
-                  controls
-                  autoPlay
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
-              </div>
-
-              <div className="text-[11px] font-mono text-slate-400">
-                Duration: {formatMediaDuration(duration)}
-              </div>
-            </div>
-          </div>
-        )}
+        {fullModal}
       </div>
     );
   }
@@ -293,20 +285,32 @@ export const VideoMessagePlayer: React.FC<VideoMessagePlayerProps> = ({
         </div>
       )}
 
-      <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-black shadow-md aspect-video group">
+      <div
+        onClick={handleOpenFullscreen}
+        className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-black shadow-md aspect-video group cursor-pointer"
+        title="Open video"
+      >
         <video
           ref={videoRef}
           src={videoUrl}
           playsInline
-          controls
           preload="metadata"
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}
           onEnded={handleEnded}
           onError={handleError}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover pointer-events-none"
         />
+        <div className="absolute inset-0 flex items-center justify-center bg-black/25">
+          <div className="w-12 h-12 rounded-full bg-[#E0533C]/90 text-white flex items-center justify-center shadow-lg">
+            <Play className="w-6 h-6 ml-0.5" />
+          </div>
+        </div>
+        <div className="absolute bottom-1.5 right-2 bg-black/70 text-white text-[9px] font-mono font-bold px-2 py-0.5 rounded-full">
+          {formatMediaDuration(duration)}
+        </div>
       </div>
+      {fullModal}
 
       {time && (
         <span className="text-[9px] opacity-70 block text-right">
