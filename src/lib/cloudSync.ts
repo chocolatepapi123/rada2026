@@ -205,24 +205,31 @@ async function fetchBusinessesImpl(): Promise<BusinessAccount[] | null> {
   const list: BusinessAccount[] = [];
   const seenIds = new Set<string>();
   // 'rada_businesses' is the single source of truth for businesses.
+  // Everyone gets the public-safe view (no owner email, admin notes or billing amounts).
+  // Rows the signed-in user may see in full (their own business, or every business for an admin)
+  // come from the table itself and replace the public copy.
   try {
-    let res = await supabase
-      .from('rada_businesses')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const [pubRes, fullRes] = await Promise.all([
+      startQuery(supabase.from('rada_businesses_public').select('*').order('created_at', { ascending: false })),
+      startQuery(supabase.from('rada_businesses').select('*').order('created_at', { ascending: false })),
+    ]);
 
-    if (res.error) {
-      // Fallback in case created_at column does not exist
-      res = await supabase.from('rada_businesses').select('*');
+    const merged = new Map<string, any>();
+    if (!pubRes.error && Array.isArray(pubRes.data)) {
+      for (const row of pubRes.data) merged.set(String(row.id), row);
+    }
+    if (!fullRes.error && Array.isArray(fullRes.data)) {
+      for (const row of fullRes.data) merged.set(String(row.id), row);
+    }
+    if (pubRes.error && fullRes.error) {
+      console.warn('fetch businesses failed:', pubRes.error?.message || fullRes.error?.message);
     }
 
-    if (!res.error && res.data && res.data.length > 0) {
-      for (const row of res.data) {
-        const b = rowToBusiness(row);
-        if (!seenIds.has(b.id)) {
-          seenIds.add(b.id);
-          list.push(b);
-        }
+    for (const row of merged.values()) {
+      const b = rowToBusiness(row);
+      if (!seenIds.has(b.id)) {
+        seenIds.add(b.id);
+        list.push(b);
       }
     }
   } catch (err) {
