@@ -26,6 +26,7 @@ import type { OutingPlan } from '../types';
 import { VerifiedBadge } from './VerifiedBadge';
 import { TierBadge } from './BusinessBadge';
 import { SubscriptionPlans, TrialBanner } from './SubscriptionPlans';
+import PromotionsPanel from './PromotionsPanel';
 import {
   PLAN_META,
   fetchMyOutingUsage,
@@ -600,6 +601,14 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
               onOpenAuth={onOpenAuth}
               accountLabel={own.displayName || 'your account'}
             />
+            {mine.length > 0 && (
+              <div className="mt-6">
+                <PromotionsPanel
+                  audience="creator"
+                  targets={mine.map((o) => ({ type: 'outing' as const, id: String(o.id), title: `${o.spotTitle || 'Outing'} · ${o.date}` }))}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>

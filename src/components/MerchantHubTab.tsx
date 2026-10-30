@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Crown as PlanCrownIcon } from 'lucide-react';
 import { useMySubscriptions } from '../lib/subscriptions';
 import { SubscriptionPlans, TrialBanner } from './SubscriptionPlans';
+import PromotionsPanel from './PromotionsPanel';
+import { SPOT_CATEGORIES } from '../lib/spotCategories';
 import { 
   Store, 
   Ticket, 
@@ -4779,6 +4781,13 @@ isSpotFormOpen && (
               onOpenAuth={onOpenAuth}
               accountLabel={currentBiz.name}
             />
+            {!adminMode && ownedBusinesses.length > 0 && (
+              <PromotionsPanel
+                audience="merchant"
+                categories={SPOT_CATEGORIES.map((c) => ({ id: c.id, label: c.label }))}
+                targets={ownedBusinesses.map((b) => ({ type: 'business' as const, id: b.id, title: b.name, zone: b.neighborhood }))}
+              />
+            )}
           </div>
         )}
 

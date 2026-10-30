@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AlertCircle, Check, ChevronDown, Clock, Crown, Loader2, Mail, Minus, RefreshCw, Sparkles } from 'lucide-react';
 import {
   PLAN_FEATURES,
@@ -14,6 +14,8 @@ import {
   type SubKind,
   type SubscriptionRecord,
 } from '../lib/subscriptions';
+import { fetchPlanPrices, type PlanPrice } from '../lib/payments';
+import PayWithMpesaSheet from './PayWithMpesaSheet';
 
 // ---------------------------------------------------------------------------
 // shared look
@@ -185,6 +187,16 @@ export const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({
   onOpenAuth,
 }) => {
   const [showMatrix, setShowMatrix] = useState(false);
+  const [prices, setPrices] = useState<PlanPrice[]>([]);
+  const [paying, setPaying] = useState<PlanPrice | null>(null);
+  useEffect(() => {
+    let live = true;
+    fetchPlanPrices().then((p) => live && setPrices(p)).catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
+  const priceFor = (plan: PlanId) => prices.find((p) => p.kind === kind && p.plan === plan) || null;
   const current: PlanId = record?.effective_plan || 'free';
   const features = PLAN_FEATURES[kind];
   const kindLabel = kind === 'creator' ? 'Creator' : 'Merchant';
@@ -316,7 +328,27 @@ export const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({
                 })}
               </ul>
 
-              {higher && (
+              {priceFor(plan) && (
+                <p className="mt-5 text-[13px] text-slate-500 dark:text-slate-400">
+                  <span className="text-xl font-black text-slate-900 dark:text-white">KES {priceFor(plan)!.amount_kes!.toLocaleString('en-KE')}</span>
+                  {' '}for {priceFor(plan)!.period_days} days
+                </p>
+              )}
+
+              {higher && priceFor(plan) && (
+                <button
+                  type="button"
+                  onClick={() => setPaying(priceFor(plan))}
+                  className={`mt-4 w-full py-3.5 rounded-2xl text-[13px] font-black flex items-center justify-center gap-2 transition cursor-pointer ${
+                    plan === 'elite'
+                      ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-amber-950 hover:brightness-95'
+                      : 'bg-[#E0533C] hover:bg-orange-700 text-white'
+                  }`}
+                >
+                  <span>Pay with M-Pesa</span>
+                </button>
+              )}
+              {higher && !priceFor(plan) && (
                 <a
                   href={requestHref(plan)}
                   className={`mt-6 w-full py-3.5 rounded-2xl text-[13px] font-black flex items-center justify-center gap-2 transition ${
@@ -333,7 +365,7 @@ export const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({
           );
         })}
         <p className="text-[12px] text-slate-500 dark:text-slate-400 leading-relaxed px-1">
-          Plans are set up by the RADA team. Send a request and we&apos;ll switch your account over.
+          Pay with M-Pesa and your plan switches on straight away. Plans without a price are set up by the RADA team: send a request and we&apos;ll switch your account over.
         </p>
       </div>
 
@@ -379,6 +411,16 @@ export const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({
           </div>
         )}
       </div>
+      {paying && (
+        <PayWithMpesaSheet
+          kind={kind}
+          plan={paying.plan}
+          amountKes={paying.amount_kes!}
+          periodDays={paying.period_days}
+          onClose={() => setPaying(null)}
+          onPaid={() => onRefresh?.()}
+        />
+      )}
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   X, 
   MapPin, 
@@ -27,6 +27,7 @@ import {
 import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
 import { isBusinessApproved, PublicTierBadges } from './BusinessBadge.tsx';
 import { usePublicTiers } from '../lib/subscriptions';
+import { track } from '../lib/tracking';
 
 import { shareContent } from '../utils/shareUtils.ts';
 import { getSpotCategoryAccent } from '../lib/spotAccents.ts';
@@ -58,6 +59,10 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
  const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
   // Public tier of the business owner (Business / Golden Featured). Hook runs before the early return.
   const ownerTiers = usePublicTiers([business?.ownerId]);
+  // One 'view' per business per session (de-duplicated inside track()).
+  useEffect(() => {
+    if (business?.id) track('view', 'business', business.id);
+  }, [business?.id]);
   if (!business) return null;
 
   // Filter offers for this business
@@ -163,6 +168,7 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
             {business.whatsapp && (
               <a
                 href={`https://wa.me/${business.whatsapp.replace(/[^0-9]/g, '')}`}
+                onClick={() => track('whatsapp', 'business', business.id)}
                 target="_blank"
                 rel="noreferrer"
                 className="p-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 rounded-xl text-center text-xs font-bold flex items-center justify-center gap-1.5 transition"
@@ -175,6 +181,7 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
             {business.phone && (
               <a
                 href={`tel:${business.phone}`}
+                onClick={() => track('call', 'business', business.id)}
                 className="p-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-center text-xs font-bold flex items-center justify-center gap-1.5 transition"
               >
                 <Phone className="w-3.5 h-3.5" />
@@ -185,6 +192,7 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
             {business.instagram && (
               <a
                 href={`https://instagram.com/${business.instagram.replace('@', '')}`}
+                onClick={() => track('website', 'business', business.id)}
                 target="_blank"
                 rel="noreferrer"
                 className="p-2.5 bg-pink-500/10 hover:bg-pink-500/20 text-pink-700 dark:text-pink-400 border border-pink-500/30 rounded-xl text-center text-xs font-bold flex items-center justify-center gap-1.5 transition truncate"
