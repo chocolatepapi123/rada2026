@@ -165,18 +165,8 @@ export function nextStartDate(dow: number | null): string {
 }
 
 
-/** Owner pays for an APPROVED promotion. Placeholder: the M-Pesa side is connected later. */
-export async function startPromoPayment(promotionId: string, phone: string): Promise<void> {
-  const { data, error } = await supabase.functions.invoke('mpesa-stk-push', {
-    body: { kind: 'promotion', promotion_id: promotionId, phone },
-  });
-  if (error) {
-    let msg = '';
-    try { msg = (await (error as any).context?.json?.())?.error || ''; } catch { /* ignore */ }
-    throw new Error(msg || 'Payments are not switched on yet.');
-  }
-  if ((data as any)?.error) throw new Error((data as any).error);
-}
+/** Owner pays for an APPROVED promotion via M-Pesa (see startPromotionPayment in payments.ts). */
+export { startPromotionPayment as startPromoPayment } from './payments';
 
 // ---------------------------------------------------------------------------
 // Admin
@@ -289,6 +279,43 @@ export function sortOutingsByPromotion<T>(items: T[], idOf: (x: T) => string | n
   if (ranks.size === 0) return items;
   return items
     .map((x, i) => ({ x, i, r: ranks.get(String(idOf(x))) ?? Infinity }))
+    .sort((a, b) => (a.r === b.r ? a.i - b.i : a.r - b.r))
+    .map((o) => o.x);
+}
+
+/** Make ids from claims and from the feed comparable ('unclaimed-123' and '123' are the same spot). */
+const cleanSpotId = (id: unknown) => String(id ?? '').replace(/^unclaimed-/, '').replace(/^scraped-/, '');
+
+/**
+ * Spots tab category slots: inside one category, spots whose business (or claimed spot) holds an active
+ * "Spots tab category slot" for that category come first, in the admin-chosen order. Everything else keeps
+ * the order it already had. No labels are added anywhere.
+ */
+export function sortSpotsByCategoryPromotion<T extends { id?: string | number; businessId?: string | number | null }>(
+  items: T[],
+  categoryId: string,
+  promos: ActivePromo[]
+): T[] {
+  const cat = (categoryId || '').toLowerCase();
+  const mine = promos
+    .filter((p) => p.placement === 'spots_category' && (!p.category || p.category.toLowerCase() === cat))
+    .sort((a, b) => (a.slot_order ?? 1e9) - (b.slot_order ?? 1e9));
+  if (mine.length === 0 || items.length === 0) return items;
+
+  const byBusiness = new Map<string, number>();
+  const bySpot = new Map<string, number>();
+  mine.forEach((p, i) => {
+    if (p.target_type === 'business' && !byBusiness.has(String(p.target_id))) byBusiness.set(String(p.target_id), i);
+    if (p.target_type === 'spot' && !bySpot.has(cleanSpotId(p.target_id))) bySpot.set(cleanSpotId(p.target_id), i);
+  });
+
+  const rankOf = (x: T) => {
+    const a = x.businessId != null ? byBusiness.get(String(x.businessId)) : undefined;
+    const b = bySpot.get(cleanSpotId(x.id));
+    return Math.min(a ?? Infinity, b ?? Infinity);
+  };
+  return items
+    .map((x, i) => ({ x, i, r: rankOf(x) }))
     .sort((a, b) => (a.r === b.r ? a.i - b.i : a.r - b.r))
     .map((o) => o.x);
 }

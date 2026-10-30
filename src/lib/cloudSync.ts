@@ -1804,7 +1804,17 @@ export async function fetchOutings(): Promise<OutingPlan[] | null> {
   return null;
 }
 
-export async function createOuting(rawOuting: OutingPlan): Promise<{ error: string | null; data?: OutingPlan }> {
+/** Thrown when the server refuses a new outing because of the host's plan (monthly count or attendee cap). */
+export class OutingLimitError extends Error {
+  kind: 'outing_limit' | 'attendee_cap';
+  constructor(kind: 'outing_limit' | 'attendee_cap', message: string) {
+    super(message);
+    this.name = 'OutingLimitError';
+    this.kind = kind;
+  }
+}
+
+export async function createOuting(rawOuting: OutingPlan): Promise<{ error: string | null; data?: OutingPlan; limit?: 'outing_limit' | 'attendee_cap' }> {
   const hostH = toHandle(rawOuting.hostHandle);
   const outing: OutingPlan = { ...rawOuting, hostHandle: hostH, hostName: hostH };
   try {
@@ -1852,7 +1862,12 @@ export async function createOuting(rawOuting: OutingPlan): Promise<{ error: stri
           localStorage.setItem(OUTINGS_LOCAL_KEY, JSON.stringify(listNow.filter(o => o.id !== outing.id)));
         }
       } catch (e) {}
-      return { error: error.message, data: outing };
+      const hint = String((error as any).hint || '');
+      const limit: 'outing_limit' | 'attendee_cap' | undefined =
+        hint === 'outing_limit' || /reached your \d+ outings/i.test(error.message) ? 'outing_limit'
+        : hint === 'attendee_cap' || /allows up to \d+ attendees/i.test(error.message) ? 'attendee_cap'
+        : undefined;
+      return { error: error.message, data: outing, limit };
     }
     return { error: null, data: outing };
   } catch (err: any) {

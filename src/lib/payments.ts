@@ -31,14 +31,10 @@ export function normalizeKenyanPhone(input: string): string | null {
   return m ? `254${m[1]}` : null;
 }
 
-export async function startPlanPayment(kind: SubKind, plan: Exclude<PlanId, 'free'>, phone: string): Promise<StkStarted> {
-  if (!isSupabaseConfigured) throw new Error('Payments need a connection to RADA. Try again online.');
-  const normalized = normalizeKenyanPhone(phone);
-  if (!normalized) throw new Error('Enter a valid Safaricom number, like 0712 345 678.');
+export type BillingPeriod = 'weekly' | 'monthly';
 
-  const { data, error } = await supabase.functions.invoke('mpesa-stk-push', {
-    body: { kind, plan, phone: normalized },
-  });
+async function invokeStk(body: Record<string, unknown>): Promise<StkStarted> {
+  const { data, error } = await supabase.functions.invoke('mpesa-stk-push', { body });
   if (error) {
     // supabase-js hides the JSON body of non-2xx replies inside error.context
     let msg = '';
@@ -52,6 +48,26 @@ export async function startPlanPayment(kind: SubKind, plan: Exclude<PlanId, 'fre
   }
   if (!data?.payment_id) throw new Error((data as any)?.error || 'We could not start the payment. Please try again.');
   return data as StkStarted;
+}
+
+export async function startPlanPayment(
+  kind: SubKind,
+  plan: Exclude<PlanId, 'free'>,
+  phone: string,
+  period: BillingPeriod = 'monthly'
+): Promise<StkStarted> {
+  if (!isSupabaseConfigured) throw new Error('Payments need a connection to RADA. Try again online.');
+  const normalized = normalizeKenyanPhone(phone);
+  if (!normalized) throw new Error('Enter a valid Safaricom number, like 0712 345 678.');
+  return invokeStk({ kind, plan, period, phone: normalized });
+}
+
+/** Pay for an APPROVED promotion. The amount comes from the promotion row on the server. */
+export async function startPromotionPayment(promotionId: string, phone: string): Promise<StkStarted> {
+  if (!isSupabaseConfigured) throw new Error('Payments need a connection to RADA. Try again online.');
+  const normalized = normalizeKenyanPhone(phone);
+  if (!normalized) throw new Error('Enter a valid Safaricom number, like 0712 345 678.');
+  return invokeStk({ kind: 'promotion', promotion_id: promotionId, phone: normalized });
 }
 
 export async function fetchPayment(id: string): Promise<PaymentRow | null> {
@@ -83,6 +99,7 @@ export async function waitForPayment(
 export interface PlanPrice {
   kind: SubKind;
   plan: 'pro' | 'elite';
+  billing_period: BillingPeriod;
   period_days: number;
   amount_kes: number | null;
   active: boolean;
@@ -91,7 +108,7 @@ export interface PlanPrice {
 /** Public, active plan prices. A plan that is missing here (e.g. Merchant Elite) cannot be bought yet. */
 export async function fetchPlanPrices(): Promise<PlanPrice[]> {
   if (!isSupabaseConfigured) return [];
-  const { data, error } = await supabase.from('payment_plans').select('kind,plan,period_days,amount_kes,active');
+  const { data, error } = await supabase.from('payment_plans').select('kind,plan,billing_period,period_days,amount_kes,active');
   if (error) return [];
   return ((data as PlanPrice[]) || []).filter((p) => p.active && p.amount_kes);
 }
