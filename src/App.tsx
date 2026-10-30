@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { track } from './lib/tracking';
 import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import { ClaimUsernamePrompt, hasAutoUsername } from './components/ClaimUsernamePrompt';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
@@ -861,6 +862,10 @@ export default function App() {
   };
 
   const handleToggleSave = (item: any, kind: 'spot' | 'event' | 'offer' | 'thrift') => {
+    // Analytics: count a new save (not an un-save) for spots and events.
+    if ((kind === 'spot' || kind === 'event') && !savedItems.some(s => String(s.id) === String(item.id) && s.kind === kind)) {
+      track('save', kind, item.id);
+    }
     setSavedItems(prev => {
       const exists = prev.some(s => String(s.id) === String(item.id) && s.kind === kind);
       let updated: SavedItem[];
