@@ -32,6 +32,7 @@ import {
 import { OutingPlan, OutingAttendee, SpotItem, UserProfile } from '../types.ts';
 import { shareContent } from '../utils/shareUtils.ts';
 import { uploadCoverImage } from '../lib/cloudSync.ts';
+import { useUnclaimedSpots, mergeSpots, sortTrending } from '../lib/spotsFeed.ts';
 import { VerifiedBadge } from './VerifiedBadge.tsx';
 import {
   PLAN_META,
@@ -295,7 +296,7 @@ interface OutingsTabProps {
 
 export const OutingsTab: React.FC<OutingsTabProps> = ({
   outings,
-  spots,
+  spots: spotsProp,
   currentUserProfile,
   currentUserId,
   isUserSignedIn,
@@ -307,6 +308,10 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   onOpenSpotDetails,
   showToast
 }) => {
+  // The parent only passes merchant/user spots. Merge in the full catalog so the Host picker shows every spot.
+  const { spots: catalogSpots } = useUnclaimedSpots();
+  const spots = useMemo(() => mergeSpots(spotsProp || [], catalogSpots), [spotsProp, catalogSpots]);
+
   const [selectedLocation, setSelectedLocation] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [accessTypeFilter, setAccessTypeFilter] = useState<'All Plans' | 'Open Plans' | 'Singles Only'>('All Plans');
@@ -401,7 +406,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
 
   // Form state for Hosting a Plan (Catalog Spot vs Custom Spot / Venue)
   const [venueMode, setVenueMode] = useState<'catalog' | 'custom'>('catalog');
-  const [selectedSpotId, setSelectedSpotId] = useState<number | null>(spots[0]?.id || null);
+  const [selectedSpotId, setSelectedSpotId] = useState<string | number | null>(spots[0]?.id ?? null);
   const [spotSearchQuery, setSpotSearchQuery] = useState('');
   const [customSpotTitle, setCustomSpotTitle] = useState('');
   const [customSpotAddress, setCustomSpotAddress] = useState('');
@@ -543,12 +548,13 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
 
   // Spots search inside Host modal
   const filteredSpotsForHosting = useMemo(() => {
-    if (!spotSearchQuery.trim()) return spots.slice(0, 10);
+    if (!spotSearchQuery.trim()) return sortTrending(spots).slice(0, 10);
     const q = spotSearchQuery.toLowerCase();
     return spots.filter(s => 
-      s.title.toLowerCase().includes(q) || 
-      s.neighborhood.toLowerCase().includes(q) || 
-      s.category.toLowerCase().includes(q)
+      (s.title || '').toLowerCase().includes(q) || 
+      (s.neighborhood || '').toLowerCase().includes(q) || 
+      (s.address || '').toLowerCase().includes(q) || 
+      (s.category || '').toLowerCase().includes(q)
     ).slice(0, 10);
   }, [spots, spotSearchQuery]);
 
