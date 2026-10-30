@@ -215,7 +215,7 @@ export async function sendMessage(
   return { row: data, error: null };
 }
 
-/** Upload a recorded/picked file to the rada-media bucket and return its public URL. */
+/** Upload a recorded/picked file (photo, voice note, video) to the chat-media bucket and return its public URL. */
 export async function uploadChatMedia(
   myId: string,
   blobOrFile: Blob,
@@ -224,11 +224,13 @@ export async function uploadChatMedia(
   if (!isCloudReady()) return { url: null, error: 'Not connected' };
   const safeExt = (ext || 'bin').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'bin';
   const path = `${myId}/chat/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${safeExt}`;
+  // Recorders label files like "audio/webm;codecs=opus"; the bucket checks the plain type
+  const plainType = (blobOrFile.type || '').split(';')[0].trim() || undefined;
   const { error } = await supabase.storage
-    .from('rada-media')
-    .upload(path, blobOrFile, { contentType: blobOrFile.type || undefined, upsert: false });
+    .from('chat-media')
+    .upload(path, blobOrFile, { contentType: plainType, upsert: false });
   if (error) return { url: null, error: error.message };
-  const { data } = supabase.storage.from('rada-media').getPublicUrl(path);
+  const { data } = supabase.storage.from('chat-media').getPublicUrl(path);
   return { url: data.publicUrl, error: null };
 }
 
