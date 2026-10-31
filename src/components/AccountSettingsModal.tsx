@@ -20,6 +20,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { UserProfile, OutingPlan } from '../types';
 import { CreatorHubTab } from './CreatorHubTab';
+import { AccountSwitcher } from './AccountSwitcher';
 import {
   AvatarHero,
   IdentityFields,
@@ -349,6 +350,14 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
                 />
               </div>
               </Section>
+
+              {isLoggedIn && onOpenAuth && (
+                <AccountSwitcher
+                  currentUserId={session?.user?.id}
+                  showToast={showToast}
+                  onAddAccount={() => { onClose(); onOpenAuth(); }}
+                />
+              )}
 
               {isLoggedIn && onSignOut && (
                 <div className="mx-3 mt-6">

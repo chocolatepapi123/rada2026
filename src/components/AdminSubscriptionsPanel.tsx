@@ -1,3 +1,4 @@
+import { isOfficialAdmin } from '../types.ts';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CalendarPlus, Check, ChevronRight, Crown, Loader2, RefreshCw, Search, Sparkles, X } from 'lucide-react';
 import {
@@ -498,7 +499,7 @@ export const AdminSubscriptionsPanel: React.FC<{ toast: (m: string, options?: To
     setError(null);
     const mapped = (data || []).map((u) => {
       const email = (u.email || '').toLowerCase().trim();
-      if (email === 'lowkeywayne21@gmail.com' || email.includes('admin')) {
+      if (isOfficialAdmin(email)) {
         return {
           ...u,
           creator: createPermanentEliteRecord('creator', u.user_id),
@@ -508,20 +509,6 @@ export const AdminSubscriptionsPanel: React.FC<{ toast: (m: string, options?: To
       return u;
     });
 
-    const hasAdmin = mapped.some((u) => (u.email || '').toLowerCase().trim() === 'lowkeywayne21@gmail.com');
-    if (!hasAdmin) {
-      mapped.unshift({
-        user_id: 'rada-admin-primary',
-        email: 'lowkeywayne21@gmail.com',
-        username: 'admin',
-        display_name: 'Administrator',
-        avatar_url: '',
-        is_creator: true,
-        businesses: ['RADA HQ'],
-        creator: createPermanentEliteRecord('creator', 'rada-admin-primary'),
-        merchant: createPermanentEliteRecord('merchant', 'rada-admin-primary'),
-      });
-    }
 
     setUsers(mapped);
   }, [debounced]);

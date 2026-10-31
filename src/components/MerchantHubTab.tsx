@@ -1,3 +1,5 @@
+import { getDemoPersona } from '../lib/demoMode';
+import { demoMerchantInsights } from '../lib/demoPersonas';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Crown as PlanCrownIcon } from 'lucide-react';
 import { useMySubscriptions } from '../lib/subscriptions';
@@ -478,6 +480,12 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
 
   const fetchAnalytics = useCallback(async (manual = false) => {
     if (manual) setIsRefreshing(true);
+
+    if (getDemoPersona() === 'merchant') {
+      setData(demoMerchantInsights() as MerchantAnalyticsData);
+      setIsRefreshing(false);
+      return;
+    }
 
     try {
       const effectiveUid = 
