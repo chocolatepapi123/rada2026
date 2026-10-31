@@ -87,7 +87,7 @@ export const PLAN_FEATURES: Record<SubKind, FeatureRow[]> = {
     { label: 'Profile badge', hint: 'Shown on your public profile', free: false, pro: 'Creator', elite: 'Golden Creator' },
     { label: 'Profile personalization', free: 'Standard', pro: 'Expanded', elite: 'Advanced layouts' },
     { label: 'Analytics', hint: 'Estimates from available platform data', free: 'Basic view counts', pro: 'Profile views & link clicks', elite: 'Expanded suite' },
-    { label: 'Broadcasts', hint: 'Subject to consent, permissions and delivery settings', free: false, pro: 'To subscribed users', elite: 'To push-enabled users' },
+    { label: 'Broadcasts', hint: 'Only to people who opted in to your updates', free: false, pro: 'In-app, 2 a week', elite: 'In-app, 2 a day' },
     { label: 'Media', free: 'Photos', pro: 'Photos & video', elite: 'Photos & video' },
   ],
   merchant: [
