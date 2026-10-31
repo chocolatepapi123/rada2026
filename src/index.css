@@ -140,3 +140,31 @@ body::after {
 @media (prefers-color-scheme: dark) {
   body::after { background: #121113; }
 }
+
+
+/* Bottom navigation: coloured by the PHONE's light/dark setting (prefers-color-scheme), never the in-app theme toggle.
+   Everything else in the app keeps following the in-app toggle. */
+.rada-nav {
+  background: #FFFFFF;
+  border-color: #E2E8F0;
+  color-scheme: light;
+}
+.rada-nav-btn-idle { color: #94A3B8; }
+.rada-nav-btn-idle:hover { color: #1E293B; }
+.rada-nav-btn-active { color: #B83D26; }
+.rada-nav-dot { background: #B83D26; }
+@media (min-width: 900px) {
+  .rada-nav-btn-idle:hover { background: #F1F5F9; }
+  .rada-nav-btn-active { background: rgba(184, 61, 38, 0.1); }
+}
+@media (prefers-color-scheme: dark) {
+  .rada-nav { background: #121113; border-color: rgba(30, 41, 59, 0.8); color-scheme: dark; }
+  .rada-nav-btn-idle { color: #94A3B8; }
+  .rada-nav-btn-idle:hover { color: #E2E8F0; }
+  .rada-nav-btn-active { color: #E0533C; }
+  .rada-nav-dot { background: #E0533C; }
+}
+@media (min-width: 900px) and (prefers-color-scheme: dark) {
+  .rada-nav-btn-idle:hover { background: rgba(30, 41, 59, 0.6); }
+  .rada-nav-btn-active { background: rgba(224, 83, 60, 0.15); }
+}

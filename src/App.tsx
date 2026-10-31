@@ -2925,6 +2925,7 @@ export default function App() {
               onSignOut={handleSignOut}
               onProfileChange={handleOwnProfileChange}
               outings={allOutings}
+              myBusinesses={session?.user?.id ? businesses.filter(b => b.ownerId === session.user.id && !isDemoId(b.id)) : []}
             />
           )}
 
