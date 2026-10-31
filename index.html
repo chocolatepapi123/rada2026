@@ -28,6 +28,14 @@
 <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
 <meta name="theme-color" content="#121113" media="(prefers-color-scheme: dark)" />
 <script>
+  /* App theme: light unless the person chose dark. Set before first paint so there is no dark flash.
+     The phone bars are NOT affected; they follow the theme-color tags above. */
+  try {
+    var dark = localStorage.getItem('rada_theme') === 'dark';
+    document.documentElement.classList.add(dark ? 'dark' : 'light');
+  } catch (e) { document.documentElement.classList.add('light'); }
+</script>
+<script>
   /* Low-memory / data-saver phones get a lighter look (no blur effects), set before first paint. */
   try {
     var n = navigator, c = n.connection || {};
