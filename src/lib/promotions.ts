@@ -5,6 +5,7 @@
  */
 import { useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured } from './supabase';
+import { listingUuid } from './cloudSync';
 
 export type PromoPlacement = 'spotlight' | 'home_top10' | 'home_11_20' | 'event_boost' | 'spots_category';
 export type PromoTargetType = 'business' | 'spot' | 'listing' | 'outing';
@@ -234,6 +235,22 @@ const PLACEMENT_TIER: Record<PromoPlacement, number> = { home_top10: 0, home_11_
 export function businessRankMap(promos: ActivePromo[]): Map<string, number> {
   const sorted = promos
     .filter((p) => p.target_type === 'business' && p.placement !== 'event_boost' && p.placement !== 'spots_category')
+    .sort((a, b) => PLACEMENT_TIER[a.placement] - PLACEMENT_TIER[b.placement] || (a.slot_order ?? 1e9) - (b.slot_order ?? 1e9));
+  const out = new Map<string, number>();
+  sorted.forEach((p, i) => { if (!out.has(p.target_id)) out.set(p.target_id, i); });
+  return out;
+}
+
+/** Packs that boost ONE promo (offer) on the Home feed. Matches request_promotion() in Postgres. */
+export const PROMO_BOOST_PLACEMENTS: PromoPlacement[] = ['home_top10', 'home_11_20', 'spotlight'];
+
+/** The id a promo (offer) has on the server, and what a boost stores as its target. */
+export const offerPromoKey = (offerId: string | number): string => listingUuid('offer', offerId);
+
+/** Map of promo (offer) server id -> rank (lower = earlier). Only boosts aimed at a single promo count. */
+export function offerRankMap(promos: ActivePromo[]): Map<string, number> {
+  const sorted = promos
+    .filter((p) => p.target_type === 'listing' && PROMO_BOOST_PLACEMENTS.includes(p.placement))
     .sort((a, b) => PLACEMENT_TIER[a.placement] - PLACEMENT_TIER[b.placement] || (a.slot_order ?? 1e9) - (b.slot_order ?? 1e9));
   const out = new Map<string, number>();
   sorted.forEach((p, i) => { if (!out.has(p.target_id)) out.set(p.target_id, i); });
