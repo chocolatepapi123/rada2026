@@ -83,15 +83,29 @@ const lazyNamed = (loader: () => Promise<any>, name: string): React.ComponentTyp
       })
   );
 
-// Warm the main tab chunks right after first paint so tapping a tab is instant.
-const TAB_PREFETCH: Array<() => Promise<any>> = [
-  () => import('./components/MerchantHubTab.tsx'),
-];
+// One loader per tab. The lazy() components below and the prefetcher use the SAME import specifiers,
+// so a prefetched chunk is reused (never downloaded twice) and the first tap renders instantly.
+const TAB_LOADERS: Record<string, () => Promise<any>> = {
+  spots: () => import('./components/SpotsTab.tsx'),
+  outings: () => import('./components/OutingsTab.tsx'),
+  plans: () => import('./components/OutingsTab.tsx'),
+  socials: () => import('./components/SocialsTab.tsx'),
+  vault: () => import('./components/VaultTab.tsx'),
+  calendar: () => import('./components/LukuEventsTab.tsx'),
+  merchant: () => import('./components/MerchantHubTab.tsx'),
+};
+const prefetchTab = (id: string) => { TAB_LOADERS[id]?.().catch(() => {}); };
+
+// Warm every main tab chunk shortly after first paint. Only skip when the person turned on Data Saver;
+// low-end phones need this MOST, so they still get it (just spaced out more).
 if (typeof window !== 'undefined') {
   const warmTabs = () => {
     const c: any = (navigator as any).connection || {};
-    if (document.documentElement.classList.contains('low-end') || c.saveData) return;
-    TAB_PREFETCH.forEach((load, i) => setTimeout(() => load().catch(() => {}), i * 400));
+    if (c.saveData) return;
+    const gap = document.documentElement.classList.contains('low-end') ? 900 : 400;
+    ['spots', 'outings', 'socials', 'vault', 'merchant'].forEach((id, i) =>
+      setTimeout(() => prefetchTab(id), i * gap)
+    );
   };
   const kick = () => {
     const ric = (window as any).requestIdleCallback;
@@ -2548,7 +2562,7 @@ export default function App() {
           {/* Main Content Viewports */}
           <main className="flex-1 pb-24 min-[900px]:pb-10 max-w-lg min-[900px]:max-w-none mx-auto w-full relative px-0 min-[900px]:pl-60">
             <div className="w-full min-[900px]:max-w-5xl min-[900px]:mx-auto min-[900px]:px-8 min-[900px]:py-6">
-            <ErrorBoundary fallbackTitle="Resuming View">
+            <ErrorBoundary key={activeTab} fallbackTitle="Resuming View">
             <Suspense fallback={<TabFallback />}>
             {activeTab === 'home' && (
               <HomeTab
@@ -2720,6 +2734,7 @@ export default function App() {
           {/* Bottom Sticky Navigation */}
           <Navigation
             activeTab={activeTab}
+            onPrefetchTab={prefetchTab}
             onTabChange={(tab) => {
               if (tab === 'merchant') {
                 requireAuth('access the Merchant Hub', () => {
