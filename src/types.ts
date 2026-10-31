@@ -1,6 +1,8 @@
 /** Platform owner. UI gate only: real enforcement must live in Supabase RLS / RPCs (see admin_migration.sql). */
 export const ADMIN_EMAIL = 'hello.rada.app@gmail.com';
 export const OFFICIAL_ADMIN_EMAIL = 'hello.rada.app@gmail.com';
+/** The only two admin accounts. UI gate only; the database enforces the same list (account_grants). */
+export const ADMIN_EMAILS: string[] = ['hello.rada.app@gmail.com', 'waynewaweruwaititu@gmail.com'];
 
 export type UserRole = 'user' | 'merchant' | 'admin';
 
@@ -10,7 +12,7 @@ export function isOfficialAdmin(userOrEmail?: { email?: string | null } | string
   const email = typeof userOrEmail === 'string' ? userOrEmail : userOrEmail.email;
   if (!email) return false;
   const emailLower = email.trim().toLowerCase();
-  return emailLower === OFFICIAL_ADMIN_EMAIL || emailLower === 'lowkeywayne21@gmail.com' || emailLower === 'prodbywayne@gmail.com';
+  return ADMIN_EMAILS.includes(emailLower);
 }
 
 /** Configurable granular limits and permissions for delegated sub-admins. */

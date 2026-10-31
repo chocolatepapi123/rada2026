@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { rememberSession, forgetAccount } from './lib/accounts';
 import { track } from './lib/tracking';
 import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import { ClaimUsernamePrompt, hasAutoUsername } from './components/ClaimUsernamePrompt';
@@ -32,7 +33,8 @@ import { fetchCinemaShowings, CINEMA_UPDATED_EVENT } from './lib/cinema.ts';
 import { fetchSeededCinema } from './lib/cinemaDb.ts';
 import { readJSON, writeJSON, writeJSONDebounced, purgeSeedData } from './lib/storage.ts';
 import { useSocialsCloud } from './lib/useSocialsCloud.ts';
-import { isDemoMode, isDemoId } from './lib/demoMode.ts';
+import { isDemoMode, isDemoId, setDemoAccountEmail, getDemoPersona } from './lib/demoMode.ts';
+import { demoMerchantBusinesses, demoMerchantOffers, demoPastOutings, demoPersonaStatuses } from './lib/demoPersonas.ts';
 import { buildDemoOutings } from './data/demoData.ts';
 import { useUnclaimedSpots, mergeSpots, evictUnclaimedSpot } from './lib/spotsFeed.ts';
 import { resolveNearestNeighborhood } from './lib/geo.ts';
@@ -174,7 +176,8 @@ import {
   OutingPlan,
   OutingAttendee,
   SpotClaimRequest,
-  isPlatformAdmin
+  isPlatformAdmin,
+  isOfficialAdmin
 } from './types.ts';
 
 
@@ -238,6 +241,8 @@ const stripMockSpots = <T,>(list: T[]): T[] => list.filter(s => !isLegacyMockSpo
 
 export default function App() {
   const [session, setSession] = useState<any>(null);
+  // Demo accounts (see lib/demoPersonas.ts) open in Demo Mode automatically. Must run before anything reads isDemoMode().
+  setDemoAccountEmail(session?.user?.email);
   const [authLoading, setAuthLoading] = useState(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isGuestMode, setIsGuestMode] = useState<boolean>(false);
@@ -306,6 +311,7 @@ export default function App() {
             }
           }
           setSession(session);
+          if (session) rememberSession(session);
           setAuthLoading(false);
           if (!session) {
             setIsAuthModalOpen(true);
@@ -331,6 +337,7 @@ export default function App() {
             if (!mounted) return;
             setSession(session);
             if (session) {
+              rememberSession(session);
               setIsGuestMode(false);
               setIsAuthModalOpen(false);
             }
@@ -361,7 +368,7 @@ export default function App() {
     const loadUserRole = async () => {
       const userMetaRole = session.user.user_metadata?.role;
       const emailLower = (session.user.email || '').toLowerCase().trim();
-      const isAdminEmail = emailLower.includes('admin') || emailLower === 'lowkeywayne21@gmail.com';
+      const isAdminEmail = isOfficialAdmin(emailLower);
 
       const { data, error } = await supabase
         .from('profiles')
@@ -419,6 +426,7 @@ export default function App() {
 
   const handleSignOut = async () => {
     try {
+      if (session?.user?.id) forgetAccount(session.user.id);
       if (isSupabaseConfigured && supabase?.auth) {
         await supabase.auth.signOut().catch(() => {});
       }
@@ -668,7 +676,7 @@ export default function App() {
   const [demoOutings, setDemoOutings] = useState<OutingPlan[]>([]);
   const allOutings = useMemo(
     () => (isDemoMode() ? [...demoOutings, ...outings.filter(o => !isDemoId(o.id))] : outings),
-    [demoOutings, outings]
+    [demoOutings, outings, session?.user?.email]
   );
 
   // Spot Ownership Claims & Verification Requests
@@ -1115,7 +1123,7 @@ export default function App() {
 
   // Sync state to localStorage
   useEffect(() => {
-    writeJSONDebounced('rada_businesses', businesses, { stripImages: true });
+    writeJSONDebounced('rada_businesses', businesses.filter(b => !isDemoId(b.id)), { stripImages: true });
   }, [businesses]);
 
   useEffect(() => {
@@ -1133,7 +1141,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    writeJSONDebounced('rada_statuses', statuses);
+    writeJSONDebounced('rada_statuses', statuses.filter(s => !isDemoId(s.id) && !String(s.id).startsWith('demo-st-')));
   }, [statuses]);
 
   // Status lifecycle: every minute, and when the app comes back to the foreground,
@@ -1186,8 +1194,24 @@ export default function App() {
       handle: currentUserProfile?.handle || '@you',
       avatar: currentUserProfile?.avatar || '',
     });
-    setDemoOutings(prev => [...seed, ...prev.filter(o => !/^demo-out-\d+$/.test(String(o.id)))]);
-  }, [demoUid, currentUserProfile?.handle, currentUserProfile?.name, currentUserProfile?.avatar]);
+    const persona = getDemoPersona();
+    const past = persona
+      ? demoPastOutings(persona, { id: demoUid, name: currentUserProfile?.name || 'You', handle: currentUserProfile?.handle || '@you', avatar: currentUserProfile?.avatar || '' })
+      : [];
+    setDemoOutings(prev => [...seed, ...past, ...prev.filter(o => !/^demo-out-\d+$/.test(String(o.id)) && !String(o.id).startsWith('demo-past-'))]);
+  }, [demoUid, session?.user?.email, currentUserProfile?.handle, currentUserProfile?.name, currentUserProfile?.avatar]);
+
+  // Demo accounts: sample businesses, offers and posts (re-added if a refresh from Supabase replaces them).
+  useEffect(() => {
+    const persona = getDemoPersona();
+    if (!persona || !demoUid) return;
+    const me = { id: demoUid, name: currentUserProfile?.name || 'You', handle: currentUserProfile?.handle || '@you', avatar: currentUserProfile?.avatar || '' };
+    if (persona === 'merchant') {
+      if (!businesses.some(b => b.id === 'demo-biz-1')) setBusinesses(prev => [...demoMerchantBusinesses(demoUid), ...prev]);
+      if (!offers.some(o => o.id === 'demo-offer-1')) setOffers(prev => [...demoMerchantOffers(), ...prev]);
+    }
+    if (!statuses.some(s => s.id === 'demo-st-me')) setStatuses(prev => [...demoPersonaStatuses(persona, me), ...prev.filter(s => !String(s.id).startsWith('demo-st-'))]);
+  }, [demoUid, session?.user?.email, businesses, offers, statuses, currentUserProfile?.handle, currentUserProfile?.name, currentUserProfile?.avatar]);
   const [planDateChatId, setPlanDateChatId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1205,7 +1229,7 @@ export default function App() {
   }, [currentUserProfile, session, isGuestMode]);
 
   useEffect(() => {
-    writeJSONDebounced('rada_offers', offers, { stripImages: true });
+    writeJSONDebounced('rada_offers', offers.filter(o => !isDemoId(o.id) && !String(o.id).startsWith('demo-offer-')), { stripImages: true });
   }, [offers]);
 
   useEffect(() => {
