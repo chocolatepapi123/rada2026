@@ -22,8 +22,8 @@
     }
   ],
   "start_url": "/",
-  "background_color": "#E9562A",
-  "theme_color": "#E0533C",
+  "background_color": "#FFFFFF",
+  "theme_color": "#FFFFFF",
   "display": "standalone",
   "orientation": "portrait",
   "description": "Discover Nairobi's best spots, events and movies, plan outings with new people, keep your tickets in one place and go out safely."
