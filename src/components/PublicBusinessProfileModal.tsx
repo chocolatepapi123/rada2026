@@ -24,6 +24,7 @@ import {
   SpotItem, 
   EventItem 
 } from '../types.ts';
+import { VerifiedBadge } from './VerifiedBadge.tsx';
 import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
 import { isBusinessApproved, PublicTierBadges } from './BusinessBadge.tsx';
 import { usePublicTiers } from '../lib/subscriptions';
@@ -148,6 +149,12 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
                 <MapPin className="w-3 h-3 text-[#E0533C] dark:text-[#D17A68] shrink-0" />
                 <span className="truncate">{business.address || `${business.neighborhood}, Nairobi`}</span>
               </div>
+              {isBusinessApproved(business) && (
+                <p className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-black text-[#E0533C] dark:text-[#D17A68]">
+                  <VerifiedBadge status="approved" size="sm" />
+                  <span>Verified by RADA</span>
+                </p>
+              )}
               <PublicTierBadges
                 tiers={business.ownerId ? ownerTiers[business.ownerId] : undefined}
                 kinds={['merchant']}

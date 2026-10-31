@@ -21,6 +21,8 @@ import {
   X,
   Zap,
   Star,
+  Trash2,
+  Loader2,
 } from 'lucide-react';
 import type { OutingPlan } from '../types';
 import { VerifiedBadge } from './VerifiedBadge';
@@ -28,6 +30,15 @@ import { TierBadge } from './BusinessBadge';
 import { SubscriptionPlans, TrialBanner } from './SubscriptionPlans';
 import PromotionsPanel from './PromotionsPanel';
 import { fetchMyAnalytics, type MyAnalytics } from '../lib/tracking';
+import { fetchBroadcastAudience, sendBroadcast, type BroadcastAudience } from '../lib/broadcasts';
+import {
+  fetchVideoAllowance,
+  listHostVideos,
+  uploadHostVideo,
+  deleteHostVideo,
+  type VideoAllowance,
+  type HostVideo,
+} from '../lib/hostVideos';
 import {
   PLAN_META,
   fetchMyOutingUsage,
@@ -114,6 +125,106 @@ const Stat: React.FC<{ label: string; value: React.ReactNode; icon: React.ReactN
   </div>
 );
 
+const HostVideosCard: React.FC<{ userId?: string; showToast: CreatorHubTabProps['showToast'] }> = ({ userId, showToast }) => {
+  const [allow, setAllow] = useState<VideoAllowance | null>(null);
+  const [videos, setVideos] = useState<HostVideo[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  const reload = async () => {
+    if (!userId) return;
+    const [a, v] = await Promise.all([fetchVideoAllowance(), listHostVideos(userId)]);
+    setAllow(a);
+    setVideos(v);
+  };
+  useEffect(() => {
+    reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !userId || !allow) return;
+    setBusy(true);
+    try {
+      await uploadHostVideo(userId, file, allow);
+      showToast('Video uploaded.');
+      await reload();
+    } catch (err: any) {
+      showToast(err?.message || 'Upload failed.', { type: 'error' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onDelete = async (v: HostVideo) => {
+    setBusy(true);
+    try {
+      await deleteHostVideo(v.path);
+      await reload();
+    } catch (err: any) {
+      showToast(err?.message || 'Could not delete.', { type: 'error' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!allow) return null;
+  const canUpload = allow.max_count > 0 && allow.slots_left > 0;
+
+  return (
+    <div className={`${card} p-4 space-y-3`}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Video className="w-4 h-4 text-[#E0533C]" />
+          <p className="text-[13px] font-black">Profile videos</p>
+        </div>
+        {allow.max_count > 0 && (
+          <span className={`text-[10px] font-bold ${subtle}`}>{videos.length}/{allow.max_count}</span>
+        )}
+      </div>
+      {allow.max_count === 0 ? (
+        <p className={`text-[11px] ${subtle}`}>Video uploads come with the Pro and Elite plans.</p>
+      ) : (
+        <>
+          <p className={`text-[11px] ${subtle}`}>
+            Up to {allow.max_seconds} seconds and {allow.max_mb} MB each. MP4, WebM or MOV. Shown on your public profile.
+          </p>
+          {videos.length > 0 && (
+            <div className="grid grid-cols-2 gap-2">
+              {videos.map((v) => (
+                <div key={v.path} className="relative rounded-xl overflow-hidden bg-black aspect-[9/12]">
+                  <video src={v.url} controls preload="metadata" playsInline className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => onDelete(v)}
+                    disabled={busy}
+                    aria-label="Delete video"
+                    className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-black/70 text-white flex items-center justify-center cursor-pointer disabled:opacity-50"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <label
+            className={`w-full py-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border-2 border-dashed ${
+              canUpload && !busy
+                ? 'border-[#E0533C]/50 text-[#E0533C] cursor-pointer hover:bg-[#E0533C]/5'
+                : 'border-slate-200 dark:border-slate-700 text-slate-400 cursor-not-allowed'
+            }`}
+          >
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
+            <span>{busy ? 'Working...' : canUpload ? 'Add a video' : 'Video limit reached'}</span>
+            <input type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" disabled={!canUpload || busy} onChange={onPick} />
+          </label>
+        </>
+      )}
+    </div>
+  );
+};
+
 export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, userId, onClose, onOpenAuth, showToast }) => {
   const [tab, setTab] = useState<HubTab>('overview');
   const mySubs = useMySubscriptions(userId);
@@ -126,6 +237,27 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
   // Broadcast draft (delivery is gated by plan; sending is wired server-side)
   const [bcTitle, setBcTitle] = useState('');
   const [bcBody, setBcBody] = useState('');
+  const [bcAudience, setBcAudience] = useState<BroadcastAudience | null>(null);
+  const [bcSending, setBcSending] = useState(false);
+  const reloadAudience = () => { if (userId) fetchBroadcastAudience().then(setBcAudience); };
+  useEffect(() => {
+    reloadAudience();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, plan]);
+  const handleSendBroadcast = async () => {
+    setBcSending(true);
+    try {
+      const r = await sendBroadcast(bcTitle, bcBody);
+      showToast(`Broadcast sent to ${r.recipients} ${r.recipients === 1 ? 'subscriber' : 'subscribers'}.`);
+      setBcTitle('');
+      setBcBody('');
+      reloadAudience();
+    } catch (err: any) {
+      showToast(err?.message || 'Could not send the broadcast.', { type: 'error' });
+    } finally {
+      setBcSending(false);
+    }
+  };
 
   const mine = useMemo(() => outings.filter((o) => userId && o.hostId === userId), [outings, userId]);
 
@@ -411,7 +543,7 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
               )}
               {caps.analytics === 'expanded' && (
                 <>
-                  <Stat label="Event saves" value={fmt(own.stats.eventSaves)} icon={<Bookmark className="w-4 h-4" />} loading={own.hubLoading} />
+                  <Stat label="Event saves" value={ana ? fmt(tot.save || 0) : fmt(own.stats.eventSaves)} icon={<Bookmark className="w-4 h-4" />} loading={own.hubLoading} />
                   <Stat label="RSVPs" value={fmt(ana ? (tot.rsvp || 0) : own.stats.rsvps)} icon={<Users className="w-4 h-4" />} loading={own.hubLoading} />
                 </>
               )}
@@ -471,10 +603,21 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
                   <p className="text-[13px] font-black">New broadcast</p>
                 </div>
                 <p className={`text-[11px] ${subtle}`}>
-                  {caps.broadcast === 'subscribed'
-                    ? 'Goes to your subscribed users, subject to their consent and delivery settings.'
-                    : 'Goes to eligible push-enabled users, subject to their permissions and delivery settings.'}
+                  Goes to people who chose to get updates from you, as an in-app notification. Nobody is messaged without opting in.
                 </p>
+                {bcAudience && (
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-bold">
+                    <span className="text-slate-700 dark:text-slate-200">{bcAudience.subscribers} {bcAudience.subscribers === 1 ? 'subscriber' : 'subscribers'}</span>
+                    <span className={subtle}>
+                      {Math.max(0, bcAudience.window_limit - bcAudience.sent_in_window)} of {bcAudience.window_limit} left {bcAudience.window_hours === 24 ? 'today' : 'this week'}
+                    </span>
+                    {!bcAudience.can_send && bcAudience.next_allowed_at && (
+                      <span className="text-amber-600 dark:text-amber-400">
+                        Next one: {new Date(bcAudience.next_allowed_at).toLocaleString('en-KE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
+                  </div>
+                )}
                 <input
                   value={bcTitle}
                   onChange={(e) => setBcTitle(e.target.value.slice(0, 60))}
@@ -492,17 +635,17 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
                   <span className={`text-[10px] ${subtle}`}>{bcBody.length}/240</span>
                   <button
                     type="button"
-                    disabled={!bcTitle.trim() || !bcBody.trim()}
-                    onClick={() => showToast('Broadcast delivery is not switched on yet. Your draft was not sent.', { type: 'error' })}
+                    disabled={bcSending || bcTitle.trim().length < 3 || bcBody.trim().length < 3 || (bcAudience ? !bcAudience.can_send : false)}
+                    onClick={handleSendBroadcast}
                     className="text-xs font-black bg-rose-600 text-white px-4 py-2 rounded-xl disabled:opacity-40 cursor-pointer"
                   >
-                    Send broadcast
+                    {bcSending ? 'Sending...' : 'Send broadcast'}
                   </button>
                 </div>
               </div>
             ) : (
               <LockedCard title="Broadcasts" need="pro" onUpgrade={goPlan}>
-                Message your subscribed users. Elite reaches eligible push-enabled users.
+                Message the people who subscribed to your updates. Pro gets 2 a week, Elite gets 2 a day.
               </LockedCard>
             )}
 
@@ -566,8 +709,8 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
 
             <div className={`${card} p-4 space-y-3`}>
               <div className="flex items-center gap-2">
-                <VerifiedBadge status="approved" size="md" />
-                <span className="text-[13px] font-bold">Verified host</span>
+                <VerifiedBadge status="approved" size="md" golden={plan === 'elite'} />
+                <span className="text-[13px] font-bold">{plan === 'elite' ? 'Golden verified host' : 'Verified host'}</span>
               </div>
               <div className="flex items-center gap-2">
                 {tierBadge ? <TierBadge badge={tierBadge} size="md" /> : <span className={`text-[12px] ${subtle}`}>No paid badge on the Free plan</span>}
@@ -594,6 +737,7 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
                 </div>
               ))}
             </div>
+            <HostVideosCard userId={userId} showToast={showToast} />
             {plan !== 'elite' && (
               <button type="button" onClick={goPlan} className="text-[12px] font-black text-[#E0533C] dark:text-[#D17A68] cursor-pointer">
                 {plan === 'free' ? 'Get the Creator badge and video uploads. See plans' : 'Upgrade to the Golden Creator badge. See plans'}

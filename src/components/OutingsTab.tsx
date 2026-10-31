@@ -29,7 +29,8 @@ import {
   UserCheck,
   MessageSquare,
   ImagePlus,
-  Loader2
+  Loader2,
+  Bookmark
 } from 'lucide-react';
 import { OutingPlan, OutingAttendee, SpotItem, UserProfile } from '../types.ts';
 import { shareContent } from '../utils/shareUtils.ts';
@@ -37,7 +38,8 @@ import OutingShareCard from './OutingShareCard';
 import { WaitlistButton, TemplatePicker } from './OutingExtras';
 import { uploadCoverImage } from '../lib/cloudSync.ts';
 import { useUnclaimedSpots, mergeSpots, sortTrending } from '../lib/spotsFeed.ts';
-import { VerifiedBadge } from './VerifiedBadge.tsx';
+import { HostBadge } from './VerifiedBadge.tsx';
+import { fetchMySavedOutingIds, toggleOutingSave, fetchOutingSaveCounts } from '../lib/outingSaves';
 import {
   PLAN_META,
   attendeeCeiling,
@@ -323,6 +325,35 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [accessTypeFilter, setAccessTypeFilter] = useState<'All Plans' | 'Open Plans' | 'Singles Only'>('All Plans');
   const [searchQuery, setSearchQuery] = useState('');
+  // Saved outings (private to the person) and, for hosts, how many people saved each of their outings.
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [savedOnly, setSavedOnly] = useState(false);
+  const [saveCounts, setSaveCounts] = useState<Record<string, number>>({});
+  useEffect(() => {
+    let off = false;
+    if (!currentUserId) { setSavedIds(new Set()); return; }
+    fetchMySavedOutingIds().then((ids) => { if (!off) setSavedIds(ids); });
+    return () => { off = true; };
+  }, [currentUserId]);
+  const handleToggleSave = async (plan: OutingPlan, e?: React.SyntheticEvent) => {
+    e?.stopPropagation();
+    if (!isUserSignedIn || !currentUserId) {
+      showToast('Sign in to save outings.');
+      return;
+    }
+    const wasSaved = savedIds.has(plan.id);
+    // optimistic
+    setSavedIds((cur) => { const n = new Set(cur); if (wasSaved) n.delete(plan.id); else n.add(plan.id); return n; });
+    try {
+      const nowSaved = await toggleOutingSave(plan.id);
+      setSavedIds((cur) => { const n = new Set(cur); if (nowSaved) n.add(plan.id); else n.delete(plan.id); return n; });
+      showToast(nowSaved ? 'Saved to your outings.' : 'Removed from saved.');
+    } catch (err: any) {
+      setSavedIds((cur) => { const n = new Set(cur); if (wasSaved) n.add(plan.id); else n.delete(plan.id); return n; });
+      const m = String(err?.message || '');
+      showToast(/not found/i.test(m) ? 'This outing is still syncing. Try again in a moment.' : (m || 'Could not save. Try again.'));
+    }
+  };
   const [isHostModalOpen, setIsHostModalOpen] = useState(false);
   const [upgradePrompt, setUpgradePrompt] = useState<{ kind: 'outing_limit' | 'attendee_cap'; message: string } | null>(null);
   const [selectedOutingDetail, setSelectedOutingDetail] = useState<OutingPlan | null>(null);
@@ -340,6 +371,15 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
     if (!managingOuting) return null;
     return outings.find(o => o.id === managingOuting.id) || managingOuting;
   }, [outings, managingOuting]);
+
+  // Hosts see how many people saved the outing they are managing (a number only, never who).
+  useEffect(() => {
+    const id = activeManagingOuting?.id;
+    if (!id || !currentUserId || activeManagingOuting?.hostId !== currentUserId) return;
+    let off = false;
+    fetchOutingSaveCounts([id]).then((c) => { if (!off) setSaveCounts((cur) => ({ ...cur, ...c })); });
+    return () => { off = true; };
+  }, [activeManagingOuting?.id, currentUserId]);
 
   // ---- Custom deep link for hosted plans ----------------------------------
   const buildOutingLink = (plan: OutingPlan) =>
@@ -532,6 +572,8 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
     const list = outings.filter(plan => {
       const spot = spots.find(s => s.id === plan.spotId);
 
+      if (savedOnly && !savedIds.has(plan.id)) return false;
+
       // Access Type Filter ("All Plans", "Open Plans", "Singles Only")
       if (!matchOutingAccessType(plan, accessTypeFilter)) {
         return false;
@@ -570,7 +612,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       .map(x => x.plan);
     // Boosted outings first, in the order RADA chose; everything else keeps its order.
     return sortOutingsByPromotion(list, (p) => p.id, outingRanks);
-  }, [outings, spots, selectedLocation, selectedCategory, accessTypeFilter, searchQuery, outingRanks]);
+  }, [outings, spots, selectedLocation, selectedCategory, accessTypeFilter, searchQuery, outingRanks, savedOnly, savedIds]);
 
   // Spots search inside Host modal
   const filteredSpotsForHosting = useMemo(() => {
@@ -934,6 +976,20 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
           })}
         </div>
 
+        <button
+          type="button"
+          onClick={() => setSavedOnly((v) => !v)}
+          className={`self-start px-3 py-1.5 rounded-xl text-xs font-black inline-flex items-center gap-1.5 transition cursor-pointer border ${
+            savedOnly
+              ? 'bg-[#E0533C] text-white border-[#E0533C]'
+              : 'bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+          }`}
+          aria-pressed={savedOnly}
+        >
+          <Bookmark className={`w-3.5 h-3.5 ${savedOnly ? 'fill-white' : ''}`} />
+          <span>Saved{savedIds.size ? ` (${savedIds.size})` : ''}</span>
+        </button>
+
         {/* Access Type Toggle: "All Plans", "Open Plans", "Singles Only" */}
         <div className="flex items-center gap-1.5 p-1 bg-slate-100/90 dark:bg-black/40 rounded-2xl border border-slate-200/80 dark:border-slate-800/80">
           {(['All Plans', 'Open Plans', 'Singles Only'] as const).map((type) => {
@@ -972,7 +1028,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
           <span>Active Plans ({filteredOutings.length})</span>
         </span>
         <div className="flex items-center gap-2">
-          {(Boolean(selectedLocation && selectedLocation !== 'All Locations') || selectedCategory !== 'all' || accessTypeFilter !== 'All Plans' || searchQuery.trim() !== '') && (
+          {(Boolean(selectedLocation && selectedLocation !== 'All Locations') || selectedCategory !== 'all' || accessTypeFilter !== 'All Plans' || searchQuery.trim() !== '' || savedOnly) && (
             <button
               type="button"
               onClick={() => {
@@ -980,6 +1036,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                 setSelectedCategory('all');
                 setAccessTypeFilter('All Plans');
                 setSearchQuery('');
+                setSavedOnly(false);
               }}
               className="text-[11px] text-[#E0533C] hover:underline font-bold flex items-center gap-1 cursor-pointer"
             >
@@ -1025,7 +1082,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                         <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">
                           {plan.hostName}
                         </span>
-                        <VerifiedBadge status={plan.isHostVerified ? 'approved' : 'none'} size="sm" />
+                        <HostBadge hostId={plan.hostId} verified={!!plan.isHostVerified} size="sm" />
                         <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] uppercase tracking-wider shrink-0 ml-1">
                           Host
                         </span>
@@ -1036,6 +1093,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                     </div>
                   </div>
 
+                  <div className="flex items-center gap-1.5 shrink-0">
                   {/* Access Type Badge */}
                   {plan.accessType === 'singles_only' ? (
                     <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60 flex items-center gap-1 shrink-0">
@@ -1048,6 +1106,16 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                       <span>Open Plan</span>
                     </span>
                   )}
+                  <button
+                    type="button"
+                    onClick={(e) => handleToggleSave(plan, e)}
+                    aria-label={savedIds.has(plan.id) ? 'Remove from saved' : 'Save outing'}
+                    aria-pressed={savedIds.has(plan.id)}
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-[#E0533C] transition cursor-pointer"
+                  >
+                    <Bookmark className={`w-4 h-4 ${savedIds.has(plan.id) ? 'fill-[#E0533C] text-[#E0533C]' : ''}`} />
+                  </button>
+                  </div>
                 </div>
 
                 {/* Target Spot Banner & Details */}
@@ -1749,13 +1817,25 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                   <div>
                     <div className="flex items-center gap-1">
                       <span className="font-extrabold text-xs">{selectedOutingDetail.hostName}</span>
-                      <VerifiedBadge status={selectedOutingDetail.isHostVerified ? 'approved' : 'none'} size="sm" />
+                      <HostBadge hostId={selectedOutingDetail.hostId} verified={!!selectedOutingDetail.isHostVerified} size="sm" />
                     </div>
                     <span className="text-[10px] text-slate-400">Host • {selectedOutingDetail.hostHandle}</span>
                   </div>
                 </div>
 
                 <div className="text-right">
+                  <button
+                    type="button"
+                    onClick={(e) => handleToggleSave(selectedOutingDetail, e)}
+                    className={`mb-1 ml-auto px-2.5 py-1 rounded-full text-[10px] font-black inline-flex items-center gap-1 border cursor-pointer transition ${
+                      savedIds.has(selectedOutingDetail.id)
+                        ? 'bg-[#E0533C]/10 text-[#E0533C] border-[#E0533C]/40'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    <Bookmark className={`w-3 h-3 ${savedIds.has(selectedOutingDetail.id) ? 'fill-[#E0533C]' : ''}`} />
+                    {savedIds.has(selectedOutingDetail.id) ? 'Saved' : 'Save'}
+                  </button>
                   <span className="text-[10px] text-[#E0533C] font-black block">
                     {formatOutingDate(selectedOutingDetail.date, selectedOutingDetail.time)}
                   </span>
@@ -1794,7 +1874,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                       <img src={selectedOutingDetail.hostAvatar} alt="Host" className="w-7 h-7 rounded-full object-cover" />
                       <div>
                         <span className="font-bold text-xs">{selectedOutingDetail.hostName}</span>
-                        <VerifiedBadge status={selectedOutingDetail.isHostVerified ? 'approved' : 'none'} size="xs" className="ml-1" />
+                        <HostBadge hostId={selectedOutingDetail.hostId} verified={!!selectedOutingDetail.isHostVerified} size="xs" className="ml-1" />
                         <span className="text-[9px] text-[#E0533C] font-black ml-1.5 uppercase">Host</span>
                       </div>
                     </div>
@@ -2114,6 +2194,12 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
 
                 return (
                   <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 rounded-xl px-3 py-2">
+                      <Bookmark className="w-3.5 h-3.5 text-[#E0533C]" />
+                      <span>
+                        Saved by {saveCounts[activeManagingOuting.id] ?? 0} {(saveCounts[activeManagingOuting.id] ?? 0) === 1 ? 'person' : 'people'}
+                      </span>
+                    </p>
                     <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 flex items-center justify-between">
                       <span className="flex items-center gap-1.5">
                         <Users className="w-3.5 h-3.5 text-[#E0533C]" />
@@ -2136,7 +2222,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                           <div>
                             <div className="flex items-center gap-1">
                               <span className="font-extrabold text-xs">{activeManagingOuting.hostName}</span>
-                              <VerifiedBadge status={activeManagingOuting.isHostVerified ? 'approved' : 'none'} size="xs" />
+                              <HostBadge hostId={activeManagingOuting.hostId} verified={!!activeManagingOuting.isHostVerified} size="xs" />
                             </div>
                             <span className="text-[9px] text-[#E0533C] font-black uppercase">Host & Organizer</span>
                           </div>

@@ -19,13 +19,14 @@ import { fetchBusinesses,
 import { CinemaAdminPanel } from './CinemaAdminPanel.tsx';
 import { AdminSubscriptionsPanel } from './AdminSubscriptionsPanel';
 import { AdminReportsPanel } from './AdminReportsPanel';
+import { AdminLaunchChecklistPanel } from './AdminLaunchChecklistPanel';
 import { AdminPromotionsPanel } from './AdminPromotionsPanel';
 import { supabase } from '../lib/supabase';
 import { initialBusinesses } from '../data/initialData.ts';
 import type { ToastOptions } from './Toast.tsx';
 
 type VerificationStatus = 'pending' | 'approved' | 'rejected';
-type TabId = 'overview' | 'pending_spots' | 'claims' | 'verification' | 'spots' | 'cinema' | 'users' | 'subscriptions' | 'promotions' | 'reports';
+type TabId = 'overview' | 'pending_spots' | 'claims' | 'verification' | 'spots' | 'cinema' | 'users' | 'subscriptions' | 'promotions' | 'reports' | 'launch';
 
 export interface AdminDashboardProps {
   businesses: BusinessAccount[];
@@ -544,6 +545,7 @@ export function AdminDashboardModal({
     { id: 'subscriptions', label: 'Subscriptions', icon: <CircleDollarSign className="w-4 h-4" />, enabled: isOfficial || myPermissions.canManageSubscriptions },
     { id: 'promotions', label: 'Promotions', icon: <CircleDollarSign className="w-4 h-4" />, enabled: isOfficial || myPermissions.canManageSubscriptions },
     { id: 'reports', label: 'Reports', icon: <Flag className="w-4 h-4" />, enabled: isOfficial || myPermissions.canManageUsers },
+    { id: 'launch', label: 'Launch cleanup', icon: <ShieldCheck className="w-4 h-4" />, enabled: isOfficial },
   ];
   const tabs = allTabs.filter(t => t.enabled);
 
@@ -1305,6 +1307,7 @@ export function AdminDashboardModal({
             {tab === 'subscriptions' && <AdminSubscriptionsPanel toast={toast} />}
             {tab === 'promotions' && <AdminPromotionsPanel toast={toast} />}
             {tab === 'reports' && <AdminReportsPanel toast={toast} />}
+            {tab === 'launch' && <AdminLaunchChecklistPanel toast={toast} />}
 
             {tab === 'users' && (
               <div className="p-4 space-y-3">

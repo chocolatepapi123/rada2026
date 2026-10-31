@@ -29,7 +29,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-white dark:bg-[#0C0A0E] border-t border-slate-200 dark:border-slate-800/80 px-2 py-2.5 flex items-center justify-around z-40 shadow-xl transition-colors duration-200 min-[900px]:top-[65px] min-[900px]:right-auto min-[900px]:w-60 min-[900px]:max-w-none min-[900px]:mx-0 min-[900px]:flex-col min-[900px]:justify-start min-[900px]:items-stretch min-[900px]:gap-1 min-[900px]:border-t-0 min-[900px]:border-r min-[900px]:px-3 min-[900px]:py-5 min-[900px]:shadow-none">
+    <nav className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-white dark:bg-[#121113] border-t border-slate-200 dark:border-slate-800/80 px-2 py-2.5 flex items-center justify-around z-40 shadow-xl transition-colors duration-200 min-[900px]:top-[65px] min-[900px]:right-auto min-[900px]:w-60 min-[900px]:max-w-none min-[900px]:mx-0 min-[900px]:flex-col min-[900px]:justify-start min-[900px]:items-stretch min-[900px]:gap-1 min-[900px]:border-t-0 min-[900px]:border-r min-[900px]:px-3 min-[900px]:py-5 min-[900px]:shadow-none">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const isActive = activeTab === tab.id || 

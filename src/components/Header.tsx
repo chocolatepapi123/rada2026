@@ -15,6 +15,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { isPlatformAdmin } from '../types';
+import { NotificationBell } from './NotificationBell';
 
 interface HeaderProps {
   onOpenOverlay: (overlayId: string) => void;
@@ -36,6 +37,8 @@ interface HeaderProps {
   userRole?: 'user' | 'merchant' | 'admin';
   /** Signed-in user's email. Together with userRole it decides whether the Admin Control Hub shows. */
   userEmail?: string | null;
+  /** Signed-in user's id; powers the notification bell. */
+  userId?: string | null;
   onLogout?: () => void;
   onOpenSaved?: () => void;
   savedCount?: number;
@@ -59,6 +62,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAdmin,
   userRole,
   userEmail,
+  userId,
   onLogout,
   onOpenSaved,
   savedCount,
@@ -138,6 +142,9 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
           )}
+
+          {/* Notification bell (signed-in only) */}
+          {!isGuestMode && <NotificationBell userId={userId} />}
 
           {/* 3-Dot Overflow Menu */}
           <div className="relative shrink-0" ref={menuRef}>

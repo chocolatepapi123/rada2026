@@ -13,12 +13,16 @@ import {
   ChevronRight,
   UserCog,
   Flag,
+  Bell,
+  BellOff,
 } from 'lucide-react';
 import { ReportUserModal } from './ReportUserModal';
 import { UserProfile } from '../types';
 import { VerifiedBadge } from './VerifiedBadge';
 import { PublicTierBadges } from './BusinessBadge';
 import { usePublicTiers } from '../lib/subscriptions';
+import { fetchMyBroadcastSubscriptions, setBroadcastSubscription } from '../lib/broadcasts';
+import { listHostVideos, type HostVideo } from '../lib/hostVideos';
 import { toHandle } from '../lib/cloudSync';
 import {
   AvatarHero,
@@ -132,6 +136,35 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const publicTiers = usePublicTiers([tierUserId]);
   const myTiers = tierUserId ? publicTiers[tierUserId] : undefined;
 
+  // Host updates opt-in + public videos (someone else's profile only)
+  const viewedId = !isOwnProfile ? user?.id : undefined;
+  const [followsUpdates, setFollowsUpdates] = React.useState(false);
+  const [updatesBusy, setUpdatesBusy] = React.useState(false);
+  const [hostVideos, setHostVideos] = React.useState<HostVideo[]>([]);
+  React.useEffect(() => {
+    let off = false;
+    setHostVideos([]);
+    setFollowsUpdates(false);
+    if (!viewedId) return;
+    listHostVideos(viewedId).then((v) => { if (!off) setHostVideos(v); });
+    if (currentUserId) fetchMyBroadcastSubscriptions().then((set) => { if (!off) setFollowsUpdates(set.has(viewedId)); });
+    return () => { off = true; };
+  }, [viewedId, currentUserId]);
+  const toggleUpdates = async () => {
+    if (!viewedId) return;
+    if (!currentUserId) { showToast('Please sign in first.', { type: 'error' }); return; }
+    setUpdatesBusy(true);
+    try {
+      const on = await setBroadcastSubscription(viewedId, !followsUpdates);
+      setFollowsUpdates(on);
+      showToast(on ? 'You will get updates from this host.' : 'You will no longer get updates from this host.');
+    } catch (err: any) {
+      showToast(err?.message || 'Could not change this. Try again.', { type: 'error' });
+    } finally {
+      setUpdatesBusy(false);
+    }
+  };
+
   if (!user) return null;
 
   const handle = toHandle(user.handle);
@@ -222,7 +255,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
             {own.isPro && (
               <p className="mx-4 mt-4 text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <VerifiedBadge status="approved" size="sm" />
+                <VerifiedBadge status="approved" size="sm" golden={myTiers?.creator === 'elite'} />
                 <span>Professional account. Open the ••• menu in Account & Security for your host dashboard and plan.</span>
               </p>
             )}
@@ -330,7 +363,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           <div className="absolute bottom-3 left-3 right-3 z-20 flex items-center justify-between">
             <h3 className="text-xl font-black flex items-center gap-1.5 text-white drop-shadow-md min-w-0">
               <span className="truncate">{handle}</span>
-              <VerifiedBadge status={isVerifiedPro ? 'approved' : 'none'} size="md" />
+              <VerifiedBadge status={isVerifiedPro ? 'approved' : 'none'} size="md" golden={myTiers?.creator === 'elite'} />
             </h3>
             <span
               className={`text-[10px] font-black px-3 py-1 rounded-full backdrop-blur-md shadow-md flex items-center gap-1 shrink-0 ${
@@ -358,7 +391,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           {isVerifiedPro && (
             <div className="p-3 rounded-2xl bg-[#E0533C]/10 dark:bg-[#A94F3E]/10 flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[12px] font-black text-[#E0533C] dark:text-[#D17A68]">Verified host</p>
+                <p className={`text-[12px] font-black ${myTiers?.creator === 'elite' ? 'text-amber-600 dark:text-amber-400' : 'text-[#E0533C] dark:text-[#D17A68]'}`}>{myTiers?.creator === 'elite' ? 'Golden verified host' : 'Verified host'}</p>
                 {proCategory && <p className="text-xs font-bold truncate">{proCategory}</p>}
               </div>
               {proWebsite && (
@@ -371,6 +404,40 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   Website
                 </a>
               )}
+            </div>
+          )}
+
+          {isVerifiedPro && viewedId && (
+            <button
+              type="button"
+              onClick={toggleUpdates}
+              disabled={updatesBusy}
+              className={`w-full py-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition cursor-pointer disabled:opacity-60 ${
+                followsUpdates
+                  ? 'bg-white dark:bg-[#1C1A1E] text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                  : 'bg-[#E0533C] text-white border-[#E0533C]'
+              }`}
+            >
+              {followsUpdates ? <BellOff className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
+              <span>{followsUpdates ? 'Stop updates from this host' : 'Get updates from this host'}</span>
+            </button>
+          )}
+
+          {hostVideos.length > 0 && (
+            <div className="space-y-1.5">
+              <h4 className="text-[12px] font-black text-slate-500">Videos</h4>
+              <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
+                {hostVideos.map((v) => (
+                  <video
+                    key={v.path}
+                    src={v.url}
+                    controls
+                    preload="metadata"
+                    playsInline
+                    className="h-44 w-auto rounded-xl bg-black shrink-0"
+                  />
+                ))}
+              </div>
             </div>
           )}
 
