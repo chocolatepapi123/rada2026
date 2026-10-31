@@ -14,6 +14,7 @@ import {
   type SubKind,
   type SubscriptionRecord,
 } from '../lib/subscriptions';
+import { TrialReportCard } from './OutingExtras';
 import { fetchPlanPrices, type BillingPeriod, type PlanPrice } from '../lib/payments';
 import PayWithMpesaSheet from './PayWithMpesaSheet';
 
@@ -289,6 +290,8 @@ export const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({
 
       {/* Plan cards */}
       <div className="space-y-4">
+        <TrialReportCard kind={kind} />
+
         <div className="flex items-center justify-between gap-3 px-1">
           <h3 className="text-[15px] font-black">Plans</h3>
           {hasWeekly && (

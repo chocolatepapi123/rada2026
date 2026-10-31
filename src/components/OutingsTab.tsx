@@ -34,6 +34,7 @@ import {
 import { OutingPlan, OutingAttendee, SpotItem, UserProfile } from '../types.ts';
 import { shareContent } from '../utils/shareUtils.ts';
 import OutingShareCard from './OutingShareCard';
+import { WaitlistButton, TemplatePicker } from './OutingExtras';
 import { uploadCoverImage } from '../lib/cloudSync.ts';
 import { useUnclaimedSpots, mergeSpots, sortTrending } from '../lib/spotsFeed.ts';
 import { VerifiedBadge } from './VerifiedBadge.tsx';
@@ -1201,6 +1202,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                         <span>Request to Join</span>
                       </button>
                     )}
+                    {attendeeStatus === 'none' && isFull && <WaitlistButton outingId={String(plan.id)} />}
                   </div>
                 </div>
               </div>
@@ -1664,6 +1666,18 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                   className="w-full p-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:ring-2 focus:ring-[#E0533C] focus:outline-none resize-none leading-relaxed"
                 />
               </div>
+
+              <TemplatePicker
+                userId={currentUserId}
+                current={{ spotId: selectedSpotId, description, maxAttendees, accessType, tags: selectedTags }}
+                onApply={(d) => {
+                  if (d.spotId != null) setSelectedSpotId(d.spotId);
+                  if (typeof d.description === 'string') setDescription(d.description);
+                  if (typeof d.maxAttendees === 'number') setMaxAttendees(clampAttendees(myPlan, d.maxAttendees));
+                  if (d.accessType) setAccessType(d.accessType);
+                  if (Array.isArray(d.tags)) setSelectedTags(d.tags);
+                }}
+              />
 
               {/* Submit Buttons */}
               <div className="pt-2 flex items-center gap-2">

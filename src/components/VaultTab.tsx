@@ -126,159 +126,6 @@ export const VaultTab: React.FC<VaultTabProps> = ({
 
   return (
     <section className="w-full max-w-full min-w-0 overflow-x-hidden px-3 sm:px-4 py-4 space-y-6 min-[900px]:max-w-3xl min-[900px]:mx-auto">
-      {/* My saved plans: first thing in the Vault. Plans need no QR, so they get their own card. */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-[#E05328] dark:text-[#D17A68]" />
-            <span>My Saved Plans ({savedPlans.length})</span>
-          </h2>
-        </div>
-        {savedPlans.length === 0 ? (
-          <div className="py-6 text-center text-xs text-slate-400 bg-[#F1F1EE] dark:bg-[#1C1A1E] rounded-2xl border border-dashed border-slate-300 dark:border-slate-800">
-            Nothing saved yet. Join an outing or plan a date and it shows up here.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {savedPlans.map((t) => (
-              <div key={t.id} className="w-full max-w-full min-w-0 overflow-hidden rounded-3xl p-4 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#E05328] dark:text-[#D17A68] flex items-center justify-center shrink-0">
-                  <CalendarIcon className="w-6 h-6" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <span className="text-[9px] uppercase font-black tracking-wider text-[#E05328] dark:text-[#D17A68]">Saved plan</span>
-                  <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate">{t.title}</h4>
-                  <p className="text-[11px] text-slate-500 truncate">{t.dateStr}</p>
-                  <p className="text-[11px] text-slate-400 truncate flex items-center gap-1"><MapPin className="w-3 h-3 shrink-0" /><span className="truncate">{t.locationStr}</span></p>
-                </div>
-                <div className="flex flex-col gap-1.5 shrink-0">
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.locationStr || t.title)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="px-3 py-1.5 bg-[#E05328] dark:bg-[#A94F3E] text-white rounded-xl text-[11px] font-black text-center"
-                  >
-                    Directions
-                  </a>
-                  <button
-                    type="button"
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      await shareContent({
-                        title: `Plan: ${t.title}`,
-                        text: `I have a plan: "${t.title}" on ${t.dateStr} at ${t.locationStr}. Join me on RADA!`,
-                        url: window.location.href,
-                        onError: (m: string) => showToast?.(m, { type: 'error' })
-                      });
-                    }}
-                    className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl text-[11px] font-black flex items-center justify-center gap-1 cursor-pointer"
-                  >
-                    <Share2 className="w-3 h-3" /> Share
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <MilestoneBadges />
-
-      {/* Tickets & passes that need a QR */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-            <Ticket className="w-3.5 h-3.5 text-[#E05328] dark:text-[#D17A68]" />
-            <span>
-              {selectedDay !== null 
-                ? `Tickets for This Day (${qrDayTickets.length})`
-                : `Tickets & QR Passes (${qrTickets.length})`}
-            </span>
-          </h2>
-          <span className="text-[10px] text-slate-400 font-bold">Fast-Track Entry</span>
-        </div>
-
-        <div className="space-y-3">
-          {(selectedDay !== null ? qrDayTickets : qrTickets).map((t) => {
-            const isToday = t.dateStr.toLowerCase().includes('today');
-            return (
-              <div
-                key={t.id}
-                className={`relative w-full max-w-full min-w-0 overflow-hidden rounded-3xl p-4 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-white transition select-none ${
-                  isToday
-                    ? 'bg-gradient-to-r from-[#E05328] dark:from-[#A94F3E] via-[#D94E28] dark:via-[#A94F3E] to-[#E9C46A] dark:to-[#A68B4B] ring-4 ring-amber-400/40 shadow-xl'
-                    : t.type === 'Verified Ticket Pass'
-                    ? 'bg-gradient-to-r from-[#E05328] dark:from-[#A94F3E] to-[#E9C46A] dark:to-[#A68B4B]'
-                    : 'bg-gradient-to-r from-[#2D6A4F] to-emerald-700'
-                }`}
-              >
-                {/* Status badge when event arrives today */}
-                {isToday && (
-                  <div className="inline-flex items-center gap-1.5 bg-black/85 backdrop-blur-md text-emerald-400 text-[10px] font-black px-3 py-1 rounded-full border border-emerald-500/40 w-fit mb-1 shadow-sm">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-                    <span>HAPPENING TODAY</span>
-                  </div>
-                )}
-
-                <div className="min-w-0 flex-1">
-                  <span className="text-[9px] uppercase font-black tracking-wider bg-white/20 px-2 py-0.5 rounded-md inline-block">
-                    {t.type}
-                  </span>
-                  <h4 className="font-black text-base mt-1 text-white truncate">{t.title}</h4>
-                  <p className="text-xs text-slate-100 mt-0.5 flex items-center gap-1 truncate">
-                    <CalendarIcon className="w-3.5 h-3.5 shrink-0" />
-                    <span>{t.dateStr} • {t.locationStr}</span>
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 sm:shrink-0 flex-wrap">
-                  {/* Share Outing Action */}
-                  <button
-                    type="button"
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      await shareContent({
-                        title: `RADA Pass: ${t.title}`,
-                        text: `🎟️ Outing locked in! Catch me at "${t.title}" on ${t.dateStr} at ${t.locationStr}. Check it out on RADA!`,
-                        url: window.location.href,
-                        onError: (m: string) => showToast?.(m, { type: 'error' })
-                      });
-                    }}
-                    title="Share Outing Pass"
-                    className="p-2.5 bg-black/30 hover:bg-black/50 text-white rounded-xl transition flex items-center justify-center border border-white/20 cursor-pointer"
-                  >
-                    <Share2 className="w-4 h-4" />
-                  </button>
-
-                  {/* QR Pass */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onShowQrCode(t.title);
-                    }}
-                    className="px-3.5 py-2.5 bg-white text-slate-900 rounded-xl text-xs font-black shadow-md hover:bg-slate-100 transition flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <QrCode className="w-4 h-4 text-[#E05328] dark:text-[#D17A68]" />
-                    <span>QR Pass</span>
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-
-          {(selectedDay !== null ? qrDayTickets : qrTickets).length === 0 && (
-            <div className="py-6 text-center text-xs text-slate-400 bg-[#F1F1EE] dark:bg-[#1C1A1E] rounded-2xl border border-dashed border-slate-300 dark:border-slate-800">
-              {selectedDay !== null 
-                ? 'No tickets for this day. Click "Show All" to see all of them.'
-                : 'No tickets yet. RSVP to events or book a movie and your QR passes show up here.'}
-            </div>
-          )}
-        </div>
-      </div>
-
-
       {/* Calendar Card */}
       <div className="w-full max-w-full min-w-0 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 sm:p-4 shadow-sm space-y-4 overflow-hidden">
         {/* Month Navigation & Selector */}
@@ -551,6 +398,159 @@ export const VaultTab: React.FC<VaultTabProps> = ({
           </div>
         )}
       </div>
+
+      {/* My saved plans: first thing in the Vault. Plans need no QR, so they get their own card. */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-[#E05328] dark:text-[#D17A68]" />
+            <span>My Saved Plans ({savedPlans.length})</span>
+          </h2>
+        </div>
+        {savedPlans.length === 0 ? (
+          <div className="py-6 text-center text-xs text-slate-400 bg-[#F1F1EE] dark:bg-[#1C1A1E] rounded-2xl border border-dashed border-slate-300 dark:border-slate-800">
+            Nothing saved yet. Join an outing or plan a date and it shows up here.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {savedPlans.map((t) => (
+              <div key={t.id} className="w-full max-w-full min-w-0 overflow-hidden rounded-3xl p-4 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#E05328] dark:text-[#D17A68] flex items-center justify-center shrink-0">
+                  <CalendarIcon className="w-6 h-6" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="text-[9px] uppercase font-black tracking-wider text-[#E05328] dark:text-[#D17A68]">Saved plan</span>
+                  <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate">{t.title}</h4>
+                  <p className="text-[11px] text-slate-500 truncate">{t.dateStr}</p>
+                  <p className="text-[11px] text-slate-400 truncate flex items-center gap-1"><MapPin className="w-3 h-3 shrink-0" /><span className="truncate">{t.locationStr}</span></p>
+                </div>
+                <div className="flex flex-col gap-1.5 shrink-0">
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.locationStr || t.title)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="px-3 py-1.5 bg-[#E05328] dark:bg-[#A94F3E] text-white rounded-xl text-[11px] font-black text-center"
+                  >
+                    Directions
+                  </a>
+                  <button
+                    type="button"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      await shareContent({
+                        title: `Plan: ${t.title}`,
+                        text: `I have a plan: "${t.title}" on ${t.dateStr} at ${t.locationStr}. Join me on RADA!`,
+                        url: window.location.href,
+                        onError: (m: string) => showToast?.(m, { type: 'error' })
+                      });
+                    }}
+                    className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl text-[11px] font-black flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <Share2 className="w-3 h-3" /> Share
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <MilestoneBadges />
+
+      {/* Tickets & passes that need a QR */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+            <Ticket className="w-3.5 h-3.5 text-[#E05328] dark:text-[#D17A68]" />
+            <span>
+              {selectedDay !== null 
+                ? `Tickets for This Day (${qrDayTickets.length})`
+                : `Tickets & QR Passes (${qrTickets.length})`}
+            </span>
+          </h2>
+          <span className="text-[10px] text-slate-400 font-bold">Fast-Track Entry</span>
+        </div>
+
+        <div className="space-y-3">
+          {(selectedDay !== null ? qrDayTickets : qrTickets).map((t) => {
+            const isToday = t.dateStr.toLowerCase().includes('today');
+            return (
+              <div
+                key={t.id}
+                className={`relative w-full max-w-full min-w-0 overflow-hidden rounded-3xl p-4 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-white transition select-none ${
+                  isToday
+                    ? 'bg-gradient-to-r from-[#E05328] dark:from-[#A94F3E] via-[#D94E28] dark:via-[#A94F3E] to-[#E9C46A] dark:to-[#A68B4B] ring-4 ring-amber-400/40 shadow-xl'
+                    : t.type === 'Verified Ticket Pass'
+                    ? 'bg-gradient-to-r from-[#E05328] dark:from-[#A94F3E] to-[#E9C46A] dark:to-[#A68B4B]'
+                    : 'bg-gradient-to-r from-[#2D6A4F] to-emerald-700'
+                }`}
+              >
+                {/* Status badge when event arrives today */}
+                {isToday && (
+                  <div className="inline-flex items-center gap-1.5 bg-black/85 backdrop-blur-md text-emerald-400 text-[10px] font-black px-3 py-1 rounded-full border border-emerald-500/40 w-fit mb-1 shadow-sm">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                    <span>HAPPENING TODAY</span>
+                  </div>
+                )}
+
+                <div className="min-w-0 flex-1">
+                  <span className="text-[9px] uppercase font-black tracking-wider bg-white/20 px-2 py-0.5 rounded-md inline-block">
+                    {t.type}
+                  </span>
+                  <h4 className="font-black text-base mt-1 text-white truncate">{t.title}</h4>
+                  <p className="text-xs text-slate-100 mt-0.5 flex items-center gap-1 truncate">
+                    <CalendarIcon className="w-3.5 h-3.5 shrink-0" />
+                    <span>{t.dateStr} • {t.locationStr}</span>
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 sm:shrink-0 flex-wrap">
+                  {/* Share Outing Action */}
+                  <button
+                    type="button"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      await shareContent({
+                        title: `RADA Pass: ${t.title}`,
+                        text: `🎟️ Outing locked in! Catch me at "${t.title}" on ${t.dateStr} at ${t.locationStr}. Check it out on RADA!`,
+                        url: window.location.href,
+                        onError: (m: string) => showToast?.(m, { type: 'error' })
+                      });
+                    }}
+                    title="Share Outing Pass"
+                    className="p-2.5 bg-black/30 hover:bg-black/50 text-white rounded-xl transition flex items-center justify-center border border-white/20 cursor-pointer"
+                  >
+                    <Share2 className="w-4 h-4" />
+                  </button>
+
+                  {/* QR Pass */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onShowQrCode(t.title);
+                    }}
+                    className="px-3.5 py-2.5 bg-white text-slate-900 rounded-xl text-xs font-black shadow-md hover:bg-slate-100 transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <QrCode className="w-4 h-4 text-[#E05328] dark:text-[#D17A68]" />
+                    <span>QR Pass</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+
+          {(selectedDay !== null ? qrDayTickets : qrTickets).length === 0 && (
+            <div className="py-6 text-center text-xs text-slate-400 bg-[#F1F1EE] dark:bg-[#1C1A1E] rounded-2xl border border-dashed border-slate-300 dark:border-slate-800">
+              {selectedDay !== null 
+                ? 'No tickets for this day. Click "Show All" to see all of them.'
+                : 'No tickets yet. RSVP to events or book a movie and your QR passes show up here.'}
+            </div>
+          )}
+        </div>
+      </div>
+
 
       {/* Uploaded QR codes & tickets for events and cinema */}
       <VaultQrUploads showToast={showToast} />
