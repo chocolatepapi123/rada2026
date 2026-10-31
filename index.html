@@ -24,9 +24,9 @@
  <link rel="icon" type="image/png" href="/favicon.png" />
  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
  <link rel="manifest" href="/manifest.json" />
-<!-- Phone top bar and bottom gesture bar follow the PHONE's light/dark setting, not the in-app toggle. -->
-<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
-<meta name="theme-color" content="#121113" media="(prefers-color-scheme: dark)" />
+<!-- System bars are ALWAYS dark, regardless of the phone setting or the in-app toggle.
+     One theme-color tag only: no media queries, so nothing can switch it to white. -->
+<meta name="theme-color" content="#121113" />
 <script>
   /* App theme: light unless the person chose dark. Set before first paint so there is no dark flash.
      The phone bars are NOT affected; they follow the theme-color tags above. */
