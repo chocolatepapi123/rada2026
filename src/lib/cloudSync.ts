@@ -1768,7 +1768,7 @@ export async function fetchOutings(): Promise<OutingPlan[] | null> {
           hostName: hostH,
           hostAvatar: row.host_avatar || d.hostAvatar || '',
           hostHandle: hostH,
-          isHostVerified: row.is_host_verified ?? d.isHostVerified ?? true,
+          isHostVerified: row.is_host_verified === true,
           spotId: row.spot_id || d.spotId,
           spotTitle: row.spot_title || d.spotTitle || 'Hangout Venue',
           spotAddress: row.spot_address || d.spotAddress || 'Nairobi',
