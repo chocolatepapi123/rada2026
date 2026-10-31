@@ -5,6 +5,7 @@
  * their own rows; every change goes through admin-only RPCs (add_subscription, change_tier,
  * extend_subscription, terminate_subscription). This file only reads and displays.
  */
+import { isOfficialAdmin } from '../types.ts';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, isSupabaseConfigured } from './supabase';
 
@@ -217,7 +218,7 @@ export function isPermanentEliteAccount(email?: string | null, role?: string | n
   if (!email && !role) return false;
   const e = (email || '').toLowerCase().trim();
   const r = (role || '').toLowerCase().trim();
-  return e === 'lowkeywayne21@gmail.com' || e.includes('admin') || r === 'admin';
+  return isOfficialAdmin(e) || r === 'admin';
 }
 
 const EMPTY: MySubscriptions = { creator: null, merchant: null };

@@ -2,6 +2,8 @@
  * Analytics events. Fire-and-forget: tracking must never break the app.
  * Server side: public.track_event(...) finds the owner, rate-limits per session and swallows errors.
  */
+import { getDemoPersona } from './demoMode';
+import { demoMyAnalytics } from './demoPersonas';
 import { supabase, isSupabaseConfigured } from './supabase';
 
 export type TrackEvent =
@@ -72,6 +74,7 @@ export interface MyAnalytics {
 }
 
 export async function fetchMyAnalytics(days = 30): Promise<MyAnalytics> {
+  if (getDemoPersona()) return demoMyAnalytics(days);
   if (!isSupabaseConfigured) return { level: 'none' };
   const { data, error } = await supabase.rpc('get_my_analytics', { p_days: days });
   if (error) throw new Error(error.message);

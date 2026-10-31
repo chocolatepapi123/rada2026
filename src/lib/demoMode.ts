@@ -24,7 +24,20 @@ function readDemoFlag(): boolean {
 
 const DEMO_ON = readDemoFlag();
 
-export const isDemoMode = (): boolean => DEMO_ON;
+/** Demo accounts (see demoPersonas.ts) open in Demo Mode on their own. Set from the signed-in email. */
+const DEMO_ACCOUNT_EMAILS: Record<string, 'merchant' | 'host' | 'user'> = {
+  'waynrewaweru@gmail.com': 'merchant',
+  'waynewaweruwaititu@gmail.com': 'host',
+  'prodbywayne@gmail.com': 'user',
+};
+let personaForEmail: 'merchant' | 'host' | 'user' | null = null;
+export function setDemoAccountEmail(email?: string | null) {
+  personaForEmail = DEMO_ACCOUNT_EMAILS[String(email || '').trim().toLowerCase()] ?? null;
+}
+/** Which sample person the signed-in demo account plays; null for everyone else. */
+export const getDemoPersona = (): 'merchant' | 'host' | 'user' | null => personaForEmail;
+
+export const isDemoMode = (): boolean => DEMO_ON || personaForEmail !== null;
 
 /** Every mock id starts with "demo-" so real code paths can skip the network for them. */
 export const isDemoId = (id: unknown): boolean => String(id ?? '').startsWith('demo-');

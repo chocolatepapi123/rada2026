@@ -1,3 +1,5 @@
+import { getDemoPersona } from './demoMode';
+import { demoMilestones } from './demoPersonas';
 import { supabase, isSupabaseConfigured } from './supabase';
 
 export type MilestoneKind = 'outings' | 'spots' | 'photo_reviews';
@@ -25,6 +27,7 @@ export const MILESTONE_META: Record<MilestoneKind, { title: string; unit: string
 
 /** Badge progress for a user (yourself when no id is given). Rules and awards live in the database. */
 export async function fetchMilestones(userId?: string | null): Promise<MilestoneData | null> {
+  if (getDemoPersona() && !userId) return demoMilestones(getDemoPersona()!);
   if (!isSupabaseConfigured) return null;
   const { data, error } = await supabase.rpc('get_milestones', { p_user: userId ?? null });
   if (error || !data) return null;
