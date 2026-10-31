@@ -107,3 +107,19 @@ html.dark {
 html.dark .spot-title { color: #C44C33 !important; }
 
 .rada-osm-dark { filter: invert(100%) hue-rotate(180deg) brightness(0.82) contrast(1.15); }
+
+
+/* Low-memory phones: drop blur effects and heavy shadows, which are the costliest things to paint. */
+html.low-end *,
+html.low-end *::before,
+html.low-end *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+html.low-end .shadow-2xl,
+html.low-end .shadow-xl {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

@@ -87,6 +87,8 @@ const TAB_PREFETCH: Array<() => Promise<any>> = [
 ];
 if (typeof window !== 'undefined') {
   const warmTabs = () => {
+    const c: any = (navigator as any).connection || {};
+    if (document.documentElement.classList.contains('low-end') || c.saveData) return;
     TAB_PREFETCH.forEach((load, i) => setTimeout(() => load().catch(() => {}), i * 400));
   };
   const kick = () => {
@@ -98,14 +100,14 @@ if (typeof window !== 'undefined') {
   else window.addEventListener('load', kick, { once: true });
 }
 
-import { AuthModal } from './components/AuthModal.tsx';
+const AuthModal = lazyNamed(() => import('./components/AuthModal.tsx'), 'AuthModal');
 const AdminDashboard = lazyNamed(() => import('./components/AdminDashboardModal.tsx'), 'AdminDashboard');
 const MerchantHubTab = lazyNamed(() => import('./components/MerchantHubTab.tsx'), 'MerchantHubTab');
 const PublicBusinessProfileModal = lazyNamed(() => import('./components/PublicBusinessProfileModal.tsx'), 'PublicBusinessProfileModal');
-import { SpotsTab } from './components/SpotsTab.tsx';
-import { OutingsTab } from './components/OutingsTab.tsx';
-import { SocialsTab } from './components/SocialsTab.tsx';
-import { VaultTab } from './components/VaultTab.tsx';
+const SpotsTab = lazyNamed(() => import('./components/SpotsTab.tsx'), 'SpotsTab');
+const OutingsTab = lazyNamed(() => import('./components/OutingsTab.tsx'), 'OutingsTab');
+const SocialsTab = lazyNamed(() => import('./components/SocialsTab.tsx'), 'SocialsTab');
+const VaultTab = lazyNamed(() => import('./components/VaultTab.tsx'), 'VaultTab');
 const LukuEventsTab = lazyNamed(() => import('./components/LukuEventsTab.tsx'), 'LukuEventsTab');
 const Overlays = lazyNamed(() => import('./components/Overlays.tsx'), 'Overlays');
 const LocationMapModal = lazyNamed(() => import('./components/LocationMapModal.tsx'), 'LocationMapModal');
@@ -481,35 +483,35 @@ export default function App() {
 
   
 
-  // Theme State: Default to pure white / light mode
+  // Theme State: follows the phone's light/dark setting until the person picks one with the toggle.
+  // (The phone's top and bottom bars always follow the phone setting; see the theme-color tags in index.html.)
+  const systemDark = () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-color-scheme: dark)').matches;
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('rada_theme');
-    return saved === 'dark';
+    return saved === 'dark' ? true : saved === 'light' ? false : systemDark();
   });
 
   useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-      document.documentElement.classList.remove('light');
-      localStorage.setItem('rada_theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.classList.add('light');
-      localStorage.setItem('rada_theme', 'light');
-    }
-    // Phone top bar and bottom gesture/nav bar follow the screen colour (not the brand orange).
-    const barColor = isDarkMode ? '#121113' : '#FFFFFF';
-    let themeMeta = document.querySelector('meta[name="theme-color"]');
-    if (!themeMeta) {
-      themeMeta = document.createElement('meta');
-      themeMeta.setAttribute('name', 'theme-color');
-      document.head.appendChild(themeMeta);
-    }
-    themeMeta.setAttribute('content', barColor);
+    document.documentElement.classList.toggle('dark', isDarkMode);
+    document.documentElement.classList.toggle('light', !isDarkMode);
   }, [isDarkMode]);
 
+  // Keep following the phone while the person has not chosen a theme themselves.
+  useEffect(() => {
+    const mq = window.matchMedia?.('(prefers-color-scheme: dark)');
+    if (!mq) return;
+    const onChange = (e: MediaQueryListEvent) => {
+      if (!localStorage.getItem('rada_theme')) setIsDarkMode(e.matches);
+    };
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
   const handleToggleTheme = () => {
-    setIsDarkMode(prev => !prev);
+    setIsDarkMode(prev => {
+      try { localStorage.setItem('rada_theme', prev ? 'light' : 'dark'); } catch {}
+      return !prev;
+    });
   };
 
   // Live cinema showings (fetched, cached for 6h; empty when unavailable)
@@ -2462,7 +2464,7 @@ export default function App() {
           {/* Prominent RADA Logo Icon */}
           <div className="relative group mb-6">
             <div className="absolute -inset-4 bg-white/20 rounded-3xl blur-xl" />
-            <img
+            <img loading="lazy" decoding="async"
               src="/logo.jpg"
               alt="RADA"
               className="relative w-40 sm:w-48 h-auto object-contain rounded-3xl shadow-2xl"
@@ -2488,7 +2490,7 @@ export default function App() {
           {suspensionReason && (
             <div className="bg-red-600 text-white px-4 py-2.5 text-xs font-bold flex items-center justify-between gap-3 shadow-md z-40 sticky top-0">
               <div className="flex items-center gap-2 flex-1">
-                <i className="fa-solid fa-triangle-exclamation text-amber-200"></i>
+                <span aria-hidden="true" className="text-amber-200">⚠</span>
                 <span>Account Suspended: {suspensionReason}</span>
               </div>
               <button
@@ -2496,7 +2498,7 @@ export default function App() {
                 className="text-white/80 hover:text-white px-1.5 py-0.5 rounded text-xs cursor-pointer"
                 title="Dismiss banner"
               >
-                <i className="fa-solid fa-xmark"></i>
+                <span aria-hidden="true">✕</span>
               </button>
             </div>
           )}
@@ -3030,7 +3032,7 @@ export default function App() {
             <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
               <div className="bg-white dark:bg-[#1C1A1E] border border-red-500/40 rounded-3xl p-6 max-w-md w-full shadow-2xl text-center space-y-4">
                 <div className="w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-950/60 text-red-600 flex items-center justify-center mx-auto shadow-inner">
-                  <i className="fa-solid fa-ban text-2xl"></i>
+                  <span aria-hidden="true" className="text-2xl">🚫</span>
                 </div>
                 <div>
                   <h3 className="text-lg font-black text-slate-900 dark:text-slate-100">
