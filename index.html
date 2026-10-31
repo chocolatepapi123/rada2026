@@ -16,24 +16,24 @@
     <!-- Fonts + icons: loaded without blocking first paint (media=print swap), with a <noscript> fallback -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" media="print" onload="this.media='all'" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'">
     <noscript>
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap">
-      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
     </noscript>
     <!-- Leaflet is no longer loaded here. src/lib/leaflet.ts loads it the first time a map opens. -->
  <link rel="icon" type="image/png" href="/favicon.png" />
  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
  <link rel="manifest" href="/manifest.json" />
-<meta name="theme-color" content="#FFFFFF" />
+<!-- Phone top bar and bottom gesture bar follow the PHONE's light/dark setting, not the in-app toggle. -->
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#121113" media="(prefers-color-scheme: dark)" />
 <script>
-  /* Match the phone's top and bottom system bars to the app's own screen colour before first paint.
-     App.tsx keeps this in sync whenever the theme is switched. */
+  /* Low-memory / data-saver phones get a lighter look (no blur effects), set before first paint. */
   try {
-    var d = localStorage.getItem('rada_theme') === 'dark';
-    document.querySelector('meta[name="theme-color"]').setAttribute('content', d ? '#121113' : '#FFFFFF');
+    var n = navigator, c = n.connection || {};
+    if ((n.deviceMemory && n.deviceMemory <= 4) || (n.hardwareConcurrency && n.hardwareConcurrency <= 4) || c.saveData) {
+      document.documentElement.classList.add('low-end');
+    }
   } catch (e) {}
 </script>
 <meta name="apple-mobile-web-app-capable" content="yes" />
