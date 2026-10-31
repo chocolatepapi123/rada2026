@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Crown as PlanCrownIcon } from 'lucide-react';
 import { useMySubscriptions } from '../lib/subscriptions';
 import { SubscriptionPlans, TrialBanner } from './SubscriptionPlans';
+import { TeamPanel, TeamInvitesCard } from './TeamPanel';
 import PromotionsPanel from './PromotionsPanel';
 import { RedeemCodePanel, OfferStatsLine, ReviewReplyBlock } from './RetentionBits';
 import { SPOT_CATEGORIES } from '../lib/spotCategories';
@@ -4798,6 +4799,14 @@ isSpotFormOpen && (
               onOpenAuth={onOpenAuth}
               accountLabel={currentBiz.name}
             />
+            {!adminMode && (
+              <>
+                <TeamInvitesCard signedIn={Boolean(isUserSignedIn ?? userId)} />
+                {ownedBusinesses.length > 0 && currentBiz?.id && (
+                  <TeamPanel businessId={String(currentBiz.id)} businessName={currentBiz.name} signedIn={Boolean(isUserSignedIn ?? userId)} />
+                )}
+              </>
+            )}
             {!adminMode && ownedBusinesses.length > 0 && (
               <PromotionsPanel
                 audience="merchant"
