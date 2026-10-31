@@ -4,6 +4,7 @@ import { useMySubscriptions } from '../lib/subscriptions';
 import { SubscriptionPlans, TrialBanner } from './SubscriptionPlans';
 import { TeamPanel, TeamInvitesCard } from './TeamPanel';
 import PromotionsPanel, { BoostSheet } from './PromotionsPanel';
+import { PROMO_BOOST_PLACEMENTS, offerPromoKey } from '../lib/promotions';
 import { Rocket } from 'lucide-react';
 import { RedeemCodePanel, OfferStatsLine, ReviewReplyBlock } from './RetentionBits';
 import { SPOT_CATEGORIES } from '../lib/spotCategories';
@@ -1202,8 +1203,8 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
 
   // Active sub-tab inside the vertical dashboard
   const [activeSubTab, setActiveSubTab] = useState<'overview' | 'manage' | 'claim' | 'offers' | 'profile' | 'analytics' | 'plan' | 'boost'>('overview');
-  const [boostFor, setBoostFor] = useState<{ subject?: string } | null>(null);
-  const [boostPrompt, setBoostPrompt] = useState<string | null>(null);
+  const [boostFor, setBoostFor] = useState<{ offerId?: string; subject?: string } | null>(null);
+  const [boostPrompt, setBoostPrompt] = useState<{ id: string; title: string } | null>(null);
 
   // Merchant subscription (read-only here: plans are changed by RADA admins on the server)
   const mySubs = useMySubscriptions(adminMode ? undefined : userId);
@@ -2178,7 +2179,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       onUpdateOffer(offerPayload);
     } else {
       onCreateOffer(offerPayload);
-      if (!adminMode) setBoostPrompt(offerPayload.title);
+      if (!adminMode) setBoostPrompt({ id: offerPayload.id, title: offerPayload.title });
     }
 
     setIsOfferFormOpen(false);
@@ -2186,6 +2187,8 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
 
   // Offers belonging to active business
   const myOffers = offers.filter(o => o.businessId === currentBiz?.id);
+  /** Each promo is boosted on its own: the target is the promo, not the business. */
+  const promoTargets = myOffers.map((o) => ({ type: 'listing' as const, id: offerPromoKey(o.id), title: o.title, zone: currentBiz?.neighborhood }));
 
   const spotFormOverlay =
 isSpotFormOpen && (
@@ -4830,8 +4833,8 @@ isSpotFormOpen && (
                 className="w-full rounded-3xl p-4 bg-white dark:bg-[#1C1A1E] border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-3 text-left cursor-pointer">
                 <span className="w-10 h-10 rounded-2xl bg-[#E0533C]/10 text-[#E0533C] flex items-center justify-center"><Rocket className="w-5 h-5" /></span>
                 <span className="flex-1">
-                  <span className="block text-[14px] font-black">Boost your business</span>
-                  <span className="block text-[11px] text-slate-500">Request a boost, pay with M-Pesa and track it in the Boost tab.</span>
+                  <span className="block text-[14px] font-black">Boost your promos</span>
+                  <span className="block text-[11px] text-slate-500">Pick a promo to boost, pay with M-Pesa and track it in the Boost tab.</span>
                 </span>
               </button>
             )}
@@ -4843,8 +4846,11 @@ isSpotFormOpen && (
             {ownedBusinesses.length > 0 ? (
               <PromotionsPanel
                 audience="merchant"
+                noun="promo"
+                placements={PROMO_BOOST_PLACEMENTS}
                 categories={SPOT_CATEGORIES.map((c) => ({ id: c.id, label: c.label }))}
-                targets={ownedBusinesses.map((b) => ({ type: 'business' as const, id: b.id, title: b.name, zone: b.neighborhood }))}
+                targets={promoTargets}
+                emptyTargets={promoTargets.length === 0 ? { text: 'Boosts are for one promo at a time. Create a promo first, then come back to boost it.', actionLabel: 'Create a promo', onAction: () => { setActiveSubTab('offers'); openCreateOfferModal(); } } : undefined}
               />
             ) : (
               <div className="rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1C1A1E] p-6 text-center">
@@ -5089,8 +5095,8 @@ isSpotFormOpen && (
                 style={{ background: 'linear-gradient(135deg,#E0533C,#B8402C)' }}>
                 <span className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><Rocket className="w-4 h-4" /></span>
                 <span className="flex-1">
-                  <span className="block text-[13px] font-black">Get your promos seen first</span>
-                  <span className="block text-[11px] text-white/80">Boost to the top of the Home feed</span>
+                  <span className="block text-[13px] font-black">Get a promo seen first</span>
+                  <span className="block text-[11px] text-white/80">Pick one promo and boost it up the Home feed</span>
                 </span>
                 <span className="text-[11px] font-black bg-white text-[#E0533C] px-3 py-1.5 rounded-full">Boost</span>
               </button>
@@ -5156,7 +5162,7 @@ isSpotFormOpen && (
                       <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
                         {!adminMode && (
                           <button
-                            onClick={() => setBoostFor({ subject: offer.title })}
+                            onClick={() => setBoostFor({ offerId: offer.id, subject: offer.title })}
                             className="mr-auto px-3 py-1.5 rounded-xl bg-[#E0533C] text-white text-xs font-black flex items-center gap-1 cursor-pointer"
                           >
                             <Rocket className="w-3.5 h-3.5" />
@@ -5198,10 +5204,10 @@ isSpotFormOpen && (
             <span className="w-12 h-12 rounded-2xl bg-[#E0533C]/10 text-[#E0533C] flex items-center justify-center"><Rocket className="w-6 h-6" /></span>
             <div>
               <p className="text-[17px] font-black tracking-tight">Your promo is live</p>
-              <p className="text-[12px] text-slate-500 mt-1 leading-relaxed">&ldquo;{boostPrompt}&rdquo; is on the Home feed. Want more people to see it? Boost it to the top.</p>
+              <p className="text-[12px] text-slate-500 mt-1 leading-relaxed">&ldquo;{boostPrompt.title}&rdquo; is on the Home feed. Want more people to see it? Boost this promo up the feed.</p>
             </div>
             <div className="space-y-2">
-              <button type="button" onClick={() => { const t = boostPrompt; setBoostPrompt(null); setBoostFor({ subject: t || undefined }); }}
+              <button type="button" onClick={() => { const t = boostPrompt; setBoostPrompt(null); if (t) setBoostFor({ offerId: t.id, subject: t.title }); }}
                 className="w-full py-3.5 rounded-2xl bg-[#E0533C] text-white text-[14px] font-black cursor-pointer">Boost it</button>
               <button type="button" onClick={() => setBoostPrompt(null)} className="w-full py-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-[13px] font-bold cursor-pointer">Not now</button>
             </div>
@@ -5211,10 +5217,12 @@ isSpotFormOpen && (
       {boostFor && (
         <BoostSheet
           audience="merchant"
+          noun="promo"
+          placements={PROMO_BOOST_PLACEMENTS}
           subject={boostFor.subject}
           categories={SPOT_CATEGORIES.map((c) => ({ id: c.id, label: c.label }))}
-          targets={ownedBusinesses.map((b) => ({ type: 'business' as const, id: b.id, title: b.name, zone: b.neighborhood }))}
-          lockedTargetKey={currentBiz?.id ? `business:${currentBiz.id}` : undefined}
+          targets={promoTargets}
+          lockedTargetKey={boostFor.offerId ? `listing:${offerPromoKey(boostFor.offerId)}` : undefined}
           onClose={() => setBoostFor(null)}
           onViewBoosts={() => setActiveSubTab('boost')}
         />

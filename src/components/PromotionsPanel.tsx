@@ -20,6 +20,12 @@ interface Props {
   audience: 'merchant' | 'creator';
   /** value = category id used for matching, label = what the person sees */
   categories?: { id: string; label: string }[];
+  /** Only offer these packs (by placement). Merchants boost one promo, so they pass the promo placements. */
+  placements?: PromoPlacement[];
+  /** Wording for what is being boosted, e.g. 'promo'. */
+  noun?: string;
+  /** Shown instead of the hero button when there is nothing to boost yet. */
+  emptyTargets?: { text: string; actionLabel: string; onAction: () => void };
 }
 
 const BRAND = '#E0533C';
@@ -80,12 +86,14 @@ export const BoostSheet: React.FC<{
   audience: 'merchant' | 'creator';
   categories?: { id: string; label: string }[];
   lockedTargetKey?: string;
+  placements?: PromoPlacement[];
+  noun?: string;
   /** Shown under the title, e.g. the promo's name. */
   subject?: string;
   onClose: () => void;
   onSent?: () => void;
   onViewBoosts?: () => void;
-}> = ({ targets, audience, categories = [], lockedTargetKey, subject, onClose, onSent, onViewBoosts }) => {
+}> = ({ targets, audience, categories = [], lockedTargetKey, placements, noun, subject, onClose, onSent, onViewBoosts }) => {
   const [products, setProducts] = useState<PromoProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [productId, setProductId] = useState('');
@@ -104,11 +112,11 @@ export const BoostSheet: React.FC<{
   useEffect(() => {
     let live = true;
     fetchPromoProducts()
-      .then((p) => live && setProducts(p.filter((x) => x.audience === 'both' || x.audience === audience)))
+      .then((p) => live && setProducts(p.filter((x) => (x.audience === 'both' || x.audience === audience) && (!placements || placements.includes(x.placement)))))
       .catch((e) => live && setErr(e?.message || 'Could not load the packs'))
       .finally(() => live && setLoading(false));
     return () => { live = false; };
-  }, [audience]);
+  }, [audience, placements]);
 
   const product = products.find((p) => p.id === productId) || null;
   const target = eligible.find((t) => `${t.type}:${t.id}` === targetKey) || null;
@@ -127,7 +135,10 @@ export const BoostSheet: React.FC<{
       setSent(true);
       onSent?.();
     } catch (e: any) {
-      setErr(e?.message || 'Could not send this request');
+      const m = String(e?.message || '');
+      setErr(/only promote something you own/i.test(m)
+        ? `This ${noun || 'item'} is still saving or is not on your account. Wait a few seconds and try again.`
+        : m || 'Could not send this request');
     } finally { setBusy(false); }
   };
 
@@ -172,9 +183,9 @@ export const BoostSheet: React.FC<{
         <>
           {!lockedTargetKey && eligible.length > 1 && (
             <div className="space-y-1.5">
-              <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">What to boost</p>
+              <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">Which {noun || 'item'} to boost</p>
               <select value={targetKey} onChange={(e) => setTargetKey(e.target.value)} className={fieldCls}>
-                <option value="">{audience === 'creator' ? 'Choose an outing' : 'Choose what to boost'}</option>
+                <option value="">{audience === 'creator' ? 'Choose an outing' : `Choose a ${noun || 'item'}`}</option>
                 {eligible.map((t) => <option key={`${t.type}:${t.id}`} value={`${t.type}:${t.id}`}>{t.title}</option>)}
               </select>
             </div>
@@ -309,7 +320,7 @@ const Progress: React.FC<{ status: PromoStatus }> = ({ status }) => {
   );
 };
 
-export const PromotionsPanel: React.FC<Props> = ({ targets, audience, categories = [] }) => {
+export const PromotionsPanel: React.FC<Props> = ({ targets, audience, categories = [], placements, noun, emptyTargets }) => {
   const [products, setProducts] = useState<PromoProduct[]>([]);
   const [mine, setMine] = useState<Promotion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -351,11 +362,11 @@ export const PromotionsPanel: React.FC<Props> = ({ targets, audience, categories
         <div className="relative space-y-3">
           <span className="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center"><Rocket className="w-5 h-5" /></span>
           <div>
-            <p className="text-[18px] font-black tracking-tight">Boost your {audience === 'creator' ? 'outing' : 'business'}</p>
-            <p className="text-[12px] text-white/80 mt-1 leading-relaxed">Get seen higher up on RADA. Pick a pack, RADA approves it, you pay with M-Pesa and it goes live.</p>
+            <p className="text-[18px] font-black tracking-tight">Boost your {audience === 'creator' ? 'outing' : (noun || 'business')}</p>
+            <p className="text-[12px] text-white/80 mt-1 leading-relaxed">{emptyTargets ? emptyTargets.text : 'Get seen higher up on RADA. Pick a pack, RADA approves it, you pay with M-Pesa and it goes live.'}</p>
           </div>
-          <button type="button" onClick={() => setBoostOpen(true)} className="px-5 py-2.5 rounded-xl bg-white text-[13px] font-black cursor-pointer active:scale-95 transition" style={{ color: BRAND }}>
-            Boost now
+          <button type="button" onClick={() => (emptyTargets ? emptyTargets.onAction() : setBoostOpen(true))} className="px-5 py-2.5 rounded-xl bg-white text-[13px] font-black cursor-pointer active:scale-95 transition" style={{ color: BRAND }}>
+            {emptyTargets ? emptyTargets.actionLabel : 'Boost now'}
           </button>
         </div>
       </div>
@@ -410,7 +421,7 @@ export const PromotionsPanel: React.FC<Props> = ({ targets, audience, categories
         ))}
       </div>
 
-      {boostOpen && <BoostSheet targets={targets} audience={audience} categories={categories} onClose={() => setBoostOpen(false)} onSent={load} />}
+      {boostOpen && <BoostSheet targets={targets} audience={audience} categories={categories} placements={placements} noun={noun} onClose={() => setBoostOpen(false)} onSent={load} />}
       {payFor && <PaySheet promo={payFor} onClose={() => setPayFor(null)} onDone={load} />}
       {report && (
         <Sheet onClose={() => setReport(null)} title={report.promo.target_title}>

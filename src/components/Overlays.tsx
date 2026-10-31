@@ -2,7 +2,7 @@
 import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending, formatOpeningHours } from '../lib/spotsFeed.ts';
 import React, { useState, useEffect, useRef } from 'react';
 import { track } from '../lib/tracking';
-import { useActivePromotions, businessRankMap, sortByPromotion } from '../lib/promotions';
+import { useActivePromotions, offerRankMap, offerPromoKey, sortByPromotion } from '../lib/promotions';
 import { searchProfiles, type CloudProfileHit } from '../lib/socialsCloud.ts';
 import { getStoredLanguage, saveStoredLanguage, translations, type AppLanguage } from '../utils/i18n.ts';
 import { 
@@ -278,7 +278,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
   // View All offers: same order as Home (promoted first as chosen by RADA, then latest to earliest).
   const activePromos = useActivePromotions();
   const sortedOffers = React.useMemo(
-    () => sortByPromotion(offers || [], (o) => o.businessId, businessRankMap(activePromos), (o) => o.createdAt),
+    () => sortByPromotion(offers || [], (o) => offerPromoKey(o.id), offerRankMap(activePromos), (o) => o.createdAt),
     [offers, activePromos]
   );
 
