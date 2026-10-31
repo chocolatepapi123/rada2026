@@ -95,6 +95,7 @@ export const PLAN_FEATURES: Record<SubKind, FeatureRow[]> = {
     { label: 'Spots, events & offers', free: true, pro: true, elite: true },
     { label: 'Storefront badge', hint: 'Needs an approved business', free: false, pro: 'Business', elite: 'Golden Featured' },
     { label: 'Golden badge on spots & offers', free: false, pro: false, elite: true },
+    { label: 'Team members', hint: 'Managers, editors and door staff with their own logins', free: 'Just you', pro: 'Up to 3', elite: 'Up to 10' },
   ],
 };
 
