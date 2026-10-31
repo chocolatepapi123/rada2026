@@ -483,29 +483,16 @@ export default function App() {
 
   
 
-  // Theme State: follows the phone's light/dark setting until the person picks one with the toggle.
-  // (The phone's top and bottom bars always follow the phone setting; see the theme-color tags in index.html.)
-  const systemDark = () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+  // Theme State: the app always opens in light mode until the person picks dark with the toggle.
+  // (The phone's top and bottom bars always follow the phone setting, not this; see the theme-color tags in index.html.)
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem('rada_theme');
-    return saved === 'dark' ? true : saved === 'light' ? false : systemDark();
+    try { return localStorage.getItem('rada_theme') === 'dark'; } catch { return false; }
   });
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDarkMode);
     document.documentElement.classList.toggle('light', !isDarkMode);
   }, [isDarkMode]);
-
-  // Keep following the phone while the person has not chosen a theme themselves.
-  useEffect(() => {
-    const mq = window.matchMedia?.('(prefers-color-scheme: dark)');
-    if (!mq) return;
-    const onChange = (e: MediaQueryListEvent) => {
-      if (!localStorage.getItem('rada_theme')) setIsDarkMode(e.matches);
-    };
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
-  }, []);
 
   const handleToggleTheme = () => {
     setIsDarkMode(prev => {
