@@ -34,7 +34,7 @@ export const NotificationBell: React.FC<Props> = ({ userId }) => {
   useEffect(() => {
     load();
     if (!userId) return;
-    const t = window.setInterval(load, 60000);
+    const t = window.setInterval(() => { if (document.visibilityState === 'visible') load(); }, 60000);
     const onFocus = () => load();
     window.addEventListener('focus', onFocus);
     return () => {

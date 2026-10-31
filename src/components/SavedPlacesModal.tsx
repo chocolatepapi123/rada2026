@@ -393,7 +393,7 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
                   onClick={() => handleCardClick(item)}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={img}
                       alt={title}
                       className="w-16 h-16 rounded-xl object-cover shrink-0 border border-slate-200 dark:border-slate-800"

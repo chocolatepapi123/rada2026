@@ -958,7 +958,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="relative shrink-0">
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={spot.img}
                       alt={spot.title}
                       className="w-12 h-12 rounded-xl object-cover border border-slate-200 dark:border-slate-700"
@@ -1037,7 +1037,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     {rev.userAvatar ? (
-                      <img
+                      <img loading="lazy" decoding="async"
                         src={rev.userAvatar}
                         alt={rev.userName}
                         className="w-7 h-7 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0"
@@ -2528,7 +2528,7 @@ isSpotFormOpen && (
                     {spotMenuUploadUrl ? (
                       <div className="p-3.5 rounded-2xl bg-slate-100 dark:bg-[#121113] flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0">
-                          <img 
+                          <img loading="lazy" decoding="async" 
                             src={spotMenuUploadUrl} 
                             alt="Uploaded Menu Preview" 
                             className="w-14 h-14 rounded-xl object-cover shrink-0" 
@@ -3499,7 +3499,7 @@ isSpotFormOpen && (
 
                   {spotCoverImg ? (
                     <div className="relative w-full h-56 sm:h-72 rounded-2xl overflow-hidden border-2 border-slate-200 dark:border-slate-800 group shadow-xs bg-slate-900">
-                      <img 
+                      <img loading="lazy" decoding="async" 
                         src={spotCoverImg} 
                         alt="Spot Cover Preview" 
                         className="w-full h-full object-cover" 
@@ -3827,7 +3827,7 @@ isSpotFormOpen && (
                       Profile Picture / Logo *
                     </label>
                     <div className="flex items-center gap-3">
-                      <img 
+                      <img loading="lazy" decoding="async" 
                         src={onboardLogo || presetLogos[0]} 
                         alt="Logo Preview" 
                         className="w-14 h-14 rounded-2xl object-cover shadow-xs shrink-0" 
@@ -3874,7 +3874,7 @@ isSpotFormOpen && (
                               onClick={() => setOnboardLogo(preset)}
                               className={`w-6 h-6 rounded-lg overflow-hidden border ${onboardLogo === preset ? 'ring-2 ring-[#E0533C] dark:ring-[#D17A68]' : 'opacity-70'}`}
                             >
-                              <img src={preset} alt="preset" className="w-full h-full object-cover" />
+                              <img loading="lazy" decoding="async" src={preset} alt="preset" className="w-full h-full object-cover" />
                             </button>
                           ))}
                         </div>
@@ -4105,7 +4105,7 @@ isSpotFormOpen && (
                 onClick={() => setIsSwitcherOpen(!isSwitcherOpen)}
                 className="flex items-start gap-3 text-left group w-full"
               >
-                <img 
+                <img loading="lazy" decoding="async" 
                   src={currentBiz.logo} 
                   alt={currentBiz.name} 
                   className="relative z-10 w-12 h-12 rounded-2xl object-cover shadow-md bg-slate-100 dark:bg-slate-800 shrink-0" 
@@ -4144,7 +4144,7 @@ isSpotFormOpen && (
                         }`}
                       >
                         <div className="flex items-center gap-2 min-w-0">
-                          <img src={biz.logo} alt={biz.name} className="w-6 h-6 rounded-lg object-cover shrink-0" />
+                          <img loading="lazy" decoding="async" src={biz.logo} alt={biz.name} className="w-6 h-6 rounded-lg object-cover shrink-0" />
                           <span className="truncate">{biz.name}</span>
                         </div>
                         <BusinessBadge businessId={biz.id} category={biz.category} size="xs" />
@@ -4525,7 +4525,7 @@ isSpotFormOpen && (
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         {offer.posterUrl && (
-                          <img src={offer.posterUrl} alt={offer.title} className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                          <img loading="lazy" decoding="async" src={offer.posterUrl} alt={offer.title} className="w-12 h-12 rounded-xl object-cover shrink-0" />
                         )}
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
@@ -4618,7 +4618,7 @@ isSpotFormOpen && (
                         className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-4 shadow-xs space-y-3"
                       >
                         <div className="flex items-start gap-3">
-                          <img src={spot.img} alt={spot.title} className="w-16 h-16 rounded-2xl object-cover shrink-0" />
+                          <img loading="lazy" decoding="async" src={spot.img} alt={spot.title} className="w-16 h-16 rounded-2xl object-cover shrink-0" />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
                               <h4 className="font-black text-sm truncate">{spot.title}</h4>
@@ -4731,7 +4731,7 @@ isSpotFormOpen && (
                         className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-4 shadow-xs space-y-3"
                       >
                         <div className="flex items-start gap-3">
-                          <img src={evt.img} alt={evt.title} className="w-16 h-16 rounded-2xl object-cover shrink-0" />
+                          <img loading="lazy" decoding="async" src={evt.img} alt={evt.title} className="w-16 h-16 rounded-2xl object-cover shrink-0" />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
                               <h4 className="font-black text-sm truncate">{evt.title}</h4>
@@ -4936,7 +4936,7 @@ isSpotFormOpen && (
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             {c.spotImg ? (
-                              <img src={c.spotImg} alt={c.spotTitle} className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                              <img loading="lazy" decoding="async" src={c.spotImg} alt={c.spotTitle} className="w-12 h-12 rounded-xl object-cover shrink-0" />
                             ) : (
                               <div className="w-12 h-12 rounded-xl bg-orange-50 dark:bg-orange-950/40 text-[#E0533C] dark:text-[#D17A68] flex items-center justify-center font-bold text-xs shrink-0">
                                 <Store className="w-5 h-5" />
@@ -5019,7 +5019,7 @@ isSpotFormOpen && (
                       className="bg-white dark:bg-[#1C1A1E] shadow-sm rounded-3xl p-4 shadow-xs flex items-center justify-between gap-3 hover:border-amber-400/50 transition border border-slate-100 dark:border-slate-800/80"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <img src={spot.img} alt={spot.title} className="w-14 h-14 rounded-2xl object-cover shrink-0 bg-slate-100 dark:bg-slate-800" />
+                        <img loading="lazy" decoding="async" src={spot.img} alt={spot.title} className="w-14 h-14 rounded-2xl object-cover shrink-0 bg-slate-100 dark:bg-slate-800" />
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <h4 className="font-extrabold text-xs truncate text-slate-900 dark:text-slate-100">{spot.title}</h4>
@@ -5125,7 +5125,7 @@ isSpotFormOpen && (
                   >
                     {/* Offer Banner */}
                     <div className="relative h-36 w-full bg-slate-900">
-                      <img 
+                      <img loading="lazy" decoding="async" 
                         src={offer.posterUrl || currentBiz.coverImage || 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&auto=format&fit=crop'} 
                         alt={offer.title} 
                         className="w-full h-full object-cover opacity-85" 
@@ -5457,7 +5457,7 @@ isSpotFormOpen && (
                   {eventImg ? (
                     <div className="relative rounded-2xl overflow-hidden shadow-sm bg-slate-900 group">
                       <div className="h-64 sm:h-72 w-full relative">
-                        <img 
+                        <img loading="lazy" decoding="async" 
                           src={eventImg} 
                           alt="Event Poster Preview" 
                           className="w-full h-full object-cover group-hover:scale-[1.02] transition duration-300"
@@ -5775,7 +5775,7 @@ isSpotFormOpen && (
                 <div className="flex gap-2 overflow-x-auto py-1">
                   {eventArtists.map((a, idx) => (
                     <div key={idx} className="bg-[#FBFBF9] dark:bg-[#121113] p-2.5 rounded-2xl shadow-sm shrink-0 flex items-center gap-2.5">
-                      <img src={a.img} alt={a.name} className="w-9 h-9 rounded-xl object-cover" />
+                      <img loading="lazy" decoding="async" src={a.img} alt={a.name} className="w-9 h-9 rounded-xl object-cover" />
                       <div>
                         <span className="font-extrabold text-xs block">{a.name}</span>
                         <span className="text-[10px] text-slate-400 block">{a.role}</span>
@@ -5924,7 +5924,7 @@ isSpotFormOpen && (
                 </label>
                 {offerPosterUrl ? (
                   <div className="relative rounded-2xl overflow-hidden shadow-sm group h-36 bg-slate-900">
-                    <img 
+                    <img loading="lazy" decoding="async" 
                       src={offerPosterUrl} 
                       alt="Offer Poster Preview" 
                       className="w-full h-full object-cover"
@@ -6080,7 +6080,7 @@ isSpotFormOpen && (
 
             {/* Target Spot Preview Card */}
             <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-center gap-3">
-              <img 
+              <img loading="lazy" decoding="async" 
                 src={claimTargetSpot.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&auto=format&fit=crop'} 
                 alt={claimTargetSpot.title} 
                 className="w-14 h-14 rounded-xl object-cover shrink-0" 
@@ -6309,7 +6309,7 @@ isSpotFormOpen && (
           className="fixed inset-0 z-[130] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer"
         >
           <div className="relative max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl" onClick={e => e.stopPropagation()}>
-            <img src={previewProofDocUrl} alt="Proof Document Preview" className="max-w-full max-h-[85vh] object-contain rounded-xl" />
+            <img loading="lazy" decoding="async" src={previewProofDocUrl} alt="Proof Document Preview" className="max-w-full max-h-[85vh] object-contain rounded-xl" />
             <button
               type="button"
               onClick={() => setPreviewProofDocUrl(null)}

@@ -331,7 +331,7 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-800 shrink-0">
                 {own.avatar ? (
-                  <img src={own.avatar} alt="" className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={own.avatar} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <UserCircle2 className="w-full h-full text-slate-400" />
                 )}
@@ -477,7 +477,7 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
                   return (
                     <div key={o.id} className={`${card} p-3 flex items-center gap-3`}>
                       {o.spotImage ? (
-                        <img src={o.spotImage} alt="" className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                        <img loading="lazy" decoding="async" src={o.spotImage} alt="" className="w-12 h-12 rounded-xl object-cover shrink-0" />
                       ) : (
                         <div className="w-12 h-12 rounded-xl bg-[#E0533C]/10 text-[#E0533C] flex items-center justify-center shrink-0">
                           <CalendarDays className="w-5 h-5" />

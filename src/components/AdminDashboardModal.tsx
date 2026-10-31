@@ -1045,7 +1045,7 @@ export function AdminDashboardModal({
                         >
                           <div className="flex items-start gap-3.5 min-w-0">
                             {c.spotImg ? (
-                              <img src={c.spotImg} alt={c.spotTitle} className="w-16 h-16 rounded-xl object-cover shrink-0 bg-slate-100 dark:bg-slate-800" />
+                              <img loading="lazy" decoding="async" src={c.spotImg} alt={c.spotTitle} className="w-16 h-16 rounded-xl object-cover shrink-0 bg-slate-100 dark:bg-slate-800" />
                             ) : (
                               <div className="w-16 h-16 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center font-bold text-xs shrink-0">
                                 <Store className="w-6 h-6" />
@@ -1265,7 +1265,7 @@ export function AdminDashboardModal({
                         <ImagePlus className="w-4 h-4" /> Choose photo
                         <input type="file" accept="image/*" className="hidden" onChange={e => onPickImage(e.target.files?.[0])} />
                       </label>
-                      {form.img && <img src={form.img} alt="" className="w-12 h-12 rounded-lg object-cover" />}
+                      {form.img && <img loading="lazy" decoding="async" src={form.img} alt="" className="w-12 h-12 rounded-lg object-cover" />}
                     </div>
                   </div>
 
@@ -1286,7 +1286,7 @@ export function AdminDashboardModal({
                     </p>
                   ) : unclaimed.map(s => (
                     <div key={String(s.id)} className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-                      {s.img && <img src={s.img} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />}
+                      {s.img && <img loading="lazy" decoding="async" src={s.img} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />}
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold truncate">{s.title}</p>
                         <p className="text-xs text-slate-500 truncate">{s.neighborhood} • is_claimed: false</p>
@@ -1560,7 +1560,7 @@ export function AdminDashboardModal({
               {/* Target Spot Preview Card */}
               <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex items-center gap-3.5">
                 {selectedClaim.spotImg ? (
-                  <img src={selectedClaim.spotImg} alt={selectedClaim.spotTitle} className="w-16 h-16 rounded-xl object-cover shrink-0" />
+                  <img loading="lazy" decoding="async" src={selectedClaim.spotImg} alt={selectedClaim.spotTitle} className="w-16 h-16 rounded-xl object-cover shrink-0" />
                 ) : (
                   <div className="w-16 h-16 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-600 flex items-center justify-center font-bold text-xs shrink-0">
                     <Store className="w-6 h-6" />
@@ -1584,7 +1584,7 @@ export function AdminDashboardModal({
                   <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">Claiming Business</h4>
                   <div className="flex items-center gap-2.5">
                     {selectedClaim.businessLogo ? (
-                      <img src={selectedClaim.businessLogo} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
+                      <img loading="lazy" decoding="async" src={selectedClaim.businessLogo} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
                     ) : (
                       <div className="w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-950 text-amber-700 flex items-center justify-center text-xs font-black">
                         <Store className="w-4 h-4" />
@@ -1787,7 +1787,7 @@ export function AdminDashboardModal({
           className="fixed inset-0 z-[130] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer"
         >
           <div className="relative max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl" onClick={e => e.stopPropagation()}>
-            <img src={previewDocUrl} alt="Ownership Proof Document" className="max-w-full max-h-[85vh] object-contain rounded-xl" />
+            <img loading="lazy" decoding="async" src={previewDocUrl} alt="Ownership Proof Document" className="max-w-full max-h-[85vh] object-contain rounded-xl" />
             <button
               type="button"
               onClick={() => setPreviewDocUrl(null)}
@@ -1877,7 +1877,7 @@ export function AdminDashboardModal({
             >
               <X className="w-5 h-5" />
             </button>
-            <img
+            <img loading="lazy" decoding="async"
               src={previewSpotPhoto}
               alt="Community Spot Photo"
               className="max-h-[82vh] w-auto object-contain mx-auto"
@@ -2088,7 +2088,7 @@ function Field({ label, value }: { label: string; value?: string }) {
 
 function Avatar({ user }: { user: AdminUserRecord }) {
   return user.avatar ? (
-    <img src={user.avatar} alt="" className="w-9 h-9 rounded-full object-cover shrink-0" />
+    <img loading="lazy" decoding="async" src={user.avatar} alt="" className="w-9 h-9 rounded-full object-cover shrink-0" />
   ) : (
     <div className="w-9 h-9 rounded-full bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 flex items-center justify-center text-sm font-black shrink-0">
       {(user.name || user.username || '?').charAt(0).toUpperCase()}

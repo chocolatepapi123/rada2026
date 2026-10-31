@@ -1262,7 +1262,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       {rev.images && rev.images.length > 0 && (
                         <div className="flex gap-2 pt-1">
                           {rev.images.map((img, idx) => (
-                            <img key={idx} src={img} alt="User review" className="w-20 h-16 rounded-lg object-cover" />
+                            <img loading="lazy" decoding="async" key={idx} src={img} alt="User review" className="w-20 h-16 rounded-lg object-cover" />
                           ))}
                         </div>
                       )}

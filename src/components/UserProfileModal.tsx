@@ -324,7 +324,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             style={{ backgroundImage: `url('${user.avatar}')` }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40 z-10 pointer-events-none" />
-          <img
+          <img loading="lazy" decoding="async"
             src={user.avatar}
             alt={handle}
             className="relative z-10 max-h-full max-w-full object-contain drop-shadow-2xl"

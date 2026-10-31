@@ -97,7 +97,7 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
         
         {/* Cover Photo & Header Buttons */}
         <div className="relative h-72 sm:h-96 w-full bg-slate-900 shrink-0">
-          <img 
+          <img loading="lazy" decoding="async" 
             src={business.coverImage || business.logo} 
             alt={business.name} 
             className="w-full h-full object-cover opacity-90" 
@@ -136,7 +136,7 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
         <div className="p-5 pb-24 space-y-6 flex-1 w-full max-w-2xl mx-auto">
           {/* Main Info */}
           <div className="relative -mt-12 flex items-end gap-3.5">
-            <img 
+            <img loading="lazy" decoding="async" 
               src={business.logo} 
               alt={business.name} 
               className="w-20 h-20 rounded-2xl object-cover border-4 border-white dark:border-[#1C1A1E] shadow-xl shrink-0" 
@@ -233,7 +233,7 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
                   >
                     {offer.posterUrl && (
                       <div className="h-32 w-full relative">
-                        <img src={offer.posterUrl} alt={offer.title} className="w-full h-full object-cover" />
+                        <img loading="lazy" decoding="async" src={offer.posterUrl} alt={offer.title} className="w-full h-full object-cover" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                         <span className="absolute top-2 left-2 bg-[#E0533C] dark:bg-[#A94F3E] text-white text-[9px] font-black px-2 py-0.5 rounded-md shadow-xs">
                           {offer.discount}
@@ -310,7 +310,7 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
                     style={{ borderLeftColor: primary.color, borderLeftWidth: 4 }}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <img src={spot.img} alt={spot.title} className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                      <img loading="lazy" decoding="async" src={spot.img} alt={spot.title} className="w-12 h-12 rounded-xl object-cover shrink-0" />
                       <div className="min-w-0">
                         <div className="flex flex-wrap gap-1 mb-0.5">
                           {accents.slice(0, 2).map(a => (
@@ -354,7 +354,7 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
                     className="p-3 bg-[#FBFBF9] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between gap-3 cursor-pointer hover:border-purple-400 transition"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <img src={evt.img} alt={evt.title} className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                      <img loading="lazy" decoding="async" src={evt.img} alt={evt.title} className="w-12 h-12 rounded-xl object-cover shrink-0" />
                       <div className="min-w-0">
                         <h4 className="font-extrabold text-xs truncate">{evt.title}</h4>
                         <p className="text-[10px] text-purple-600 font-bold">{evt.date}</p>

@@ -164,7 +164,7 @@ export const VaultQrUploads: React.FC<Props> = ({ showToast }) => {
     >
       <div className="w-16 h-16 rounded-xl bg-white border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center">
         {urls[r.image_path]
-          ? <img src={urls[r.image_path]} alt="" className="w-full h-full object-contain" />
+          ? <img loading="lazy" decoding="async" src={urls[r.image_path]} alt="" className="w-full h-full object-contain" />
           : <QrCode className="w-6 h-6 text-slate-300" />}
       </div>
       <div className="min-w-0 flex-1">
@@ -283,7 +283,7 @@ export const VaultQrUploads: React.FC<Props> = ({ showToast }) => {
               className="w-full h-44 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center gap-1.5 text-slate-500 overflow-hidden cursor-pointer"
             >
               {preview
-                ? <img src={preview} alt="QR preview" className="w-full h-full object-contain bg-white" />
+                ? <img loading="lazy" decoding="async" src={preview} alt="QR preview" className="w-full h-full object-contain bg-white" />
                 : (<><Upload className="w-6 h-6" /><span className="text-xs font-bold">Choose QR image or screenshot</span></>)}
             </button>
 

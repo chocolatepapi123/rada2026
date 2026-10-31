@@ -1203,7 +1203,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         <div className="flex items-center gap-2.5 min-w-0">
                           <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-xs text-slate-700 dark:text-slate-200 overflow-hidden shrink-0">
                             {u.avatar ? (
-                              <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" />
+                              <img loading="lazy" decoding="async" src={u.avatar} alt={u.name} className="w-full h-full object-cover" />
                             ) : (
                               (u.name || 'U')[0].toUpperCase()
                             )}

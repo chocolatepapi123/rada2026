@@ -1694,7 +1694,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           >
             ✕
           </button>
-          <img src={viewerPhoto} alt="Photo" onClick={(e) => e.stopPropagation()} className="max-w-full max-h-full object-contain" />
+          <img loading="lazy" decoding="async" src={viewerPhoto} alt="Photo" onClick={(e) => e.stopPropagation()} className="max-w-full max-h-full object-contain" />
         </div>
       )}
     </section>

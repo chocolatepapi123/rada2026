@@ -1172,7 +1172,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                     {joinedAttendees.length > 0 && (
                       <div className="flex items-center -space-x-1.5">
                         {joinedAttendees.slice(0, 3).map((att) => (
-                          <img
+                          <img loading="lazy" decoding="async"
                             key={att.id}
                             src={att.userAvatar}
                             alt={att.userName}
@@ -1546,7 +1546,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                       />
                       {customSpotImage ? (
                         <div className="relative h-36 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900">
-                          <img src={customSpotImage} alt="Cover preview" className="w-full h-full object-cover" />
+                          <img loading="lazy" decoding="async" src={customSpotImage} alt="Cover preview" className="w-full h-full object-cover" />
                           <div className="absolute top-2 right-2 flex items-center gap-1.5">
                             <button
                               type="button"
@@ -1871,7 +1871,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                   {/* Host line */}
                   <div className="p-2 rounded-xl bg-orange-50/60 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/40 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <img src={selectedOutingDetail.hostAvatar} alt="Host" className="w-7 h-7 rounded-full object-cover" />
+                      <img loading="lazy" decoding="async" src={selectedOutingDetail.hostAvatar} alt="Host" className="w-7 h-7 rounded-full object-cover" />
                       <div>
                         <span className="font-bold text-xs">{selectedOutingDetail.hostName}</span>
                         <HostBadge hostId={selectedOutingDetail.hostId} verified={!!selectedOutingDetail.isHostVerified} size="xs" className="ml-1" />
@@ -1885,7 +1885,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                   {selectedOutingDetail.attendees?.map((att) => (
                     <div key={att.id} className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <img src={att.userAvatar} alt={att.userName} className="w-7 h-7 rounded-full object-cover" />
+                        <img loading="lazy" decoding="async" src={att.userAvatar} alt={att.userName} className="w-7 h-7 rounded-full object-cover" />
                         <div>
                           <span className="font-bold text-xs">{att.userName}</span>
                           <span className="text-[10px] text-slate-400 ml-1">{att.userHandle}</span>
@@ -2046,7 +2046,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
               <div className="p-3 bg-slate-50 dark:bg-black/30 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 min-w-0">
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={activeManagingOuting.spotImage}
                       alt={activeManagingOuting.spotTitle}
                       className="w-9 h-9 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shrink-0"
@@ -2132,7 +2132,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                           >
                             <div className="flex items-center justify-between gap-3">
                               <div className="flex items-center gap-2.5 min-w-0">
-                                <img
+                                <img loading="lazy" decoding="async"
                                   src={applicant.userAvatar}
                                   alt={applicant.userName}
                                   className="w-10 h-10 rounded-full object-cover border-2 border-amber-300 dark:border-amber-700 shrink-0"
@@ -2214,7 +2214,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                       {/* Host line */}
                       <div className="p-2.5 rounded-xl bg-orange-50/70 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900/40 flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <img
+                          <img loading="lazy" decoding="async"
                             src={activeManagingOuting.hostAvatar}
                             alt="Host"
                             className="w-8 h-8 rounded-full object-cover border border-orange-300 shrink-0"
@@ -2239,7 +2239,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                           className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between"
                         >
                           <div className="flex items-center gap-2">
-                            <img
+                            <img loading="lazy" decoding="async"
                               src={att.userAvatar}
                               alt={att.userName}
                               className="w-8 h-8 rounded-full object-cover border border-slate-300 dark:border-slate-700 shrink-0"
