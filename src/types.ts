@@ -460,6 +460,8 @@ export interface UserProfile {
    * review or approval step. Mirrors profiles.is_creator in Supabase.
    */
   is_creator?: boolean;
+  /** RADA-approved verification. Set by admin only (locked in the database). Drives the shield badge. */
+  is_verified?: boolean;
   /** Mirrors profiles.account_type. */
   account_type?: AccountType;
   /** ISO time the account was switched to professional. */
