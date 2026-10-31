@@ -123,3 +123,20 @@ html.low-end .shadow-xl {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* Phone bottom bar (gesture line / 3 buttons): coloured by the PHONE's light/dark setting, never the in-app toggle.
+   The strip is exactly as tall as the phone's bottom inset, so it is invisible on phones that have none. */
+body::after {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: env(safe-area-inset-bottom, 0px);
+  background: #FFFFFF;
+  pointer-events: none;
+  z-index: 2147483647;
+}
+@media (prefers-color-scheme: dark) {
+  body::after { background: #121113; }
+}
