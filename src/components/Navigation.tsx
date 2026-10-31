@@ -5,9 +5,11 @@ import { getStoredLanguage, translations, type AppLanguage } from '../utils/i18n
 interface NavigationProps {
   activeTab: string;
   onTabChange: (tabId: string) => void;
+  /** Called on press-down / hover so the tab's code chunk starts downloading before the click lands. */
+  onPrefetchTab?: (tabId: string) => void;
 }
 
-export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
+export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange, onPrefetchTab }) => {
   const [appLang, setAppLang] = useState<AppLanguage>(() => getStoredLanguage());
 
   useEffect(() => {
@@ -39,6 +41,8 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
           <button
             key={tab.id}
             type="button"
+            onPointerDown={() => onPrefetchTab?.(tab.id)}
+            onMouseEnter={() => onPrefetchTab?.(tab.id)}
             onClick={() => onTabChange(tab.id)}
             className={`nav-btn relative flex flex-col items-center gap-1 flex-1 py-1 transition-all duration-200 cursor-pointer min-[900px]:flex-none min-[900px]:flex-row min-[900px]:justify-start min-[900px]:gap-3 min-[900px]:px-4 min-[900px]:py-3 min-[900px]:rounded-xl ${
               isActive 
