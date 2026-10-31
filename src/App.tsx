@@ -497,6 +497,15 @@ export default function App() {
       document.documentElement.classList.add('light');
       localStorage.setItem('rada_theme', 'light');
     }
+    // Phone top bar and bottom gesture/nav bar follow the screen colour (not the brand orange).
+    const barColor = isDarkMode ? '#121113' : '#FFFFFF';
+    let themeMeta = document.querySelector('meta[name="theme-color"]');
+    if (!themeMeta) {
+      themeMeta = document.createElement('meta');
+      themeMeta.setAttribute('name', 'theme-color');
+      document.head.appendChild(themeMeta);
+    }
+    themeMeta.setAttribute('content', barColor);
   }, [isDarkMode]);
 
   const handleToggleTheme = () => {
@@ -2514,6 +2523,7 @@ export default function App() {
             onOpenAdmin={() => setIsAdminOpen(true)}
             userRole={userRole}
             userEmail={session?.user?.email || currentUserProfile?.email}
+            userId={session?.user?.id}
             onLogout={handleSignOut}
             onOpenSaved={() => setIsSavedModalOpen(true)}
             savedCount={savedItems.length}
