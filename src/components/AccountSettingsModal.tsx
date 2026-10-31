@@ -18,7 +18,10 @@ import {
   UserCog,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { UserProfile, OutingPlan } from '../types';
+import { UserProfile, OutingPlan, BusinessAccount } from '../types';
+import { useMySubscriptions } from '../lib/subscriptions';
+import { saveUnifiedProfile } from '../lib/cloudSync';
+import { ProProfileCard, ProProfilePage } from './ProProfile';
 import { CreatorHubTab } from './CreatorHubTab';
 import { AccountSwitcher } from './AccountSwitcher';
 import {
@@ -47,6 +50,8 @@ interface AccountSettingsModalProps {
   professionalStats?: { profileViews?: number; outingsHosted?: number; joinRequests?: number };
   /** All outings; the Creator Hub filters to the ones this user hosts. */
   outings?: OutingPlan[];
+  /** Businesses the signed-in user owns (shown on the professional profile card). */
+  myBusinesses?: BusinessAccount[];
 }
 
 type Screen = 'main' | 'password' | 'professional';
@@ -91,9 +96,11 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
   onProfileChange,
   professionalStats,
   outings = [],
+  myBusinesses = [],
 }) => {
   const [screen, setScreen] = useState<Screen>('main');
   const [hubOpen, setHubOpen] = useState(false);
+  const [proPageOpen, setProPageOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Password
@@ -122,6 +129,11 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
     statsFallback: professionalStats,
   });
   const handle = own.handle;
+
+  // Pro and Elite plans unlock editing on the professional profile card
+  const mySubs = useMySubscriptions(user?.id);
+  const creatorPlan = mySubs.subs.creator?.effective_plan ?? 'free';
+  const hostedOutings = outings.filter((o) => user?.id && o.hostId === user.id);
 
   useEffect(() => {
     if (isOpen) {
@@ -302,6 +314,25 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
                 </div>
               )}
 
+              {isLoggedIn && own.isPro && (
+                <div className="mx-3 mt-4">
+                  <ProProfileCard
+                    kind="creator"
+                    name={currentUserProfile?.name || ''}
+                    subtitle={handle}
+                    avatar={currentUserProfile?.avatar}
+                    bio={currentUserProfile?.bio}
+                    plan={creatorPlan}
+                    stats={[
+                      { label: 'Hosted', value: hostedOutings.length },
+                      { label: 'Businesses', value: myBusinesses.length },
+                      ...(own.stats.profileViews != null ? [{ label: 'Views', value: own.stats.profileViews }] : []),
+                    ]}
+                    onOpen={() => setProPageOpen(true)}
+                  />
+                </div>
+              )}
+
               <Section title="Identity & bio" description="Your public @username, private display name and bio. Updated everywhere when you save.">
                 <IdentityFields p={own} />
               </Section>
@@ -401,6 +432,43 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
               )}
               <ProfessionalDashboard p={own} />
             </div>
+          )}
+
+          {proPageOpen && own.isPro && user?.id && (
+            <ProProfilePage
+              kind="creator"
+              plan={creatorPlan}
+              name={currentUserProfile?.name || ''}
+              subtitle={handle}
+              avatar={currentUserProfile?.avatar}
+              bio={currentUserProfile?.bio}
+              nameLabel="Display name"
+              onSave={async ({ name, bio }) => {
+                const username = (currentUserProfile?.username || handle.replace(/^@/, '')).trim();
+                if (!username) return 'Set a username in Identity & bio first.';
+                const res = await saveUnifiedProfile(user.id, { name, username, bio });
+                if (res.error) return res.error;
+                onProfileChange?.({ name: res.name ?? name, bio: res.bio ?? bio });
+                showToast('Profile saved.', { category: 'profile' });
+                return null;
+              }}
+              businesses={myBusinesses.map((b) => ({
+                id: String(b.id),
+                title: b.name,
+                meta: [b.category, b.neighborhood].filter(Boolean).join(' · '),
+                image: b.logo,
+              }))}
+              hosted={hostedOutings.map((o) => ({
+                id: String(o.id),
+                title: o.spotTitle,
+                meta: [o.date, o.time].filter(Boolean).join(' · '),
+                image: o.spotImage,
+              }))}
+              hostedTitle="Outings & events hosted"
+              hostedEmpty="You have not hosted anything yet."
+              onUpgrade={() => { setProPageOpen(false); setHubOpen(true); }}
+              onClose={() => setProPageOpen(false)}
+            />
           )}
 
           {hubOpen && (

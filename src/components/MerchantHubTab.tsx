@@ -5,6 +5,8 @@ import { Crown as PlanCrownIcon } from 'lucide-react';
 import { useMySubscriptions } from '../lib/subscriptions';
 import { SubscriptionPlans, TrialBanner } from './SubscriptionPlans';
 import { TeamPanel, TeamInvitesCard } from './TeamPanel';
+import { fetchMyTeams, ROLE_LABEL, type MyTeam } from '../lib/team';
+import { ProProfileCard, ProProfilePage } from './ProProfile';
 import PromotionsPanel, { BoostSheet } from './PromotionsPanel';
 import { PROMO_BOOST_PLACEMENTS, offerPromoKey } from '../lib/promotions';
 import { Rocket } from 'lucide-react';
@@ -87,7 +89,7 @@ import {
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { DynamicLocationSelector } from './DynamicLocationSelector.tsx';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { toValidUuid, fetchUnclaimedSpots, claimUnclaimedSpot, submitSpotClaim } from '../lib/cloudSync.ts';
+import { toValidUuid, fetchUnclaimedSpots, claimUnclaimedSpot, submitSpotClaim, fetchBusinesses } from '../lib/cloudSync.ts';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 import type { ToastOptions } from './Toast.tsx';
 import { toBudget, BUDGET_OPTIONS } from '../lib/budget.ts';
@@ -1177,10 +1179,50 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
 }) => {
   const effectiveUserId = userId || (typeof window !== 'undefined' ? localStorage.getItem('rada_local_user_id') : null) || 'local-merchant-user';
 
+  // Businesses this person has been added to as a team member (accepted invitations only).
+  const [myTeams, setMyTeams] = useState<MyTeam[]>([]);
+  const [teamBizRows, setTeamBizRows] = useState<BusinessAccount[]>([]);
+  const loadMyTeams = useCallback(async () => {
+    if (adminMode || !(isUserSignedIn ?? userId)) {
+      setMyTeams([]);
+      setTeamBizRows([]);
+      return;
+    }
+    try {
+      const teams = await fetchMyTeams();
+      setMyTeams(teams);
+      if (!teams.length) {
+        setTeamBizRows([]);
+        return;
+      }
+      const ids = new Set(teams.map(t => String(t.business_id)));
+      const all = (await fetchBusinesses()) || [];
+      setTeamBizRows(all.filter(b => ids.has(String(b.id))));
+    } catch {
+      setMyTeams([]);
+      setTeamBizRows([]);
+    }
+  }, [adminMode, isUserSignedIn, userId]);
+  useEffect(() => {
+    void loadMyTeams();
+  }, [loadMyTeams]);
+
   // Only businesses actually owned by the logged-in/local merchant (strictly exclude unowned mock businesses)
-  const ownedBusinesses = businesses.filter(
+  const ownedOnly = businesses.filter(
     business => Boolean(business.ownerId) && (business.ownerId === effectiveUserId || business.ownerId === userId)
   );
+  // ...plus businesses where this person is an accepted team member
+  const teamIds = new Set(myTeams.map(t => String(t.business_id)));
+  const teamBusinesses = [...businesses, ...teamBizRows].filter(
+    (b, i, arr) =>
+      teamIds.has(String(b.id)) &&
+      !ownedOnly.some(o => o.id === b.id) &&
+      arr.findIndex(x => x.id === b.id) === i
+  );
+  const ownedBusinesses = [...ownedOnly, ...teamBusinesses];
+  /** 'owner' for the person's own businesses, otherwise their team role (manager / editor / staff). */
+  const roleIn = (bizId?: string): 'owner' | MyTeam['role'] | null =>
+    !bizId ? null : ownedOnly.some(b => b.id === bizId) ? 'owner' : myTeams.find(t => String(t.business_id) === String(bizId))?.role ?? null;
 
   // Safe fallback placeholder or active business owned by this merchant
   const currentBiz: BusinessAccount =
@@ -1206,6 +1248,11 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     };
 
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(ownedBusinesses.length === 0 && !adminMode);
+  const [proPageOpen, setProPageOpen] = useState(false);
+  useEffect(() => {
+    if (teamBusinesses.length > 0 && ownedOnly.length === 0) setIsOnboardingOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teamBusinesses.length, ownedOnly.length]);
 
   const [onboardingStep, setOnboardingStep] = useState<1 | 2>(1);
 
@@ -3781,6 +3828,13 @@ isSpotFormOpen && (
             </div>
           </div>
 
+          {/* Invitations to join someone else's business team */}
+          {!adminMode && (
+            <div className="mb-6">
+              <TeamInvitesCard signedIn={Boolean(isUserSignedIn ?? userId)} onChanged={() => { void loadMyTeams(); }} />
+            </div>
+          )}
+
           {/* Stepper progress indicator */}
           <div className="flex items-center gap-2 mb-8">
             <div className={`flex-1 h-1.5 rounded-full transition-all ${onboardingStep >= 1 ? 'bg-[#E0533C] dark:bg-[#A94F3E]' : 'bg-slate-200 dark:bg-slate-800'}`} />
@@ -4328,6 +4382,14 @@ isSpotFormOpen && (
       {/* Main Dashboard Container */}
       <div className="max-w-lg mx-auto px-4 py-5 space-y-6">
 
+        {/* Team members: say which business they are working in and what their role allows */}
+        {!adminMode && roleIn(currentBiz.id) && roleIn(currentBiz.id) !== 'owner' && (
+          <div className="rounded-2xl bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-900 px-4 py-3 text-[12px] font-semibold text-sky-900 dark:text-sky-200">
+            You are on the {currentBiz.name} team as {ROLE_LABEL[roleIn(currentBiz.id) as MyTeam['role']]}.
+            {roleIn(currentBiz.id) === 'staff' ? ' You can redeem offer codes but not edit listings.' : ''}
+          </div>
+        )}
+
         {/* Trial countdown / plan status (hidden on the plan tab itself) */}
         {!adminMode && activeSubTab !== 'plan' && merchantSub && (
           <TrialBanner record={merchantSub} compact onManage={() => setActiveSubTab('plan')} />
@@ -4339,6 +4401,56 @@ isSpotFormOpen && (
         {activeSubTab === 'overview' && (
           <div 
  className="space-y-6 animate-in fade-in duration-150">
+            {/* Business profile card: visible to the owner; editing is for Pro and Elite plans */}
+            {!adminMode && roleIn(currentBiz.id) === 'owner' && (() => {
+              const bizSpots = spots.filter((sp) => (currentBiz.id && sp.businessId === currentBiz.id) || (currentBiz.ownerId && sp.merchantId === currentBiz.ownerId));
+              const bizEvents = events.filter((ev) => currentBiz.id && ev.businessId === currentBiz.id);
+              const bizOffers = offers.filter((o) => currentBiz.id && o.businessId === currentBiz.id);
+              const merchantPlan = merchantSub?.effective_plan ?? 'free';
+              return (
+                <>
+                  <ProProfileCard
+                    kind="business"
+                    name={currentBiz.name}
+                    subtitle={[currentBiz.category, currentBiz.neighborhood].filter(Boolean).join(' · ')}
+                    avatar={currentBiz.logo}
+                    bio={currentBiz.bio}
+                    plan={merchantPlan}
+                    stats={[
+                      { label: 'Spots', value: bizSpots.length },
+                      { label: 'Events', value: bizEvents.length },
+                      { label: 'Offers', value: bizOffers.length },
+                    ]}
+                    onOpen={() => setProPageOpen(true)}
+                  />
+                  {proPageOpen && (
+                    <ProProfilePage
+                      kind="business"
+                      plan={merchantPlan}
+                      name={currentBiz.name}
+                      subtitle={[currentBiz.category, currentBiz.neighborhood].filter(Boolean).join(' · ')}
+                      avatar={currentBiz.logo}
+                      bio={currentBiz.bio}
+                      nameLabel="Business name"
+                      onSave={async ({ name, bio }) => {
+                        if (!name.trim()) return 'Business name is required.';
+                        onUpdateBusiness({ ...currentBiz, name: name.trim(), bio: bio.trim() });
+                        showToast('Business profile saved.', { category: 'profile' });
+                        return null;
+                      }}
+                      businesses={bizSpots.map((sp) => ({ id: String(sp.id), title: sp.title, meta: [sp.neighborhood, sp.category].filter(Boolean).join(' · '), image: sp.img }))}
+                      businessesTitle="Spots"
+                      hosted={bizEvents.map((ev) => ({ id: String(ev.id), title: ev.title, meta: [ev.date, ev.time].filter(Boolean).join(' · '), image: ev.img }))}
+                      hostedTitle="Events hosted"
+                      hostedEmpty="No events hosted yet."
+                      onUpgrade={() => { setProPageOpen(false); setActiveSubTab('plan'); }}
+                      onClose={() => setProPageOpen(false)}
+                    />
+                  )}
+                </>
+              );
+            })()}
+
             {/* ACTUAL BUSINESS VERIFICATION STATUS */}
 {(() => {
   const status =
@@ -4830,7 +4942,7 @@ isSpotFormOpen && (
             />
             {!adminMode && (
               <>
-                <TeamInvitesCard signedIn={Boolean(isUserSignedIn ?? userId)} />
+                <TeamInvitesCard signedIn={Boolean(isUserSignedIn ?? userId)} onChanged={() => { void loadMyTeams(); }} />
                 {ownedBusinesses.length > 0 && currentBiz?.id && (
                   <TeamPanel businessId={String(currentBiz.id)} businessName={currentBiz.name} signedIn={Boolean(isUserSignedIn ?? userId)} />
                 )}
