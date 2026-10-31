@@ -766,7 +766,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
         hostName: currentUserProfile.name || 'RADA member',
         hostAvatar: currentUserProfile.avatar || '',
         hostHandle: currentUserProfile.handle || '@host',
-        isHostVerified: currentUserProfile.is_creator === true,
+        isHostVerified: currentUserProfile.is_verified === true, // RADA-approved only; the database re-checks this on save
         spotId: isCustom ? undefined : selectedSpot.id,
         spotTitle,
         spotAddress,
