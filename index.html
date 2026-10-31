@@ -27,9 +27,17 @@
  <link rel="icon" type="image/png" href="/favicon.png" />
  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
  <link rel="manifest" href="/manifest.json" />
-<meta name="theme-color" content="#E05328" />
+<meta name="theme-color" content="#FFFFFF" />
+<script>
+  /* Match the phone's top and bottom system bars to the app's own screen colour before first paint.
+     App.tsx keeps this in sync whenever the theme is switched. */
+  try {
+    var d = localStorage.getItem('rada_theme') === 'dark';
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', d ? '#121113' : '#FFFFFF');
+  } catch (e) {}
+</script>
 <meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="RADA" />
 
   </head>
