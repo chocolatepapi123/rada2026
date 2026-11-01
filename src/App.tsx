@@ -2740,6 +2740,7 @@ export default function App() {
                 onRespondRequest={socials.respondRequest}
                 onSendMessage={socials.sendMessage}
                 onLoadHistory={socials.loadHistory}
+                onlineUserIds={socials.onlineUserIds}
                 onRefreshSocials={socials.refresh}
                 onOpenPlanDateModal={(chatId) => requireAuth('send messages', () => { setPlanDateChatId(chatId || null); setIsPlanDateModalOpen(true); })}
                 onOpenCreateGroupModal={() => requireAuth('send messages', () => setIsCreateGroupOpen(true))}
