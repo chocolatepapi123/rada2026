@@ -116,15 +116,38 @@ if (typeof window !== 'undefined') {
   else window.addEventListener('load', kick, { once: true });
 }
 
+// The five main tabs are NOT React.lazy. A suspended lazy tab only re-rendered when something else
+// forced a render (which is why it "finished loading" after you visited another tab and came back).
+// Instead we load the chunk ourselves, keep the finished component in state, and show the spinner until
+// it is there. setState always re-renders, so the tab appears the moment its code arrives.
+const TAB_COMPONENTS: Record<string, { load: () => Promise<any>; name: string }> = {
+  spots: { load: TAB_LOADERS.spots, name: 'SpotsTab' },
+  outings: { load: TAB_LOADERS.outings, name: 'OutingsTab' },
+  socials: { load: TAB_LOADERS.socials, name: 'SocialsTab' },
+  vault: { load: TAB_LOADERS.vault, name: 'VaultTab' },
+  calendar: { load: TAB_LOADERS.calendar, name: 'LukuEventsTab' },
+};
+const tabComponentPromises: Record<string, Promise<React.ComponentType<any>>> = {};
+const loadTabComponent = (key: string): Promise<React.ComponentType<any>> => {
+  const def = TAB_COMPONENTS[key];
+  if (!tabComponentPromises[key]) {
+    tabComponentPromises[key] = retryImport(def.load, 3, 500)
+      .then((m) => {
+        if (!m?.[def.name]) throw new Error(`${def.name} export missing`);
+        return m[def.name] as React.ComponentType<any>;
+      })
+      .catch((err) => {
+        delete tabComponentPromises[key]; // allow a fresh attempt next time
+        throw err;
+      });
+  }
+  return tabComponentPromises[key];
+};
+
 const AuthModal = lazyNamed(() => import('./components/AuthModal.tsx'), 'AuthModal');
 const AdminDashboard = lazyNamed(() => import('./components/AdminDashboardModal.tsx'), 'AdminDashboard');
 const MerchantHubTab = lazyNamed(() => import('./components/MerchantHubTab.tsx'), 'MerchantHubTab');
 const PublicBusinessProfileModal = lazyNamed(() => import('./components/PublicBusinessProfileModal.tsx'), 'PublicBusinessProfileModal');
-const SpotsTab = lazyNamed(() => import('./components/SpotsTab.tsx'), 'SpotsTab');
-const OutingsTab = lazyNamed(() => import('./components/OutingsTab.tsx'), 'OutingsTab');
-const SocialsTab = lazyNamed(() => import('./components/SocialsTab.tsx'), 'SocialsTab');
-const VaultTab = lazyNamed(() => import('./components/VaultTab.tsx'), 'VaultTab');
-const LukuEventsTab = lazyNamed(() => import('./components/LukuEventsTab.tsx'), 'LukuEventsTab');
 const Overlays = lazyNamed(() => import('./components/Overlays.tsx'), 'Overlays');
 const LocationMapModal = lazyNamed(() => import('./components/LocationMapModal.tsx'), 'LocationMapModal');
 const UserProfileModal = lazyNamed(() => import('./components/UserProfileModal.tsx'), 'UserProfileModal');
@@ -540,6 +563,37 @@ export default function App() {
 
   // Navigation
   const [activeTab, setActiveTab] = useState<string>(readDeepLinkTab);
+
+  // Loaded main-tab components (see TAB_COMPONENTS). Until one is here, its tab shows the spinner.
+  const [tabComps, setTabComps] = useState<Record<string, React.ComponentType<any>>>({});
+  const wantedTab = activeTab === 'plans' ? 'outings' : activeTab;
+  useEffect(() => {
+    if (!TAB_COMPONENTS[wantedTab] || tabComps[wantedTab]) return;
+    let cancelled = false;
+    loadTabComponent(wantedTab)
+      .then((C) => { if (!cancelled) setTabComps((prev) => (prev[wantedTab] ? prev : { ...prev, [wantedTab]: C })); })
+      .catch(() => { reloadOnceForChunk(); });
+    return () => { cancelled = true; };
+  }, [wantedTab, tabComps]);
+  // Quietly load the other main tabs after the app is up, so the first tap on any of them is instant.
+  useEffect(() => {
+    if (authLoading) return;
+    const c: any = (navigator as any).connection || {};
+    if (c.saveData) return;
+    const timers = Object.keys(TAB_COMPONENTS).map((key, i) =>
+      setTimeout(() => {
+        loadTabComponent(key)
+          .then((C) => setTabComps((prev) => (prev[key] ? prev : { ...prev, [key]: C })))
+          .catch(() => {});
+      }, 600 + i * 500)
+    );
+    return () => timers.forEach(clearTimeout);
+  }, [authLoading]);
+  const SpotsTab: React.ComponentType<any> = tabComps.spots || TabFallback;
+  const OutingsTab: React.ComponentType<any> = tabComps.outings || TabFallback;
+  const SocialsTab: React.ComponentType<any> = tabComps.socials || TabFallback;
+  const VaultTab: React.ComponentType<any> = tabComps.vault || TabFallback;
+  const LukuEventsTab: React.ComponentType<any> = tabComps.calendar || TabFallback;
   const [calendarTargetDate, setCalendarTargetDate] = useState<string | null>(null);
   const [calendarTargetEventId, setCalendarTargetEventId] = useState<number | string | null>(null);
   const lastSpotsScrollPosRef = useRef<number>(0);
