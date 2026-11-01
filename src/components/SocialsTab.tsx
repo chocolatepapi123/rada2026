@@ -61,6 +61,8 @@ interface SocialsTabProps {
   onRespondRequest: (requestId: string, accept: boolean) => Promise<{ conversationId: string | null; error: string | null }>;
   onSendMessage: (conversationId: string, msg: OutgoingMessage) => Promise<string | null>;
   onLoadHistory: (conversationId: string) => Promise<void>;
+  /** Ids of people who have RADA open right now (direct chats only). */
+  onlineUserIds?: string[];
   onRefreshSocials: () => Promise<void>;
   onOpenPlanDateModal: (chatId?: string) => void;
   onOpenCreateGroupModal: () => void;
@@ -81,6 +83,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   onRespondRequest,
   onSendMessage,
   onLoadHistory,
+  onlineUserIds = [],
   onRefreshSocials,
   onOpenPlanDateModal,
   onOpenCreateGroupModal,
@@ -104,6 +107,13 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
     [activeChatId, conversations]
   );
   const setActiveChat = (c: ChatConversation | null) => setActiveChatId(c ? c.id : null);
+  // "Active" only when the other person has RADA open right now. Group chats never show it.
+  const isChatOnline = (c: ChatConversation | null | undefined): boolean => {
+    if (!c || c.type !== 'direct') return false;
+    if (isDemoMode()) return true; // demo recordings keep the lively look
+    const other = (c as any).otherUserId as string | undefined;
+    return Boolean(other && onlineUserIds.includes(other));
+  };
   // load the full history whenever a chat is opened
   React.useEffect(() => {
     if (activeChatId) onLoadHistory(activeChatId);
@@ -683,18 +693,20 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                   className="w-10 h-10 rounded-full bg-cover bg-center border-2 border-white/40 shadow-sm"
                   style={{ backgroundImage: `url('${activeChat.avatar}')` }}
                 />
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#1C1A1E]" />
+                {isChatOnline(activeChat) && (
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#1C1A1E]" />
+                )}
               </div>
               <div>
                 <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{activeChat.name}</h4>
                 <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  {isChatOnline(activeChat) && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
                   <span>
                     {activeChat.isTemporary 
                       ? 'Temporary Outing Group Chat' 
                       : activeChat.type === 'group' 
                       ? 'Group Chat' 
-                      : 'Active'}
+                      : isChatOnline(activeChat) ? 'Active now' : ''}
                   </span>
                   {activeChat.members && (
                     <span>• {activeChat.members.length} members</span>
@@ -1512,7 +1524,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                       className="w-11 h-11 rounded-full bg-cover bg-center border border-slate-300 dark:border-slate-700"
                       style={{ backgroundImage: `url('${conv.avatar}')` }}
                     />
-                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#14171F]" />
+                    {isChatOnline(conv) && (
+                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#14171F]" />
+                    )}
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -1523,9 +1537,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                         <span className="px-1.5 py-0.2 rounded bg-orange-100 dark:bg-orange-950/80 text-[#E0533C] dark:text-[#D17A68] text-[9px] font-black uppercase tracking-wider shrink-0">
                           Outing Group
                         </span>
-                      ) : (
+                      ) : isChatOnline(conv) ? (
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                      )}
+                      ) : null}
                     </div>
                     <p className="text-[10px] text-slate-400 truncate mt-0.5">
                       {conv.lastMessage}
