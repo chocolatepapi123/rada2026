@@ -71,6 +71,8 @@ export function rowToMessage(row: any, myId: string): ChatMessage {
     text: row.content || '',
     time: timeLabel(row.created_at),
   };
+  if (row.created_at) (msg as any).createdAt = row.created_at;
+  if (row.client_id) (msg as any).clientId = row.client_id;
   if (row.sender_id !== myId && row.sender_handle) (msg as any).senderHandle = row.sender_handle;
   if (row.sender_id) (msg as any).senderId = row.sender_id;
   if (row.reply_to) msg.replyTo = row.reply_to;
@@ -89,6 +91,27 @@ export function rowToMessage(row: any, myId: string): ChatMessage {
     msg.dateInvite = media.dateInvite;
   }
   return msg;
+}
+
+/**
+ * Combine messages we already show with a freshly loaded list. Nothing is ever dropped just because
+ * a reload returned fewer rows, so a received message can no longer disappear after you reply.
+ * A server copy replaces the matching local copy (same client id or id).
+ */
+export function mergeMessages(existing: ChatMessage[], incoming: ChatMessage[]): ChatMessage[] {
+  const keyOf = (m: any) => (m.clientId ? `c:${m.clientId}` : `i:${m.id}`);
+  const byKey = new Map<string, ChatMessage>();
+  existing.forEach(m => byKey.set(keyOf(m), m));
+  incoming.forEach(m => byKey.set(keyOf(m), m));
+  return [...byKey.values()]
+    .map((m, i) => ({ m, i }))
+    .sort((a, b) => {
+      const ta = (a.m as any).createdAt as string | undefined;
+      const tb = (b.m as any).createdAt as string | undefined;
+      if (ta && tb && ta !== tb) return ta < tb ? -1 : 1;
+      return a.i - b.i;
+    })
+    .map(x => x.m);
 }
 
 function previewFor(row: any): string {
@@ -111,18 +134,22 @@ export async function fetchSnapshot(myId: string): Promise<CloudSnapshot> {
     supabase.from('match_requests').select('*').order('created_at', { ascending: false }),
   ]);
 
+  if (convRes.error) throw new Error(convRes.error.message);
+  if (memRes.error) throw new Error(memRes.error.message);
   const convRows: any[] = convRes.data || [];
   const memRows: any[] = memRes.data || [];
 
   const ids = convRows.map(c => c.id);
   let msgRows: any[] = [];
   if (ids.length > 0) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('messages')
       .select('*')
       .in('conversation_id', ids)
       .order('created_at', { ascending: false })
       .limit(400);
+    // keep the chats we already have on screen rather than replacing them with empty ones
+    if (error) throw new Error(error.message);
     msgRows = (data || []).slice().reverse();
   }
 
