@@ -1,6 +1,6 @@
 /* RADA service worker: makes repeat launches fast and gives an offline shell.
  * No build step needed. Bump VERSION to force every device to drop old caches. */
-const VERSION = 'rada-v6';
+const VERSION = 'rada-v7';
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
 const RUNTIME = `${VERSION}-runtime`;
@@ -24,25 +24,6 @@ async function trim(cacheName, max) {
   if (keys.length > max) await Promise.all(keys.slice(0, keys.length - max).map((k) => cache.delete(k)));
 }
 
-// Hashed build files never change: serve from cache first.
-async function cacheFirst(request) {
-  const cache = await caches.open(ASSETS);
-  const hit = await cache.match(request);
-  if (hit) return hit;
-  // Never let a stalled request hang a tab forever: give up after 12s so the app can retry.
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 12000);
-  try {
-    const res = await fetch(request, { signal: ctrl.signal });
-    // Only cache real assets. A missing hashed file can come back as index.html (200) and must not be kept.
-    const type = res.headers.get('content-type') || '';
-    if (res.ok && !type.includes('text/html')) cache.put(request, res.clone());
-    return res;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 // Fonts, icon CSS, map library, images: show the cached copy now, refresh it in the background.
 async function staleWhileRevalidate(request) {
   const cache = await caches.open(RUNTIME);
@@ -62,7 +43,9 @@ async function staleWhileRevalidate(request) {
 async function networkFirstPage(request) {
   const cache = await caches.open(SHELL);
   try {
-    const res = await fetch(request);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    const res = await fetch(request, { signal: ctrl.signal }).finally(() => clearTimeout(timer));
     if (res.ok) cache.put('/', res.clone());
     return res;
   } catch {
@@ -86,10 +69,9 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (url.origin === self.location.origin) {
-    if (url.pathname.startsWith('/assets/')) {
-      event.respondWith(cacheFirst(request));
-      return;
-    }
+    // /assets/* (hashed JS/CSS chunks) is deliberately NOT handled here: the browser's own HTTP cache already
+    // keeps hashed files, and routing tab chunks through the worker could stall the first open of a tab.
+    if (url.pathname.startsWith('/assets/')) return;
     if (/\.(svg|jpg|jpeg|png|webp|ico|json)$/.test(url.pathname) && url.pathname !== '/sw.js') {
       event.respondWith(staleWhileRevalidate(request));
     }
