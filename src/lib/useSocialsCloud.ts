@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChatConversation, ChatMessage } from '../types.ts';
+import { logPlatformEvent } from './platformAnalytics';
 import {
   CloudRequest,
   OutgoingMessage,
   createGroupChat,
   fetchMessages,
-  mergeMessages,
   fetchSnapshot,
   isCloudReady,
   respondMatchRequest,
@@ -16,7 +16,6 @@ import {
   unlockOutingChat,
 } from './socialsCloud';
 import { isDemoMode } from './demoMode';
-import { supabase } from './supabase';
 import { fetchBlockedIds, getCachedBlockedIds, onBlockedChanged } from './safety';
 import {
   DEMO_PEOPLE,
@@ -88,53 +87,6 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
     return requests.filter(r => !blocked.has(r.fromUser) && !blocked.has(r.toUser));
   }, [requests, blockedIds]);
 
-  // Who is online right now: one tiny presence channel per direct chat, shared only by its two members.
-  // A person counts as online only while RADA is open and visible on their phone.
-  const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
-  const dmKey = useMemo(
-    () =>
-      visibleConversations
-        .filter(c => c.type === 'direct' && (c as any).otherUserId)
-        .map(c => `${c.id}|${(c as any).otherUserId}`)
-        .sort()
-        .join(','),
-    [visibleConversations]
-  );
-  useEffect(() => {
-    if (demo || !userId || !isCloudReady() || !dmKey) {
-      setOnlineUserIds([]);
-      return;
-    }
-    const online = new Map<string, boolean>();
-    const channels = dmKey.split(',').map(pair => {
-      const [convId, otherId] = pair.split('|');
-      const ch = supabase.channel(`presence-${convId}`, { config: { presence: { key: userId } } });
-      const sync = () => {
-        online.set(otherId, Object.keys(ch.presenceState()).includes(otherId));
-        setOnlineUserIds([...online.entries()].filter(([, v]) => v).map(([k]) => k));
-      };
-      ch.on('presence', { event: 'sync' }, sync).subscribe(status => {
-        if (status === 'SUBSCRIBED' && document.visibilityState === 'visible') void ch.track({ at: Date.now() });
-      });
-      return ch;
-    });
-    const onVisibility = () => {
-      channels.forEach(ch => {
-        if (document.visibilityState === 'visible') void ch.track({ at: Date.now() });
-        else void ch.untrack();
-      });
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => {
-      document.removeEventListener('visibilitychange', onVisibility);
-      channels.forEach(ch => {
-        try { void ch.untrack(); } catch { /* ignore */ }
-        try { supabase.removeChannel(ch); } catch { /* ignore */ }
-      });
-      setOnlineUserIds([]);
-    };
-  }, [userId, dmKey, demo]);
-
   const refresh = useCallback(async () => {
     if (demo) return; // Demo Mode keeps everything local
     const uid = uidRef.current;
@@ -143,11 +95,15 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
       const snap = await fetchSnapshot(uid);
       if (uidRef.current !== uid) return; // account switched while loading
       setConversations(prev => {
-        // merge with what is already on screen: pending sends and earlier received messages stay put
-        const before = new Map(prev.map(c => [c.id, c] as const));
+        // keep any messages still being sent so they don't flicker away
+        const pending = new Map<string, ChatMessage[]>();
+        prev.forEach(c => {
+          const p = c.messages.filter(m => (m as any).pending);
+          if (p.length) pending.set(c.id, p);
+        });
         return snap.conversations.map(c => {
-          const old = before.get(c.id);
-          return old ? { ...c, messages: mergeMessages(old.messages, c.messages) } : c;
+          const p = pending.get(c.id);
+          return p ? { ...c, messages: [...c.messages, ...p] } : c;
         });
       });
       setRequests(snap.requests);
@@ -244,7 +200,8 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
       setConversations(prev =>
         prev.map(c => {
           if (c.id !== conversationId) return c;
-          return { ...c, messages: mergeMessages(c.messages, msgs) };
+          const pend = c.messages.filter(m => (m as any).pending);
+          return { ...c, messages: [...msgs, ...pend] };
         })
       );
     } catch {
@@ -258,7 +215,7 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
     if (!uid) return 'Sign in to send messages.';
     const clientId = msg.clientId || `c-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const mediaUrl = msg.media?.url as string | undefined;
-    const optimistic: ChatMessage & { pending?: boolean; clientId?: string; createdAt?: string } = {
+    const optimistic: ChatMessage & { pending?: boolean; clientId?: string } = {
       id: `tmp-${clientId}`,
       sender: 'me',
       text: msg.content || '',
@@ -266,7 +223,6 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
       replyTo: msg.replyTo || undefined,
       pending: true,
       clientId,
-      createdAt: new Date().toISOString(),
       ...(msg.kind === 'voice' || msg.kind === 'audio' ? { audioUrl: mediaUrl, audioDuration: msg.media?.duration } : {}),
       ...(msg.kind === 'video_note' ? { videoNoteUrl: mediaUrl, videoDuration: msg.media?.duration } : {}),
       ...(msg.kind === 'video' ? { videoUrl: mediaUrl, videoDuration: msg.media?.duration } : {}),
@@ -324,6 +280,7 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
       );
       return error || 'Message failed to send';
     }
+    logPlatformEvent('message_sent');
     setConversations(prev =>
       prev.map(c => {
         if (c.id !== conversationId) return c;
@@ -432,7 +389,6 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
 
   return {
     conversations: visibleConversations,
-    onlineUserIds,
     requests: visibleRequests,
     loaded,
     loadError,

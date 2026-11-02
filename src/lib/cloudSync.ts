@@ -4,6 +4,7 @@ import { isPlatformAdmin, isOfficialAdmin, DEFAULT_DELEGATED_PERMISSIONS, SUPER_
 import { STATUS_TTL_MS } from '../utils/statusLifecycle';
 import { loadUnclaimedSpots } from './spotsFeed';
 import { generateNewUserName, isLegacyWayneName, sanitizeDisplayName, sanitizeUsername } from '../utils/userUtils';
+import { logPlatformEvent } from './platformAnalytics';
 
 
 export type ListingKind = 'spot' | 'event' | 'offer';
@@ -647,6 +648,7 @@ export async function insertReview(spotId: number | string, review: any, userId:
       console.warn('insert into rada_reviews failed:', radaErr.message);
       return radaErr.message || 'Could not save review to database';
     }
+    logPlatformEvent('review');
     return null;
   } catch (err) {
     console.warn('insert into rada_reviews failed:', err);

@@ -96,7 +96,7 @@ export async function signUpWithEmail(
   consent: SignUpConsent
 ): Promise<{ signedIn: boolean }> {
   if (!consent?.ageConfirmed) throw new Error('You must be 18 or older to use RADA.');
-  if (!consent?.termsAccepted) throw new Error('Please agree to the Terms and Privacy Policy to continue.');
+  if (!consent?.termsAccepted) throw new Error('Please agree to the Terms, Privacy Policy and Community Guidelines to continue.');
 
   const taken = await isIdentifierTaken({ email });
   if (taken === true) throw new Error(MSG_EXISTS);
