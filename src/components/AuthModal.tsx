@@ -16,6 +16,7 @@ import {
 } from '../lib/supabase';
 import { Lock, Mail, User, ArrowRight, ArrowLeft, ShieldCheck, X, Loader2, KeyRound } from 'lucide-react';
 import { LegalModal, LEGAL_VERSION, type LegalDoc } from './LegalModal';
+import { logPlatformEvent } from '../lib/platformAnalytics';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -121,13 +122,14 @@ export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, custo
         }
         // The name becomes the private display name. Blank = the database assigns new_user_NN.
         if (!ageConfirmed) throw new Error('You must be 18 or older to use RADA.');
-        if (!termsAccepted) throw new Error('Please agree to the Terms and Privacy Policy to continue.');
+        if (!termsAccepted) throw new Error('Please agree to the Terms, Privacy Policy and Community Guidelines to continue.');
         const { signedIn } = await signUpWithEmail(em, password, fullName.trim() || undefined, {
           ageConfirmed,
           termsAccepted,
           legalVersion: LEGAL_VERSION,
         });
         if (signedIn) {
+          logPlatformEvent('signup');
           onSuccess();
           return;
         }
@@ -138,6 +140,7 @@ export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, custo
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email: em, password });
         if (error) throw error;
+        logPlatformEvent('login');
         onSuccess();
       }
     });
@@ -149,6 +152,7 @@ export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, custo
     run(async () => {
       if (code.length < OTP_LENGTH) throw new Error(`Enter the ${OTP_LENGTH}-digit code.`);
       await verifyCode(target, code, verifyKind);
+      logPlatformEvent(verifyKind === 'signup' ? 'signup' : 'login');
       onSuccess();
     });
   }
@@ -365,6 +369,14 @@ export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, custo
                         className="text-amber-500 font-bold underline cursor-pointer"
                       >
                         Privacy Policy
+                      </button>
+                      , and the{' '}
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); setLegalDoc('guidelines'); }}
+                        className="text-amber-500 font-bold underline cursor-pointer"
+                      >
+                        Community Guidelines
                       </button>
                       .
                     </span>

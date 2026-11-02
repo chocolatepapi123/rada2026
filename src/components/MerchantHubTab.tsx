@@ -10,6 +10,7 @@ import { ProProfileCard, ProProfilePage } from './ProProfile';
 import PromotionsPanel, { BoostSheet } from './PromotionsPanel';
 import { PROMO_BOOST_PLACEMENTS, offerPromoKey } from '../lib/promotions';
 import { Rocket } from 'lucide-react';
+import { LegalModal, type LegalDoc } from './LegalModal';
 import { RedeemCodePanel, OfferStatsLine, ReviewReplyBlock } from './RetentionBits';
 import { SPOT_CATEGORIES } from '../lib/spotCategories';
 import { 
@@ -1307,6 +1308,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [legalDoc, setLegalDoc] = useState<LegalDoc | null>(null);
 
   const handleCompleteOnboarding = async () => {
     if (isSubmitting) return;
@@ -3853,6 +3855,13 @@ isSpotFormOpen && (
                 <p className="text-xs text-slate-500 mt-1">
                   Establish your brand on the premier guide. This information is displayed across your listings and public profile.
                 </p>
+                <p className="text-[11px] text-slate-500 mt-2">
+                  By creating a business you agree to the{' '}
+                  <button type="button" onClick={() => setLegalDoc('merchant')} className="underline font-bold cursor-pointer">Merchant Terms</button>
+                  {' '}and the{' '}
+                  <button type="button" onClick={() => setLegalDoc('guidelines')} className="underline font-bold cursor-pointer">Community Guidelines</button>.
+                </p>
+                <LegalModal doc={legalDoc} onClose={() => setLegalDoc(null)} />
 
                 <div className="space-y-4 mt-6">
                   {/* Business Name */}

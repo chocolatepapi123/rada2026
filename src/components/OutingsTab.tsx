@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { track } from '../lib/tracking';
+import { logPlatformEvent } from '../lib/platformAnalytics';
 import { useActivePromotions, outingRankMap, sortOutingsByPromotion } from '../lib/promotions';
 import { isDemoMode } from '../lib/demoMode.ts';
 import { 
@@ -692,6 +693,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       return;
     }
     track('rsvp', 'outing', plan.id);
+    logPlatformEvent('outing_join');
 
     const newAttendee: OutingAttendee = {
       id: `att-${Date.now()}`,

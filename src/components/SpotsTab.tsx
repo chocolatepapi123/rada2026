@@ -45,6 +45,7 @@ import { spotMatchesSearchWithTags } from '../utils/spotTags.ts';
 import { AdminConfirmModal } from './AdminConfirmModal.tsx';
 import { deleteListing } from '../lib/cloudSync.ts';
 import { useActivePromotions, sortSpotsByCategoryPromotion } from '../lib/promotions.ts';
+import { logPlatformEvent } from '../lib/platformAnalytics';
 
 interface SpotsTabProps {
   spots: SpotItem[];
@@ -88,6 +89,14 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   onDeleteSpot
 }) => {
   const [searchQuery, setSearchQuery] = useState(cachedSpotsFilters.searchQuery);
+
+  // Platform analytics: count a search once the person has stopped typing (term is stored without any user id).
+  useEffect(() => {
+    const term = searchQuery.trim();
+    if (term.length < 2) return;
+    const t = setTimeout(() => logPlatformEvent('search', term), 1200);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
   const [selectedCategory, setSelectedCategory] = useState<string>(cachedSpotsFilters.selectedCategory);
   const [selectedNeighborhood, setSelectedNeighborhood] = useState<string>(cachedSpotsFilters.selectedNeighborhood);
   const [selectedPriceTier, setSelectedPriceTier] = useState<string>(cachedSpotsFilters.selectedPriceTier);

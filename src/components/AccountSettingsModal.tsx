@@ -23,6 +23,7 @@ import { useMySubscriptions } from '../lib/subscriptions';
 import { saveUnifiedProfile } from '../lib/cloudSync';
 import { ProProfileCard, ProProfilePage } from './ProProfile';
 import { CreatorHubTab } from './CreatorHubTab';
+import { LegalModal, LEGAL_VERSION, type LegalDoc } from './LegalModal';
 import { AccountSwitcher } from './AccountSwitcher';
 import {
   AvatarHero,
@@ -99,6 +100,7 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
   myBusinesses = [],
 }) => {
   const [screen, setScreen] = useState<Screen>('main');
+  const [legalDoc, setLegalDoc] = useState<LegalDoc | null>(null);
   const [hubOpen, setHubOpen] = useState(false);
   const [proPageOpen, setProPageOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -551,6 +553,16 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
           )}
         </div>
 
+        {screen === 'main' && (
+          <div className="px-4 py-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+            <button type="button" onClick={() => setLegalDoc('terms')} className="underline cursor-pointer">Terms</button>
+            <button type="button" onClick={() => setLegalDoc('privacy')} className="underline cursor-pointer">Privacy</button>
+            <button type="button" onClick={() => setLegalDoc('guidelines')} className="underline cursor-pointer">Community Guidelines</button>
+            <button type="button" onClick={() => setLegalDoc('merchant')} className="underline cursor-pointer">Merchant Terms</button>
+            <span className="w-full text-center text-[9px] opacity-70">Version {LEGAL_VERSION}</span>
+          </div>
+        )}
+
         {/* Save bar (profile fields live on the main screen) */}
         {screen === 'main' && (
           <div className="px-3 py-3 bg-white dark:bg-[#1C1A1E] shadow-[0_-1px_6px_rgba(0,0,0,0.06)]">
@@ -565,6 +577,7 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
           </div>
         )}
       </div>
+      <LegalModal doc={legalDoc} onClose={() => setLegalDoc(null)} />
     </div>
   );
 };

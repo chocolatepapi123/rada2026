@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { RotateCcw, AlertTriangle, Sparkles } from 'lucide-react';
+import { reportError } from '../lib/monitoring';
 
 interface Props {
   children: ReactNode;
@@ -26,6 +27,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.warn('[RADA ErrorBoundary caught error]:', error, errorInfo);
+    reportError('react', error, errorInfo?.componentStack?.split('\n').slice(0, 6).join('\n'));
 
     // If it's a dynamic chunk or wake-up glitch, try automatic self-recovery once
     const msg = error?.message || String(error || '');
