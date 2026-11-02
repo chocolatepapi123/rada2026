@@ -1240,13 +1240,13 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                 </span>
               </div>
               <div className="flex items-center justify-between font-bold">
-                <span className="text-slate-500">Camera Liveness:</span>
+                <span className="text-slate-500">Selfie check:</span>
                 <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
                   currentUserProfile?.isLivenessVerified 
                     ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' 
                     : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
                 }`}>
-                  {currentUserProfile?.isLivenessVerified ? 'Verified' : 'Verification Required'}
+                  {currentUserProfile?.isLivenessVerified ? 'Passed' : 'Not done yet'}
                 </span>
               </div>
             </div>
@@ -1260,7 +1260,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                 className="w-full py-3.5 px-4 bg-[#FF5733] dark:bg-[#A94F3E] hover:bg-[#FF6B4A] dark:hover:bg-[#B85A48] text-white font-black rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Camera className="w-4 h-4" />
-                <span>Verify Single Profile (Camera Liveness Check)</span>
+                <span>Take the selfie check</span>
               </button>
 
               <button
@@ -1638,11 +1638,11 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                 </span>
               </div>
               <div className="flex items-center justify-between font-bold">
-                <span className="text-slate-500">Liveness Check:</span>
+                <span className="text-slate-500">Selfie check:</span>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
                   currentUserProfile?.isLivenessVerified ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
                 }`}>
-                  {currentUserProfile?.isLivenessVerified ? 'Verified' : 'Verification Required'}
+                  {currentUserProfile?.isLivenessVerified ? 'Passed' : 'Not done yet'}
                 </span>
               </div>
             </div>

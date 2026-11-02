@@ -260,24 +260,17 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
       const uid = userId || sessionData?.session?.user?.id || currentUserProfile.id;
 
       if (uid && isSupabaseConfigured) {
-        // Direct upsert to Supabase profiles table
+        // photo + status only; the flag itself is switched on by the server function below
         const { error: upsertErr } = await supabase.from('profiles').upsert({
           id: uid,
           relationship_status: 'Single',
-          is_liveness_verified: true,
           ...(avatarUrlToSave ? { avatar_url: avatarUrlToSave } : {}),
           updated_at: new Date().toISOString()
         }, { onConflict: 'id' });
+        if (upsertErr) console.warn('profiles upsert warning:', upsertErr.message);
 
-        if (upsertErr) {
-          console.warn('Direct profiles upsert warning, fallback to update:', upsertErr.message);
-          await supabase.from('profiles').update({
-            relationship_status: 'Single',
-            is_liveness_verified: true,
-            ...(avatarUrlToSave ? { avatar_url: avatarUrlToSave } : {}),
-            updated_at: new Date().toISOString()
-          }).eq('id', uid);
-        }
+        const { error: confirmErr } = await supabase.rpc('confirm_selfie_check');
+        if (confirmErr) console.warn('confirm_selfie_check failed:', confirmErr.message);
 
         // Also call cloud sync utility
         await cloud.updateProfileVerification(uid, 'Single', true, avatarUrlToSave);
@@ -596,7 +589,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
                   Selfie check passed
                 </h4>
                 <p className="text-xs text-slate-500 font-medium">
-                  Your selfie check and Single status have been confirmed.
+                  Your selfie matched your profile photo and your Single status is set.
                 </p>
               </div>
 
@@ -608,7 +601,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
                     <span>Single Profile Activated</span>
                   </span>
                   <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-500 text-white">
-                    Verified
+                    Selfie checked
                   </span>
                 </div>
                 <p className="text-[11px] text-emerald-700 dark:text-emerald-400/90 leading-relaxed">
