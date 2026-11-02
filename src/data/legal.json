@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-draft-2",
+  "version": "2026-11-draft-3",
   "support_email": "hello.rada.app@gmail.com",
   "docs": {
     "terms": {
@@ -92,7 +92,7 @@
             "Location, only if you allow it, to show places near you and to send your position if you use SOS.",
             "Business details if you set up a business account, and payment records if you pay for a plan or boost.",
             "Photos, and videos you upload.",
-            "Selfie step: if you use the selfie step in the app, the photo you take or choose is saved as your profile photo. RADA does not run facial recognition and does not build a face template from it.",
+            "Selfie check: if you use the selfie check, your phone's camera is compared with your profile photo on your device. Nothing from the camera is uploaded or kept. We store only that you passed. Your profile photo is stored like any other photo.",
             "Basic technical data: device and browser type, the app version, and crash reports (the error message and the page it happened on, without your name).",
             "Anonymous usage counts, such as how many people open the app, sign up, save a place or use search. Search words are stored without your name."
           ]
