@@ -1,3 +1,4 @@
+import { logPlatformEvent } from '../lib/platformAnalytics';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -25,6 +26,7 @@ export async function shareContent(params: {
         text,
         url,
       });
+      logPlatformEvent('share');
       if (onSuccess) onSuccess('Shared successfully!');
       return true;
     } catch (err: any) {
@@ -39,6 +41,7 @@ export async function shareContent(params: {
   try {
     if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(`${title}\n${text}\n${url}`);
+      logPlatformEvent('share');
       if (onSuccess) onSuccess('Link & details copied to clipboard!');
       return true;
     }
