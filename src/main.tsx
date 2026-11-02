@@ -2,7 +2,12 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 import { ErrorBoundary } from './components/ErrorBoundary.tsx';
+import { initMonitoring } from './lib/monitoring.ts';
+import { logPlatformEvent } from './lib/platformAnalytics.ts';
 import './index.css';
+
+initMonitoring();
+logPlatformEvent('app_open');
 
 // Guard against transient background/wake-up network blips and ResizeObserver errors
 window.addEventListener('error', (e) => {

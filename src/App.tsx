@@ -5,6 +5,7 @@
 
 import { rememberSession, forgetAccount } from './lib/accounts';
 import { track } from './lib/tracking';
+import { logPlatformEvent } from './lib/platformAnalytics';
 import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import { ClaimUsernamePrompt, hasAutoUsername } from './components/ClaimUsernamePrompt';
 
@@ -943,6 +944,7 @@ export default function App() {
     if ((kind === 'spot' || kind === 'event') && !savedItems.some(s => String(s.id) === String(item.id) && s.kind === kind)) {
       track('save', kind, item.id);
     }
+    if (!savedItems.some(s => String(s.id) === String(item.id) && s.kind === kind)) logPlatformEvent('save');
     setSavedItems(prev => {
       const exists = prev.some(s => String(s.id) === String(item.id) && s.kind === kind);
       let updated: SavedItem[];
@@ -994,6 +996,7 @@ export default function App() {
     }
     setOutings(prev => [newPlan, ...prev.filter(o => o.id !== newPlan.id)]);
     const res = await cloud.createOuting(newPlan);
+    if (!res.error) logPlatformEvent('outing_host');
     if (res.error) {
       // Not saved online: take it back off the list instead of pretending it worked
       setOutings(prev => prev.filter(o => o.id !== newPlan.id));
@@ -2740,7 +2743,6 @@ export default function App() {
                 onRespondRequest={socials.respondRequest}
                 onSendMessage={socials.sendMessage}
                 onLoadHistory={socials.loadHistory}
-                onlineUserIds={socials.onlineUserIds}
                 onRefreshSocials={socials.refresh}
                 onOpenPlanDateModal={(chatId) => requireAuth('send messages', () => { setPlanDateChatId(chatId || null); setIsPlanDateModalOpen(true); })}
                 onOpenCreateGroupModal={() => requireAuth('send messages', () => setIsCreateGroupOpen(true))}
