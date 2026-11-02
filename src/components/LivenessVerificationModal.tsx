@@ -18,6 +18,7 @@ import { UserProfile } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import * as cloud from '../lib/cloudSync';
 import type { ToastOptions } from './Toast.tsx';
+import { loadFaceApi, profileDescriptor, runSelfieCheck, failureMessage } from '../lib/faceCheck';
 
 export interface LivenessVerificationModalProps {
   isOpen: boolean;
@@ -46,16 +47,18 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
   const [capturedLivePhoto, setCapturedLivePhoto] = useState<string | null>(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState<number | null>(null);
   const [verificationProgress, setVerificationProgress] = useState(0);
   const [verificationStageText, setVerificationStageText] = useState('Detecting facial boundaries...');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [autoCloseCountdown, setAutoCloseCountdown] = useState<number | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [checkPrompt, setCheckPrompt] = useState('');
+  const [checkError, setCheckError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
-  const selfieFallbackInputRef = useRef<HTMLInputElement | null>(null);
   const autoCloseTimerRef = useRef<any>(null);
 
   // Sync avatar and start camera when modal opens
@@ -70,8 +73,10 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
         setStep('camera');
       }
       setCapturedLivePhoto(null);
+      setCheckError(null);
+      setChecking(false);
+      setCheckPrompt('');
       setCameraError(null);
-      setCountdown(null);
       setVerificationProgress(0);
       setAutoCloseCountdown(null);
 
@@ -100,6 +105,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
   }, []);
 
   const stopCamera = () => {
+    abortRef.current?.abort();
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -137,8 +143,8 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
       const isDenied = err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError';
       setCameraError(
         isDenied
-          ? 'Camera permission was denied. Please allow camera access in browser settings or use the selfie capture fallback below.'
-          : 'Unable to start camera stream directly. You can snap a live photo using your device camera fallback below.'
+          ? 'Camera permission was denied. Allow camera access for RADA in your browser or phone settings, then tap Turn camera on.'
+          : 'We could not start the camera. Close other apps that use it, then tap Turn camera on.'
       );
       setIsCameraActive(false);
     }
@@ -178,63 +184,73 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
     }, 120);
   };
 
-  // Immediate Take Verification Snapshot
-  const handleTakeSnapshot = () => {
-    if (countdown !== null) return;
-    performCapture();
-  };
-
-  const performCapture = () => {
+  /** Grabs the current camera frame as a small preview for the "matching" screen. Not uploaded or saved. */
+  const grabPreview = (): string | null => {
     try {
       const video = videoRef.current;
-      const canvas = document.createElement('canvas');
-      const w = video?.videoWidth || 640;
-      const h = video?.videoHeight || 640;
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext('2d');
-
-      if (ctx && video && video.readyState >= 2) {
-        // Draw mirrored view for natural selfie perspective
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.90);
-        stopCamera();
-        setCapturedLivePhoto(dataUrl);
-        runVerificationAnalysis(dataUrl);
-        return;
-      }
-
-      // If video element exists but frame not ready, capture gracefully with reference photo
-      stopCamera();
-      const fallbackUrl = selectedAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop';
-      setCapturedLivePhoto(fallbackUrl);
-      runVerificationAnalysis(fallbackUrl);
-    } catch (err) {
-      console.warn('Capture fallback notice:', err);
-      const fallbackUrl = selectedAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop';
-      stopCamera();
-      setCapturedLivePhoto(fallbackUrl);
-      runVerificationAnalysis(fallbackUrl);
+      if (!video || video.readyState < 2) return null;
+      const c = document.createElement('canvas');
+      c.width = 160;
+      c.height = Math.round(160 * ((video.videoHeight || 4) / (video.videoWidth || 3)));
+      const ctx = c.getContext('2d');
+      if (!ctx) return null;
+      ctx.translate(c.width, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, 0, 0, c.width, c.height);
+      return c.toDataURL('image/jpeg', 0.8);
+    } catch {
+      return null;
     }
   };
 
-  const handleSelfieFallbackUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      if (evt.target?.result) {
-        const livePhoto = evt.target.result as string;
-        setCapturedLivePhoto(livePhoto);
-        stopCamera();
-        runVerificationAnalysis(livePhoto);
+  /** Real check: face in profile photo, head-turn liveness, and match against the profile photo. */
+  const handleStartCheck = async () => {
+    if (checking) return;
+    setCheckError(null);
+    const video = videoRef.current;
+    if (!video || !isCameraActive) {
+      setCheckError('The camera is not on yet. Allow camera access and try again.');
+      return;
+    }
+    if (!selectedAvatar || selectedAvatar.trim() === '') {
+      setCheckError(failureMessage('no_profile_face'));
+      return;
+    }
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setChecking(true);
+    try {
+      setCheckPrompt('Getting ready…');
+      try {
+        await loadFaceApi();
+      } catch {
+        setCheckError(failureMessage('models'));
+        return;
       }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
+      let profile: Float32Array | null = null;
+      try {
+        profile = await profileDescriptor(selectedAvatar);
+      } catch {
+        setCheckError(failureMessage('profile_image'));
+        return;
+      }
+      if (!profile) {
+        setCheckError(failureMessage('no_profile_face'));
+        return;
+      }
+      const result = await runSelfieCheck(video, profile, setCheckPrompt, ctrl.signal);
+      if (!result.ok) {
+        if (result.reason !== 'cancelled') setCheckError(failureMessage(result.reason));
+        return;
+      }
+      const preview = grabPreview();
+      stopCamera();
+      setCapturedLivePhoto(preview);
+      await finishVerified();
+    } finally {
+      setChecking(false);
+      setCheckPrompt('');
+    }
   };
 
   // Persistence to Supabase profiles table: relationship_status = 'Single' and is_liveness_verified = true
@@ -271,52 +287,35 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
     }
   };
 
-  const runVerificationAnalysis = (livePhoto: string) => {
+  const finishVerified = async () => {
     setStep('verifying');
-    setVerificationProgress(20);
-    setVerificationStageText('Detecting 3D facial boundaries & lighting...');
+    setVerificationProgress(100);
+    setVerificationStageText('Face matched. Saving…');
 
-    setTimeout(() => {
-      setVerificationProgress(55);
-      setVerificationStageText('Verifying biometric liveness (blink & smile confirmed)...');
-    }, 600);
+    const finalAvatar = selectedAvatar;
 
-    setTimeout(() => {
-      setVerificationProgress(85);
-      setVerificationStageText('Matching live facial geometry with profile photo...');
-    }, 1200);
+    // Persist to Supabase profiles table
+    await persistToSupabase(finalAvatar);
 
-    setTimeout(async () => {
-      setVerificationProgress(100);
-      setVerificationStageText('Biometric verification successful! (Match Confidence: 99.6%)');
-      
-      const finalAvatar = selectedAvatar || livePhoto;
+    // Update parent state to unlock Discover
+    try {
+      await onVerificationSuccess({
+        avatar: finalAvatar,
+        isLivenessVerified: true,
+        relationshipStatus: 'single',
+      });
+    } catch (err) {
+      console.warn('onVerificationSuccess callback notice:', err);
+    }
 
-      // Persist to Supabase profiles table immediately
-      await persistToSupabase(finalAvatar);
+    showToast('Selfie check passed', { category: 'profile' });
+    setStep('success');
 
-      // Instantly update parent state to unlock Discover tab
-      try {
-        await onVerificationSuccess({
-          avatar: finalAvatar,
-          isLivenessVerified: true,
-          relationshipStatus: 'single',
-        });
-      } catch (err) {
-        console.warn('onVerificationSuccess callback notice:', err);
-      }
-
-      // Visual confirmation & toast
-      showToast('Profile Verified', { category: 'profile' });
-      setStep('success');
-
-      // Auto-close modal after 1.5s visual confirmation
-      setAutoCloseCountdown(2);
-      autoCloseTimerRef.current = setTimeout(() => {
-        stopCamera();
-        onClose();
-      }, 1500);
-    }, 1800);
+    setAutoCloseCountdown(2);
+    autoCloseTimerRef.current = setTimeout(() => {
+      stopCamera();
+      onClose();
+    }, 1500);
   };
 
   const handleManualClose = () => {
@@ -349,7 +348,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                Biometric camera liveness check for Nairobi singles
+                Quick selfie check for Nairobi singles
               </p>
             </div>
           </div>
@@ -372,7 +371,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
                 <div className="text-[11px] text-slate-700 dark:text-slate-300 leading-relaxed">
                   <strong className="text-slate-900 dark:text-slate-100">Step 1 of 2: Profile Photo</strong>
                   <p className="mt-0.5">
-                    To maintain an authentic community in Nairobi, single members must have a clear profile picture before taking the camera liveness check.
+                    To maintain an authentic community in Nairobi, single members must have a clear profile picture before taking the selfie check.
                   </p>
                 </div>
               </div>
@@ -445,7 +444,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
               <div className="bg-[#FF5733]/10 dark:bg-[#A94F3E]/10 border border-[#FF5733]/25 dark:border-[#D17A68]/25 rounded-2xl p-2.5 sm:p-3 text-center shadow-xs">
                 <p className="text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200 flex items-center justify-center gap-1.5">
                   <Smile className="w-4 h-4 text-[#FF5733] dark:text-[#D17A68] shrink-0" />
-                  <span>Position your face inside the frame and blink / smile to verify</span>
+                  <span>{checking ? (checkPrompt || 'Hold still…') : 'Put your face in the frame, then tap Start. You will turn your head to one side and back.'}</span>
                 </p>
               </div>
 
@@ -462,7 +461,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
                 {/* Biometric Oval Guide Overlay */}
                 <div className="absolute inset-3 border-2 border-dashed border-[#FF5733]/80 dark:border-[#D17A68]/80 rounded-[50%/58%] pointer-events-none flex flex-col items-center justify-between p-3.5 animate-pulse">
                   <div className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-black/60 text-white backdrop-blur-xs">
-                    Biometric Frame
+                    Face frame
                   </div>
                   <div className="w-2.5 h-2.5 rounded-full bg-[#FF5733] dark:bg-[#A94F3E] shadow-[0_0_8px_#FF5733]" />
                   <div className="text-[9px] font-bold text-white/90 bg-black/60 px-2 py-0.5 rounded-full backdrop-blur-xs">
@@ -477,7 +476,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
                 {!isCameraActive && !cameraError && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-white bg-slate-900/90 space-y-2">
                     <RefreshCw className="w-6 h-6 animate-spin text-[#FF5733] dark:text-[#D17A68]" />
-                    <p className="text-xs font-bold">Initializing camera stream...</p>
+                    <p className="text-xs font-bold">Starting camera…</p>
                   </div>
                 )}
               </div>
@@ -487,33 +486,30 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
                 <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-2xl text-left text-red-600 dark:text-red-400 space-y-1.5 text-[11px]">
                   <p className="font-bold flex items-center gap-1.5">
                     <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>Camera Permission Notice:</span>
+                    <span>Camera access needed</span>
                   </p>
                   <p>{cameraError}</p>
                 </div>
               )}
 
-              {/* Hidden file input for native device camera fallback */}
-              <input
-                type="file"
-                ref={selfieFallbackInputRef}
-                accept="image/*"
-                capture="user"
-                className="hidden"
-                onChange={handleSelfieFallbackUpload}
-              />
+              {checkError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-2xl text-left text-red-600 dark:text-red-400 text-[11px] flex items-start gap-1.5">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{checkError}</span>
+                </div>
+              )}
 
               {/* Actions & Buttons */}
               <div className="pt-1 flex flex-col gap-2">
                 {isCameraActive ? (
                   <button
                     type="button"
-                    onClick={handleTakeSnapshot}
-                    disabled={isSubmitting}
+                    onClick={handleStartCheck}
+                    disabled={isSubmitting || checking}
                     className="w-full py-3.5 px-4 bg-[#FF5733] dark:bg-[#A94F3E] hover:bg-[#FF6B4A] dark:hover:bg-[#B85A48] disabled:opacity-50 text-white font-black rounded-xl text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Camera className="w-4 h-4" />
-                    <span>Take Verification Snapshot</span>
+                    <span>{checking ? 'Checking…' : checkError ? 'Try again' : 'Start selfie check'}</span>
                   </button>
                 ) : (
                   <button
@@ -522,33 +518,9 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
                     className="w-full py-3 px-4 bg-[#FF5733] dark:bg-[#A94F3E] hover:bg-[#FF6B4A] dark:hover:bg-[#B85A48] text-white font-black rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Retry Camera Stream</span>
+                    <span>Turn camera on</span>
                   </button>
                 )}
-
-                {/* Graceful Fallback: Snap Live Photo with Device Camera */}
-                <button
-                  type="button"
-                  onClick={() => selfieFallbackInputRef.current?.click()}
-                  className="w-full py-2.5 px-4 bg-slate-100 dark:bg-[#0A0C10] hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Camera className="w-3.5 h-3.5 text-[#FF5733] dark:text-[#D17A68]" />
-                  <span>Snap Live Photo with Device Camera</span>
-                </button>
-
-                {/* Instant Biometric Liveness Check */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const fallbackUrl = selectedAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop';
-                    stopCamera();
-                    runVerificationAnalysis(fallbackUrl);
-                  }}
-                  className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Confirm Liveness & Activate Single Profile</span>
-                </button>
 
                 {selectedAvatar && (
                   <button
@@ -575,7 +547,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
               </div>
 
               <div className="space-y-1.5">
-                <h4 className="font-black text-sm text-slate-900 dark:text-slate-100">Validating Facial Match</h4>
+                <h4 className="font-black text-sm text-slate-900 dark:text-slate-100">Matching your face</h4>
                 <p className="text-xs text-slate-500 font-medium">
                   {verificationStageText}
                 </p>
@@ -621,10 +593,10 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
 
               <div className="space-y-1">
                 <h4 className="font-black text-lg text-slate-900 dark:text-slate-100">
-                  Profile Verified Successfully!
+                  Selfie check passed
                 </h4>
                 <p className="text-xs text-slate-500 font-medium">
-                  Your liveness verification and Single status have been confirmed.
+                  Your selfie check and Single status have been confirmed.
                 </p>
               </div>
 
