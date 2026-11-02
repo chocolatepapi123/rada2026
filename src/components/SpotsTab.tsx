@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import {
   Search,
   MapPin,
@@ -73,6 +73,9 @@ let cachedSpotsFilters = {
 
 let cachedSpotsScrollY = 0;
 
+// Max cards drawn per category row. "View All (N)" still opens the full list; this keeps the page light.
+const CAROUSEL_CARD_CAP = 12;
+
 export const SpotsTab: React.FC<SpotsTabProps> = ({
   spots,
   savedItems = [],
@@ -89,6 +92,8 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   onDeleteSpot
 }) => {
   const [searchQuery, setSearchQuery] = useState(cachedSpotsFilters.searchQuery);
+  // The input updates instantly; the heavy list filtering follows a moment later without blocking typing.
+  const deferredQuery = useDeferredValue(searchQuery);
 
   // Platform analytics: count a search once the person has stopped typing (term is stored without any user id).
   useEffect(() => {
@@ -386,7 +391,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   }, [spots, dbSpots, unclaimedSpots, liveReviews, near.active, near.origin, near.radiusKm]);
 
   // Real-time fuzzy natural query search with in-app hidden tags
-  const filteredSpots = displaySpots.filter(s => {
+  const filteredSpots = useMemo(() => displaySpots.filter(s => {
     // Category filter: strictly the spot's own category vs the 10 RADA categories
     const matchesCategory = spotInCategory(s, selectedCategory);
 
@@ -411,17 +416,17 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     if (!matchesCategory || !matchesNeigh || !matchesPrice) return false;
 
     // Use enhanced in-app tags search matching (invisible to users)
-    if (!spotMatchesSearchWithTags(s, searchQuery)) return false;
+    if (!spotMatchesSearchWithTags(s, deferredQuery)) return false;
 
     return true;
-  });
+  }), [displaySpots, selectedCategory, selectedNeighborhood, selectedPriceTier, selectedRating, onlySpecialOffers, deferredQuery]);
 
   // One list per category; a spot with extra_categories appears in every category it belongs to.
   // Spots tab category slots (paid packs): promoted spots first in admin order, the rest keep their order.
-  const spotsByCategory = SPOT_CATEGORIES.map(def => ({
+  const spotsByCategory = useMemo(() => SPOT_CATEGORIES.map(def => ({
     def,
     list: sortSpotsByCategoryPromotion(filteredSpots.filter(sp => spotInCategory(sp, def.id)), def.id, categorySlotPromos),
-  }));
+  })), [filteredSpots, categorySlotPromos]);
 
   const isSaved = (id: number | string) => {
     return savedItems.some(s => String(s.id) === String(id) && s.kind === 'spot');
@@ -1093,7 +1098,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               </div>
 
               <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-                {list.map(sp => renderSpotCard(sp, def.id))}
+                {list.slice(0, CAROUSEL_CARD_CAP).map(sp => renderSpotCard(sp, def.id))}
               </div>
             </div>
           );
