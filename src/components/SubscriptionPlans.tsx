@@ -16,7 +16,8 @@ import {
 } from '../lib/subscriptions';
 import { TrialReportCard } from './OutingExtras';
 import { fetchPlanPrices, type BillingPeriod, type PlanPrice } from '../lib/payments';
-import PayWithMpesaSheet from './PayWithMpesaSheet';
+import ManualPaySheet from './ManualPaySheet';
+import MyPaymentClaims from './MyPaymentClaims';
 
 // ---------------------------------------------------------------------------
 // shared look
@@ -190,6 +191,7 @@ export const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({
   const [showMatrix, setShowMatrix] = useState(false);
   const [prices, setPrices] = useState<PlanPrice[]>([]);
   const [paying, setPaying] = useState<PlanPrice | null>(null);
+  const [claimsKey, setClaimsKey] = useState(0);
   useEffect(() => {
     let live = true;
     fetchPlanPrices().then((p) => live && setPrices(p)).catch(() => undefined);
@@ -392,9 +394,11 @@ export const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({
           );
         })}
         <p className="text-[12px] text-slate-500 dark:text-slate-400 leading-relaxed px-1">
-          Pay with M-Pesa and your plan switches on straight away. Plans without a price are set up by the RADA team: send a request and we&apos;ll switch your account over.
+          Pay with M-Pesa, send us the code, and your plan switches on once we confirm it. Plans without a price are set up by the RADA team: send a request and we&apos;ll switch your account over.
         </p>
       </div>
+
+      <MyPaymentClaims refreshKey={claimsKey} />
 
       {/* Comparison matrix */}
       <div className="rounded-3xl bg-white dark:bg-[#1C1A1E] shadow-sm overflow-hidden">
@@ -439,14 +443,13 @@ export const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({
         )}
       </div>
       {paying && (
-        <PayWithMpesaSheet
+        <ManualPaySheet
           kind={kind}
           plan={paying.plan}
-          amountKes={paying.amount_kes!}
-          periodDays={paying.period_days}
           period={paying.billing_period}
+          amountKes={paying.amount_kes}
           onClose={() => setPaying(null)}
-          onPaid={() => onRefresh?.()}
+          onSubmitted={() => { setClaimsKey(k => k + 1); onRefresh?.(); }}
         />
       )}
     </div>

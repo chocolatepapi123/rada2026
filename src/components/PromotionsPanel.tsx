@@ -2,10 +2,11 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { BarChart3, CalendarDays, Check, CheckCircle2, ChevronRight, Loader2, Rocket, Smartphone, X } from 'lucide-react';
 import {
   DOW, STATUS_LABEL, cancelMyPromotion, fetchMyPromotions, fetchPromoProducts, fetchPromotionReport,
-  nextStartDate, priceLabel, requestPromotion, startPromoPayment,
+  nextStartDate, priceLabel, requestPromotion,
   type PromoPlacement, type PromoProduct, type Promotion, type PromotionReport, type PromoStatus, type PromoTargetType,
 } from '../lib/promotions';
-import { normalizeKenyanPhone, waitForPayment } from '../lib/payments';
+import ManualPaySheet from './ManualPaySheet';
+import MyPaymentClaims from './MyPaymentClaims';
 
 export interface PromoTarget {
   type: PromoTargetType;
@@ -238,69 +239,6 @@ export const BoostSheet: React.FC<{
   );
 };
 
-const PaySheet: React.FC<{ promo: Promotion; onClose: () => void; onDone: () => void }> = ({ promo, onClose, onDone }) => {
-  const [phone, setPhone] = useState('');
-  const [phase, setPhase] = useState<'form' | 'waiting' | 'done' | 'failed'>('form');
-  const [msg, setMsg] = useState('');
-
-  const pay = async () => {
-    const n = normalizeKenyanPhone(phone);
-    if (!n) { setMsg('Enter a valid Safaricom number, like 0712 345 678.'); return; }
-    setMsg(''); setPhase('waiting');
-    try {
-      const started = await startPromoPayment(promo.id, n);
-      const row = await waitForPayment(started.payment_id);
-      if (row?.status === 'succeeded') { setPhase('done'); onDone(); }
-      else if (!row || row.status === 'pending') { setPhase('failed'); setMsg("We haven't heard back from M-Pesa yet. If you entered your PIN, your boost will update shortly."); onDone(); }
-      else { setPhase('failed'); setMsg(row.failure_reason || 'The payment did not go through. You have not been charged.'); }
-    } catch (e: any) { setPhase('form'); setMsg(e?.message || 'Could not start the payment'); }
-  };
-
-  return (
-    <Sheet onClose={phase === 'waiting' ? () => undefined : onClose} title={phase === 'done' ? 'Payment received' : 'Pay with M-Pesa'}>
-      <div className="rounded-2xl bg-slate-50 dark:bg-slate-900/60 p-3.5 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[13px] font-black truncate text-slate-900 dark:text-white">{promo.target_title}</p>
-          <p className="text-[11px] text-slate-500">{dateLabel(promo.start_date)} – {dateLabel(promo.end_date)}</p>
-        </div>
-        <p className="text-[16px] font-black" style={{ color: BRAND }}>{priceLabel(promo.amount_kes)}</p>
-      </div>
-
-      {phase === 'form' && (
-        <div className="space-y-3 pb-1">
-          <input inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="M-Pesa number, 0712 345 678" className={fieldCls} />
-          {msg && <p className="text-[12px] font-semibold text-rose-600">{msg}</p>}
-          <button type="button" onClick={pay} className="w-full py-3.5 rounded-2xl text-white text-[14px] font-black flex items-center justify-center gap-2 cursor-pointer" style={{ background: BRAND }}>
-            <Smartphone className="w-4 h-4" /> Send M-Pesa prompt
-          </button>
-        </div>
-      )}
-      {phase === 'waiting' && (
-        <div className="flex flex-col items-center text-center py-6 space-y-3">
-          <Loader2 className="w-8 h-8 animate-spin" style={{ color: BRAND }} />
-          <p className="text-[13px] font-bold text-slate-700 dark:text-slate-200">Check your phone and enter your M-Pesa PIN…</p>
-        </div>
-      )}
-      {phase === 'done' && (
-        <div className="flex flex-col items-center text-center py-4 space-y-3 pb-2">
-          <span className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center"><CheckCircle2 className="w-9 h-9" /></span>
-          <p className="text-[13px] text-slate-500">Your boost is confirmed and goes live on {dateLabel(promo.start_date)}.</p>
-          <button type="button" onClick={onClose} className="w-full py-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-[13px] font-bold cursor-pointer">Done</button>
-        </div>
-      )}
-      {phase === 'failed' && (
-        <div className="space-y-3 pb-1">
-          <p className="text-[12px] font-semibold text-slate-600 dark:text-slate-300">{msg}</p>
-          <div className="flex gap-2">
-            <button type="button" onClick={() => setPhase('form')} className="flex-1 py-3 rounded-2xl text-white text-[13px] font-black cursor-pointer" style={{ background: BRAND }}>Try again</button>
-            <button type="button" onClick={onClose} className="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-[13px] font-bold cursor-pointer">Close</button>
-          </div>
-        </div>
-      )}
-    </Sheet>
-  );
-};
-
 const Progress: React.FC<{ status: PromoStatus }> = ({ status }) => {
   const at = stepOf(status);
   if (at === 0) return null;
@@ -327,6 +265,7 @@ export const PromotionsPanel: React.FC<Props> = ({ targets, audience, categories
   const [err, setErr] = useState('');
   const [boostOpen, setBoostOpen] = useState(false);
   const [payFor, setPayFor] = useState<Promotion | null>(null);
+  const [claimsKey, setClaimsKey] = useState(0);
   const [report, setReport] = useState<{ promo: Promotion; data: PromotionReport } | null>(null);
 
   const load = useCallback(async () => {
@@ -422,7 +361,8 @@ export const PromotionsPanel: React.FC<Props> = ({ targets, audience, categories
       </div>
 
       {boostOpen && <BoostSheet targets={targets} audience={audience} categories={categories} placements={placements} noun={noun} onClose={() => setBoostOpen(false)} onSent={load} />}
-      {payFor && <PaySheet promo={payFor} onClose={() => setPayFor(null)} onDone={load} />}
+      {payFor && <ManualPaySheet kind="promotion" plan="promo" promotionId={payFor.id} amountKes={payFor.amount_kes} onClose={() => setPayFor(null)} onSubmitted={() => setClaimsKey(k => k + 1)} />}
+      <MyPaymentClaims refreshKey={claimsKey} />
       {report && (
         <Sheet onClose={() => setReport(null)} title={report.promo.target_title}>
           {Object.keys(report.data.counts).length === 0 ? (

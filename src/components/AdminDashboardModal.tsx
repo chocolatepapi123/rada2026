@@ -22,12 +22,13 @@ import { AdminReportsPanel } from './AdminReportsPanel';
 import { AdminLaunchChecklistPanel } from './AdminLaunchChecklistPanel';
 import { AdminHealthPanel } from './AdminHealthPanel';
 import { AdminPromotionsPanel } from './AdminPromotionsPanel';
+import { AdminManualPayments } from './AdminManualPayments';
 import { supabase } from '../lib/supabase';
 import { initialBusinesses } from '../data/initialData.ts';
 import type { ToastOptions } from './Toast.tsx';
 
 type VerificationStatus = 'pending' | 'approved' | 'rejected';
-type TabId = 'overview' | 'pending_spots' | 'claims' | 'verification' | 'spots' | 'cinema' | 'users' | 'subscriptions' | 'promotions' | 'reports' | 'health' | 'launch';
+type TabId = 'overview' | 'pending_spots' | 'claims' | 'verification' | 'spots' | 'cinema' | 'users' | 'subscriptions' | 'promotions' | 'payments' | 'reports' | 'health' | 'launch';
 
 export interface AdminDashboardProps {
   businesses: BusinessAccount[];
@@ -545,6 +546,7 @@ export function AdminDashboardModal({
     { id: 'users', label: 'Users & Admins', icon: <Users className="w-4 h-4" />, enabled: isOfficial || myPermissions.canManageUsers },
     { id: 'subscriptions', label: 'Subscriptions', icon: <CircleDollarSign className="w-4 h-4" />, enabled: isOfficial || myPermissions.canManageSubscriptions },
     { id: 'promotions', label: 'Promotions', icon: <CircleDollarSign className="w-4 h-4" />, enabled: isOfficial || myPermissions.canManageSubscriptions },
+    { id: 'payments', label: 'Payments', icon: <CircleDollarSign className="w-4 h-4" />, enabled: isOfficial || myPermissions.canManageSubscriptions },
     { id: 'reports', label: 'Reports', icon: <Flag className="w-4 h-4" />, enabled: isOfficial || myPermissions.canManageUsers },
     { id: 'health', label: 'Health', icon: <LayoutDashboard className="w-4 h-4" />, enabled: isOfficial },
     { id: 'launch', label: 'Launch cleanup', icon: <ShieldCheck className="w-4 h-4" />, enabled: isOfficial },
@@ -1308,6 +1310,7 @@ export function AdminDashboardModal({
             {/* ================= SUBSCRIPTIONS ================= */}
             {tab === 'subscriptions' && <AdminSubscriptionsPanel toast={toast} />}
             {tab === 'promotions' && <AdminPromotionsPanel toast={toast} />}
+            {tab === 'payments' && <AdminManualPayments showToast={toast} />}
             {tab === 'reports' && <AdminReportsPanel toast={toast} />}
             {tab === 'health' && <AdminHealthPanel toast={toast} />}
             {tab === 'launch' && <AdminLaunchChecklistPanel toast={toast} />}
