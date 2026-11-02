@@ -1,4 +1,4 @@
-import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Search,
   MapPin,
@@ -93,7 +93,13 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState(cachedSpotsFilters.searchQuery);
   // The input updates instantly; the heavy list filtering follows a moment later without blocking typing.
-  const deferredQuery = useDeferredValue(searchQuery);
+  // Debounced copy of the query (plain timer, so constant re-renders elsewhere can never starve it).
+  const [deferredQuery, setDeferredQuery] = useState(searchQuery);
+  useEffect(() => {
+    if (!searchQuery.trim()) { setDeferredQuery(searchQuery); return; }
+    const t = setTimeout(() => setDeferredQuery(searchQuery), 200);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
 
   // Platform analytics: count a search once the person has stopped typing (term is stored without any user id).
   useEffect(() => {
