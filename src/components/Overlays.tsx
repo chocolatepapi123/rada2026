@@ -2,6 +2,7 @@
 import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending, formatOpeningHours } from '../lib/spotsFeed.ts';
 import React, { useState, useEffect, useRef } from 'react';
 import { track } from '../lib/tracking';
+import { SpotDetailSections } from './SpotDetailSections';
 import { useActivePromotions, offerRankMap, offerPromoKey, sortByPromotion } from '../lib/promotions';
 import { searchProfiles, type CloudProfileHit } from '../lib/socialsCloud.ts';
 import { getStoredLanguage, saveStoredLanguage, translations, type AppLanguage } from '../utils/i18n.ts';
@@ -770,6 +771,9 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 </div>
               </div>
             )}
+
+            {/* Menu, Prices & Book (from spot_details; each part shows only when it has data) */}
+            <SpotDetailSections spot={selectedSpot} />
 
             {/* Food & Drink / Cuisine Types */}
             {selectedSpot.cuisineTypes && selectedSpot.cuisineTypes.length > 0 && (

@@ -1,6 +1,6 @@
 import { getDemoPersona } from '../lib/demoMode';
 import { demoMerchantInsights } from '../lib/demoPersonas';
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Crown as PlanCrownIcon } from 'lucide-react';
 import { useMySubscriptions } from '../lib/subscriptions';
 import { SubscriptionPlans, TrialBanner } from './SubscriptionPlans';
@@ -12,7 +12,9 @@ import { PROMO_BOOST_PLACEMENTS, offerPromoKey } from '../lib/promotions';
 import { Rocket } from 'lucide-react';
 import { LegalModal, type LegalDoc } from './LegalModal';
 import { RedeemCodePanel, OfferStatsLine, ReviewReplyBlock } from './RetentionBits';
-import { SPOT_CATEGORIES } from '../lib/spotCategories';
+import { SPOT_CATEGORIES, resolveSpotCategory } from '../lib/spotCategories';
+import { SpotDetailsEditor } from './SpotDetailsEditor';
+import { emptySpotDetailsForm, rowToForm, formFromLegacySpot, hasAnyDetails, saveSpotDetails, fetchSpotDetails, type SpotDetailsForm } from '../lib/spotDetails';
 import { 
   Store, 
   Ticket, 
@@ -1388,6 +1390,9 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   const [spotPhone, setSpotPhone] = useState('+254 ');
   const [spotOpeningHours, setSpotOpeningHours] = useState('11:00 AM - 11:00 PM');
   const [spotDescription, setSpotDescription] = useState('');
+  const [detailsForm, setDetailsForm] = useState<SpotDetailsForm>(emptySpotDetailsForm());
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const detailsHadRowRef = useRef(false);
   const [spotCoverImg, setSpotCoverImg] = useState('');
   const [spotGalleryImgs, setSpotGalleryImgs] = useState<string[]>([]);
   const [newGalleryInput, setNewGalleryInput] = useState('');
@@ -1502,55 +1507,55 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   };
 
   const openCreateSpotModal = () => {
+    // Starts EMPTY: no sample menu, prices, games or capacity.
     setEditingSpotId(null);
     setSpotTitle(currentBiz?.name || '');
-    setSpotPrimaryGroup('restaurants_dining');
-    setSpotCategory('restaurants_dining');
-    setSpotSubcategory('Fine Dining');
-    setSpotNeighborhood(currentBiz?.neighborhood || 'Westlands');
-    setSpotAddress(currentBiz?.address || 'Westlands');
-    setSpotExactLocationTag(`${currentBiz?.address || 'Westlands'}, near Stage`);
-    setSpotLandmark('Nearest Stage / Roundabout');
-    setSpotPrice('Mid');
-    setSpotPhone(currentBiz?.phone || '+254 ');
-    setSpotOpeningHours('12:00 PM - 01:00 AM');
+    setSpotPrimaryGroup('' as any);
+    setSpotCategory('' as any);
+    setSpotSubcategory('');
+    setSpotNeighborhood(currentBiz?.neighborhood || '');
+    setSpotAddress(currentBiz?.address || '');
+    setSpotExactLocationTag('');
+    setSpotLandmark('');
+    setSpotPrice('');
+    setSpotPhone(currentBiz?.phone || '');
+    setSpotOpeningHours('');
     setSpotDescription(currentBiz?.bio || '');
     setSpotCoverImg('');
     setSpotGalleryImgs([]);
-    // Reset dynamic category-specific fields with sensible defaults
-    setSpotCuisineTypes(['Kenyan / Nyama Choma', 'Craft Cocktails & Tapas']);
-    setSpotFeaturedDishes(['Signature House Platter', 'Craft Passion Dawa']);
+    setSpotCuisineTypes([]);
+    setSpotFeaturedDishes([]);
     setSpotMenuUploadUrl('');
-    setSpotMenuItems([
-      { id: 'm-init-1', name: 'Signature House Dish', category: 'Mains', price: 'KES 1,200', description: 'Fresh local ingredients crafted by our head chef' }
-    ]);
-    setSpotEquipmentProvided('All standard safety gear, harnesses, and basic equipment provided on-site.');
-    setSpotEquipmentNeeded('Please wear comfortable sports footwear; bring personal water bottle.');
-    setSpotSkillLevel('All Levels Welcome');
-    setSpotWhatToBring(['Comfortable Activewear', 'Reusable Water Bottle']);
+    setSpotMenuItems([]);
+    setSpotEquipmentProvided('');
+    setSpotEquipmentNeeded('');
+    setSpotSkillLevel('');
+    setSpotWhatToBring([]);
     setCustomWhatToBringInput('');
-    setSpotCapacity('Standing: 350 • Seated: 200');
-    setSpotAmenitiesAV(['PA Sound System & Microphones', 'HD Projector & Giant Screen', 'High-Speed Dedicated Fiber WiFi', 'Automatic Backup Generator (No Blackouts)']);
+    setSpotCapacity('');
+    setSpotAmenitiesAV([]);
     setCustomAmenityInput('');
-    setSpotBookingPolicies('50% deposit required upon reservation. Outside catering permitted with corkage fee. Sound curfew at 11:00 PM for open-air zones.');
-    setSpotPricePerHour('KES 500 / hr');
-    setSpotTimeSlots('Hourly passes • Walk-in or reservation');
-    setSpotAvailableGames('EA FC 25, Call of Duty, Tekken 8, Mortal Kombat 1, Gran Turismo 7, VR Beat Saber, Catan, Pool / Billiards');
-    setSpotGameConsoles('PlayStation 5, Xbox Series X, High-End PC Rigs, Meta Quest 3 VR');
-    setSpotActivitySchedule('Daily sessions from 10:00 AM - 10:00 PM • Advance booking recommended on weekends');
-    // Specialized Overhauled Category Fields
-    setSpotAtmosphereTags(['Romantic & Candlelit', 'Scenic Sunset Vibe']);
-    setSpotBookingOptions('Table reservation recommended for weekend evenings. Walk-ins welcome for bar seating.');
-    setSpotNightlifeOptions('Afrobeats, Amapiano & Hip-Hop • Resident DJs from 10:00 PM • Dress Code: Smart Casual');
-    setSpotBottleServiceOptions('VIP Booths available with bottle packages starting from KES 15,000 • Dedicated VIP host');
-    setSpotCoffeePastryMenu('Single-origin Kenyan AA espresso, pour-over V60, freshly baked almond croissants, sourdough sandwiches');
-    setSpotWorkFriendlyTags(['High-Speed Fiber WiFi', 'Abundant Power Outlets', 'Laptop Friendly', 'Quiet Work Atmosphere']);
-    setSpotRoomTypes('Deluxe King Room, Executive Suite with Balcony, Presidential Penthouse');
-    setSpotHotelAmenities(['Infinity Swimming Pool', '24/7 Room Service', 'Luxury Spa & Steam Sauna', 'High-Speed Dedicated WiFi', 'Complimentary Breakfast Buffet']);
-    setSpotWeekendGetaways('Lake Naivasha waterfront cottages, Mount Kenya glamping pods, Diani beachside villa');
-    setSpotDayPassDetails('Day Pass KES 2,500/person (includes swimming pool access & KES 1,000 food voucher) • Check-in 11:00 AM, Check-out 6:00 PM');
+    setSpotBookingPolicies('');
+    setSpotPricePerHour('');
+    setSpotTimeSlots('');
+    setSpotAvailableGames('');
+    setSpotGameConsoles('');
+    setSpotActivitySchedule('');
+    setSpotAtmosphereTags([]);
+    setSpotBookingOptions('');
+    setSpotNightlifeOptions('');
+    setSpotBottleServiceOptions('');
+    setSpotCoffeePastryMenu('');
+    setSpotWorkFriendlyTags([]);
+    setSpotRoomTypes('');
+    setSpotHotelAmenities([]);
+    setSpotWeekendGetaways('');
+    setSpotDayPassDetails('');
     setSpotWebsite('');
-    setSpotInstagram(currentBiz?.instagram || '@');
+    setSpotInstagram(currentBiz?.instagram || '');
+    setDetailsForm(emptySpotDetailsForm());
+    setDetailsLoading(false);
+    detailsHadRowRef.current = false;
     setIsSpotFormOpen(true);
   };
 
@@ -1573,14 +1578,14 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setSpotTitle(spot.title);
     setSpotPrimaryGroup(initialGroup);
     setSpotCategory(spot.category);
-    setSpotSubcategory(spot.subcategory || (SUBCATEGORIES_BY_CATEGORY[initialGroup]?.[0] || ''));
+    setSpotSubcategory(spot.subcategory || '');
     setSpotNeighborhood(spot.neighborhood);
     setSpotAddress(spot.address);
     setSpotExactLocationTag(spot.exactLocationTag || '');
     setSpotLandmark(spot.landmark || '');
     setSpotPrice(normalizePriceTier(spot.price));
     setSpotPhone(spot.phone || '');
-    setSpotOpeningHours(spot.openingHours || '11:00 AM - 11:00 PM');
+    setSpotOpeningHours(typeof spot.openingHours === 'string' ? spot.openingHours : '');
     setSpotDescription(spot.description || '');
     setSpotCoverImg(spot.img);
     setSpotGalleryImgs(spot.images && spot.images.length > 0 ? spot.images : [spot.img]);
@@ -1591,7 +1596,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setSpotMenuUploadUrl(spot.menuUploadUrl || (spot.menuImages && spot.menuImages[0]) || '');
     setSpotEquipmentProvided(spot.equipmentProvided || '');
     setSpotEquipmentNeeded(spot.equipmentNeeded || '');
-    setSpotSkillLevel(spot.skillLevel || 'All Levels Welcome');
+    setSpotSkillLevel(spot.skillLevel || '');
     setSpotWhatToBring(
       Array.isArray(spot.whatToBring) 
         ? spot.whatToBring 
@@ -1610,18 +1615,25 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setSpotGameConsoles(spot.gameConsoles || '');
     setSpotActivitySchedule(spot.activitySchedule || spot.bookingPolicies || '');
     // Specialized Overhauled Category Fields
-    setSpotAtmosphereTags(spot.atmosphereTags || ['Romantic & Candlelit', 'Scenic Sunset Vibe']);
-    setSpotBookingOptions(spot.bookingOptions || 'Table reservation recommended for weekend evenings.');
-    setSpotNightlifeOptions(spot.nightlifeOptions || 'Afrobeats & Amapiano • Resident DJs • Smart Casual');
-    setSpotBottleServiceOptions(spot.bottleServiceOptions || 'VIP Booth bottle service available with dedicated host.');
-    setSpotCoffeePastryMenu((spot as any).coffeePastryMenu || 'Single-origin espresso, pour-overs, croissants');
-    setSpotWorkFriendlyTags(spot.workFriendlyTags || ['High-Speed Fiber WiFi', 'Abundant Power Outlets', 'Laptop Friendly']);
-    setSpotRoomTypes(spot.roomTypes || 'Deluxe Room, Executive Suite');
-    setSpotHotelAmenities(spot.amenitiesList || ['Infinity Swimming Pool', '24/7 Room Service', 'High-Speed Dedicated WiFi']);
-    setSpotWeekendGetaways(spot.weekendGetawayDetails || 'Weekend getaways and cottages available.');
-    setSpotDayPassDetails(spot.dayPassDetails || 'Day pass available with pool access.');
+    setSpotAtmosphereTags(spot.atmosphereTags || []);
+    setSpotBookingOptions(spot.bookingOptions || '');
+    setSpotNightlifeOptions(spot.nightlifeOptions || '');
+    setSpotBottleServiceOptions(spot.bottleServiceOptions || '');
+    setSpotCoffeePastryMenu((spot as any).coffeePastryMenu || '');
+    setSpotWorkFriendlyTags(spot.workFriendlyTags || []);
+    setSpotRoomTypes(spot.roomTypes || '');
+    setSpotHotelAmenities(spot.amenitiesList || []);
+    setSpotWeekendGetaways(spot.weekendGetawayDetails || '');
+    setSpotDayPassDetails(spot.dayPassDetails || '');
     setSpotWebsite(spot.website || spot.socialLinks?.website || '');
     setSpotInstagram(spot.instagram || spot.socialLinks?.instagram || '');
+    // Prefill menu/prices/booking from spot_details (falls back to what the owner already typed before)
+    setDetailsForm(formFromLegacySpot(spot));
+    detailsHadRowRef.current = false;
+    setDetailsLoading(true);
+    fetchSpotDetails(spot.id, true)
+      .then((r) => { if (r) { setDetailsForm(rowToForm(r)); detailsHadRowRef.current = true; } })
+      .finally(() => setDetailsLoading(false));
     setIsSpotFormOpen(true);
   };
 
@@ -1677,15 +1689,15 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       title: spotTitle.trim(),
       category: spotCategory,
       subcategory: spotSubcategory,
-      neighborhood: spotNeighborhood || 'Westlands',
-      address: spotAddress || `${spotNeighborhood || 'Westlands'}`,
-      exactLocationTag: spotExactLocationTag || `${spotNeighborhood || 'Westlands'}`,
-      landmark: spotLandmark || 'Central Stage',
+      neighborhood: spotNeighborhood,
+      address: spotAddress || spotNeighborhood,
+      exactLocationTag: spotExactLocationTag,
+      landmark: spotLandmark,
       lat: existing?.lat || -1.2675,
       lng: existing?.lng || 36.8115,
       rating: existing?.rating || 'New',
       reviewCount: existing?.reviewCount || 0,
-      price: spotPrice || 'Mid',
+      price: spotPrice as any,
       img: spotCoverImg,
       images: spotGalleryImgs.length > 0 ? spotGalleryImgs : [spotCoverImg],
       description: spotDescription.trim(),
@@ -1742,6 +1754,14 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       }
     };
 
+    // Menu / prices / booking go to spot_details as owner-verified (admin publishing = 'manual')
+    const persistDetails = (id: number | string, src: 'owner' | 'manual') => {
+      if (!hasAnyDetails(detailsForm) && !detailsHadRowRef.current) return;
+      saveSpotDetails(id, detailsForm, src).then((err) => {
+        if (err) showToast('Spot saved, but menu/price details could not be saved: ' + err, { type: 'error' });
+      });
+    };
+
     if (adminMode) {
       // Admin listing: no business, no merchant owner. Any verified business can claim it later.
       const adminSpot: SpotItem = {
@@ -1755,6 +1775,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       Promise.resolve(onAdminPublishSpot ? onAdminPublishSpot(adminSpot) : 'Admin publishing is not connected.')
         .then(err => {
           if (err) { showToast(err, { type: 'error' }); return; }
+          persistDetails(adminSpot.id, 'manual');
           setIsSpotFormOpen(false);
           onClose?.();
         });
@@ -1762,10 +1783,12 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     }
 
     onAddOrUpdateSpot(savedSpot);
+    persistDetails(savedSpot.id, 'owner');
     setIsSpotFormOpen(false);
 
     // Clear form fields
     setEditingSpotId(null);
+    setDetailsForm(emptySpotDetailsForm());
     setSpotTitle('');
     setSpotPrimaryGroup('restaurants_dining');
     setSpotCategory('restaurants_dining');
@@ -2312,88 +2335,28 @@ isSpotFormOpen && (
                   />
                 </div>
 
-                {/* DYNAMIC PRIMARY CATEGORY SELECTION */}
+                {/* CATEGORY SELECTION (the 17 RADA categories) */}
                 <div className="space-y-3 pt-1">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
-                        Primary Category *
-                      </label>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        Choose your spot's primary nature to display category-specific fields below
-                      </p>
-                    </div>
-                    <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">
-                      Current: {spotCategory}
-                    </span>
+                  <div>
+                    <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">Category *</label>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Pick the best fit. It decides which details you can add below.</p>
                   </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-                    {PRIMARY_SPOT_CATEGORIES.map((catConfig) => {
-                      const Icon = catConfig.icon;
-                      const isCurrentGroup = spotPrimaryGroup === catConfig.id;
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {SPOT_CATEGORIES.map((def) => {
+                      const Icon = def.icon;
+                      const active = resolveSpotCategory(spotCategory as string) === def.id;
                       return (
                         <button
-                          key={catConfig.id}
+                          key={def.id}
                           type="button"
-                          onClick={() => {
-                            setSpotPrimaryGroup(catConfig.id);
-                            setSpotCategory(catConfig.id);
-                            const options = SUBCATEGORIES_BY_CATEGORY[catConfig.id] || [];
-                            if (options.length > 0) {
-                              setSpotSubcategory(options[0]);
-                            }
-                          }}
-                          className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between gap-2.5 cursor-pointer group relative ${
-                            isCurrentGroup
-                              ? 'border-[#E0533C] dark:border-[#D17A68] bg-orange-50/70 dark:bg-orange-950/40 text-slate-900 dark:text-slate-100 ring-2 ring-[#E0533C]/20 dark:ring-[#D17A68]/20 shadow-xs'
-                              : 'border-slate-200 dark:border-slate-800 bg-[#FBFBF9] dark:bg-[#121113] hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300'
-                          }`}
+                          onClick={() => { setSpotCategory(def.label as any); setSpotPrimaryGroup(def.id as any); }}
+                          className={`p-2.5 rounded-2xl border text-left flex items-center gap-2 cursor-pointer transition ${active ? 'border-[#E0533C] bg-orange-50/70 dark:bg-orange-950/40 ring-2 ring-[#E0533C]/20' : 'border-slate-200 dark:border-slate-800 bg-[#FBFBF9] dark:bg-[#121113]'}`}
                         >
-                          <div className="flex items-center justify-between w-full">
-                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition ${
-                              isCurrentGroup 
-                                ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white shadow-xs' 
-                                : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:scale-105'
-                            }`}>
-                              <Icon className="w-4 h-4" />
-                            </div>
-                            {isCurrentGroup && (
-                              <span className="w-2 h-2 rounded-full bg-[#E0533C] dark:bg-[#A94F3E]" />
-                            )}
-                          </div>
-                          <div>
-                            <span className="text-[11px] font-black block leading-tight text-slate-900 dark:text-slate-100 line-clamp-1">
-                              {catConfig.label}
-                            </span>
-                            <span className="text-[9px] text-slate-400 block mt-0.5 truncate">
-                              {catConfig.badge}
-                            </span>
-                          </div>
+                          <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: def.color, color: def.textOn }}><Icon className="w-3.5 h-3.5" /></span>
+                          <span className="text-[11px] font-black leading-tight text-slate-900 dark:text-slate-100">{def.label}</span>
                         </button>
                       );
                     })}
-                  </div>
-
-                  {/* Sub-Category Specific Selector - Scoped dynamically to the selected primary category */}
-                  <div className="pt-2">
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between">
-                      <span>Subcategory ({PRIMARY_SPOT_CATEGORIES.find(c => c.id === spotPrimaryGroup)?.label || 'Specialized'}) *</span>
-                      <span className="text-[10px] text-[#E0533C] dark:text-[#D17A68] font-semibold">
-                        {(SUBCATEGORIES_BY_CATEGORY[spotPrimaryGroup] || []).length} options available
-                      </span>
-                    </label>
-                    <select
-                      value={spotSubcategory}
-                      onChange={(e) => setSpotSubcategory(e.target.value)}
-                      className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 font-semibold focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]"
-                    >
-                      {(SUBCATEGORIES_BY_CATEGORY[spotPrimaryGroup] || []).map((subName) => (
-                        <option key={subName} value={subName}>
-                          {subName}
-                        </option>
-                      ))}
-                    </select>
                   </div>
                 </div>
 
@@ -2407,6 +2370,7 @@ isSpotFormOpen && (
                       onChange={(e) => setSpotPrice(e.target.value)}
                       className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 font-semibold focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]"
                     >
+                      <option value="">Not set</option>
                       <option value="Low">Low</option>
                       <option value="Mid">Mid</option>
                       <option value="High">High</option>
@@ -2442,994 +2406,8 @@ isSpotFormOpen && (
                 </div>
               </div>
 
-              {/* =========================================================================
-                  DYNAMIC CONDITIONAL SECTION 1: RESTAURANTS AND DINING
-                  ========================================================================= */}
-              {spotPrimaryGroup === 'restaurants_dining' && (
-                <div className="bg-white dark:bg-[#1C1A1E] border border-orange-200 dark:border-orange-900/40 rounded-3xl p-5 sm:p-6 shadow-xs space-y-6 animate-in fade-in duration-200">
-                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-orange-500/10 text-[#E0533C] dark:text-[#D17A68] flex items-center justify-center">
-                        <UtensilsCrossed className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                          Restaurants and dining Details
-                        </h3>
-                        <p className="text-[11px] text-slate-400">
-                          Dining types, PDF/Image menu upload, and digital itemized menu builder
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] dark:text-[#D17A68]">
-                      Dining Active
-                    </span>
-                  </div>
-
-                  {/* 1. DINING TYPES */}
-                  <div className="space-y-2">
-                    <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
-                      Dining Types & Style
-                    </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {['Fine Dining', 'Casual Bistro', 'Grill & Nyama Choma', 'Chef Table / Buffet'].map((dType) => {
-                        const isSelected = spotCuisineTypes.includes(dType);
-                        return (
-                          <button
-                            key={dType}
-                            type="button"
-                            onClick={() => {
-                              if (isSelected) {
-                                setSpotCuisineTypes(prev => prev.filter(t => t !== dType));
-                              } else {
-                                setSpotCuisineTypes(prev => [...prev, dType]);
-                              }
-                            }}
-                            className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
-                              isSelected
-                                ? 'bg-[#E0533C] dark:bg-[#A94F3E] text-white shadow-xs'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                            }`}
-                          >
-                            {isSelected && <Check className="w-3 h-3" />}
-                            <span>{dType}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* 2. FEATURED DISHES / SIGNATURE DRINKS */}
-                  <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
-                        Featured Dishes / Signature Specialties ({spotFeaturedDishes.length})
-                      </label>
-                      <span className="text-[10px] text-slate-400">Top highlights shown on your spot page</span>
-                    </div>
-
-                    {spotFeaturedDishes.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {spotFeaturedDishes.map((dish, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/50 text-xs font-bold text-orange-900 dark:text-orange-200"
-                          >
-                            <Sparkles className="w-3 h-3 text-[#E0533C] dark:text-[#D17A68]" />
-                            <span>{dish}</span>
-                            <button
-                              type="button"
-                              onClick={() => setSpotFeaturedDishes(prev => prev.filter((_, i) => i !== idx))}
-                              className="text-orange-400 hover:text-red-500 ml-1 p-0.5 cursor-pointer"
-                              title="Remove item"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={newFeaturedDishInput}
-                        onChange={(e) => setNewFeaturedDishInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            if (newFeaturedDishInput.trim() && !spotFeaturedDishes.includes(newFeaturedDishInput.trim())) {
-                              setSpotFeaturedDishes(prev => [...prev, newFeaturedDishInput.trim()]);
-                              setNewFeaturedDishInput('');
-                            }
-                          }
-                        }}
-                        placeholder="e.g. Signature Dawa Honey Spritz, Smoked Mbuzi Ribs, Truffle Parmesan Fries..."
-                        className="text-xs flex-1 bg-slate-100 dark:bg-[#121113] rounded-xl p-2.5 focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (newFeaturedDishInput.trim() && !spotFeaturedDishes.includes(newFeaturedDishInput.trim())) {
-                            setSpotFeaturedDishes(prev => [...prev, newFeaturedDishInput.trim()]);
-                            setNewFeaturedDishInput('');
-                          }
-                        }}
-                        className="px-3.5 py-2 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-[#c9432d] dark:hover:bg-[#8F4334] text-white text-xs font-bold rounded-xl flex items-center gap-1"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Add Dish</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* 3. MENU UPLOAD (PDF OR IMAGE) */}
-                  <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
-                          Menu Upload (PDF or Image)
-                        </label>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          Upload your printed dining menu or brochure directly
-                        </p>
-                      </div>
-                      {spotMenuUploadUrl && (
-                        <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Menu Active</span>
-                        </span>
-                      )}
-                    </div>
-
-                    {spotMenuUploadUrl ? (
-                      <div className="p-3.5 rounded-2xl bg-slate-100 dark:bg-[#121113] flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <img loading="lazy" decoding="async" 
-                            src={spotMenuUploadUrl} 
-                            alt="Uploaded Menu Preview" 
-                            className="w-14 h-14 rounded-xl object-cover shrink-0" 
-                          />
-                          <div className="min-w-0">
-                            <span className="text-xs font-bold block truncate text-slate-900 dark:text-slate-100">
-                              Uploaded Spot Menu Document
-                            </span>
-                            <span className="text-[10px] text-emerald-600 font-semibold block">
-                              Active and available on your spot profile
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 shrink-0">
-                          <label
-                            htmlFor="spot-menu-doc-change"
-                            className="px-3 py-1.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-bold cursor-pointer transition"
-                          >
-                            <span>Change</span>
-                          </label>
-                          <input
-                            id="spot-menu-doc-change"
-                            type="file"
-                            accept="image/*,application/pdf"
-                            onChange={handleSpotMenuDocUpload}
-                            className="hidden"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSpotMenuUploadUrl('');
-                            }}
-                            className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition cursor-pointer"
-                            title="Remove menu document"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <label
-                        htmlFor="spot-menu-doc-input"
-                        className="w-full py-5 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] dark:hover:border-[#D17A68] bg-[#FBFBF9] dark:bg-[#121113] flex flex-col items-center justify-center gap-2 cursor-pointer transition text-center group"
-                      >
-                        <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] dark:text-[#D17A68] flex items-center justify-center group-hover:scale-105 transition">
-                          <Upload className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">
-                            Upload Spot Menu File
-                          </p>
-                          <p className="text-[10px] text-slate-400 mt-0.5">
-                            Click to select an image or PDF from your device
-                          </p>
-                        </div>
-                        <input
-                          id="spot-menu-doc-input"
-                          type="file"
-                          accept="image/*,application/pdf"
-                          onChange={handleSpotMenuDocUpload}
-                          className="hidden"
-                        />
-                      </label>
-                    )}
-                  </div>
-
-                  {/* 4. DIGITAL MENU BUILDER */}
-                  <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
-                          Digital Menu Items ({spotMenuItems.length})
-                        </label>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          Itemized dishes and beverages for quick guest browsing
-                        </p>
-                      </div>
-                    </div>
-
-                    {spotMenuItems.length > 0 && (
-                      <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                        {spotMenuItems.map((item, idx) => (
-                          <div key={item.id || idx} className="p-3 bg-slate-100 dark:bg-[#121113] rounded-2xl flex items-center justify-between text-xs">
-                            <div className="min-w-0 flex-1 pr-3">
-                              <div className="flex items-center gap-2">
-                                <span className="font-extrabold text-slate-900 dark:text-slate-100 truncate">{item.name}</span>
-                                {item.category && (
-                                  <span className="text-[9px] bg-slate-200 dark:bg-slate-800 px-1.5 py-0.2 rounded font-semibold text-slate-600 dark:text-slate-400">
-                                    {item.category}
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-[11px] text-[#E0533C] dark:text-[#D17A68] font-black">{item.price}</span>
-                              {item.description && <span className="text-[10px] text-slate-400 block truncate">{item.description}</span>}
-                            </div>
-                            <button 
-                              type="button"
-                              onClick={() => setSpotMenuItems(prev => prev.filter((_, i) => i !== idx))}
-                              className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-950/60 text-red-500 hover:text-red-700 flex items-center justify-center shrink-0 cursor-pointer transition"
-                              title="Delete menu item"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="bg-[#FBFBF9] dark:bg-[#121113] p-4 rounded-2xl shadow-sm space-y-3">
-                      <h4 className="text-xs font-black text-slate-800 dark:text-slate-200">
-                        Add New Item to Digital Menu
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                        <input 
-                          type="text"
-                          placeholder="Dish Name (e.g. Nyama Choma Platter)"
-                          value={newMenuName}
-                          onChange={(e) => setNewMenuName(e.target.value)}
-                          className="text-xs bg-white dark:bg-[#1C1A1E] shadow-sm rounded-xl p-3 focus:outline-none"
-                        />
-                        <input 
-                          type="text"
-                          placeholder="Price (e.g. KES 1,500)"
-                          value={newMenuPrice}
-                          onChange={(e) => setNewMenuPrice(e.target.value)}
-                          className="text-xs bg-white dark:bg-[#1C1A1E] shadow-sm rounded-xl p-3 focus:outline-none"
-                        />
-                        <select
-                          value={newMenuCategory}
-                          onChange={(e) => setNewMenuCategory(e.target.value)}
-                          className="text-xs bg-white dark:bg-[#1C1A1E] shadow-sm rounded-xl p-3 focus:outline-none"
-                        >
-                          <option value="Mains">Mains</option>
-                          <option value="Starters">Starters & Tapas</option>
-                          <option value="Cocktails">Cocktails & Drinks</option>
-                          <option value="Desserts">Desserts</option>
-                          <option value="Brunch">Brunch & Coffee</option>
-                        </select>
-                      </div>
-                      <input 
-                        type="text"
-                        placeholder="Description (e.g. Slow-roasted prime goat served with kachumbari & ugali)"
-                        value={newMenuDesc}
-                        onChange={(e) => setNewMenuDesc(e.target.value)}
-                        className="w-full text-xs bg-white dark:bg-[#1C1A1E] shadow-sm rounded-xl p-3 focus:outline-none"
-                      />
-                      <button 
-                        type="button"
-                        onClick={handleAddMenuItem}
-                        className="w-full text-xs font-extrabold bg-[#E0533C]/10 dark:bg-[#A94F3E]/10 text-[#E0533C] dark:text-[#D17A68] hover:bg-[#E0533C]/20 dark:hover:bg-[#A94F3E]/20 py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Add Item to Digital Menu</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* =========================================================================
-                  DYNAMIC CONDITIONAL SECTION 2: NATURE
-                  ========================================================================= */}
-              {spotPrimaryGroup === 'nature' && (
-                <div className="bg-white dark:bg-[#1C1A1E] border border-emerald-200 dark:border-emerald-900/40 rounded-3xl p-5 sm:p-6 shadow-xs space-y-5 animate-in fade-in duration-200">
-                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                        <Trees className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                          Nature, Parks & Hiking Specifications
-                        </h3>
-                        <p className="text-[11px] text-slate-400">
-                          Parks, trails, equipment to carry, and wilderness guidelines
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
-                      Nature Active
-                    </span>
-                  </div>
-
-                  {/* 1. EQUIPMENT TO CARRY (CHECKLIST) */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
-                        Equipment to Carry (Explorer Checklist)
-                      </label>
-                      <span className="text-[10px] text-slate-400">Toggle recommended items for visitors</span>
-                    </div>
-
-                    <div className="flex flex-wrap gap-1.5">
-                      {PRESET_NATURE_EQUIPMENT.map((item) => {
-                        const isSelected = spotWhatToBring.includes(item);
-                        return (
-                          <button
-                            key={item}
-                            type="button"
-                            onClick={() => {
-                              if (isSelected) {
-                                setSpotWhatToBring(prev => prev.filter(x => x !== item));
-                              } else {
-                                setSpotWhatToBring(prev => [...prev, item]);
-                              }
-                            }}
-                            className={`px-3 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
-                              isSelected
-                                ? 'bg-emerald-600 text-white shadow-xs'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                            }`}
-                          >
-                            {isSelected && <Check className="w-3 h-3" />}
-                            <span>{item}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div className="flex gap-2 pt-1">
-                      <input
-                        type="text"
-                        value={customWhatToBringInput}
-                        onChange={(e) => setCustomWhatToBringInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            if (customWhatToBringInput.trim() && !spotWhatToBring.includes(customWhatToBringInput.trim())) {
-                              setSpotWhatToBring(prev => [...prev, customWhatToBringInput.trim()]);
-                              setCustomWhatToBringInput('');
-                            }
-                          }
-                        }}
-                        placeholder="Add custom gear to carry (e.g. Walking stick, Bug spray, Binoculars)..."
-                        className="text-xs flex-1 bg-slate-100 dark:bg-[#121113] rounded-xl p-2.5 focus:outline-none focus:border-emerald-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (customWhatToBringInput.trim() && !spotWhatToBring.includes(customWhatToBringInput.trim())) {
-                            setSpotWhatToBring(prev => [...prev, customWhatToBringInput.trim()]);
-                            setCustomWhatToBringInput('');
-                          }
-                        }}
-                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl"
-                      >
-                        Add Gear
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* 2. TRAIL DETAILS & ENTRY GUIDELINES */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <div>
-                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
-                        Trail Distance / Park Type
-                      </label>
-                      <input
-                        type="text"
-                        value={spotEquipmentProvided}
-                        onChange={(e) => setSpotEquipmentProvided(e.target.value)}
-                        placeholder="e.g. 5km & 10km marked forest loops • Scenic river valley"
-                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
-                        Trail Difficulty Level
-                      </label>
-                      <select
-                        value={spotSkillLevel}
-                        onChange={(e) => setSpotSkillLevel(e.target.value)}
-                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-emerald-500 font-semibold"
-                      >
-                        <option value="All Levels Welcome">All Levels Welcome (Leisurely)</option>
-                        <option value="Beginner Friendly">Beginner Friendly (Flat ground)</option>
-                        <option value="Moderate / Intermediate">Moderate (Steep inclines / rocky)</option>
-                        <option value="Challenging / Advanced">Challenging / Technical Hike</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* =========================================================================
-                  DYNAMIC CONDITIONAL SECTION 3: CREATIVE AND LEISURE
-                  ========================================================================= */}
-              {spotPrimaryGroup === 'creative_leisure' && (
-                <div className="bg-white dark:bg-[#1C1A1E] border border-pink-200 dark:border-pink-900/40 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4 animate-in fade-in duration-200">
-                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-pink-500/10 text-pink-600 flex items-center justify-center">
-                        <Palette className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                          Creative and leisure Details
-                        </h3>
-                        <p className="text-[11px] text-slate-400">
-                          Workshops, art studios, and craft activity supplies
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-pink-100 dark:bg-pink-950/60 text-pink-700 dark:text-pink-300">
-                      Creative Active
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
-                        Art Supplies & Equipment Provided
-                      </label>
-                      <textarea
-                        rows={3}
-                        value={spotEquipmentProvided}
-                        onChange={(e) => setSpotEquipmentProvided(e.target.value)}
-                        placeholder="e.g. Canvases, acrylic paints, pottery wheels, sculpting clay, brushes, and protective aprons provided on-site..."
-                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-pink-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
-                        Guest What to Bring & Wear
-                      </label>
-                      <textarea
-                        rows={3}
-                        value={spotEquipmentNeeded}
-                        onChange={(e) => setSpotEquipmentNeeded(e.target.value)}
-                        placeholder="e.g. Wear comfortable clothes you don't mind getting paint or clay on; bring flash drive for digital studio files..."
-                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-pink-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
-                      Workshop Session Formats & Schedule
-                    </label>
-                    <input
-                      type="text"
-                      value={spotActivitySchedule}
-                      onChange={(e) => setSpotActivitySchedule(e.target.value)}
-                      placeholder="e.g. 2-hour guided painting sessions • Sat & Sun at 11:00 AM & 3:00 PM • Advance booking required"
-                      className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-pink-500 font-semibold"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* =========================================================================
-                  DYNAMIC CONDITIONAL SECTION 4: TECH AND GAMING
-                  ========================================================================= */}
-              {spotPrimaryGroup === 'tech_gaming' && (
-                <div className="bg-white dark:bg-[#1C1A1E] border border-indigo-200 dark:border-indigo-900/40 rounded-3xl p-5 sm:p-6 shadow-xs space-y-5 animate-in fade-in duration-200">
-                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
-                        <Gamepad2 className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                          Tech and Gaming Specifications
-                        </h3>
-                        <p className="text-[11px] text-slate-400">
-                          Arcades, VR hubs, console setups available, and price per time slot / hour
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
-                      Gaming Active
-                    </span>
-                  </div>
-
-                  {/* 1. PRICING & TIME SLOTS */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
-                        Price Per Hour / Time Slot *
-                      </label>
-                      <input
-                        type="text"
-                        value={spotPricePerHour}
-                        onChange={(e) => setSpotPricePerHour(e.target.value)}
-                        placeholder="e.g. KES 500 / hr or KES 1,200 for 2-hour VR pass"
-                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-indigo-500 font-semibold"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
-                        Time Slot & Booking Format
-                      </label>
-                      <input
-                        type="text"
-                        value={spotTimeSlots}
-                        onChange={(e) => setSpotTimeSlots(e.target.value)}
-                        placeholder="e.g. 60-min standard slots • Walk-in or online reservation"
-                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-indigo-500 font-semibold"
-                      />
-                    </div>
-                  </div>
-
-                  {/* 2. CONSOLES / SETUPS AVAILABLE & GAMES */}
-                  <div className="space-y-4 pt-1">
-                    <div>
-                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
-                        Consoles & Setups Available *
-                      </label>
-                      <textarea
-                        rows={2}
-                        value={spotGameConsoles}
-                        onChange={(e) => setSpotGameConsoles(e.target.value)}
-                        placeholder="e.g. PlayStation 5, Xbox Series X, High-End RTX 4080 Gaming PCs, Meta Quest 3 VR, Logitech Racing Cockpits..."
-                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-indigo-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
-                        Available Games & Experiences
-                      </label>
-                      <textarea
-                        rows={3}
-                        value={spotAvailableGames}
-                        onChange={(e) => setSpotAvailableGames(e.target.value)}
-                        placeholder="e.g. EA FC 25, Call of Duty, Tekken 8, Mortal Kombat 1, Gran Turismo 7, VR Beat Saber, Catan, Pool / Billiards..."
-                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-indigo-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* =========================================================================
-                  DYNAMIC CONDITIONAL SECTION 5: ACTION AND SPORTS
-                  ========================================================================= */}
-              {spotPrimaryGroup === 'action_sports' && (
-                <div className="bg-white dark:bg-[#1C1A1E] border border-blue-200 dark:border-blue-900/40 rounded-3xl p-5 sm:p-6 shadow-xs space-y-5 animate-in fade-in duration-200">
-                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
-                        <Dumbbell className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                          Action and sports Details
-                        </h3>
-                        <p className="text-[11px] text-slate-400">
-                          Fitness, extreme sports, and equipment needed / provided
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300">
-                      Sports Active
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
-                        Equipment Provided by Venue
-                      </label>
-                      <textarea
-                        rows={3}
-                        value={spotEquipmentProvided}
-                        onChange={(e) => setSpotEquipmentProvided(e.target.value)}
-                        placeholder="e.g. Safety helmets, climbing harnesses, tennis rackets, boxing gloves, life jackets provided at no extra cost..."
-                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
-                        Equipment Needed / To Bring by Athlete
-                      </label>
-                      <textarea
-                        rows={3}
-                        value={spotEquipmentNeeded}
-                        onChange={(e) => setSpotEquipmentNeeded(e.target.value)}
-                        placeholder="e.g. Bring own training sneakers, workout apparel, gym towel, reusable hydration bottle..."
-                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
-                      Fitness & Skill Level
-                    </label>
-                    <select
-                      value={spotSkillLevel}
-                      onChange={(e) => setSpotSkillLevel(e.target.value)}
-                      className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-blue-500 font-semibold"
-                    >
-                      <option value="All Levels Welcome">All Levels Welcome (Inclusive & Beginner Friendly)</option>
-                      <option value="Intermediate">Intermediate Training</option>
-                      <option value="Challenging / Advanced">Challenging / Advanced Athlete</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              {/* =========================================================================
-                  DYNAMIC CONDITIONAL SECTION 6: DATE SPOTS
-                  ========================================================================= */}
-              {spotPrimaryGroup === 'date_spots' && (
-                <div className="bg-white dark:bg-[#1C1A1E] border border-rose-200 dark:border-rose-900/40 rounded-3xl p-5 sm:p-6 shadow-xs space-y-5 animate-in fade-in duration-200">
-                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
-                        <Heart className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                          Date spots & Romance Specifications
-                        </h3>
-                        <p className="text-[11px] text-slate-400">
-                          Atmosphere tags and couple booking options
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300">
-                      Date Spot Active
-                    </span>
-                  </div>
-
-                  {/* 1. ATMOSPHERE TAGS */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
-                        Atmosphere Tags ({spotAtmosphereTags.length} selected)
-                      </label>
-                      <span className="text-[10px] text-slate-400">Click to toggle ambiance tags</span>
-                    </div>
-
-                    <div className="flex flex-wrap gap-1.5">
-                      {PRESET_ATMOSPHERE_TAGS.map((tag) => {
-                        const isSelected = spotAtmosphereTags.includes(tag);
-                        return (
-                          <button
-                            key={tag}
-                            type="button"
-                            onClick={() => {
-                              if (isSelected) {
-                                setSpotAtmosphereTags(prev => prev.filter(t => t !== tag));
-                              } else {
-                                setSpotAtmosphereTags(prev => [...prev, tag]);
-                              }
-                            }}
-                            className={`px-3 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
-                              isSelected
-                                ? 'bg-rose-600 text-white shadow-xs'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                            }`}
-                          >
-                            {isSelected && <Check className="w-3 h-3" />}
-                            <span>{tag}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* 2. BOOKING OPTIONS */}
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
-                      Booking Options & Couple Policies
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={spotBookingOptions}
-                      onChange={(e) => setSpotBookingOptions(e.target.value)}
-                      placeholder="e.g. Candlelit booth reservation required for weekends • Walk-ins welcome at bar • Minimum spend KES 3,000 per couple"
-                      className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-rose-500"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* =========================================================================
-                  DYNAMIC CONDITIONAL SECTION 7: CLUBS AND LOUNGES
-                  ========================================================================= */}
-              {spotPrimaryGroup === 'clubs_lounges' && (
-                <div className="bg-white dark:bg-[#1C1A1E] border border-purple-200 dark:border-purple-900/40 rounded-3xl p-5 sm:p-6 shadow-xs space-y-5 animate-in fade-in duration-200">
-                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center">
-                        <Music className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                          Clubs and lounges Nightlife Details
-                        </h3>
-                        <p className="text-[11px] text-slate-400">
-                          Nightlife options and bottle service packages
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300">
-                      Nightlife Active
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
-                        Nightlife Options & Policy
-                      </label>
-                      <textarea
-                        rows={3}
-                        value={spotNightlifeOptions}
-                        onChange={(e) => setSpotNightlifeOptions(e.target.value)}
-                        placeholder="e.g. Afrobeats, Amapiano & Hip-Hop • Resident DJs from 10:00 PM • Dress Code: Smart Casual • Age: 21+ only"
-                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-purple-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
-                        Bottle Service Options & VIP Packages
-                      </label>
-                      <textarea
-                        rows={3}
-                        value={spotBottleServiceOptions}
-                        onChange={(e) => setSpotBottleServiceOptions(e.target.value)}
-                        placeholder="e.g. VIP Booth reservations with Moët champagne packages from KES 15,000 • Dedicated bottle host & sparklers"
-                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-purple-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* =========================================================================
-                  DYNAMIC CONDITIONAL SECTION 8: CAFES AND BAKERIES
-                  ========================================================================= */}
-              {spotPrimaryGroup === 'cafes_bakeries' && (
-                <div className="bg-white dark:bg-[#1C1A1E] border border-amber-200 dark:border-amber-900/40 rounded-3xl p-5 sm:p-6 shadow-xs space-y-5 animate-in fade-in duration-200">
-                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
-                        <Coffee className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                          Cafes and Bakeries Details
-                        </h3>
-                        <p className="text-[11px] text-slate-400">
-                          Coffee & pastry menus, and work-friendly environment tags
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">
-                      Cafe Active
-                    </span>
-                  </div>
-
-                  {/* 1. COFFEE & PASTRY MENUS */}
-                  <div>
-                    <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
-                      Coffee / Pastry Menu Highlights
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={spotCoffeePastryMenu}
-                      onChange={(e) => setSpotCoffeePastryMenu(e.target.value)}
-                      placeholder="e.g. Single-origin Kenyan AA espresso, pour-over V60, almond croissants, artisanal sourdough toast..."
-                      className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-amber-500"
-                    />
-                  </div>
-
-                  {/* 2. WORK-FRIENDLY TAGS */}
-                  <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
-                        Work-Friendly Tags ({spotWorkFriendlyTags.length} selected)
-                      </label>
-                      <span className="text-[10px] text-slate-400">Showcase remote work perks</span>
-                    </div>
-
-                    <div className="flex flex-wrap gap-1.5">
-                      {PRESET_WORK_FRIENDLY_TAGS.map((tag) => {
-                        const isSelected = spotWorkFriendlyTags.includes(tag);
-                        return (
-                          <button
-                            key={tag}
-                            type="button"
-                            onClick={() => {
-                              if (isSelected) {
-                                setSpotWorkFriendlyTags(prev => prev.filter(t => t !== tag));
-                              } else {
-                                setSpotWorkFriendlyTags(prev => [...prev, tag]);
-                              }
-                            }}
-                            className={`px-3 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
-                              isSelected
-                                ? 'bg-amber-600 text-white shadow-xs'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                            }`}
-                          >
-                            {isSelected && <Check className="w-3 h-3" />}
-                            <span>{tag}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* =========================================================================
-                  DYNAMIC CONDITIONAL SECTION 9: HOTELS AND LUXURY STAYS
-                  ========================================================================= */}
-              {spotPrimaryGroup === 'hotels_luxury' && (
-                <div className="bg-white dark:bg-[#1C1A1E] border border-yellow-200 dark:border-yellow-900/40 rounded-3xl p-5 sm:p-6 shadow-xs space-y-5 animate-in fade-in duration-200">
-                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-yellow-500/10 text-yellow-600 flex items-center justify-center">
-                        <Hotel className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                          Hotels and luxury stays Details
-                        </h3>
-                        <p className="text-[11px] text-slate-400">
-                          Room/suite types and luxury hospitality amenities
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-950/60 text-yellow-700 dark:text-yellow-300">
-                      Hotel Active
-                    </span>
-                  </div>
-
-                  {/* 1. ROOM / SUITE TYPES */}
-                  <div>
-                    <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
-                      Room & Suite Types Available
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={spotRoomTypes}
-                      onChange={(e) => setSpotRoomTypes(e.target.value)}
-                      placeholder="e.g. Deluxe King City View, Executive Penthouse Suite with Terrace, 2-Bedroom Family Garden Villa..."
-                      className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-yellow-500"
-                    />
-                  </div>
-
-                  {/* 2. AMENITIES */}
-                  <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200">
-                        Luxury Amenities ({spotHotelAmenities.length} selected)
-                      </label>
-                      <span className="text-[10px] text-slate-400">Click to toggle included hotel features</span>
-                    </div>
-
-                    <div className="flex flex-wrap gap-1.5">
-                      {PRESET_HOTEL_AMENITIES.map((amenity) => {
-                        const isSelected = spotHotelAmenities.includes(amenity);
-                        return (
-                          <button
-                            key={amenity}
-                            type="button"
-                            onClick={() => {
-                              if (isSelected) {
-                                setSpotHotelAmenities(prev => prev.filter(a => a !== amenity));
-                              } else {
-                                setSpotHotelAmenities(prev => [...prev, amenity]);
-                              }
-                            }}
-                            className={`px-3 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
-                              isSelected
-                                ? 'bg-yellow-600 text-white shadow-xs'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                            }`}
-                          >
-                            {isSelected && <Check className="w-3 h-3" />}
-                            <span>{amenity}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* =========================================================================
-                  DYNAMIC CONDITIONAL SECTION 10: VACATION SPOTS AND ESCAPES
-                  ========================================================================= */}
-              {spotPrimaryGroup === 'vacation_escapes' && (
-                <div className="bg-white dark:bg-[#1C1A1E] border border-teal-200 dark:border-teal-900/40 rounded-3xl p-5 sm:p-6 shadow-xs space-y-5 animate-in fade-in duration-200">
-                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-teal-500/10 text-teal-600 flex items-center justify-center">
-                        <Palmtree className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                          Vacation spots and escapes Details
-                        </h3>
-                        <p className="text-[11px] text-slate-400">
-                          Weekend getaways and booking/day pass details
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-teal-100 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300">
-                      Vacation Active
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
-                        Weekend Getaways & Cabin Details
-                      </label>
-                      <textarea
-                        rows={3}
-                        value={spotWeekendGetaways}
-                        onChange={(e) => setSpotWeekendGetaways(e.target.value)}
-                        placeholder="e.g. Lakefront cabins in Naivasha, Mount Kenya glamping domes, private Diani beachfront villa..."
-                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-teal-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 mb-1">
-                        Booking & Day Pass Details
-                      </label>
-                      <textarea
-                        rows={3}
-                        value={spotDayPassDetails}
-                        onChange={(e) => setSpotDayPassDetails(e.target.value)}
-                        placeholder="e.g. Day Pass KES 2,500 includes pool access & lunch voucher • Overnight booking requires 50% deposit • Free cancellation up to 48 hrs"
-                        className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none focus:border-teal-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
+              {/* Category-specific details (menu, prices, booking...) driven by lib/spotDetailFields.ts */}
+              <SpotDetailsEditor category={spotCategory as string} value={detailsForm} onChange={setDetailsForm} loading={detailsLoading} />
 
               {/* =========================================================================
                   GENERAL / DEFAULT SECTION: LOCATION, TRANSIT & SOCIAL LINKS
