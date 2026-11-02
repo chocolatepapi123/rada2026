@@ -1331,25 +1331,21 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       ownerId: effectiveOwnerId,
       name: onboardName.trim(),
       category: selectedVertical,
-      email: onboardEmail.trim() || 'contact@business.ke',
-      phone: onboardPhone.trim() || '+254 700 000 000',
-      whatsapp: onboardWhatsapp.replace(/\s+/g, '') || '+254700000000',
-      neighborhood: onboardNeighborhood || 'Westlands',
-      address: onboardAddress.trim() || `${onboardNeighborhood || 'Westlands'}`,
-      bio: onboardBio.trim() || `Official ${selectedVertical === 'hospitality' ? 'Spot' : 'Event Organizer'} verified on RADA.`,
+      email: onboardEmail.trim(),
+      phone: onboardPhone.trim(),
+      whatsapp: onboardWhatsapp.replace(/\s+/g, ''),
+      neighborhood: onboardNeighborhood,
+      address: onboardAddress.trim(),
+      bio: onboardBio.trim(),
       logo: onboardLogo || presetLogos[0],
-      coverImage: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
-      verified: true,
-      verificationStatus: 'approved',
-      instagram: onboardInstagram.trim() || '@',
+      coverImage: '',
+      // always starts as pending: RADA approves it from the admin Businesses tab
+      verified: false,
+      verificationStatus: 'pending',
+      instagram: onboardInstagram.trim().replace(/^@$/, ''),
       createdDate: new Date().toISOString().split('T')[0],
-      discography: [
-        `${onboardName.trim()} Curated Showcase 2026`,
-        'Official Resident Highlights'
-      ],
-      pinnedImages: [
-        'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop'
-      ]
+      discography: [],
+      pinnedImages: []
     };
 
     setIsSubmitting(true);
