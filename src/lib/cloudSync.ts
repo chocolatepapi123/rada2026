@@ -1400,7 +1400,7 @@ export async function updateProfileVerification(
     const payload: Record<string, any> = {
       id: uid,
       relationship_status: relationshipStatus,
-      is_liveness_verified: isLivenessVerified,
+      // is_liveness_verified is never written from here: only the confirm_selfie_check() RPC can set it
       updated_at: new Date().toISOString()
     };
     if (avatarUrl) {
@@ -1414,7 +1414,6 @@ export async function updateProfileVerification(
         .from('profiles')
         .update({
           relationship_status: relationshipStatus,
-          is_liveness_verified: isLivenessVerified,
           ...(avatarUrl ? { avatar_url: avatarUrl } : {})
         })
         .eq('id', uid);
