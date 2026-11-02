@@ -1,0 +1,286 @@
+{
+  "version": "2026-11-draft-2",
+  "support_email": "hello.rada.app@gmail.com",
+  "docs": {
+    "terms": {
+      "title": "Terms of Use",
+      "intro": [
+        "These Terms apply when you use RADA, an app for finding places, events and outings in Nairobi and planning them with other people. By creating an account or using RADA you agree to them, together with the Privacy Policy and the Community Guidelines."
+      ],
+      "sections": [
+        {
+          "h": "1. Who can use RADA",
+          "p": [
+            "RADA is for adults only. You must be 18 or older to create an account. If we find that an account belongs to someone under 18, we will remove it."
+          ]
+        },
+        {
+          "h": "2. Your account",
+          "li": [
+            "Give accurate information and keep your login details private.",
+            "One person, one account. You are responsible for what happens on your account.",
+            "You can delete your account at any time from Account Settings."
+          ]
+        },
+        {
+          "h": "3. Behaving well",
+          "p": [
+            "You must follow the Community Guidelines. We may remove content and suspend or end accounts that break them or these Terms, with or without notice where safety is at risk."
+          ]
+        },
+        {
+          "h": "4. Meeting people safely",
+          "p": [
+            "RADA helps people find each other, but we cannot check or control what happens when you meet. Meet in a public place first, tell someone you trust where you are going, and use the SOS and Report tools if something feels wrong. Verified badges show that a step was completed in the app. They are not a guarantee of anyone's behaviour."
+          ]
+        },
+        {
+          "h": "5. Outings, events and businesses",
+          "p": [
+            "Outings are organised by their hosts and events by their organisers. Venues, businesses and event organisers are responsible for their own listings, offers, prices, permits and tickets. RADA is not a party to any arrangement between users, hosts, venues or organisers."
+          ]
+        },
+        {
+          "h": "6. Your content",
+          "p": [
+            "You keep ownership of what you post. By posting it on RADA you give us a non-exclusive licence to show it in the app and in RADA promotions for as long as it is on the platform. Only post content you have the right to share, and only photos or videos of people who agree to appear. You can delete your content at any time."
+          ]
+        },
+        {
+          "h": "7. Paid features",
+          "p": [
+            "Some features, such as business plans and promotion boosts, cost money. The price is shown before you pay. Payments are made through M-Pesa. A boost needs RADA's approval before it is charged. Unless the law says otherwise or we say so at the time, payments for a period of service that has already started are not refundable."
+          ]
+        },
+        {
+          "h": "8. Giveaways and offers",
+          "p": [
+            "Any prize, giveaway or competition on RADA is subject to its own rules and any permits required under Kenyan law."
+          ]
+        },
+        {
+          "h": "9. Changes, suspension and ending",
+          "p": [
+            "We may change or stop parts of RADA, and we may suspend or end access if these Terms are broken or to keep people safe. If we change these Terms in a meaningful way we will update the version date and tell you in the app."
+          ]
+        },
+        {
+          "h": "10. Liability",
+          "p": [
+            "RADA is provided as is. To the extent allowed by Kenyan law, we are not liable for losses that come from meetings between users, events, venues, or the information others post. Nothing here limits rights you have under law that cannot be limited."
+          ]
+        },
+        {
+          "h": "11. Law and contact",
+          "p": [
+            "These Terms are governed by the laws of Kenya. Questions or complaints: hello.rada.app@gmail.com."
+          ]
+        }
+      ]
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "intro": [
+        "This explains what RADA collects, why, and the choices you have. We handle personal data in line with the Kenya Data Protection Act, 2019."
+      ],
+      "sections": [
+        {
+          "h": "1. What we collect",
+          "li": [
+            "Account details: email address, display name, username, profile photo and bio.",
+            "What you do in the app: saved places, outings you host or join, messages, match requests, reviews and statuses.",
+            "Location, only if you allow it, to show places near you and to send your position if you use SOS.",
+            "Business details if you set up a business account, and payment records if you pay for a plan or boost.",
+            "Photos, and videos you upload.",
+            "Selfie step: if you use the selfie step in the app, the photo you take or choose is saved as your profile photo. RADA does not run facial recognition and does not build a face template from it.",
+            "Basic technical data: device and browser type, the app version, and crash reports (the error message and the page it happened on, without your name).",
+            "Anonymous usage counts, such as how many people open the app, sign up, save a place or use search. Search words are stored without your name."
+          ]
+        },
+        {
+          "h": "2. Why we use it",
+          "p": [
+            "To run the app, show you relevant places and events, connect you with people you choose to meet, keep the community safe, take payments, find and fix crashes, and improve RADA. We do not sell your personal data."
+          ]
+        },
+        {
+          "h": "3. Messages from RADA and from businesses",
+          "p": [
+            "RADA may send you notices inside the app about your account, safety and activity. Businesses can send you a broadcast only if you have chosen to receive broadcasts from them. You can turn this off at any time in your settings."
+          ]
+        },
+        {
+          "h": "4. Who can see it",
+          "p": [
+            "Your public username, photo and bio can be seen by other users. Your email and phone number are not shown to other users. Messages are visible only to the people in the chat. We use service providers such as Supabase and Vercel to store and run the app, and Safaricom M-Pesa to process payments. They may only use data to provide those services. Some of these providers store data outside Kenya. We may share information if the law requires it or to protect someone's safety."
+          ]
+        },
+        {
+          "h": "5. Location and SOS",
+          "p": [
+            "RADA only reads your location when you use a feature that needs it. If you press SOS, your current position is put into a message that you choose to send to your emergency contacts. RADA does not track you in the background."
+          ]
+        },
+        {
+          "h": "6. How long we keep it",
+          "p": [
+            "We keep your data while your account is active. When you delete your account we delete your profile and your content, except where we must keep limited records for safety, payment or legal reasons. Crash reports are kept for 30 days and anonymous usage counts for 180 days."
+          ]
+        },
+        {
+          "h": "7. Your rights",
+          "p": [
+            "You can see, correct and delete your data, object to some uses, and withdraw consent. Most of this is in Account Settings. For anything else write to hello.rada.app@gmail.com. You can also complain to the Office of the Data Protection Commissioner in Kenya."
+          ]
+        },
+        {
+          "h": "8. Adults only",
+          "p": [
+            "RADA is not for people under 18, and we do not knowingly collect their data. If you think a child is using RADA, report the profile or contact us."
+          ]
+        },
+        {
+          "h": "9. Changes",
+          "p": [
+            "If we change this policy in a meaningful way we will update the version date and tell you in the app."
+          ]
+        }
+      ]
+    },
+    "guidelines": {
+      "title": "Community Guidelines",
+      "intro": [
+        "RADA works when people feel safe going out together. These rules apply to everything you post, say and do on RADA: profiles, outings, statuses, chats, reviews, videos and business pages."
+      ],
+      "sections": [
+        {
+          "h": "1. Be real",
+          "li": [
+            "Use your own photos and your own details. No impersonation, no fake reviews, no fake businesses.",
+            "Do not buy, sell or trade accounts, verification or reviews."
+          ]
+        },
+        {
+          "h": "2. Respect people",
+          "li": [
+            "No harassment, bullying, threats or stalking.",
+            "No hate or discrimination based on tribe, race, religion, gender, sexuality, disability or anything else.",
+            "Do not share someone's private details, photos or messages without their consent.",
+            "If someone says no or stops replying, stop."
+          ]
+        },
+        {
+          "h": "3. Keep it safe",
+          "li": [
+            "No violence, and nothing that encourages self-harm.",
+            "No scams, money requests from strangers, pyramid schemes or fake giveaways.",
+            "No illegal drugs, weapons or stolen goods.",
+            "No content that sexualises or targets minors. We remove it and may report it to the authorities.",
+            "Meet in public, tell someone where you are going, and use SOS if you feel unsafe."
+          ]
+        },
+        {
+          "h": "4. Keep it appropriate",
+          "li": [
+            "No nudity or sexually explicit content.",
+            "No graphic violence.",
+            "Alcohol venues and events are for adults only. Do not promote alcohol to minors."
+          ]
+        },
+        {
+          "h": "5. Hosting outings",
+          "li": [
+            "Describe your outing honestly: place, time, cost, and who it is for.",
+            "Do not use an outing to collect money you do not intend to spend on the outing.",
+            "Respect the people who join. Hosts who make guests feel unsafe will be removed."
+          ]
+        },
+        {
+          "h": "6. Reviews",
+          "li": [
+            "Review only places and businesses you have actually visited.",
+            "Be honest and specific. Do not review your own business or a competitor to hurt it.",
+            "No payment or free items in exchange for a good review unless this is clearly stated."
+          ]
+        },
+        {
+          "h": "7. Reporting and enforcement",
+          "p": [
+            "Use Report on any profile, outing or message. We look at reports and may remove content, give a warning, suspend or end an account. Serious cases, such as threats or content involving minors, can lead to an immediate ban and a report to the police. If you think we got it wrong, write to hello.rada.app@gmail.com."
+          ]
+        }
+      ]
+    },
+    "merchant": {
+      "title": "Merchant Terms",
+      "intro": [
+        "These Terms are for businesses, venues, organisers and creators who list or promote on RADA. They add to the Terms of Use and the Community Guidelines. If they conflict, these Merchant Terms apply to your business account."
+      ],
+      "sections": [
+        {
+          "h": "1. Who can register",
+          "p": [
+            "You must be 18 or older and have the authority to act for the business. You confirm that the information you give is true, and that you hold the licences and permits your business needs under Kenyan law, such as a business permit, and a liquor licence if you serve alcohol."
+          ]
+        },
+        {
+          "h": "2. Verification",
+          "p": [
+            "RADA reviews business details before a business is shown as approved. We may ask for documents. Approval is our decision and can be withdrawn if the information was false or the business breaks these Terms. The Verified badge means we checked the business in the way described in the app. It is not an endorsement of quality or safety."
+          ]
+        },
+        {
+          "h": "3. Your listing",
+          "li": [
+            "Everything you publish, including prices, hours, offers, photos and videos, must be accurate and up to date.",
+            "You must honour offers you publish for the period you state.",
+            "You must have the right to use all photos, videos, names and logos you upload.",
+            "You are responsible for your own staff, premises, stock, tickets, taxes and customer service."
+          ]
+        },
+        {
+          "h": "4. Plans and fees",
+          "p": [
+            "Business plans and promotion boosts are paid features. The price, what is included and the length are shown before you pay. Payments are made through M-Pesa. A boost is reviewed by RADA before you are charged and applies to the one promotion you chose. Unless the law says otherwise or we say so at the time, payments for a period of service that has already started are not refundable. We may change prices for future periods and will tell you in the app first."
+          ]
+        },
+        {
+          "h": "5. Messages to customers",
+          "p": [
+            "You may send a broadcast only to people who chose to receive broadcasts from your business, and only within the limit of your plan. Messages must be about your business, offers or events. No spam, no misleading claims, and no messages to people who have opted out."
+          ]
+        },
+        {
+          "h": "6. Customer data",
+          "p": [
+            "Any information RADA shows you about customers, such as saves, views or messages, is for running your business on RADA. Do not sell it, share it publicly or use it to contact people who have not agreed to hear from you. You must handle personal data in line with the Kenya Data Protection Act, 2019."
+          ]
+        },
+        {
+          "h": "7. Promotions, giveaways and alcohol",
+          "p": [
+            "Promotions and giveaways must follow Kenyan law and any permits that apply. Alcohol promotions must be for adults only and follow Kenyan alcohol advertising rules."
+          ]
+        },
+        {
+          "h": "8. Removal and suspension",
+          "p": [
+            "We may hide a listing, remove content, or suspend a business account if it breaks these Terms, the Community Guidelines or the law, or if there are repeated complaints. You can close your business account at any time."
+          ]
+        },
+        {
+          "h": "9. Liability",
+          "p": [
+            "You are responsible for claims that come from your business, offers, events and premises. RADA is a platform for discovery and does not run, supervise or guarantee any business listed on it. To the extent allowed by Kenyan law, RADA is not liable for lost sales or profit."
+          ]
+        },
+        {
+          "h": "10. Law and contact",
+          "p": [
+            "These Terms are governed by the laws of Kenya. Questions: hello.rada.app@gmail.com."
+          ]
+        }
+      ]
+    }
+  }
+}
