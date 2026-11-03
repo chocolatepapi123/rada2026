@@ -1,119 +1,81 @@
-name: Seed spots
+name: Seed spots (free gosom scraper, no Apify)
 
 on:
   workflow_dispatch:
     inputs:
       areas:
-        description: 'Places, separated by ; . Use "search text|neighborhood label" to search a street but file it under an area. Example: Mpaka Road Westlands|Westlands; Mirema'
+        description: 'Places, separated by ;  Each: Name  or  Search|Label  or  Search|Label|lat,lng   e.g. Westlands; Kilimani; Mpaka Road|Westlands|-1.2640,36.8040'
         type: string
-        default: Kilimani
+        default: 'Westlands'
+      categories:
+        description: 'Categories, comma separated, exact names, e.g. Rooftops, Restaurants, Clubs & Lounges (all 17 are listed in the run error if you mistype one)'
+        type: string
+        default: 'Rooftops'
       add_count:
         description: 'Add up to this many NEW spots per place per category (0 = use the target below instead)'
         type: string
-        default: '15'
+        default: '10'
       target:
-        description: 'Target spots per area per category (only the shortfall is added)'
+        description: 'Only used when add_count is 0: top each place up to this many spots per category'
+        type: string
         default: '30'
       dry_run:
-        description: 'Dry run: preview only, nothing written'
+        description: 'Dry run = preview only, writes nothing to your database'
         type: boolean
         default: true
-      cat_clubs:
-        description: 'Clubs & Lounges'
-        type: boolean
-        default: true
-      cat_restaurants:
-        description: 'Restaurants'
-        type: boolean
-        default: true
-      cat_dates:
-        description: 'Date Spots'
-        type: boolean
-        default: true
-      cat_cafes:
-        description: 'Cafes & Bakeries'
-        type: boolean
-        default: false
-      cat_bars:
-        description: 'Bars & Chill Spots'
-        type: boolean
-        default: false
-      cat_rooftops:
-        description: 'Rooftops'
-        type: boolean
-        default: false
-      cat_nyama:
-        description: 'Nyama Choma & Grills'
-        type: boolean
-        default: false
-      cat_hotels:
-        description: 'Hotels & Stays'
-        type: boolean
-        default: false
-      cat_outdoors:
-        description: 'Outdoors & Nature'
-        type: boolean
-        default: false
-      cat_desserts:
-        description: 'Desserts & Ice Cream'
-        type: boolean
-        default: false
-      cat_fastfood:
-        description: 'Fast Food'
-        type: boolean
-        default: false
-      cat_arts:
-        description: 'Arts & Culture'
-        type: boolean
-        default: false
-      cat_gaming:
-        description: 'Gaming & Arcades'
-        type: boolean
-        default: false
-      cat_sports:
-        description: 'Sports & Adventure'
-        type: boolean
-        default: false
-      cat_gardens:
-        description: 'Garden Hangouts'
-        type: boolean
-        default: false
-      cat_getaways:
-        description: 'Getaways & Resorts'
-        type: boolean
-        default: false
-      cat_hangouts:
-        description: 'Hangouts & Leisure'
-        type: boolean
-        default: false
+      depth:
+        description: 'Result pages scrolled per search (1 = about 15 places, 2 = about 30)'
+        type: string
+        default: '2'
+      max_photos:
+        description: 'Photos kept per spot'
+        type: string
+        default: '5'
+      min_reviews:
+        description: 'Skip places with fewer reviews than this'
+        type: string
+        default: '20'
 
 permissions:
-  contents: write   # to commit the seed-runs log
+  contents: write
 
 jobs:
   seed:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - name: Seed
+          node-version: '22'
+
+      - name: Seed spots
         env:
-          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN || secrets.APIFY_API_TOKEN }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           AREAS: ${{ inputs.areas }}
+          CATEGORIES: ${{ inputs.categories }}
           ADD_COUNT: ${{ inputs.add_count }}
           TARGET: ${{ inputs.target }}
           DRY_RUN: ${{ inputs.dry_run }}
+          DEPTH: ${{ inputs.depth }}
+          MAX_PHOTOS: ${{ inputs.max_photos }}
+          MIN_REVIEWS: ${{ inputs.min_reviews }}
           INPUTS: ${{ toJSON(inputs) }}
-        run: node scripts/seed-spots.mjs
-      - name: Commit run log
+        run: |
+          SCRIPT=$(git ls-files | grep -m1 'seed-spots\.mjs$' || true)
+          if [ -z "$SCRIPT" ]; then echo "seed-spots.mjs is not committed to the repo"; exit 1; fi
+          echo "Running $SCRIPT"
+          node "$SCRIPT"
+
+      - name: Save the run log (live runs only)
         if: ${{ !inputs.dry_run }}
         run: |
-          git config user.name "rada-seed-bot"
-          git config user.email "actions@users.noreply.github.com"
-          git add seed-runs || true
-          git diff --cached --quiet || (git commit -m "seed run" && git push)
+          if [ -d seed-runs ]; then
+            git config user.name "github-actions"
+            git config user.email "github-actions@users.noreply.github.com"
+            git add seed-runs
+            git commit -m "Seed run log" || true
+            git push || true
+          fi
