@@ -467,7 +467,8 @@ export function canEditSpot(
   if (spot.merchantId && spot.merchantId === userId) return true;
   if (spot.ownerId && spot.ownerId === userId) return true;
   if (spot.businessId && merchantBizIds.includes(spot.businessId)) return true;
-  if (spot.isUserUploaded && !spot.businessId) return true;
+  // A spot someone suggested without owning it: only the person who suggested it can edit the text.
+  if (spot.isUserUploaded && !spot.businessId && spot.submitted_by_user_id === userId) return true;
   return false;
 }
 
@@ -2739,13 +2740,13 @@ async function uploadSpotPhotoFile(file: File, uid: string): Promise<string> {
 }
 
 /**
- * User Spot Submission:
- * - Uploads multiple image files to Supabase storage bucket ('spot-photos' or 'public')
- * - Extracts public image URLs and saves them as an array in the `photos` column
- * - Inserts listing with:
- *     status: 'pending_approval'
- *     is_claimed: false
- *     submitted_by_user_id: user.id
+ * Suggest a spot (anyone signed in can add a place they do not own):
+ * - Uploads the photo files to storage and keeps the public URLs
+ * - Publishes the listing straight away so everyone can see it, as a COMMUNITY spot:
+ *     status 'suggested', is_claimed false, no business. It gets no verified badge.
+ * - Any approved business can claim it later (with proof, reviewed by RADA).
+ * - RADA can still review it afterwards: keep (approved, still no badge) or remove (rejected).
+ * The database enforces the rules (5 suggestions a day, owner fixed to the signed-in user).
  */
 export async function submitCommunitySpot(
   spotData: Partial<SpotItem>,
@@ -2769,20 +2770,21 @@ export async function submitCommunitySpot(
       } catch {}
     }
 
+    // A spot everyone can see needs a real account behind it (and the daily limit needs one too).
+    if (isSupabaseConfigured && !signedIn) {
+      return { spot: null, error: 'Please sign in to suggest a spot.' };
+    }
     if (!userId) {
       userId = toValidUuid('user-' + Date.now());
     }
 
-    // 1. Upload all photo files in parallel
+    // 1. Upload the photo files
     const uploadedUrls: string[] = [];
-    if (imageFiles && imageFiles.length > 0) {
-      for (const file of imageFiles) {
-        const url = await uploadSpotPhotoFile(file, userId);
-        if (url) uploadedUrls.push(url);
-      }
+    for (const file of imageFiles || []) {
+      const url = await uploadSpotPhotoFile(file, userId);
+      if (url) uploadedUrls.push(url);
     }
 
-    // Include existing photos / data URLs if passed in spotData
     const combinedPhotos = Array.from(new Set([
       ...uploadedUrls,
       ...(spotData.photos || []),
@@ -2801,17 +2803,19 @@ export async function submitCommunitySpot(
       neighborhood: spotData.neighborhood || 'Nairobi',
       address: spotData.address || `${spotData.neighborhood || 'Nairobi'}, Nairobi`,
       description: spotData.description || '',
-      price: spotData.price || 'KES 1,000 - 2,500',
+      price: spotData.price || 'Mid',
       tags: spotData.tags || [],
       photos: combinedPhotos,
       images: combinedPhotos.length > 0 ? combinedPhotos : [primaryImg],
       img: primaryImg,
       lat: spotData.lat ?? -1.2921,
       lng: spotData.lng ?? 36.8219,
+      // No exact pin yet, so "near me" must not trust these coordinates
+      ...(spotData.lat == null ? { hasCoords: false } : {}),
       rating: 'New',
       reviewCount: 0,
       reviews: [],
-      status: 'pending_approval',
+      status: 'suggested',
       is_claimed: false,
       isUserUploaded: true,
       isAdminPublished: false,
@@ -2819,47 +2823,42 @@ export async function submitCommunitySpot(
       submitted_by_name: userName || 'Community Explorer',
       submitted_by_email: userEmail || undefined,
       submittedAt: now,
-    };
+    } as SpotItem;
 
-    // 2. Save locally so it's always accessible immediately
-    try {
-      const raw = localStorage.getItem('rada_community_spots');
-      const existing: SpotItem[] = raw ? JSON.parse(raw) : [];
-      const updated = [newSpot, ...existing.filter(s => String(s.id) !== String(newSpot.id))];
-      localStorage.setItem('rada_community_spots', JSON.stringify(updated));
-    } catch (e) {
-      console.warn('Local community spot storage error:', e);
-    }
-
-    // 3. Send it to Supabase for admin review (saved as a draft; invisible to others until approved)
-    let syncError: string | null = null;
-    if (isSupabaseConfigured && supabase) {
-      if (!signedIn) {
-        syncError = 'Sign in to send this spot for review';
-      } else {
-        const { error: insErr } = await supabase.from('rada_listings').upsert({
-          id: listingUuid('spot', newSpot.id),
-          kind: 'spot',
-          owner_id: userId,
-          status: 'draft',
-          data: newSpot,
-          created_at: now,
-          updated_at: now,
-        }, { onConflict: 'id' });
-        if (insErr) {
-          console.warn('community spot insert error:', insErr.message);
-          syncError = insErr.message;
-        }
+    // 2. Offline / demo mode: keep it on this device only
+    if (!isSupabaseConfigured || !supabase) {
+      try {
+        const raw = localStorage.getItem('rada_community_spots');
+        const existing: SpotItem[] = raw ? JSON.parse(raw) : [];
+        localStorage.setItem('rada_community_spots', JSON.stringify([newSpot, ...existing.filter(x => String(x.id) !== String(newSpot.id))]));
+      } catch (e) {
+        console.warn('Local community spot storage error:', e);
       }
+      return { spot: newSpot, error: null };
     }
 
-    if (syncError) {
-      return { spot: newSpot, error: `Saved on this device, but it could not be sent for review: ${syncError}` };
+    // 3. Publish for everyone. The listing guard accepts this shape (no business, unclaimed, user uploaded).
+    const { error: insErr } = await supabase.from('rada_listings').insert({
+      id: listingUuid('spot', newSpot.id),
+      kind: 'spot',
+      owner_id: userId,
+      business_id: null,
+      status: 'published',
+      title: String(newSpot.title).slice(0, 300),
+      description: newSpot.description || null,
+      area: newSpot.neighborhood || null,
+      data: newSpot,
+      created_at: now,
+      updated_at: now,
+    });
+    if (insErr) {
+      console.warn('community spot insert error:', insErr.message);
+      return { spot: null, error: insErr.message };
     }
     return { spot: newSpot, error: null };
   } catch (err: any) {
     console.error('submitCommunitySpot error:', err);
-    return { spot: null, error: err?.message || 'Failed to submit community spot' };
+    return { spot: null, error: err?.message || 'Failed to add this spot' };
   }
 }
 
@@ -2874,7 +2873,7 @@ export async function fetchPendingUserSpots(): Promise<SpotItem[]> {
     const raw = localStorage.getItem('rada_community_spots');
     if (raw) {
       const list: SpotItem[] = JSON.parse(raw);
-      list.filter(s => s.status === 'pending_approval').forEach(s => pendingMap.set(String(s.id), s));
+      list.filter(s => s.status === 'pending_approval' || s.status === 'suggested').forEach(s => pendingMap.set(String(s.id), s));
     }
   } catch {}
 
@@ -2890,11 +2889,13 @@ export async function fetchPendingUserSpots(): Promise<SpotItem[]> {
       if (listingsData) {
         for (const row of listingsData) {
           const d = row.data as SpotItem;
-          if (d && (d.status === 'pending_approval' || (row as any).status === 'pending_approval')) {
+          // Old drafts waiting for approval, plus community-suggested spots that are live but not yet reviewed
+          const awaiting = d && (d.status === 'pending_approval' || (row as any).status === 'pending_approval' || d.status === 'suggested');
+          if (awaiting && (row as any).status !== 'archived') {
             pendingMap.set(String(d.id || row.id), {
               ...d,
               id: d.id || row.id,
-              status: 'pending_approval',
+              status: d.status === 'suggested' ? 'suggested' : 'pending_approval',
               photos: d.photos || d.images || (d.img ? [d.img] : []),
             });
           }
