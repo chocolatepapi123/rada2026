@@ -1,0 +1,266 @@
+{
+  "ranAt": "2026-11-03T04:00:43.527Z",
+  "areas": [
+    "Mirema|Mirema",
+    "Roysambu|Roysambu",
+    "Kasarani|Kasarani",
+    "Woodvale Grove Westlands|Westlands",
+    "Mpaka Road Westlands|Westlands",
+    "Parklands|Parklands"
+  ],
+  "categories": [
+    "Clubs & Lounges",
+    "Rooftops"
+  ],
+  "target": 30,
+  "summary": [
+    {
+      "area": "Mirema",
+      "category": "Clubs & Lounges",
+      "qualified": 14,
+      "alreadyInDb": 7,
+      "new": 7
+    },
+    {
+      "area": "Mirema",
+      "category": "Rooftops",
+      "qualified": 12,
+      "alreadyInDb": 5,
+      "new": 7
+    },
+    {
+      "area": "Roysambu",
+      "category": "Clubs & Lounges",
+      "qualified": 18,
+      "alreadyInDb": 8,
+      "new": 5
+    },
+    {
+      "area": "Roysambu",
+      "category": "Rooftops",
+      "qualified": 11,
+      "alreadyInDb": 6,
+      "new": 0
+    },
+    {
+      "area": "Kasarani",
+      "category": "Clubs & Lounges",
+      "qualified": 21,
+      "alreadyInDb": 11,
+      "new": 3
+    },
+    {
+      "area": "Kasarani",
+      "category": "Rooftops",
+      "qualified": 4,
+      "alreadyInDb": 2,
+      "new": 0
+    },
+    {
+      "area": "Woodvale Grove Westlands -> Westlands",
+      "category": "Clubs & Lounges",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0
+    },
+    {
+      "area": "Woodvale Grove Westlands -> Westlands",
+      "category": "Rooftops",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0
+    },
+    {
+      "area": "Mpaka Road Westlands -> Westlands",
+      "category": "Clubs & Lounges",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0
+    },
+    {
+      "area": "Mpaka Road Westlands -> Westlands",
+      "category": "Rooftops",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0
+    },
+    {
+      "area": "Parklands",
+      "category": "Clubs & Lounges",
+      "qualified": 22,
+      "alreadyInDb": 18,
+      "new": 4
+    },
+    {
+      "area": "Parklands",
+      "category": "Rooftops",
+      "qualified": 15,
+      "alreadyInDb": 14,
+      "new": 1
+    }
+  ],
+  "spots": [
+    {
+      "google_place_id": "ChIJ9cpIkx4_LxgRnduV0Qx4tZU",
+      "name": "The Attic Lounge",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Mirema"
+    },
+    {
+      "google_place_id": "ChIJqVZmXAI_LxgR7aPXYOcSiOM",
+      "name": "Club Mansory",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Mirema"
+    },
+    {
+      "google_place_id": "ChIJIQrvawAVLxgRpgeRXX6nYlM",
+      "name": "ICED MINT LOUNGE",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Mirema"
+    },
+    {
+      "google_place_id": "ChIJR8TdOXo_LxgRcsG3tEjsnhA",
+      "name": "THE ALTON LOUNGE MIREMA",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Mirema"
+    },
+    {
+      "google_place_id": "ChIJY6_zRQAVLxgRwd0hX5mP53I",
+      "name": "Zeytoon Lounge",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Mirema"
+    },
+    {
+      "google_place_id": "ChIJ2ZTA2Do_LxgR9mYcjUG5YoI",
+      "name": "Bypass lounge and choma zone",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Mirema"
+    },
+    {
+      "google_place_id": "ChIJmXczfwA_LxgRdFqJplPqK94",
+      "name": "Heathrow Lounge and Grill",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Mirema"
+    },
+    {
+      "google_place_id": "ChIJSfC0SuYVLxgROLSQW_kon_E",
+      "name": "Homeland Inn",
+      "category": "Rooftops",
+      "neighborhood": "Mirema"
+    },
+    {
+      "google_place_id": "ChIJj1Ys_M4VLxgR-_-FjGVXdqk",
+      "name": "Sai Raj Limited - Baba Dogo Road, Ruaraka",
+      "category": "Rooftops",
+      "neighborhood": "Mirema"
+    },
+    {
+      "google_place_id": "ChIJ9WnXv7kVLxgRExXNIKreQ6E",
+      "name": "Sky Park Lounge",
+      "category": "Rooftops",
+      "neighborhood": "Mirema"
+    },
+    {
+      "google_place_id": "ChIJNQ1NgIIVLxgR_VNQ1cJo9s0",
+      "name": "Stardom Hotel",
+      "category": "Rooftops",
+      "neighborhood": "Mirema"
+    },
+    {
+      "google_place_id": "ChIJywlLzYEVLxgRVMmIuXmo730",
+      "name": "SUNNY'S GASTROPUB",
+      "category": "Rooftops",
+      "neighborhood": "Mirema"
+    },
+    {
+      "google_place_id": "ChIJGecklXAVLxgRl7pd8KqvEX4",
+      "name": "Game changers lounge and sports club - lucky summer",
+      "category": "Rooftops",
+      "neighborhood": "Mirema"
+    },
+    {
+      "google_place_id": "ChIJIyQcg98VLxgRYkIecwGlMZo",
+      "name": "Beast Of Barrel Lounge",
+      "category": "Rooftops",
+      "neighborhood": "Mirema"
+    },
+    {
+      "google_place_id": "ChIJ_VeHahtHLxgROUQ-mQsKjn4",
+      "name": "Ruiru Sports Club",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Roysambu"
+    },
+    {
+      "google_place_id": "ChIJJaNkWwA9LxgRInoPWkdRLgw",
+      "name": "Habanos Lounge Nairobi",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Roysambu"
+    },
+    {
+      "google_place_id": "ChIJv-TeeIgVLxgRpJFjKf4EEU8",
+      "name": "anchor hotel",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Roysambu"
+    },
+    {
+      "google_place_id": "ChIJwUuraQw9LxgR5LSlsE8o1vk",
+      "name": "MIX SOLO LOUNGE",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Roysambu"
+    },
+    {
+      "google_place_id": "ChIJrV1hFQA9LxgRpPDiCe8QAKo",
+      "name": "ARENA LOUNGE",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Roysambu"
+    },
+    {
+      "google_place_id": "ChIJQSwxejg-LxgRG7Oet3-l3x4",
+      "name": "Africana club",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kasarani"
+    },
+    {
+      "google_place_id": "ChIJr8FDtaw_LxgR5WFjRrAcoDk",
+      "name": "Liquid Empire lounge",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kasarani"
+    },
+    {
+      "google_place_id": "ChIJiacO_cA_LxgRoMkGa3kPukA",
+      "name": "@ 277WHISKEYLOUNGE🍻🔥",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kasarani"
+    },
+    {
+      "google_place_id": "ChIJaVQzF-kWLxgRiZdpWVQ2AsI",
+      "name": "Muthaiga Country Club",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Parklands"
+    },
+    {
+      "google_place_id": "ChIJbxies7UXLxgR_fpOnClOJmU",
+      "name": "Bamboo Cask Lounge",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Parklands"
+    },
+    {
+      "google_place_id": "ChIJxZVFF2AXLxgRIsJk6WCvtPo",
+      "name": "Salsa lounge",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Parklands"
+    },
+    {
+      "google_place_id": "ChIJKfTtUagQLxgRCbD7LQruBjA",
+      "name": "Dennis Pritt Lounge",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Parklands"
+    },
+    {
+      "google_place_id": "ChIJ0WU-HTQXLxgRb_QR-zt9tDw",
+      "name": "Khweza Bed & Breakfast Nairobi",
+      "category": "Rooftops",
+      "neighborhood": "Parklands"
+    }
+  ]
+}
