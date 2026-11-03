@@ -16,7 +16,14 @@ const CAT_KEYS = {
   cat_gaming: 'Gaming & Arcades', cat_sports: 'Sports & Adventure', cat_gardens: 'Garden Hangouts',
   cat_getaways: 'Getaways & Resorts', cat_hangouts: 'Hangouts & Leisure',
 };
-const AREAS = list(env('AREAS', 'Kilimani')).filter(a => a !== '(none)');
+// Places: "search text|neighborhood label" separated by ';' (or plain names separated by ',').
+// The search text goes to Google Maps; the label is what the spot is filed under in the app.
+const rawAreas = env('AREAS', 'Kilimani');
+const AREAS = (/[;|]/.test(rawAreas) ? rawAreas.split(';') : rawAreas.split(','))
+  .map(x => x.trim()).filter(x => x && x !== '(none)')
+  .map(x => { const [q, l] = x.split('|').map(y => y.trim()); return { query: q, label: l || q }; });
+// ADD_COUNT > 0: add up to that many NEW spots per place per category, ignoring what the area already has.
+const ADD_COUNT = Math.max(0, parseInt(env('ADD_COUNT', '0'), 10) || 0);
 const CATEGORIES = env('CATEGORIES')
   ? list(env('CATEGORIES'))
   : Object.entries(CAT_KEYS).filter(([k]) => INPUTS[k] === true || INPUTS[k] === 'true').map(([, v]) => v);
@@ -58,7 +65,7 @@ function fail(msg) { console.error('✖ ' + msg); process.exit(1); }
 const missing = [['APIFY_TOKEN', APIFY_TOKEN], ['SUPABASE_URL', SB_URL], ['SUPABASE_SERVICE_ROLE_KEY', SB_KEY]].filter(([, v]) => !v).map(([k]) => k);
 if (missing.length) fail('Empty in GitHub secrets: ' + missing.join(', ') + ' (check exact name, and that it is a Repository secret with a value)');
 if (!CATEGORIES.length) fail('Tick at least one category');
-if (AREAS.length < 1 || AREAS.length > 2) fail('Give 1–2 areas per run (got ' + AREAS.length + ')');
+if (AREAS.length < 1 || AREAS.length > 8) fail('Give 1–8 places per run (got ' + AREAS.length + ')');
 const unknown = CATEGORIES.filter(c => !TERMS[c]);
 if (unknown.length) fail('Unknown categories: ' + unknown.join(', ') + '\nValid: ' + Object.keys(TERMS).join(' | '));
 
@@ -152,28 +159,30 @@ async function countIn(area, category) {
 const bucketOf = (searchString, cats = CATEGORIES) => cats.find(c => TERMS[c].some(t => t.toLowerCase() === String(searchString || '').toLowerCase()));
 
 async function main() {
-  console.log(`Areas: ${AREAS.join(' + ')} | Categories: ${CATEGORIES.join(', ')} | target ${TARGET} per area per category | ${DRY_RUN ? 'DRY RUN' : 'LIVE'}`);
+  console.log(`Places: ${AREAS.map(a => a.query === a.label ? a.label : `${a.query} -> ${a.label}`).join(' + ')} | Categories: ${CATEGORIES.join(', ')} | ${ADD_COUNT ? `add up to ${ADD_COUNT} new per place per category` : `target ${TARGET} per area per category`} | ${DRY_RUN ? 'DRY RUN' : 'LIVE'}`);
   const toInsert = [];
   const report = [];
 
   const errors = [];
   const picked = new Set(); // place IDs already chosen for an earlier area this run
-  for (const area of AREAS) {
+  for (const spec of AREAS) {
+   const area = spec.label;
+   const where = spec.query === spec.label ? spec.label : `${spec.query} -> ${spec.label}`;
    try {
     // How many each category still needs to reach TARGET.
     const need = {};
     for (const cat of CATEGORIES) {
       const have = await countIn(area, cat);
-      need[cat] = Math.max(0, TARGET - have);
-      console.log(`${area} / ${cat}: have ${have}, need ${need[cat]}`);
+      need[cat] = ADD_COUNT ? ADD_COUNT : Math.max(0, TARGET - have);
+      console.log(`${where} / ${cat}: have ${have}, need ${need[cat]}`);
     }
     const cats = CATEGORIES.filter(c => need[c] > 0);
     for (const cat of CATEGORIES.filter(c => need[c] === 0)) {
-      report.push({ area, category: cat, qualified: 0, alreadyInDb: 0, new: 0, note: 'target reached' });
+      report.push({ area: where, category: cat, qualified: 0, alreadyInDb: 0, new: 0, note: 'target reached' });
     }
     if (!cats.length) continue;
 
-    const items = await scrapeArea(area, cats, Math.max(...cats.map(c => need[c])));
+    const items = await scrapeArea(spec.query, cats, Math.max(...cats.map(c => need[c])));
     const seen = new Set();
     const byCat = Object.fromEntries(cats.map(c => [c, []]));
 
@@ -197,16 +206,20 @@ async function main() {
         .sort((a, b) => b.totalScore * Math.log10(b.reviewsCount + 1) - a.totalScore * Math.log10(a.reviewsCount + 1))
         .slice(0, need[cat]);
       fresh.forEach(p => { picked.add(p.placeId); toInsert.push(toRow(p, area, cat)); });
-      report.push({ area, category: cat, qualified: byCat[cat].length, alreadyInDb: byCat[cat].length - byCat[cat].filter(p => !existing.has(p.placeId)).length, new: fresh.length });
+      report.push({ area: where, category: cat, qualified: byCat[cat].length, alreadyInDb: byCat[cat].length - byCat[cat].filter(p => !existing.has(p.placeId)).length, new: fresh.length });
     }
    } catch (e) {
-    console.error(`✖ ${area} failed: ${e.message}`);
-    errors.push(`${area}: ${e.message}`);
+    console.error(`✖ ${where} failed: ${e.message}`);
+    errors.push(`${where}: ${e.message}`);
    }
   }
 
   console.table(report);
   console.log(`Total new spots: ${toInsert.length}`);
+  if (DRY_RUN) {
+    console.log('Preview of what a live run would add (check the addresses are really in the right place):');
+    for (const r of toInsert) console.log(`  [${r.category}] ${r.name} | ${r.address} | ${r.rating} stars | filed under ${r.neighborhood}`);
+  }
 
   if (!DRY_RUN && toInsert.length) {
     let inserted = 0;
@@ -222,8 +235,8 @@ async function main() {
     console.log(`✔ Inserted ${inserted}`);
     fs.mkdirSync('seed-runs', { recursive: true });
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    fs.writeFileSync(`seed-runs/${stamp}-${AREAS.join('+').replace(/\s+/g, '')}.json`, JSON.stringify({
-      ranAt: new Date().toISOString(), areas: AREAS, categories: CATEGORIES, target: TARGET, summary: report,
+    fs.writeFileSync(`seed-runs/${stamp}-${AREAS.map(a => a.label).join('+').replace(/\s+/g, '').slice(0, 60)}.json`, JSON.stringify({
+      ranAt: new Date().toISOString(), areas: AREAS.map(a => `${a.query}|${a.label}`), categories: CATEGORIES, target: TARGET, summary: report,
       spots: toInsert.map(r => ({ google_place_id: r.google_place_id, name: r.name, category: r.category, neighborhood: r.neighborhood })),
     }, null, 2));
   }
@@ -232,7 +245,7 @@ async function main() {
 
   if (process.env.GITHUB_STEP_SUMMARY) {
     const md = ['### Seed run ' + (DRY_RUN ? '(dry run)' : ''), '', '| Area | Category | Qualified | Already in DB | New |', '|---|---|---|---|---|',
-      ...report.map(r => `| ${r.area} | ${r.category} | ${r.qualified} | ${r.alreadyInDb} | ${r.new} |`), '', `**Total new: ${toInsert.length}**`].join('\n');
+      ...report.map(r => `| ${r.area} | ${r.category} | ${r.qualified} | ${r.alreadyInDb} | ${r.new} |`), '', `**Total new: ${toInsert.length}**`, ...(DRY_RUN ? ['', '```', ...toInsert.map(r => `[${r.category}] ${r.name} | ${r.address} | ${r.rating} stars | ${r.neighborhood}`), '```'] : [])].join('\n');
     fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md + '\n');
   }
 }
