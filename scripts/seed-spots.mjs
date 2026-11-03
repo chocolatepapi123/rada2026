@@ -47,6 +47,9 @@ const MIN_REVIEWS = Number(env('MIN_REVIEWS', '20'));
 const MIN_PHOTOS = Number(env('MIN_PHOTOS', '3')); // Home rail needs 3+ photos for imported spots
 const MAX_PHOTOS = Math.max(MIN_PHOTOS, parseInt(env('MAX_PHOTOS', '5'), 10) || 5); // photos kept per spot
 const DEPTH = Math.max(1, parseInt(env('DEPTH', '2'), 10) || 2);                    // result pages scrolled per search (~15 places each)
+// STRICT=true: if a place is still short after the first search, keep searching deeper (up to MAX_DEPTH) until it has enough.
+const STRICT = env('STRICT', 'false') === 'true';
+const MAX_DEPTH = Math.max(DEPTH, parseInt(env('MAX_DEPTH', '6'), 10) || 6);
 const RADIUS_M = Math.max(100, parseInt(env('RADIUS_M', '3000'), 10) || 3000);       // only used when a place has coordinates
 const IMAGE = env('GOSOM_IMAGE', 'gosom/google-maps-scraper');
 
@@ -147,12 +150,12 @@ function readResults(file) {
 }
 
 // One search = one Docker run, so we always know which category the results belong to.
-function gosomSearch(query, geo) {
+function gosomSearch(query, geo, depth = DEPTH) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gosom-'));
   fs.chmodSync(dir, 0o777);
   fs.writeFileSync(path.join(dir, 'q.txt'), query + '\n');
   const args = ['run', '--rm', '-v', `${dir}:/out`, IMAGE, '-input', '/out/q.txt', '-results', '/out/r.json', '-json',
-    '-depth', String(DEPTH), '-lang', 'en', '-extra-reviews', '-exit-on-inactivity', '3m'];
+    '-depth', String(depth), '-lang', 'en', '-extra-reviews', '-exit-on-inactivity', '3m'];
   if (geo) args.push('-geo', geo, '-radius', String(RADIUS_M));
   const r = spawnSync('docker', args, { encoding: 'utf8', timeout: 20 * 60 * 1000, maxBuffer: 64 * 1024 * 1024 });
   const rows = readResults(path.join(dir, 'r.json'));
@@ -164,15 +167,15 @@ function gosomSearch(query, geo) {
   return rows;
 }
 
-async function scrapeArea(spec, cats) {
+async function scrapeArea(spec, cats, depth = DEPTH) {
   const items = [];
   const problems = [];
   for (const cat of cats) {
     for (const term of TERMS[cat]) {
       const query = `${term} in ${spec.query}, ${CITY}, Kenya`;
-      console.log(`▶ search: ${query}${spec.geo ? ` (pinned to ${spec.geo}, ${RADIUS_M} m)` : ''}`);
+      console.log(`▶ search (depth ${depth}): ${query}${spec.geo ? ` (pinned to ${spec.geo}, ${RADIUS_M} m)` : ''}`);
       try {
-        const rows = gosomSearch(query, spec.geo);
+        const rows = gosomSearch(query, spec.geo, depth);
         console.log(`  ${rows.length} places`);
         rows.forEach(p => items.push(norm(p, cat)));
       } catch (e) { console.warn('  ✖ ' + e.message); problems.push(e.message); }
@@ -276,40 +279,62 @@ async function main() {
     }
     if (!cats.length) continue;
 
-    const items = await scrapeArea(spec, cats);
-    const seen = new Set();
-    const byCat = Object.fromEntries(cats.map(c => [c, []]));
+    // First pass uses DEPTH. In STRICT mode, short categories get deeper and deeper searches until filled or MAX_DEPTH is reached.
+    const ladder = [DEPTH];
+    if (STRICT) {
+      for (let d = DEPTH + 2; d < MAX_DEPTH; d += 2) ladder.push(d);
+      if (MAX_DEPTH > DEPTH) ladder.push(MAX_DEPTH);
+    }
+    const fresh = Object.fromEntries(cats.map(c => [c, []]));
+    const stats = Object.fromEntries(cats.map(c => [c, { qualified: 0, inDb: 0 }]));
+    const seenQ = new Set();
 
-    for (const p of items) {
-      const cat = p.cat;
-      if (!cat || !p.placeId || seen.has(p.placeId)) continue;
-      const ok = p.title && p.address && Number.isFinite(p.lat) && Number.isFinite(p.lng)
-        && !p.closed
-        && p.rating >= MIN_RATING && p.reviews >= MIN_REVIEWS
-        && p.photoUrls.length >= MIN_PHOTOS;
-      if (!ok) continue;
-      seen.add(p.placeId);
-      byCat[cat].push(p);
+    for (const depth of ladder) {
+      const open = cats.filter(c => fresh[c].length < need[c]);
+      if (!open.length) break;
+      if (depth !== ladder[0]) console.log(`${where}: still short on ${open.map(c => `${c} (${need[c] - fresh[c].length} more)`).join(', ')}; searching deeper (depth ${depth})`);
+      let items;
+      try { items = await scrapeArea(spec, open, depth); }
+      catch (e) { if (depth === ladder[0]) throw e; console.warn(`  deeper search failed: ${e.message}`); break; }
+      const byCat = Object.fromEntries(open.map(c => [c, []]));
+
+      for (const p of items) {
+        const cat = p.cat;
+        if (!cat || !p.placeId || seenQ.has(p.placeId)) continue;
+        const ok = p.title && p.address && Number.isFinite(p.lat) && Number.isFinite(p.lng)
+          && !p.closed
+          && p.rating >= MIN_RATING && p.reviews >= MIN_REVIEWS
+          && p.photoUrls.length >= MIN_PHOTOS;
+        if (!ok) continue;
+        seenQ.add(p.placeId);
+        byCat[cat].push(p);
+      }
+
+      const existing = await existingIds(Object.values(byCat).flat().map(p => p.placeId));
+      for (const cat of open) {
+        stats[cat].qualified += byCat[cat].length;
+        stats[cat].inDb += byCat[cat].filter(p => existing.has(p.placeId)).length;
+        const ranked = byCat[cat]
+          .filter(p => !existing.has(p.placeId) && !picked.has(p.placeId))
+          .sort((a, b) => b.rating * Math.log10(b.reviews + 1) - a.rating * Math.log10(a.reviews + 1));
+        let brokenPhotos = 0;
+        for (const p of ranked) {
+          if (fresh[cat].length >= need[cat]) break;   // never goes over the number you asked for
+          const photos = await workingPhotos(p.photoUrls); // only checked for spots we'd actually add
+          if (photos.length < MIN_PHOTOS) { brokenPhotos++; continue; }
+          picked.add(p.placeId);
+          const row = toRow(p, area, cat, photos);
+          fresh[cat].push(row);
+          toInsert.push(row);
+        }
+        if (brokenPhotos) console.log(`${where} / ${cat}: skipped ${brokenPhotos} whose photos did not load`);
+      }
     }
 
-    const existing = await existingIds([...seen]);
     for (const cat of cats) {
-      const ranked = byCat[cat]
-        .filter(p => !existing.has(p.placeId) && !picked.has(p.placeId))
-        .sort((a, b) => b.rating * Math.log10(b.reviews + 1) - a.rating * Math.log10(a.reviews + 1));
-      const fresh = [];
-      let brokenPhotos = 0;
-      for (const p of ranked) {
-        if (fresh.length >= need[cat]) break;
-        const photos = await workingPhotos(p.photoUrls); // only checked for spots we'd actually add
-        if (photos.length < MIN_PHOTOS) { brokenPhotos++; continue; }
-        picked.add(p.placeId);
-        const row = toRow(p, area, cat, photos);
-        fresh.push(row);
-        toInsert.push(row);
-      }
-      if (brokenPhotos) console.log(`${where} / ${cat}: skipped ${brokenPhotos} whose photos did not load`);
-      report.push({ area: where, category: cat, qualified: byCat[cat].length, alreadyInDb: byCat[cat].length - byCat[cat].filter(p => !existing.has(p.placeId)).length, new: fresh.length });
+      const short = need[cat] - fresh[cat].length;
+      if (short > 0) console.warn(`⚠ ${where} / ${cat}: found ${fresh[cat].length} of ${need[cat]} (${short} short). ${STRICT ? 'Searched as deep as MAX_DEPTH allows; ' : 'Turn on strict mode, or '}lower min_reviews, or add a nearby area.`);
+      report.push({ area: where, category: cat, qualified: stats[cat].qualified, alreadyInDb: stats[cat].inDb, new: fresh[cat].length, note: short > 0 ? `SHORT by ${short}` : '' });
     }
    } catch (e) {
     console.error(`✖ ${where} failed: ${e.message}`);
@@ -347,8 +372,8 @@ async function main() {
   if (errors.length) { console.error('Some areas failed:\n' + errors.join('\n')); process.exitCode = 1; }
 
   if (process.env.GITHUB_STEP_SUMMARY) {
-    const md = ['### Seed run ' + (DRY_RUN ? '(dry run)' : ''), '', '| Area | Category | Qualified | Already in DB | New |', '|---|---|---|---|---|',
-      ...report.map(r => `| ${r.area} | ${r.category} | ${r.qualified} | ${r.alreadyInDb} | ${r.new} |`), '', `**Total new: ${toInsert.length}**`, ...(DRY_RUN ? ['', '```', ...toInsert.map(r => `[${r.category}] ${r.name} | ${r.address} | ${r.rating} stars | ${r.gallery.length} photos | ${r.neighborhood}`), '```'] : [])].join('\n');
+    const md = ['### Seed run ' + (DRY_RUN ? '(dry run)' : ''), '', '| Area | Category | Qualified | Already in DB | New | Note |', '|---|---|---|---|---|---|',
+      ...report.map(r => `| ${r.area} | ${r.category} | ${r.qualified} | ${r.alreadyInDb} | ${r.new} | ${r.note || ''} |`), '', `**Total new: ${toInsert.length}**`, ...(DRY_RUN ? ['', '```', ...toInsert.map(r => `[${r.category}] ${r.name} | ${r.address} | ${r.rating} stars | ${r.gallery.length} photos | ${r.neighborhood}`), '```'] : [])].join('\n');
     fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md + '\n');
   }
 }
