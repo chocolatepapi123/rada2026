@@ -1,0 +1,139 @@
+{
+  "ranAt": "2026-11-03T14:11:09.702Z",
+  "areas": [
+    "Mirema|Mirema",
+    "Roysambu|Roysambu",
+    "Kasarani|Kasarani",
+    "Woodvale Grove Westlands|Westlands",
+    "Mpaka Road Westlands|Westlands",
+    "Parklands|Parklands"
+  ],
+  "categories": [
+    "Clubs & Lounges"
+  ],
+  "target": 30,
+  "summary": [
+    {
+      "area": "Mirema",
+      "category": "Clubs & Lounges",
+      "qualified": 10,
+      "alreadyInDb": 6,
+      "new": 4
+    },
+    {
+      "area": "Roysambu",
+      "category": "Clubs & Lounges",
+      "qualified": 9,
+      "alreadyInDb": 7,
+      "new": 1
+    },
+    {
+      "area": "Kasarani",
+      "category": "Clubs & Lounges",
+      "qualified": 8,
+      "alreadyInDb": 7,
+      "new": 1
+    },
+    {
+      "area": "Woodvale Grove Westlands -> Westlands",
+      "category": "Clubs & Lounges",
+      "qualified": 14,
+      "alreadyInDb": 11,
+      "new": 3
+    },
+    {
+      "area": "Mpaka Road Westlands -> Westlands",
+      "category": "Clubs & Lounges",
+      "qualified": 14,
+      "alreadyInDb": 13,
+      "new": 1
+    },
+    {
+      "area": "Parklands",
+      "category": "Clubs & Lounges",
+      "qualified": 18,
+      "alreadyInDb": 15,
+      "new": 3
+    }
+  ],
+  "spots": [
+    {
+      "google_place_id": "ChIJNxZoH5o_LxgRWY-L-olkC00",
+      "name": "2liza Gardens Bar & Grill",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Mirema"
+    },
+    {
+      "google_place_id": "ChIJAe4mDAw_LxgR3lYjHwamK28",
+      "name": "The Untitled Lounge and Garden",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Mirema"
+    },
+    {
+      "google_place_id": "ChIJYSE9uA4_LxgRVGQt_XdWqdA",
+      "name": "X5 Lounge & Grill",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Mirema"
+    },
+    {
+      "google_place_id": "ChIJhzYJWS8_LxgRFS3qaVtx85M",
+      "name": "Romo House Restaurant & Lounge - Mirema Road.",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Mirema"
+    },
+    {
+      "google_place_id": "ChIJo1pXFM4_LxgRb13GX-s3n3U",
+      "name": "Tafsiri Lounge & Grill",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Roysambu"
+    },
+    {
+      "google_place_id": "ChIJmy-SUIgVLxgRRuv3MyDRlMM",
+      "name": "Car Wash Pub",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kasarani"
+    },
+    {
+      "google_place_id": "ChIJw815FugXLxgRLI6XufXiYGw",
+      "name": "Bahama breeze Ke.",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJPYPlNAAXLxgRNb34dYzXA_k",
+      "name": "The Republic Of Everyone",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJ-2Q-IWsXLxgRGtTz3SIv8cs",
+      "name": "Osteria Romana Caffé | Bar | Terrazza.",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJe-8C1SsXLxgRNXW6j78H-x4",
+      "name": "Suave Kitchen & Social Club",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Westlands"
+    },
+    {
+      "google_place_id": "ChIJmXfuUOQXLxgR9q44oT1zx0A",
+      "name": "SIP 'n' SMOKE CIGAR LOUNGE - PARKLANDS",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Parklands"
+    },
+    {
+      "google_place_id": "ChIJ5WLYSHwXLxgRIEMps-rJdD8",
+      "name": "The Alchemy - Deli, Cafe, Bistro & Champagne Lounge",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Parklands"
+    },
+    {
+      "google_place_id": "ChIJtQKzHCYXLxgR2DWxkaCoODc",
+      "name": "Club Odyssey",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Parklands"
+    }
+  ]
+}
