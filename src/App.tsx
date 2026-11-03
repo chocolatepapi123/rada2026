@@ -3038,8 +3038,10 @@ export default function App() {
               isOpen={isSuggestSpotModalOpen}
               onClose={() => setIsSuggestSpotModalOpen(false)}
               onSubmitSuccess={(spot) => {
-                if (spot.status === 'approved') {
+                // Suggested spots are live straight away (no badge, unclaimed); only a rejected one is hidden
+                if (spot.status !== 'rejected') {
                   setSpots(prev => [spot, ...prev.filter(s => String(s.id) !== String(spot.id))]);
+                  syncRef.current?.();
                 }
               }}
               showToast={showToast}
