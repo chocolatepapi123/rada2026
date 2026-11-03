@@ -158,7 +158,7 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
     setNeighborhood('Westlands');
     setAddress('');
     setDescription('');
-    setPrice('KES 1,000 - 2,500');
+    setPrice('Mid');
     setSelectedTags(['Outdoor Seating', 'Cozy Vibe']);
     setCustomTagInput('');
     previewUrls.forEach(url => {
@@ -214,6 +214,7 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
       if (spot && onSubmitSuccess) {
         onSubmitSuccess(spot);
       }
+      showToast('Spot added. Everyone can see it now, and the owner can claim it.', { type: 'success' });
       resetForm();
       onClose();
     } catch (err: any) {
@@ -238,7 +239,7 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
                 Suggest a Spot
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Share a venue, café, or hidden gem with the Nairobi community.
+                Add a venue, café, or hidden gem you don't own. The owner can claim it later.
               </p>
             </div>
           </div>
@@ -488,7 +489,7 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
           <div className="p-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-start gap-2.5 text-xs text-slate-600 dark:text-slate-400">
             <Sparkles className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
             <p>
-              Community submissions undergo a quick review by the RADA moderation team before appearing in the main directory.
+              Your spot goes live right away as a community suggestion. It has no verified badge until the owner claims it and RADA verifies them. RADA removes anything that does not belong.
             </p>
           </div>
 
@@ -502,12 +503,12 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Uploading photos & submitting...</span>
+                  <span>Uploading photos & adding...</span>
                 </>
               ) : (
                 <>
                   <Sparkles className="w-4 h-4" />
-                  <span>Submit Spot for Review</span>
+                  <span>Add Spot</span>
                 </>
               )}
             </button>

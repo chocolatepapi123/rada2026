@@ -766,10 +766,10 @@ export function AdminDashboardModal({
                   <div>
                     <h2 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                       <MapPin className="w-4 h-4 text-[#E0533C] dark:text-[#D17A68]" />
-                      <span>Pending User-Submitted Spots ({pendingSpots.length})</span>
+                      <span>Community Spots to Review ({pendingSpots.length})</span>
                     </h2>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Review community-submitted spots, inspect photo galleries, and publish or reject them.
+                      Community-suggested spots are already live for everyone, without a verified badge. Keep the good ones, remove the rest.
                     </p>
                   </div>
                   <div className="relative w-full sm:w-64">
@@ -821,7 +821,7 @@ export function AdminDashboardModal({
                                 </span>
                                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-200 dark:border-amber-800 flex items-center gap-1">
                                   <Clock className="w-3 h-3" />
-                                  <span>Pending Approval</span>
+                                  <span>{spot.status === 'suggested' ? 'Live · community suggestion' : 'Pending Approval'}</span>
                                 </span>
                               </div>
 
@@ -930,7 +930,7 @@ export function AdminDashboardModal({
                                   className="flex-1 sm:flex-initial px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                                 >
                                   <CheckCircle2 className="w-4 h-4" />
-                                  <span>Approve & Publish</span>
+                                  <span>{spot.status === 'suggested' ? 'Keep' : 'Approve & Publish'}</span>
                                 </button>
                                 <button
                                   type="button"
@@ -938,7 +938,7 @@ export function AdminDashboardModal({
                                   className="flex-1 sm:flex-initial px-4 py-2 border border-red-200 dark:border-red-900/60 hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
                                 >
                                   <XCircle className="w-4 h-4" />
-                                  <span>Reject</span>
+                                  <span>{spot.status === 'suggested' ? 'Remove' : 'Reject'}</span>
                                 </button>
                               </div>
                             ) : (

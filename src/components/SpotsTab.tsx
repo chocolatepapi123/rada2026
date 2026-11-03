@@ -572,6 +572,11 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                     Proof Under Review
                   </span>
                 )}
+                {spot.isUserUploaded && !spot.businessId && spot.is_claimed === false && !spot.hasPendingClaim && (
+                  <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded font-black shrink-0">
+                    Community · Unclaimed
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[11px] shrink-0">
                 <Star className={`w-3 h-3 ${hasReviews ? 'fill-amber-500 text-amber-500' : 'text-slate-400'}`} />

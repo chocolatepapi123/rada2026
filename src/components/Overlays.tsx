@@ -623,6 +623,11 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   {selectedSpot.description}
                 </p>
               )}
+              {selectedSpot.isUserUploaded && !selectedSpot.businessId && selectedSpot.is_claimed === false && (
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 pt-1">
+                  Suggested by the community{selectedSpot.submitted_by_name ? ` (${selectedSpot.submitted_by_name})` : ''}. Own this place? Claim it from Merchant Hub to get it verified.
+                </p>
+              )}
             </div>
 
             {/* ACTION BUTTONS: Uber, Bolt, Add to Plan, View on Calendar, and Plan a Date */}
