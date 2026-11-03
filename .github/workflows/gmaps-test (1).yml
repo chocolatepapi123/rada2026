@@ -1,0 +1,96 @@
+name: Test gosom Google Maps scraper (writes nothing to your database)
+
+on:
+  workflow_dispatch:
+    inputs:
+      query:
+        description: 'One search, e.g. rooftop bar in Westlands, Nairobi, Kenya'
+        type: string
+        default: 'rooftop bar in Westlands, Nairobi, Kenya'
+      depth:
+        description: 'How far to scroll the results (1 = about 20 places)'
+        type: string
+        default: '1'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Prepare
+        run: |
+          mkdir -p out && chmod 777 out
+          printf '%s\n' "${{ inputs.query }}" > out/queries.txt
+          cat out/queries.txt
+          docker pull gosom/google-maps-scraper
+
+      - name: Show the flags this version supports
+        run: docker run --rm gosom/google-maps-scraper -h 2>&1 | head -80 || true
+
+      - name: Photo and detail related options
+        run: docker run --rm gosom/google-maps-scraper -h 2>&1 | grep -iE 'image|photo|review|extra|geo|zoom|radius|lang|fast|proxy' || true
+
+      - name: Scrape (JSON, falls back to CSV)
+        run: |
+          set +e
+          timeout 600 docker run --rm -v "$PWD/out:/out" gosom/google-maps-scraper \
+            -input /out/queries.txt -results /out/results.json -json \
+            -depth "${{ inputs.depth }}" -lang en -exit-on-inactivity 2m 2>&1 | tail -60
+          if [ ! -s out/results.json ]; then
+            echo "JSON run produced nothing; trying CSV"
+            touch out/results.csv && chmod 666 out/results.csv
+            timeout 600 docker run --rm -v "$PWD/out:/out" gosom/google-maps-scraper \
+              -input /out/queries.txt -results /out/results.csv \
+              -depth "${{ inputs.depth }}" -lang en -exit-on-inactivity 2m 2>&1 | tail -60
+          fi
+          ls -la out
+
+      - name: Summary (what came back, and whether photos are included)
+        run: |
+          python3 - <<'PY'
+          import json, csv, os, sys
+          rows = []
+          if os.path.exists('out/results.json') and os.path.getsize('out/results.json'):
+              for line in open('out/results.json', encoding='utf-8'):
+                  line = line.strip()
+                  if line:
+                      try: rows.append(json.loads(line))
+                      except Exception: pass
+          elif os.path.exists('out/results.csv') and os.path.getsize('out/results.csv'):
+              rows = list(csv.DictReader(open('out/results.csv', encoding='utf-8')))
+          print(f'RESULTS: {len(rows)}')
+          if not rows:
+              print('NOTHING CAME BACK. Google probably blocked GitHub servers, or the query matched nothing.')
+              sys.exit(0)
+          print('FIELDS:', sorted(rows[0].keys()))
+          def pick(r, *names):
+              for n in names:
+                  if n in r and r[n] not in (None, '', []): return r[n]
+              return None
+          def as_list(v):
+              if isinstance(v, str):
+                  try: v = json.loads(v)
+                  except Exception: return []
+              return v if isinstance(v, list) else []
+          counts = []
+          for r in rows:
+              counts.append(len(as_list(r.get('images'))))
+          from collections import Counter
+          print('IMAGES LIST LENGTH PER PLACE (length: how many places):', dict(sorted(Counter(counts).items())))
+          print('PLACES WITH A THUMBNAIL:', sum(1 for r in rows if r.get('thumbnail')), '/', len(rows))
+          first = next((as_list(r.get('images')) for r in rows if as_list(r.get('images'))), [])
+          print('SAMPLE images[0]:', json.dumps(first[0])[:300] if first else 'none had an images list')
+          print('SAMPLE thumbnail:', str(next((r.get('thumbnail') for r in rows if r.get('thumbnail')), 'none'))[:200])
+          for r in rows[:10]:
+              print('-', pick(r, 'title', 'name'), '|', pick(r, 'review_rating'), 'stars |', pick(r, 'review_count'), 'reviews |',
+                    len(as_list(r.get('images'))), 'images |', 'site:', pick(r, 'web_site', 'website'), '|', pick(r, 'category'))
+          PY
+
+      - name: Keep the raw output for inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: gmaps-test-output
+          path: out/
