@@ -11,6 +11,11 @@ on:
         description: 'How far to scroll the results (1 = about 20 places)'
         type: string
         default: '1'
+      extra_reviews:
+        description: 'Turn on -extra-reviews (reviews can carry photos)'
+        type: choice
+        options: ['yes', 'no']
+        default: 'yes'
 
 permissions:
   contents: read
@@ -18,7 +23,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Prepare
         run: |
@@ -27,31 +32,29 @@ jobs:
           cat out/queries.txt
           docker pull gosom/google-maps-scraper
 
-      - name: Show the flags this version supports
-        run: docker run --rm gosom/google-maps-scraper -h 2>&1 | head -80 || true
-
-      - name: Photo and detail related options
-        run: docker run --rm gosom/google-maps-scraper -h 2>&1 | grep -iE 'image|photo|review|extra|geo|zoom|radius|lang|fast|proxy' || true
-
       - name: Scrape (JSON, falls back to CSV)
         run: |
           set +e
-          timeout 600 docker run --rm -v "$PWD/out:/out" gosom/google-maps-scraper \
+          EXTRA=""
+          if [ "${{ inputs.extra_reviews }}" = "yes" ]; then EXTRA="-extra-reviews"; fi
+          echo "Extra flags: $EXTRA"
+          timeout 1200 docker run --rm -v "$PWD/out:/out" gosom/google-maps-scraper \
             -input /out/queries.txt -results /out/results.json -json \
-            -depth "${{ inputs.depth }}" -lang en -exit-on-inactivity 2m 2>&1 | tail -60
+            -depth "${{ inputs.depth }}" -lang en $EXTRA -exit-on-inactivity 3m 2>&1 | tail -60
           if [ ! -s out/results.json ]; then
             echo "JSON run produced nothing; trying CSV"
             touch out/results.csv && chmod 666 out/results.csv
-            timeout 600 docker run --rm -v "$PWD/out:/out" gosom/google-maps-scraper \
+            timeout 1200 docker run --rm -v "$PWD/out:/out" gosom/google-maps-scraper \
               -input /out/queries.txt -results /out/results.csv \
-              -depth "${{ inputs.depth }}" -lang en -exit-on-inactivity 2m 2>&1 | tail -60
+              -depth "${{ inputs.depth }}" -lang en $EXTRA -exit-on-inactivity 3m 2>&1 | tail -60
           fi
           ls -la out
 
-      - name: Summary (what came back, and whether photos are included)
+      - name: Summary (where do the photos live?)
         run: |
           python3 - <<'PY'
           import json, csv, os, sys
+          from collections import Counter
           rows = []
           if os.path.exists('out/results.json') and os.path.getsize('out/results.json'):
               for line in open('out/results.json', encoding='utf-8'):
@@ -65,28 +68,55 @@ jobs:
           if not rows:
               print('NOTHING CAME BACK. Google probably blocked GitHub servers, or the query matched nothing.')
               sys.exit(0)
+
+          def walk(x, path=''):
+              """Yield (path, string) for every string anywhere in the record."""
+              if isinstance(x, dict):
+                  for k, v in x.items():
+                      yield from walk(v, f'{path}.{k}' if path else k)
+              elif isinstance(x, list):
+                  for v in x:
+                      yield from walk(v, path + '[]')
+              elif isinstance(x, str):
+                  s = x.strip()
+                  if s[:1] in '[{':
+                      try:
+                          yield from walk(json.loads(s), path)
+                          return
+                      except Exception:
+                          pass
+                  yield path, x
+
+          def photo_urls(r):
+              found = {}
+              for p, s in walk(r):
+                  if 'googleusercontent.com' in s and s.startswith('http'):
+                      found.setdefault(p, set()).add(s.split('=')[0])
+              return found
+
+          field_counter = Counter()
+          per_place = []
+          for r in rows:
+              f = photo_urls(r)
+              urls = set()
+              for p, u in f.items():
+                  field_counter[p] += len(u)
+                  urls |= u
+              per_place.append(len(urls))
+
+          print('DISTINCT PHOTO URLS PER PLACE (count: how many places):', dict(sorted(Counter(per_place).items())))
+          print('WHICH FIELDS HOLD PHOTO URLS (field: total urls):', dict(field_counter))
+          print('PLACES WITH 3+ PHOTOS:', sum(1 for n in per_place if n >= 3), '/', len(rows))
+          print('PLACES WITH 1+ PHOTO:', sum(1 for n in per_place if n >= 1), '/', len(rows))
           print('FIELDS:', sorted(rows[0].keys()))
+
           def pick(r, *names):
               for n in names:
                   if n in r and r[n] not in (None, '', []): return r[n]
               return None
-          def as_list(v):
-              if isinstance(v, str):
-                  try: v = json.loads(v)
-                  except Exception: return []
-              return v if isinstance(v, list) else []
-          counts = []
-          for r in rows:
-              counts.append(len(as_list(r.get('images'))))
-          from collections import Counter
-          print('IMAGES LIST LENGTH PER PLACE (length: how many places):', dict(sorted(Counter(counts).items())))
-          print('PLACES WITH A THUMBNAIL:', sum(1 for r in rows if r.get('thumbnail')), '/', len(rows))
-          first = next((as_list(r.get('images')) for r in rows if as_list(r.get('images'))), [])
-          print('SAMPLE images[0]:', json.dumps(first[0])[:300] if first else 'none had an images list')
-          print('SAMPLE thumbnail:', str(next((r.get('thumbnail') for r in rows if r.get('thumbnail')), 'none'))[:200])
-          for r in rows[:10]:
-              print('-', pick(r, 'title', 'name'), '|', pick(r, 'review_rating'), 'stars |', pick(r, 'review_count'), 'reviews |',
-                    len(as_list(r.get('images'))), 'images |', 'site:', pick(r, 'web_site', 'website'), '|', pick(r, 'category'))
+          for r, n in list(zip(rows, per_place))[:20]:
+              print('-', pick(r, 'title', 'name'), '|', pick(r, 'review_rating'), 'stars |',
+                    pick(r, 'review_count'), 'reviews |', n, 'photos |', pick(r, 'category'))
           PY
 
       - name: Keep the raw output for inspection
