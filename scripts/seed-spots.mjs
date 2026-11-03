@@ -1,6 +1,10 @@
-// Seeds RADA `unclaimedspots` from Google Maps (via Apify). Run by .github/workflows/seed-spots.yml
-// Needs: APIFY_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (server-side only, never in the app).
+// Seeds RADA `unclaimedspots` from Google Maps using the free open-source gosom scraper (Docker). No Apify.
+// Run by .github/workflows/seed-spots.yml (GitHub runners already have Docker).
+// Needs: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (server-side only, never in the app).
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 const env = (k, d = '') => (process.env[k] ?? d).toString().trim();
 const list = (s) => s.split(',').map(x => x.trim()).filter(Boolean);
@@ -16,12 +20,18 @@ const CAT_KEYS = {
   cat_gaming: 'Gaming & Arcades', cat_sports: 'Sports & Adventure', cat_gardens: 'Garden Hangouts',
   cat_getaways: 'Getaways & Resorts', cat_hangouts: 'Hangouts & Leisure',
 };
-// Places: "search text|neighborhood label" separated by ';' (or plain names separated by ',').
+// Places: "search text|neighborhood label|lat,lng" separated by ';' (or plain names separated by ',').
 // The search text goes to Google Maps; the label is what the spot is filed under in the app.
+// The optional lat,lng pins the search to that point (within RADIUS_M metres) so results don't drift to other areas.
+const COORD = /^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/;
 const rawAreas = env('AREAS', 'Kilimani');
 const AREAS = (/[;|]/.test(rawAreas) ? rawAreas.split(';') : rawAreas.split(','))
   .map(x => x.trim()).filter(x => x && x !== '(none)')
-  .map(x => { const [q, l] = x.split('|').map(y => y.trim()); return { query: q, label: l || q }; });
+  .map(x => {
+    const [q, l, g] = x.split('|').map(y => y.trim());
+    if (g && !COORD.test(g)) fail(`Bad coordinates "${g}" for ${q}. Use lat,lng like -1.2640,36.8040`);
+    return { query: q, label: l || q, geo: g ? g.replace(/\s+/g, '') : '' };
+  });
 // ADD_COUNT > 0: add up to that many NEW spots per place per category, ignoring what the area already has.
 const ADD_COUNT = Math.max(0, parseInt(env('ADD_COUNT', '0'), 10) || 0);
 const CATEGORIES = env('CATEGORIES')
@@ -35,8 +45,11 @@ const DRY_RUN = env('DRY_RUN', 'true') === 'true';
 const MIN_RATING = Number(env('MIN_RATING', '4'));
 const MIN_REVIEWS = Number(env('MIN_REVIEWS', '20'));
 const MIN_PHOTOS = Number(env('MIN_PHOTOS', '3')); // Home rail needs 3+ photos for imported spots
+const MAX_PHOTOS = Math.max(MIN_PHOTOS, parseInt(env('MAX_PHOTOS', '5'), 10) || 5); // photos kept per spot
+const DEPTH = Math.max(1, parseInt(env('DEPTH', '2'), 10) || 2);                    // result pages scrolled per search (~15 places each)
+const RADIUS_M = Math.max(100, parseInt(env('RADIUS_M', '3000'), 10) || 3000);       // only used when a place has coordinates
+const IMAGE = env('GOSOM_IMAGE', 'gosom/google-maps-scraper');
 
-const APIFY_TOKEN = env('APIFY_TOKEN');
 const SB_URL = env('SUPABASE_URL').replace(/\/$/, '');
 const SB_KEY = env('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -62,7 +75,7 @@ const TERMS = {
 };
 
 function fail(msg) { console.error('✖ ' + msg); process.exit(1); }
-const missing = [['APIFY_TOKEN', APIFY_TOKEN], ['SUPABASE_URL', SB_URL], ['SUPABASE_SERVICE_ROLE_KEY', SB_KEY]].filter(([, v]) => !v).map(([k]) => k);
+const missing = [['SUPABASE_URL', SB_URL], ['SUPABASE_SERVICE_ROLE_KEY', SB_KEY]].filter(([, v]) => !v).map(([k]) => k);
 if (missing.length) fail('Empty in GitHub secrets: ' + missing.join(', ') + ' (check exact name, and that it is a Repository secret with a value)');
 if (!CATEGORIES.length) fail('Tick at least one category');
 if (AREAS.length < 1 || AREAS.length > 8) fail('Give 1–8 places per run (got ' + AREAS.length + ')');
@@ -71,40 +84,124 @@ if (unknown.length) fail('Unknown categories: ' + unknown.join(', ') + '\nValid:
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-async function apify(path, init = {}) {
-  const res = await fetch('https://api.apify.com/v2' + path, {
-    ...init,
-    headers: { Authorization: 'Bearer ' + APIFY_TOKEN, 'Content-Type': 'application/json', ...(init.headers || {}) },
-  });
-  if (!res.ok) throw new Error(`Apify ${res.status}: ${(await res.text()).slice(0, 300)}`);
-  return res.json();
+const PHOTO_HOST = /^https?:\/\/[^/]*googleusercontent\.com\//i;
+
+function* walk(x, p = '') {
+  if (Array.isArray(x)) { for (const v of x) yield* walk(v, p + '[]'); }
+  else if (x && typeof x === 'object') { for (const [k, v] of Object.entries(x)) yield* walk(v, p ? `${p}.${k}` : k); }
+  else if (typeof x === 'string') {
+    const s = x.trim();
+    if (s[0] === '[' || s[0] === '{') { try { yield* walk(JSON.parse(s), p); return; } catch { /* plain string */ } }
+    yield [p, x];
+  }
 }
 
-async function scrapeArea(area, cats, perSearch) {
-  const terms = cats.flatMap(c => TERMS[c]);
-  const input = {
-    searchStringsArray: terms,
-    locationQuery: `${area}, ${CITY}, Kenya`,
-    maxCrawledPlacesPerSearch: Math.min(perSearch * 2, 60), // buffer: some get filtered out or already exist (kept small to save Apify credits)
-    language: 'en',
-    skipClosedPlaces: true,
-    maxImages: 5,
-    maxReviews: 0,
+// Photos people attached to reviews live under user_reviews[].Images[] (profile pictures are skipped).
+function reviewPhotos(p) {
+  const out = [];
+  for (const [pth, s] of walk(p)) {
+    if (/profile/i.test(pth) || pth === 'thumbnail' || !/image/i.test(pth)) continue;
+    if (PHOTO_HOST.test(s)) out.push(s);
+  }
+  return out;
+}
+
+const baseOf = (u) => u.split('=')[0];
+
+function norm(p, cat) {
+  const urls = [];
+  const seenBase = new Set();
+  for (const u of [p.thumbnail, ...reviewPhotos(p)]) {
+    if (typeof u !== 'string' || !PHOTO_HOST.test(u) || seenBase.has(baseOf(u))) continue;
+    seenBase.add(baseOf(u));
+    urls.push(u);
+  }
+  const num = (v) => (v === '' || v == null ? NaN : Number(v));
+  let hours = p.open_hours;
+  if (typeof hours === 'string') { try { hours = JSON.parse(hours); } catch { hours = null; } }
+  if (hours && !Array.isArray(hours) && typeof hours === 'object') {
+    hours = Object.entries(hours).map(([day, v]) => ({ day, hours: Array.isArray(v) ? v.join(', ') : String(v) }));
+  }
+  return {
+    cat,
+    placeId: p.place_id || '',
+    title: p.title,
+    address: p.address,
+    lat: num(p.latitude),
+    lng: num(p.longitude ?? p.longtitude),
+    rating: num(p.review_rating),
+    reviews: num(p.review_count),
+    phone: p.phone || null,
+    website: p.web_site || null,
+    hours: Array.isArray(hours) ? hours : [],
+    closed: /closed/i.test(String(p.status || '')),
+    photoUrls: urls,
   };
-  const run = (await apify('/acts/compass~crawler-google-places/runs', { method: 'POST', body: JSON.stringify(input) })).data;
-  console.log(`▶ ${area}: Apify run ${run.id}`);
-  let info = run;
-  while (!['SUCCEEDED', 'FAILED', 'ABORTED', 'TIMED-OUT'].includes(info.status)) {
-    info = (await apify(`/actor-runs/${run.id}?waitForFinish=60`)).data;
+}
+
+function readResults(file) {
+  if (!fs.existsSync(file) || !fs.statSync(file).size) return [];
+  const text = fs.readFileSync(file, 'utf8').trim();
+  try { const j = JSON.parse(text); return Array.isArray(j) ? j : [j]; } catch { /* one JSON object per line */ }
+  return text.split('\n').map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+}
+
+// One search = one Docker run, so we always know which category the results belong to.
+function gosomSearch(query, geo) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gosom-'));
+  fs.chmodSync(dir, 0o777);
+  fs.writeFileSync(path.join(dir, 'q.txt'), query + '\n');
+  const args = ['run', '--rm', '-v', `${dir}:/out`, IMAGE, '-input', '/out/q.txt', '-results', '/out/r.json', '-json',
+    '-depth', String(DEPTH), '-lang', 'en', '-extra-reviews', '-exit-on-inactivity', '3m'];
+  if (geo) args.push('-geo', geo, '-radius', String(RADIUS_M));
+  const r = spawnSync('docker', args, { encoding: 'utf8', timeout: 20 * 60 * 1000, maxBuffer: 64 * 1024 * 1024 });
+  const rows = readResults(path.join(dir, 'r.json'));
+  try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* root-owned files; the runner is thrown away anyway */ }
+  if (!rows.length) {
+    const tail = ((r.stdout || '') + (r.stderr || '')).trim().split('\n').slice(-4).join(' / ');
+    throw new Error(`nothing came back for "${query}" (exit ${r.status ?? r.signal}). Google may be blocking this runner. ${tail}`);
   }
-  if (info.status !== 'SUCCEEDED') {
-    throw new Error(`Apify run ${run.id} ended ${info.status}: ${info.statusMessage || 'no message'} (open https://console.apify.com/actors/runs/${run.id} for the log)`);
+  return rows;
+}
+
+async function scrapeArea(spec, cats) {
+  const items = [];
+  const problems = [];
+  for (const cat of cats) {
+    for (const term of TERMS[cat]) {
+      const query = `${term} in ${spec.query}, ${CITY}, Kenya`;
+      console.log(`▶ search: ${query}${spec.geo ? ` (pinned to ${spec.geo}, ${RADIUS_M} m)` : ''}`);
+      try {
+        const rows = gosomSearch(query, spec.geo);
+        console.log(`  ${rows.length} places`);
+        rows.forEach(p => items.push(norm(p, cat)));
+      } catch (e) { console.warn('  ✖ ' + e.message); problems.push(e.message); }
+    }
   }
-  const res = await fetch(`https://api.apify.com/v2/datasets/${run.defaultDatasetId}/items?clean=true&format=json`, {
-    headers: { Authorization: 'Bearer ' + APIFY_TOKEN },
-  });
-  if (!res.ok) throw new Error('Dataset fetch failed ' + res.status);
-  return res.json();
+  if (!items.length) throw new Error(problems[0] || 'no results');
+  return items;
+}
+
+// Ask Google for a bigger copy of each photo; keep the original link if the bigger one doesn't load.
+async function imageOk(u) {
+  try {
+    const r = await fetch(u, { headers: { Range: 'bytes=0-1023' }, signal: AbortSignal.timeout(15000) });
+    return r.ok && /^image\//i.test(r.headers.get('content-type') || '');
+  } catch { return false; }
+}
+async function bestUrl(u) {
+  const big = baseOf(u) + '=w1200';
+  if (await imageOk(big)) return big;
+  return (await imageOk(u)) ? u : null;
+}
+async function workingPhotos(urls) {
+  const out = [];
+  for (const u of urls) {
+    if (out.length >= MAX_PHOTOS) break;
+    const good = await bestUrl(u);
+    if (good) out.push(good);
+  }
+  return out;
 }
 
 const sb = (path, init = {}) => fetch(SB_URL + '/rest/v1/' + path, {
@@ -123,26 +220,23 @@ async function existingIds(ids) {
   return found;
 }
 
-const goodUrl = (u) => typeof u === 'string' && /^https?:\/\//i.test(u);
-
-function toRow(p, area, category) {
-  const photos = [...new Set([p.imageUrl, ...(p.imageUrls || [])].filter(goodUrl))];
+function toRow(p, area, category, photos) {
   return {
     name: p.title,
     category,
     extra_categories: [],
     address: p.address,
-    latitude: p.location?.lat,
-    longitude: p.location?.lng,
+    latitude: p.lat,
+    longitude: p.lng,
     thumbnail: photos[0],
     gallery: photos,
-    phone: p.phone || null,
-    website: p.website || null,
-    rating: p.totalScore,
-    reviews_count: p.reviewsCount ?? 0,
+    phone: p.phone,
+    website: p.website,
+    rating: p.rating,
+    reviews_count: Number.isFinite(p.reviews) ? p.reviews : 0,
     is_claimed: false,
     status: 'unclaimed',
-    opening_hours: Array.isArray(p.openingHours) ? p.openingHours : [],
+    opening_hours: p.hours,
     social_links: {},
     neighborhood: area,
     google_place_id: p.placeId,
@@ -156,12 +250,12 @@ async function countIn(area, category) {
   return parseInt((r.headers.get('content-range') || '*/0').split('/')[1], 10) || 0;
 }
 
-const bucketOf = (searchString, cats = CATEGORIES) => cats.find(c => TERMS[c].some(t => t.toLowerCase() === String(searchString || '').toLowerCase()));
-
 async function main() {
   console.log(`Places: ${AREAS.map(a => a.query === a.label ? a.label : `${a.query} -> ${a.label}`).join(' + ')} | Categories: ${CATEGORIES.join(', ')} | ${ADD_COUNT ? `add up to ${ADD_COUNT} new per place per category` : `target ${TARGET} per area per category`} | ${DRY_RUN ? 'DRY RUN' : 'LIVE'}`);
   const toInsert = [];
   const report = [];
+  const pull = spawnSync('docker', ['pull', IMAGE], { encoding: 'utf8' });
+  if (pull.status !== 0) fail('Could not pull the scraper image: ' + ((pull.stderr || pull.stdout || 'docker not available').trim().split('\n').slice(-2).join(' ')));
 
   const errors = [];
   const picked = new Set(); // place IDs already chosen for an earlier area this run
@@ -182,18 +276,17 @@ async function main() {
     }
     if (!cats.length) continue;
 
-    const items = await scrapeArea(spec.query, cats, Math.max(...cats.map(c => need[c])));
+    const items = await scrapeArea(spec, cats);
     const seen = new Set();
     const byCat = Object.fromEntries(cats.map(c => [c, []]));
 
     for (const p of items) {
-      const cat = bucketOf(p.searchString, cats);
+      const cat = p.cat;
       if (!cat || !p.placeId || seen.has(p.placeId)) continue;
-      const photos = [...new Set([p.imageUrl, ...(p.imageUrls || [])].filter(goodUrl))];
-      const ok = p.title && p.address && p.location?.lat != null && p.location?.lng != null
-        && !p.permanentlyClosed && !p.temporarilyClosed
-        && Number(p.totalScore) >= MIN_RATING && Number(p.reviewsCount) >= MIN_REVIEWS
-        && photos.length >= MIN_PHOTOS;
+      const ok = p.title && p.address && Number.isFinite(p.lat) && Number.isFinite(p.lng)
+        && !p.closed
+        && p.rating >= MIN_RATING && p.reviews >= MIN_REVIEWS
+        && p.photoUrls.length >= MIN_PHOTOS;
       if (!ok) continue;
       seen.add(p.placeId);
       byCat[cat].push(p);
@@ -201,11 +294,21 @@ async function main() {
 
     const existing = await existingIds([...seen]);
     for (const cat of cats) {
-      const fresh = byCat[cat]
+      const ranked = byCat[cat]
         .filter(p => !existing.has(p.placeId) && !picked.has(p.placeId))
-        .sort((a, b) => b.totalScore * Math.log10(b.reviewsCount + 1) - a.totalScore * Math.log10(a.reviewsCount + 1))
-        .slice(0, need[cat]);
-      fresh.forEach(p => { picked.add(p.placeId); toInsert.push(toRow(p, area, cat)); });
+        .sort((a, b) => b.rating * Math.log10(b.reviews + 1) - a.rating * Math.log10(a.reviews + 1));
+      const fresh = [];
+      let brokenPhotos = 0;
+      for (const p of ranked) {
+        if (fresh.length >= need[cat]) break;
+        const photos = await workingPhotos(p.photoUrls); // only checked for spots we'd actually add
+        if (photos.length < MIN_PHOTOS) { brokenPhotos++; continue; }
+        picked.add(p.placeId);
+        const row = toRow(p, area, cat, photos);
+        fresh.push(row);
+        toInsert.push(row);
+      }
+      if (brokenPhotos) console.log(`${where} / ${cat}: skipped ${brokenPhotos} whose photos did not load`);
       report.push({ area: where, category: cat, qualified: byCat[cat].length, alreadyInDb: byCat[cat].length - byCat[cat].filter(p => !existing.has(p.placeId)).length, new: fresh.length });
     }
    } catch (e) {
@@ -218,7 +321,7 @@ async function main() {
   console.log(`Total new spots: ${toInsert.length}`);
   if (DRY_RUN) {
     console.log('Preview of what a live run would add (check the addresses are really in the right place):');
-    for (const r of toInsert) console.log(`  [${r.category}] ${r.name} | ${r.address} | ${r.rating} stars | filed under ${r.neighborhood}`);
+    for (const r of toInsert) console.log(`  [${r.category}] ${r.name} | ${r.address} | ${r.rating} stars | ${r.gallery.length} photos | filed under ${r.neighborhood}`);
   }
 
   if (!DRY_RUN && toInsert.length) {
@@ -236,7 +339,7 @@ async function main() {
     fs.mkdirSync('seed-runs', { recursive: true });
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
     fs.writeFileSync(`seed-runs/${stamp}-${AREAS.map(a => a.label).join('+').replace(/\s+/g, '').slice(0, 60)}.json`, JSON.stringify({
-      ranAt: new Date().toISOString(), areas: AREAS.map(a => `${a.query}|${a.label}`), categories: CATEGORIES, target: TARGET, summary: report,
+      ranAt: new Date().toISOString(), areas: AREAS.map(a => `${a.query}|${a.label}${a.geo ? '|' + a.geo : ''}`), categories: CATEGORIES, target: TARGET, summary: report,
       spots: toInsert.map(r => ({ google_place_id: r.google_place_id, name: r.name, category: r.category, neighborhood: r.neighborhood })),
     }, null, 2));
   }
@@ -245,7 +348,7 @@ async function main() {
 
   if (process.env.GITHUB_STEP_SUMMARY) {
     const md = ['### Seed run ' + (DRY_RUN ? '(dry run)' : ''), '', '| Area | Category | Qualified | Already in DB | New |', '|---|---|---|---|---|',
-      ...report.map(r => `| ${r.area} | ${r.category} | ${r.qualified} | ${r.alreadyInDb} | ${r.new} |`), '', `**Total new: ${toInsert.length}**`, ...(DRY_RUN ? ['', '```', ...toInsert.map(r => `[${r.category}] ${r.name} | ${r.address} | ${r.rating} stars | ${r.neighborhood}`), '```'] : [])].join('\n');
+      ...report.map(r => `| ${r.area} | ${r.category} | ${r.qualified} | ${r.alreadyInDb} | ${r.new} |`), '', `**Total new: ${toInsert.length}**`, ...(DRY_RUN ? ['', '```', ...toInsert.map(r => `[${r.category}] ${r.name} | ${r.address} | ${r.rating} stars | ${r.gallery.length} photos | ${r.neighborhood}`), '```'] : [])].join('\n');
     fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md + '\n');
   }
 }
