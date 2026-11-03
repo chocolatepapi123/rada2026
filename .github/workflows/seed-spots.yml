@@ -6,13 +6,13 @@ on:
       areas:
         description: 'Places, separated by ;  Each: Name  or  Search|Label  or  Search|Label|lat,lng   e.g. Westlands; Kilimani; Mpaka Road|Westlands|-1.2640,36.8040'
         type: string
-        default: 'Westlands'
+        default: 'Roysambu; Kasarani; Mirema'
       categories:
         description: 'Categories, comma separated, exact names, e.g. Rooftops, Restaurants, Clubs & Lounges (all 17 are listed in the run error if you mistype one)'
         type: string
-        default: 'Rooftops'
+        default: 'Clubs & Lounges'
       add_count:
-        description: 'Add up to this many NEW spots per place per category (0 = use the target below instead)'
+        description: 'Add exactly this many NEW spots per place per category (0 = use the target below instead)'
         type: string
         default: '10'
       target:
@@ -24,9 +24,17 @@ on:
         type: boolean
         default: true
       depth:
-        description: 'Result pages scrolled per search (1 = about 15 places, 2 = about 30)'
+        description: 'Result pages scrolled per search on the first try (1 = about 15 places, 2 = about 30)'
         type: string
         default: '2'
+      strict:
+        description: 'Strict fill: if a place is still short, search deeper until it has enough (slower)'
+        type: boolean
+        default: true
+      max_depth:
+        description: 'Strict fill only: the deepest it will search before giving up'
+        type: string
+        default: '8'
       max_photos:
         description: 'Photos kept per spot'
         type: string
@@ -60,6 +68,8 @@ jobs:
           TARGET: ${{ inputs.target }}
           DRY_RUN: ${{ inputs.dry_run }}
           DEPTH: ${{ inputs.depth }}
+          STRICT: ${{ inputs.strict }}
+          MAX_DEPTH: ${{ inputs.max_depth }}
           MAX_PHOTOS: ${{ inputs.max_photos }}
           MIN_REVIEWS: ${{ inputs.min_reviews }}
           INPUTS: ${{ toJSON(inputs) }}
@@ -70,7 +80,7 @@ jobs:
           node "$SCRIPT"
 
       - name: Save the run log (live runs only)
-        if: ${{ !inputs.dry_run }}
+        if: ${{ always() && !inputs.dry_run }}
         run: |
           if [ -d seed-runs ]; then
             git config user.name "github-actions"
