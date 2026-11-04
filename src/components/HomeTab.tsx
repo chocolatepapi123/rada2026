@@ -1526,7 +1526,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
       {/* Featured Trending Events Section with Category Filter */}
       {(selectedHomeSection === 'all' || selectedHomeSection === 'events') && (selectedVibe === 'all' || selectedVibe === 'concerts' || selectedVibe === 'nightlife' || selectedVibe === 'art') && (
-        <div className="space-y-3 [content-visibility:auto] [contain-intrinsic-size:auto_320px]">
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-[#E0533C]"></span>
@@ -1748,7 +1748,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
       {/* CENTURY CINEMAX SHOWINGS (Official Posters, Showtime by Date removed, Movie Genre filter added) */}
       {(selectedHomeSection === 'all' || selectedHomeSection === 'cinemas') && (selectedVibe === 'all' || selectedVibe === 'cinemas') && filteredCinemaMovies.length > 0 && (
-        <div className="space-y-3 [content-visibility:auto] [contain-intrinsic-size:auto_320px]">
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Film className="w-4 h-4 text-[#2D6A4F]" />

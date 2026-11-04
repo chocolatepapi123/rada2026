@@ -1096,7 +1096,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           const acc = getSpotCategoryAccent(def.id);
           const Icon = acc.Icon;
           return (
-            <div key={def.id} className="space-y-3 [content-visibility:auto] [contain-intrinsic-size:auto_300px]">
+            <div key={def.id} className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-2">
                   <span className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: acc.soft, color: acc.color }}>

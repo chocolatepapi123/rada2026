@@ -34,6 +34,8 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange, 
   ];
 
   return (
+    <>
+    <div aria-hidden="true" className="rada-nav-fade fixed inset-x-0 bottom-0 h-[calc(6.5rem+env(safe-area-inset-bottom,0px))] pointer-events-none z-30 min-[900px]:hidden" />
     <nav
       className="fixed left-3 right-3 bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] max-w-[23rem] mx-auto rada-nav rounded-full border px-2 py-1.5 flex items-center justify-around z-40 transition-colors duration-200 min-[900px]:top-[65px] min-[900px]:bottom-0 min-[900px]:left-0 min-[900px]:right-auto min-[900px]:w-60 min-[900px]:max-w-none min-[900px]:mx-0 min-[900px]:rounded-none min-[900px]:flex-col min-[900px]:justify-start min-[900px]:items-stretch min-[900px]:gap-1 min-[900px]:border-t-0 min-[900px]:border-b-0 min-[900px]:border-l-0 min-[900px]:border-r min-[900px]:px-3 min-[900px]:py-5"
     >
@@ -98,5 +100,6 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange, 
         );
       })}
     </nav>
+    </>
   );
 };
