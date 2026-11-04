@@ -1,0 +1,202 @@
+{
+  "ranAt": "2026-11-04T13:59:49.353Z",
+  "areas": [
+    "Nairobi|Nairobi",
+    "Thika Road|Thika Road",
+    "Kiambu|Kiambu"
+  ],
+  "categories": [
+    "Date Spots"
+  ],
+  "target": 15,
+  "summary": [
+    {
+      "area": "Nairobi",
+      "category": "Date Spots",
+      "qualified": 54,
+      "alreadyInDb": 50,
+      "new": 4,
+      "note": "SHORT by 11"
+    },
+    {
+      "area": "Thika Road",
+      "category": "Date Spots",
+      "qualified": 62,
+      "alreadyInDb": 53,
+      "new": 8,
+      "note": "SHORT by 5"
+    },
+    {
+      "area": "Kiambu",
+      "category": "Date Spots",
+      "qualified": 55,
+      "alreadyInDb": 38,
+      "new": 15,
+      "note": ""
+    }
+  ],
+  "spots": [
+    {
+      "google_place_id": "ChIJY-MPTYsZLxgRRoD0AsEBNDo",
+      "name": "Zen Garden",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJl2eMSMYFLxgRd63M0m_I8mY",
+      "name": "Cultiva Farm Kenya Bakery",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJXcwcI_AXLxgR0jiqsJvnMWM",
+      "name": "La Dolce Vita",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJFxG-EC0XLxgRlwZUEgyMyZ0",
+      "name": "LORD DELAMERE TERRACE",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ4-3cVIsVLxgR3hQySmak4yc",
+      "name": "Java House-Thika Road (TRM)",
+      "category": "Date Spots",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJfen1lTY_LxgRwiFjZVGiYWI",
+      "name": "Pine and Dine Restaurant - Kastemil Business center",
+      "category": "Date Spots",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJywlLzYEVLxgRVMmIuXmo730",
+      "name": "SUNNY'S GASTROPUB",
+      "category": "Date Spots",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJ98Hhuug5LxgRBT-3GHtyXy8",
+      "name": "Roast By Carnivore Restaurant Tatu City",
+      "category": "Date Spots",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJsVCZICMXLxgRQKmT8VGEkss",
+      "name": "Jiko Restaurant At Tribe Hotel",
+      "category": "Date Spots",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJAwFXmrFBLxgRguElFYprPdY",
+      "name": "The Mark Vintage Hotel",
+      "category": "Date Spots",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJpz8cfCBHLxgRbN3PgqiAO3c",
+      "name": "Bustani Bistro",
+      "category": "Date Spots",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJ1SI-AQARLxgRtKjDOAf1iAY",
+      "name": "Sky bistro",
+      "category": "Date Spots",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJSWzaoO09LxgRhNuq-F4jcKE",
+      "name": "Golden Eagle Spur Kenya",
+      "category": "Date Spots",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJJUsukHokLxgRb5cJcWOnokA",
+      "name": "Kentmere Club",
+      "category": "Date Spots",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJrfTs5TsWLxgRnRmKkzIPwaE",
+      "name": "Walkabout Bar And Restaurant",
+      "category": "Date Spots",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJ9cloUgAXLxgRYVNggVRwibc",
+      "name": "TsukuTsuku Kiambu Road",
+      "category": "Date Spots",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJPeHEedE9LxgRE_UiTMEgqP4",
+      "name": "ORPUL Sagret",
+      "category": "Date Spots",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJQ6wOCX89LxgRxm5VSlUIdCo",
+      "name": "The Hide Steakhouse",
+      "category": "Date Spots",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJU4e5H7tHLxgRbrPnA6ZINUk",
+      "name": "Smoky's Restaurant & Bar",
+      "category": "Date Spots",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJj8H1TQA9LxgRxqJuP72beNU",
+      "name": "Cobblestone House",
+      "category": "Date Spots",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJyW5loqo9LxgRCKLr5Oayppk",
+      "name": "Riverside Hotel",
+      "category": "Date Spots",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJk40YLBg9LxgRBzydsjX_pP8",
+      "name": "86 Bistro",
+      "category": "Date Spots",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJHyZKIwA9LxgRt-BYbr3VmvI",
+      "name": "Village Inn Kiambu",
+      "category": "Date Spots",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJ5Q5kP8IXLxgRtOTQMQigYGw",
+      "name": "Karel T-Lounge",
+      "category": "Date Spots",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJ1_QG5v8XLxgR7vpoXzPw6K8",
+      "name": "Royal 58",
+      "category": "Date Spots",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJw7Kb8b09LxgRdfrZ_bVhgRg",
+      "name": "The Lims Grill & Bar",
+      "category": "Date Spots",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJw12EYnU7LxgRUnOoivEoZSU",
+      "name": "Michael Pot Gardens",
+      "category": "Date Spots",
+      "neighborhood": "Kiambu"
+    }
+  ]
+}
