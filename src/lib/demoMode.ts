@@ -13,6 +13,8 @@ const KEY = 'rada_demo_mode';
 function readDemoFlag(): boolean {
   try {
     if (typeof window === 'undefined') return false;
+    // Production builds ignore ?demo=1 unless VITE_ENABLE_DEMO=true, so customers can never land in fake data.
+    if (import.meta.env.PROD && import.meta.env.VITE_ENABLE_DEMO !== 'true') return false;
     const p = new URLSearchParams(window.location.search).get('demo');
     if (p === '1') localStorage.setItem(KEY, '1');
     if (p === '0') localStorage.removeItem(KEY);
