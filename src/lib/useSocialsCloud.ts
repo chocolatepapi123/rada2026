@@ -16,6 +16,7 @@ import {
   unlockOutingChat,
 } from './socialsCloud';
 import { isDemoMode } from './demoMode';
+import { syncUnreadChats } from './unreadChats';
 import { fetchBlockedIds, getCachedBlockedIds, onBlockedChanged } from './safety';
 import {
   DEMO_PEOPLE,
@@ -81,6 +82,10 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
           : { ...c, messages: (c.messages || []).filter(m => !blocked.has((m as any).senderId)) }
       );
   }, [conversations, blockedIds]);
+  // feeds the unread badge on the Socials tab
+  useEffect(() => {
+    syncUnreadChats(demo ? undefined : userId, visibleConversations, loaded);
+  }, [demo, userId, visibleConversations, loaded]);
   const visibleRequests = useMemo(() => {
     if (!blockedIds.length) return requests;
     const blocked = new Set(blockedIds);
