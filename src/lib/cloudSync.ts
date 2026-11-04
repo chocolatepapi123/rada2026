@@ -2018,7 +2018,7 @@ export function createOrUnlockOutingGroupChat(
       updatedMessages.push({
         id: `msg-appr-${Date.now()}`,
         sender: 'system',
-        text: `👋 ${approvedApplicant.userName} was approved by ${outing.hostName}! Welcome to the group chat.`,
+        text: `${approvedApplicant.userName} was approved by ${outing.hostName}! Welcome to the group chat.`,
         time: timeStr
       });
     }
@@ -2038,7 +2038,7 @@ export function createOrUnlockOutingGroupChat(
       {
         id: `msg-welcome-${Date.now()}`,
         sender: 'system' as const,
-        text: `🎉 Temporary Group Chat unlocked for "${outing.spotTitle}" on ${outing.date} at ${outing.time}! Hosted by ${outing.hostName}.`,
+        text: `Temporary Group Chat unlocked for "${outing.spotTitle}" on ${outing.date} at ${outing.time}! Hosted by ${outing.hostName}.`,
         time: timeStr
       }
     ];
@@ -2047,7 +2047,7 @@ export function createOrUnlockOutingGroupChat(
       initialMessages.push({
         id: `msg-appr-${Date.now() + 1}`,
         sender: 'system' as const,
-        text: `👋 ${approvedApplicant.userName} joined the hangout group! Connect with everyone before heading out.`,
+        text: `${approvedApplicant.userName} joined the hangout group! Connect with everyone before heading out.`,
         time: timeStr
       });
     }

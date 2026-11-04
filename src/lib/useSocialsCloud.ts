@@ -33,13 +33,13 @@ const previewOf = (m: OutgoingMessage): string => {
   switch (m.kind) {
     case 'voice':
     case 'audio':
-      return '🎙️ Voice note';
+      return 'Voice note';
     case 'video_note':
-      return '📹 Video note';
+      return 'Video note';
     case 'video':
-      return '🎥 Video';
+      return 'Video';
     case 'photo':
-      return '📷 Photo';
+      return 'Photo';
     default:
       return m.content || '';
   }

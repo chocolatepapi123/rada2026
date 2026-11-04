@@ -116,10 +116,10 @@ export function mergeMessages(existing: ChatMessage[], incoming: ChatMessage[]):
 
 function previewFor(row: any): string {
   const kind = row.kind || 'text';
-  if (kind === 'voice' || kind === 'audio') return '🎙️ Voice note';
-  if (kind === 'video_note') return '📹 Video note';
-  if (kind === 'video') return '🎥 Video';
-  if (kind === 'photo') return '📷 Photo';
+  if (kind === 'voice' || kind === 'audio') return 'Voice note';
+  if (kind === 'video_note') return 'Video note';
+  if (kind === 'video') return 'Video';
+  if (kind === 'photo') return 'Photo';
   if (kind === 'date_invite') return row.content || 'Date invitation';
   return row.content || '';
 }

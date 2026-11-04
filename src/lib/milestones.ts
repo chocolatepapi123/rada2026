@@ -10,17 +10,17 @@ export interface MilestoneData {
   levels: Partial<Record<MilestoneKind, number>>;
 }
 
-export const MILESTONE_META: Record<MilestoneKind, { title: string; unit: string; names: string[]; emoji: string }> = {
+export const MILESTONE_META: Record<MilestoneKind, { title: string; unit: string; names: string[]; icon: string }> = {
   outings: {
-    title: 'Outings', unit: 'outings', emoji: '🎉',
+    title: 'Outings', unit: 'outings', icon: 'party',
     names: ['Regular', 'Social Butterfly', 'Outing Pro', 'Nairobi Legend', 'RADA Icon'],
   },
   spots: {
-    title: 'Spots visited', unit: 'spots', emoji: '📍',
+    title: 'Spots visited', unit: 'spots', icon: 'pin',
     names: ['Local Explorer', 'Neighborhood Scout', 'City Wanderer', 'Spot Hunter', 'Nairobi Navigator'],
   },
   photo_reviews: {
-    title: 'Reviews with photos', unit: 'reviews', emoji: '📸',
+    title: 'Reviews with photos', unit: 'reviews', icon: 'camera',
     names: ['Photo Reviewer', 'Shutterbug', 'Visual Storyteller', 'Photo Pro', 'Review Legend'],
   },
 };
