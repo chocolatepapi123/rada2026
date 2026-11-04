@@ -164,9 +164,17 @@ body::after {
 /* Phone / tablet portrait: floating pill. >=900px keeps the flat left sidebar. */
 @media (max-width: 899.98px) {
   .rada-nav {
-    border-color: rgba(15, 23, 42, 0.06);
-    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.08);
+    background: rgba(255, 255, 255, 0.58);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
+    border-color: rgba(255, 255, 255, 0.7);
+    box-shadow:
+      0 10px 32px rgba(15, 23, 42, 0.16),
+      0 2px 6px rgba(15, 23, 42, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.25);
   }
+  html.low-end .rada-nav { background: rgba(255, 255, 255, 0.96); }
 }
 .rada-nav-btn-idle { color: #94A3B8; }
 .rada-nav-btn-idle:hover { color: #1E293B; }
@@ -174,16 +182,19 @@ body::after {
 .rada-nav-dot { background: #B83D26; }
 @media (min-width: 900px) {
   .rada-nav-btn-idle:hover { background: #F1F5F9; }
-  .rada-nav-btn-active { background: rgba(184, 61, 38, 0.1); }
 }
 
 html.dark .rada-nav { background: #121113; border-color: rgba(30, 41, 59, 0.8); color-scheme: dark; }
 @media (max-width: 899.98px) {
   html.dark .rada-nav {
-    background: #1C1A1E;
-    border-color: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    background: rgba(32, 30, 36, 0.55);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow:
+      0 10px 32px rgba(0, 0, 0, 0.55),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.04);
   }
+  html.dark.low-end .rada-nav { background: rgba(28, 26, 30, 0.97); }
 }
 html.dark .rada-nav-btn-idle { color: #94A3B8; }
 html.dark .rada-nav-btn-idle:hover { color: #E2E8F0; }
@@ -191,5 +202,14 @@ html.dark .rada-nav-btn-active { color: #E0533C; }
 html.dark .rada-nav-dot { background: #E0533C; }
 @media (min-width: 900px) {
   html.dark .rada-nav-btn-idle:hover { background: rgba(30, 41, 59, 0.6); }
-  html.dark .rada-nav-btn-active { background: rgba(224, 83, 60, 0.15); }
+}
+
+/* Sliding active highlight (shared layoutId animates it between tabs) */
+.rada-nav-indicator {
+  background: rgba(184, 61, 38, 0.13);
+  box-shadow: inset 0 0 0 1px rgba(184, 61, 38, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+html.dark .rada-nav-indicator {
+  background: rgba(224, 83, 60, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(224, 83, 60, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
