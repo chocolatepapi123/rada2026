@@ -42,9 +42,13 @@ const CATEGORIES = env('CATEGORIES')
 const TARGET = Math.max(1, parseInt(env('TARGET', '30'), 10) || 30);
 const CITY = env('CITY', 'Nairobi');
 const DRY_RUN = env('DRY_RUN', 'true') === 'true';
-const MIN_RATING = Number(env('MIN_RATING', '4'));
-const MIN_REVIEWS = Number(env('MIN_REVIEWS', '20'));
-const MIN_PHOTOS = Number(env('MIN_PHOTOS', '3')); // Home rail needs 3+ photos for imported spots
+let MIN_RATING = Number(env('MIN_RATING', '4'));
+let MIN_REVIEWS = Number(env('MIN_REVIEWS', '20'));
+let MIN_PHOTOS = Number(env('MIN_PHOTOS', '3')); // Home rail needs 3+ photos for imported spots
+// RELAX_FALLBACK (default on): if an area is still short of its target after the normal search
+// ladder, the seeder makes one last pass with extra search terms and relaxed thresholds so
+// "at least 15 spots per place" is actually reached instead of quietly finishing short.
+const RELAX_FALLBACK = env('RELAX_FALLBACK', 'true') !== 'false';
 const MAX_PHOTOS = Math.max(MIN_PHOTOS, parseInt(env('MAX_PHOTOS', '5'), 10) || 5); // photos kept per spot
 const DEPTH = Math.max(1, parseInt(env('DEPTH', '2'), 10) || 2);                    // result pages scrolled per search (~15 places each)
 // STRICT=true: if a place is still short after the first search, keep searching deeper (up to MAX_DEPTH) until it has enough.
@@ -75,6 +79,28 @@ const TERMS = {
   'Garden Hangouts': ['garden restaurant'],
   'Getaways & Resorts': ['resort'],
   'Hangouts & Leisure': ['hangout spot'],
+};
+
+// Terms used ONLY by the relaxed fallback pass, so a place that is short after the normal search
+// still has a chance to reach the target. Never used by the first pass.
+const EXTRA_TERMS = {
+  'Clubs & Lounges': ['cocktail bar', 'live music venue'],
+  'Restaurants': ['family restaurant', 'grill restaurant', 'eatery'],
+  'Date Spots': ['fine dining', 'wine bar', 'sunset restaurant'],
+  'Cafes & Bakeries': ['coffee shop', 'pastry shop'],
+  'Bars & Chill Spots': ['sports bar', 'wine and cocktails'],
+  'Rooftops': ['rooftop lounge', 'rooftop cafe'],
+  'Nyama Choma & Grills': ['barbecue restaurant', 'grill'],
+  'Hotels & Stays': ['boutique hotel', 'guest house'],
+  'Outdoors & Nature': ['garden', 'viewpoint', 'park'],
+  'Desserts & Ice Cream': ['cake shop', 'yogurt shop'],
+  'Fast Food': ['burger restaurant', 'chicken restaurant'],
+  'Arts & Culture': ['art center', 'cultural center'],
+  'Gaming & Arcades': ['bowling alley', 'pool hall'],
+  'Sports & Adventure': ['gym', 'swimming pool'],
+  'Garden Hangouts': ['outdoor restaurant', 'garden cafe'],
+  'Getaways & Resorts': ['lodge', 'country club'],
+  'Hangouts & Leisure': ['entertainment venue', 'picnic spot'],
 };
 
 function fail(msg) { console.error('✖ ' + msg); process.exit(1); }
@@ -167,11 +193,11 @@ function gosomSearch(query, geo, depth = DEPTH) {
   return rows;
 }
 
-async function scrapeArea(spec, cats, depth = DEPTH) {
+async function scrapeArea(spec, cats, depth = DEPTH, termsFor = null) {
   const items = [];
   const problems = [];
   for (const cat of cats) {
-    for (const term of TERMS[cat]) {
+    for (const term of (termsFor ? termsFor(cat) : TERMS[cat])) {
       const query = `${term} in ${spec.query}, ${CITY}, Kenya`;
       console.log(`▶ search (depth ${depth}): ${query}${spec.geo ? ` (pinned to ${spec.geo}, ${RADIUS_M} m)` : ''}`);
       try {
@@ -304,13 +330,31 @@ async function main() {
     const stats = Object.fromEntries(cats.map(c => [c, { qualified: 0, inDb: 0 }]));
     const seenQ = new Set();
 
-    for (const depth of ladder) {
+    const relaxedTerms = (c) => [...new Set([...TERMS[c], ...(EXTRA_TERMS[c] || [])])];
+    const passes = [{ relax: false, depths: ladder, terms: null }];
+    if (RELAX_FALLBACK) passes.push({ relax: true, depths: [DEPTH, MAX_DEPTH], terms: relaxedTerms });
+    const baseThresholds = { MIN_RATING, MIN_REVIEWS, MIN_PHOTOS };
+
+    try {
+    for (const pass of passes) {
+      if (!cats.some(c => fresh[c].length < need[c])) break;
+      if (pass.relax) {
+        MIN_RATING = Math.max(3.5, Math.round((baseThresholds.MIN_RATING - 0.5) * 10) / 10);
+        MIN_REVIEWS = Math.max(5, Math.floor(baseThresholds.MIN_REVIEWS / 2));
+        MIN_PHOTOS = 3; // the app's home rail needs 3+, never fewer
+        console.log(`${where}: relaxed pass (${MIN_RATING}★ / ${MIN_REVIEWS} reviews / ${MIN_PHOTOS} photos, extra search terms) for ${cats.filter(c => fresh[c].length < need[c]).map(c => `${c} (${need[c] - fresh[c].length} more)`).join(', ')}`);
+      }
+      for (const depth of pass.depths) {
       const open = cats.filter(c => fresh[c].length < need[c]);
       if (!open.length) break;
-      if (depth !== ladder[0]) console.log(`${where}: still short on ${open.map(c => `${c} (${need[c] - fresh[c].length} more)`).join(', ')}; searching deeper (depth ${depth})`);
+      if (depth !== pass.depths[0]) console.log(`${where}: still short on ${open.map(c => `${c} (${need[c] - fresh[c].length} more)`).join(', ')}; searching deeper (depth ${depth})`);
       let items;
-      try { items = await scrapeArea(spec, open, depth); }
-      catch (e) { if (depth === ladder[0]) throw e; console.warn(`  deeper search failed: ${e.message}`); break; }
+      try { items = await scrapeArea(spec, open, depth, pass.terms); }
+      catch (e) {
+        if (depth === pass.depths[0] && !pass.relax) throw e;
+        console.warn(`  search failed: ${e.message}`);
+        break;
+      }
       const byCat = Object.fromEntries(open.map(c => [c, []]));
 
       for (const p of items) {
@@ -344,6 +388,13 @@ async function main() {
         }
         if (brokenPhotos) console.log(`${where} / ${cat}: skipped ${brokenPhotos} whose photos did not load`);
       }
+      }
+    }
+    } finally {
+      // Always restore the configured thresholds, whatever happened in the relaxed pass.
+      MIN_RATING = baseThresholds.MIN_RATING;
+      MIN_REVIEWS = baseThresholds.MIN_REVIEWS;
+      MIN_PHOTOS = baseThresholds.MIN_PHOTOS;
     }
 
     for (const cat of cats) {
