@@ -36,7 +36,7 @@ import {
   Section,
   useOwnProfile,
 } from './ProfileSettingsKit';
-import { computeMilestones, type MilestoneIcon } from '../lib/milestones';
+import { computeMilestones, type MilestoneIcon } from '../lib/profileMilestones';
 import type { ToastOptions } from './Toast.tsx';
 
 interface ProfilePageProps {
