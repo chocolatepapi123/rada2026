@@ -2617,6 +2617,7 @@ export default function App() {
           <main className="flex-1 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] min-[900px]:pb-10 max-w-lg min-[900px]:max-w-none mx-auto w-full relative px-0 min-[900px]:pl-60">
             <div className="w-full min-[900px]:max-w-5xl min-[900px]:mx-auto min-[900px]:px-8 min-[900px]:py-6">
             <ErrorBoundary key={activeTab} fallbackTitle="Resuming View">
+            <div className="rada-tab-enter">
             <Suspense fallback={<TabFallback />}>
             {activeTab === 'home' && (
               <HomeTab
@@ -2781,6 +2782,7 @@ export default function App() {
               />
             )}
             </Suspense>
+            </div>
             </ErrorBoundary>
             </div>
           </main>
