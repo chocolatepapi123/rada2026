@@ -24,17 +24,16 @@
  <link rel="icon" type="image/png" href="/favicon.png" />
  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
  <link rel="manifest" href="/manifest.json" />
-<!-- Phone bars follow the APP theme (light = white, dark = #121113), not the phone's. Kept in sync by the script below
-     before first paint, and by App.tsx when the person toggles the theme. One tag, no media queries. -->
-<meta name="theme-color" content="#FFFFFF" />
+<!-- Phone bars are never themed: they copy the colour of the screen at that edge (src/lib/systemBars.ts).
+     This initial value is only for the instant before the app starts: set it to the splash screen colour. -->
+<meta name="theme-color" content="#E05328" />
 <meta name="color-scheme" content="light" />
 <script>
   /* App theme: light unless the person chose dark. Set before first paint so there is no dark flash.
-     The phone bars follow it too (theme-color above). */
+     Phone bars do not follow it. */
   try {
     var dark = localStorage.getItem('rada_theme') === 'dark';
     document.documentElement.classList.add(dark ? 'dark' : 'light');
-    document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#121113' : '#FFFFFF');
     document.querySelector('meta[name="color-scheme"]').setAttribute('content', dark ? 'dark' : 'light');
   } catch (e) { document.documentElement.classList.add('light'); }
 </script>
