@@ -405,7 +405,6 @@ export default function App() {
     }
 
     const loadUserRole = async () => {
-      const userMetaRole = session.user.user_metadata?.role;
       const emailLower = (session.user.email || '').toLowerCase().trim();
       const isAdminEmail = isOfficialAdmin(emailLower);
 
@@ -434,20 +433,15 @@ export default function App() {
       }
 
       if (error) {
-        setUserRole(
-          userMetaRole === 'admin' || isAdminEmail
-            ? 'admin'
-            : userMetaRole === 'merchant'
-              ? 'merchant'
-              : 'user'
-        );
+        // user_metadata is user-editable, so it is never trusted for roles.
+        setUserRole(isAdminEmail ? 'admin' : 'user');
         return;
       }
 
       setUserRole(
-        data?.role === 'admin' || userMetaRole === 'admin' || isAdminEmail
+        data?.role === 'admin' || isAdminEmail
           ? 'admin'
-          : data?.role === 'merchant' || userMetaRole === 'merchant'
+          : data?.role === 'merchant'
             ? 'merchant'
             : 'user'
       );
