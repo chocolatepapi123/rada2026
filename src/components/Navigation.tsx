@@ -35,7 +35,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange, 
 
   return (
     <nav
-      className="fixed left-3 right-3 bottom-[calc(0.5rem+env(safe-area-inset-bottom,0px))] max-w-[21.5rem] mx-auto rada-nav rounded-full border px-1.5 py-1 flex items-center justify-around z-40 transition-colors duration-200 min-[900px]:top-[65px] min-[900px]:bottom-0 min-[900px]:left-0 min-[900px]:right-auto min-[900px]:w-60 min-[900px]:max-w-none min-[900px]:mx-0 min-[900px]:rounded-none min-[900px]:flex-col min-[900px]:justify-start min-[900px]:items-stretch min-[900px]:gap-1 min-[900px]:border-t-0 min-[900px]:border-b-0 min-[900px]:border-l-0 min-[900px]:border-r min-[900px]:px-3 min-[900px]:py-5"
+      className="fixed left-3 right-3 bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] max-w-[23rem] mx-auto rada-nav rounded-full border px-2 py-1.5 flex items-center justify-around z-40 transition-colors duration-200 min-[900px]:top-[65px] min-[900px]:bottom-0 min-[900px]:left-0 min-[900px]:right-auto min-[900px]:w-60 min-[900px]:max-w-none min-[900px]:mx-0 min-[900px]:rounded-none min-[900px]:flex-col min-[900px]:justify-start min-[900px]:items-stretch min-[900px]:gap-1 min-[900px]:border-t-0 min-[900px]:border-b-0 min-[900px]:border-l-0 min-[900px]:border-r min-[900px]:px-3 min-[900px]:py-5"
     >
       {tabs.map((tab) => {
         const Icon = tab.icon;
@@ -67,7 +67,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange, 
               />
             )}
             {/* Icon holder: on phones only this gets the highlight */}
-            <span className="relative grid place-items-center h-7 w-12 min-[900px]:h-5 min-[900px]:w-5 transition-transform duration-150 ease-out active:scale-90 min-[900px]:active:scale-100">
+            <span className="relative grid place-items-center h-8 w-14 min-[900px]:h-5 min-[900px]:w-5 transition-transform duration-150 ease-out active:scale-90 min-[900px]:active:scale-100">
               {isActive && (
                 <motion.span
                   layoutId="rada-nav-pill"
@@ -76,7 +76,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange, 
                   transition={{ type: 'spring', stiffness: 380, damping: 34, mass: 0.9 }}
                 />
               )}
-              <Icon className={`relative w-[22px] h-[22px] min-[900px]:w-5 min-[900px]:h-5 transition-all duration-300 ease-out ${isActive ? 'stroke-[2.25px]' : 'stroke-[1.75px]'}`} />
+              <Icon className={`relative w-6 h-6 min-[900px]:w-5 min-[900px]:h-5 transition-all duration-300 ease-out ${isActive ? 'stroke-[2.25px]' : 'stroke-[1.75px]'}`} />
               <AnimatePresence>
                 {tab.badge > 0 && (
                   <motion.span
@@ -86,14 +86,14 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange, 
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0, opacity: 0 }}
                     transition={{ type: 'spring', stiffness: 520, damping: 28 }}
-                    className="rada-nav-badge absolute -top-px right-1 min-[900px]:-top-1.5 min-[900px]:-right-2 min-w-[16px] h-4 px-1 rounded-full text-center text-[10px] leading-4 font-bold text-white"
+                    className="rada-nav-badge absolute -top-px right-1.5 min-[900px]:-top-1.5 min-[900px]:-right-2 min-w-[16px] h-4 px-1 rounded-full text-center text-[10px] leading-4 font-bold text-white"
                   >
                     {tab.badge > 99 ? '99+' : tab.badge}
                   </motion.span>
                 )}
               </AnimatePresence>
             </span>
-            <span className="relative text-[10px] leading-none tracking-tight min-[900px]:text-sm min-[900px]:leading-normal min-[900px]:tracking-normal">{tab.label}</span>
+            <span className="relative text-[11px] leading-none tracking-tight min-[900px]:text-sm min-[900px]:leading-normal min-[900px]:tracking-normal">{tab.label}</span>
           </button>
         );
       })}
