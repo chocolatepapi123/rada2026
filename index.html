@@ -24,15 +24,18 @@
  <link rel="icon" type="image/png" href="/favicon.png" />
  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
  <link rel="manifest" href="/manifest.json" />
-<!-- System bars are ALWAYS dark, regardless of the phone setting or the in-app toggle.
-     One theme-color tag only: no media queries, so nothing can switch it to white. -->
-<meta name="theme-color" content="#121113" />
+<!-- Phone bars follow the APP theme (light = white, dark = #121113), not the phone's. Kept in sync by the script below
+     before first paint, and by App.tsx when the person toggles the theme. One tag, no media queries. -->
+<meta name="theme-color" content="#FFFFFF" />
+<meta name="color-scheme" content="light" />
 <script>
   /* App theme: light unless the person chose dark. Set before first paint so there is no dark flash.
-     The phone bars are NOT affected; they follow the theme-color tags above. */
+     The phone bars follow it too (theme-color above). */
   try {
     var dark = localStorage.getItem('rada_theme') === 'dark';
     document.documentElement.classList.add(dark ? 'dark' : 'light');
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#121113' : '#FFFFFF');
+    document.querySelector('meta[name="color-scheme"]').setAttribute('content', dark ? 'dark' : 'light');
   } catch (e) { document.documentElement.classList.add('light'); }
 </script>
 <script>
