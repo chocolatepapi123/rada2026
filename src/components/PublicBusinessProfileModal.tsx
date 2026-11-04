@@ -258,30 +258,51 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
                         {offer.description}
                       </p>
 
+                      {offer.claimCode ? (
                       <div className="flex items-center justify-between pt-1">
-                        <span className="text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg text-slate-700 dark:text-slate-300">
-                          Code: {offer.claimCode || 'RADADEAL'}
-                        </span>
+                          <span className="text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg text-slate-700 dark:text-slate-300">
+                            Code: {offer.claimCode || 'RADADEAL'}
+                          </span>
 
-                        <button
-                          onClick={() => handleCopyCode(offer.id, offer.claimCode || 'RADADEAL')}
-                          className="px-3 py-1 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-[#c9432d] dark:hover:bg-[#8F4334] text-white text-xs font-bold rounded-lg flex items-center gap-1 transition"
-                        >
-                          {copiedCodeId === offer.id ? (
-                            <>
-                              <Check className="w-3 h-3" />
-                              <span>Copied!</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-3 h-3" />
-                              <span>Claim Code</span>
-                            </>
+                          <button
+                            onClick={() => handleCopyCode(offer.id, offer.claimCode || 'RADADEAL')}
+                            className="px-3 py-1 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-[#c9432d] dark:hover:bg-[#8F4334] text-white text-xs font-bold rounded-lg flex items-center gap-1 transition"
+                          >
+                            {copiedCodeId === offer.id ? (
+                              <>
+                                <Check className="w-3 h-3" />
+                                <span>Copied!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3 h-3" />
+                                <span>Claim Code</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                                              ) : (
+                        <div className="space-y-1.5 pt-1">
+                          {(offer.venue || offer.location) && (
+                            <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
+                              {[offer.venue, offer.location].filter(Boolean).join(' · ')}
+                            </p>
                           )}
-                        </button>
-                      </div>
+                          {offer.audience && offer.audience !== 'Everyone' && (
+                            <p className="text-[10px] font-bold text-slate-500">For: {offer.audience}</p>
+                          )}
+                          <div className="flex items-center gap-2">
+                            {offer.contactPhone && (
+                              <a href={`tel:${offer.contactPhone.replace(/\s+/g, '')}`} className="px-3 py-1.5 bg-[#E0533C] dark:bg-[#A94F3E] text-white text-xs font-bold rounded-lg">Call</a>
+                            )}
+                            {(offer.bookingUrl || offer.actionUrl) && (
+                              <a href={offer.bookingUrl || offer.actionUrl} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs font-bold rounded-lg">Book / more info</a>
+                            )}
+                          </div>
+                        </div>
+                      )}
                       {offer.terms && <p className="text-[10px] text-slate-400 pt-1">{offer.terms}</p>}
-                      <div className="pt-2"><ClaimOfferButton offerId={offer.id} /></div>
+                      {offer.claimCode && <div className="pt-2"><ClaimOfferButton offerId={offer.id} /></div>}
                     </div>
                   </div>
                 ))}

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useProgressiveCount } from '../lib/useProgressive.ts';
 import { Check as CheckMark } from 'lucide-react';
 import {
   Search,
@@ -434,6 +435,10 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     def,
     list: sortSpotsByCategoryPromotion(filteredSpots.filter(sp => spotInCategory(sp, def.id)), def.id, categorySlotPromos),
   })), [filteredSpots, categorySlotPromos]);
+
+  // Only the first category rows paint immediately; the rest follow in low-priority steps.
+  const visibleRowsTotal = spotsByCategory.filter(({ def, list }) => list.length > 0 && (selectedCategory === 'all' || selectedCategory === def.id)).length;
+  const rowsShown = useProgressiveCount(visibleRowsTotal, 3, 2, 100, selectedCategory);
 
   const isSaved = (id: number | string) => {
     return savedItems.some(s => String(s.id) === String(id) && s.kind === 'spot');
@@ -1087,12 +1092,11 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
 
       {/* Categorized Spot Carousels: one per category, in that category's accent colour */}
       <div className="space-y-6">
-        {spotsByCategory.map(({ def, list }) => {
-          if (list.length === 0 || (selectedCategory !== 'all' && selectedCategory !== def.id)) return null;
+        {spotsByCategory.filter(({ def, list }) => list.length > 0 && (selectedCategory === 'all' || selectedCategory === def.id)).slice(0, rowsShown).map(({ def, list }) => {
           const acc = getSpotCategoryAccent(def.id);
           const Icon = acc.Icon;
           return (
-            <div key={def.id} className="space-y-3">
+            <div key={def.id} className="space-y-3 [content-visibility:auto] [contain-intrinsic-size:auto_300px]">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-2">
                   <span className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: acc.soft, color: acc.color }}>

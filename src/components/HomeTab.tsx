@@ -5,6 +5,7 @@ import { useLocationPreference, sortByProximity, NEIGHBORHOOD_COORDS, formatDist
 import { SPOT_CATEGORIES, getSpotCategoryIds } from '../lib/spotCategories.ts';
 import { getSpotCategoryAccent, accentPillStyle, accentVars } from '../lib/spotAccentTheme.ts';
 import { rankSpots, useNearYou } from '../lib/spotRanking.ts';
+import { useProgressiveCount } from '../lib/useProgressive.ts';
 import { NearYouControl } from './NearYouControl.tsx';
 import { pickTrendingSpots, isHomeSpot } from '../lib/trendingSpots.ts';
 import { CinemaMovieSheet } from './CinemaExplorer.tsx';
@@ -356,7 +357,13 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       }
     }
 
-    fetchLiveReviewsAndSpots();
+    // First paint and tab switches come first: the (unbounded) reviews query runs a moment later.
+    const firstFetch = setTimeout(fetchLiveReviewsAndSpots, 350);
+    let refetchTimer: ReturnType<typeof setTimeout> | null = null;
+    const refetchSoon = () => {
+      if (refetchTimer) clearTimeout(refetchTimer);
+      refetchTimer = setTimeout(fetchLiveReviewsAndSpots, 1500);
+    };
 
     // Supabase Realtime listener on spots & listings
     let channel: any = null;
@@ -365,7 +372,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         channel = supabase
           .channel('home-spots-realtime')
           .on('postgres_changes', { event: '*', schema: 'public', table: 'rada_listings' }, () => {
-            fetchLiveReviewsAndSpots();
+            refetchSoon();
           })
           .subscribe();
       }
@@ -374,6 +381,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     }
 
     return () => {
+      clearTimeout(firstFetch);
+      if (refetchTimer) clearTimeout(refetchTimer);
       if (channel && typeof channel.unsubscribe === 'function') {
         channel.unsubscribe();
       }
@@ -717,6 +726,11 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       return !q || [u.name, u.username, u.handle, u.email, u.id].some(v => String(v || '').toLowerCase().includes(q));
     });
   }, [adminUsers, adminUserSearch, adminUserFilter]);
+
+  // Long lists paint a first batch now and the rest in low-priority steps (keeps tab switches smooth).
+  const offersShown = useProgressiveCount(filteredOffers.length, 6, 6, 80, selectedOfferCategory + '|' + searchQuery);
+  const moviesShown = useProgressiveCount(filteredCinemaMovies.length, 8, 8, 100);
+  const statusesShown = useProgressiveCount(statuses.length, 6, 6, 120);
 
   const hasActiveHomeFilters = selectedHomeSection !== 'all' || selectedHomeCategory !== 'all' || selectedHomeDate !== 'all' || selectedHomeArea !== 'all' || selectedHomeBudget !== 'all' || selectedGenre !== 'all' || near.active;
 
@@ -1370,7 +1384,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
           {/* Offers Horizontal Showcase */}
           <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-            {filteredOffers.map(offer => (
+            {filteredOffers.slice(0, offersShown).map(offer => (
               <div
                 key={offer.id}
                 className="w-72 sm:w-80 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shrink-0 shadow-sm flex flex-col justify-between hover:border-rose-400/60 transition group"
@@ -1512,7 +1526,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
       {/* Featured Trending Events Section with Category Filter */}
       {(selectedHomeSection === 'all' || selectedHomeSection === 'events') && (selectedVibe === 'all' || selectedVibe === 'concerts' || selectedVibe === 'nightlife' || selectedVibe === 'art') && (
-        <div className="space-y-3">
+        <div className="space-y-3 [content-visibility:auto] [contain-intrinsic-size:auto_320px]">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-[#E0533C]"></span>
@@ -1734,7 +1748,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
       {/* CENTURY CINEMAX SHOWINGS (Official Posters, Showtime by Date removed, Movie Genre filter added) */}
       {(selectedHomeSection === 'all' || selectedHomeSection === 'cinemas') && (selectedVibe === 'all' || selectedVibe === 'cinemas') && filteredCinemaMovies.length > 0 && (
-        <div className="space-y-3">
+        <div className="space-y-3 [content-visibility:auto] [contain-intrinsic-size:auto_320px]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Film className="w-4 h-4 text-[#2D6A4F]" />
@@ -1775,7 +1789,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
           {/* Movies Carousel with Official Posters & Genres */}
           <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-            {filteredCinemaMovies.map((movie) => (
+            {filteredCinemaMovies.slice(0, moviesShown).map((movie) => (
               <div
                 key={movie.id}
                 onClick={() => setSheetMovie(movie)}
@@ -2245,7 +2259,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
           {/* Status Stream */}
           <div className="space-y-3">
-            {statuses.map((post) => (
+            {statuses.slice(0, statusesShown).map((post) => (
               <div
                 key={post.id}
                 className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3.5 shadow-sm space-y-2.5"

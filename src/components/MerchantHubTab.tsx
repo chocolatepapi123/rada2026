@@ -8,7 +8,7 @@ import { TeamPanel, TeamInvitesCard } from './TeamPanel';
 import { fetchMyTeams, ROLE_LABEL, type MyTeam } from '../lib/team';
 import { ProProfileCard, ProProfilePage } from './ProProfile';
 import PromotionsPanel, { BoostSheet } from './PromotionsPanel';
-import { PROMO_BOOST_PLACEMENTS, offerPromoKey } from '../lib/promotions';
+import { PROMO_BOOST_PLACEMENTS, offerPromoKey, offerScheduleText, AUDIENCES, DOW_SHORT } from '../lib/promotions';
 import { Rocket } from 'lucide-react';
 import { LegalModal, type LegalDoc } from './LegalModal';
 import { RedeemCodePanel, OfferStatsLine, ReviewReplyBlock } from './RetentionBits';
@@ -2191,12 +2191,18 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   const [offerTitle, setOfferTitle] = useState('');
   const [offerDesc, setOfferDesc] = useState('');
   const [offerCategory, setOfferCategory] = useState<OfferCategory>('Drinks');
-  const [offerDiscount, setOfferDiscount] = useState('BUY 1 GET 1');
+  const [offerHighlight, setOfferHighlight] = useState('');
   const [offerPosterUrl, setOfferPosterUrl] = useState('https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&auto=format&fit=crop');
-  const [offerValidUntil, setOfferValidUntil] = useState('Valid this weekend');
-  const [offerClaimCode, setOfferClaimCode] = useState('RADA-DEAL');
+  const [offerVenue, setOfferVenue] = useState('');
+  const [offerLocation, setOfferLocation] = useState('');
+  const [offerStartsAt, setOfferStartsAt] = useState('');
   const [offerEndsAt, setOfferEndsAt] = useState('');
-  const [offerMax, setOfferMax] = useState('');
+  const [offerStartTime, setOfferStartTime] = useState('');
+  const [offerEndTime, setOfferEndTime] = useState('');
+  const [offerDays, setOfferDays] = useState<number[]>([]);
+  const [offerAudience, setOfferAudience] = useState('Everyone');
+  const [offerPhone, setOfferPhone] = useState('');
+  const [offerBookingUrl, setOfferBookingUrl] = useState('');
   const [offerTerms, setOfferTerms] = useState('');
 
   const openCreateOfferModal = () => {
@@ -2204,12 +2210,18 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setOfferTitle('');
     setOfferDesc('');
     setOfferCategory(currentBiz?.category === 'event_organizer' ? 'Tickets' : 'Drinks');
-    setOfferDiscount(currentBiz?.category === 'event_organizer' ? '15% OFF VIP' : 'BUY 1 GET 1');
+    setOfferHighlight('');
     setOfferPosterUrl(currentBiz?.coverImage || 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&auto=format&fit=crop');
-    setOfferValidUntil('Valid through end of month');
-    setOfferClaimCode(`RADA-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
+    setOfferVenue(currentBiz?.name || '');
+    setOfferLocation([currentBiz?.address, currentBiz?.neighborhood].filter(Boolean).join(', '));
+    setOfferStartsAt(new Date().toISOString().split('T')[0]);
     setOfferEndsAt('');
-    setOfferMax('');
+    setOfferStartTime('');
+    setOfferEndTime('');
+    setOfferDays([]);
+    setOfferAudience('Everyone');
+    setOfferPhone(currentBiz?.phone || '');
+    setOfferBookingUrl('');
     setOfferTerms('');
     setIsOfferFormOpen(true);
   };
@@ -2219,12 +2231,18 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
     setOfferTitle(offer.title);
     setOfferDesc(offer.description);
     setOfferCategory(offer.category);
-    setOfferDiscount(offer.discount);
+    setOfferHighlight(offer.highlight || offer.discount || '');
     setOfferPosterUrl(offer.posterUrl || currentBiz?.coverImage || '');
-    setOfferValidUntil(offer.validUntil || 'Valid this month');
-    setOfferClaimCode(offer.claimCode || 'RADA-DEAL');
+    setOfferVenue(offer.venue || offer.businessName || currentBiz?.name || '');
+    setOfferLocation(offer.location || [currentBiz?.address, currentBiz?.neighborhood].filter(Boolean).join(', '));
+    setOfferStartsAt(offer.startsAt || '');
     setOfferEndsAt(offer.endsAt || '');
-    setOfferMax(offer.maxRedemptions ? String(offer.maxRedemptions) : '');
+    setOfferStartTime(offer.startTime || '');
+    setOfferEndTime(offer.endTime || '');
+    setOfferDays(offer.daysOfWeek || []);
+    setOfferAudience(offer.audience || 'Everyone');
+    setOfferPhone(offer.contactPhone || '');
+    setOfferBookingUrl(offer.bookingUrl || offer.actionUrl || '');
     setOfferTerms(offer.terms || '');
     setIsOfferFormOpen(true);
   };
@@ -2232,26 +2250,57 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   const handleSaveOffer = (e: React.FormEvent) => {
     e.preventDefault();
     if (!offerTitle.trim()) {
-      showToast('Please enter an offer title.', { type: 'error' });
+      showToast('Please enter a title.', { type: 'error' });
       return;
     }
+    if (!offerHighlight.trim()) {
+      showToast("Tell people what's on offer.", { type: 'error' });
+      return;
+    }
+    if (!offerVenue.trim() && !offerLocation.trim()) {
+      showToast('Add the venue or where to find it.', { type: 'error' });
+      return;
+    }
+    if (offerStartsAt && offerEndsAt && offerEndsAt < offerStartsAt) {
+      showToast('The end date is before the start date.', { type: 'error' });
+      return;
+    }
+    if (offerStartTime && offerEndTime && offerEndTime <= offerStartTime && offerStartsAt === offerEndsAt) {
+      showToast('The end time must be after the start time.', { type: 'error' });
+      return;
+    }
+    const phone = offerPhone.trim();
+    let link = offerBookingUrl.trim();
+    if (!phone && !link) {
+      showToast('Add a phone number or a booking link so people can reach you.', { type: 'error' });
+      return;
+    }
+    if (link && !/^https?:\/\//i.test(link)) link = `https://${link}`;
 
+    const schedule = { startsAt: offerStartsAt || undefined, endsAt: offerEndsAt || undefined, startTime: offerStartTime || undefined, endTime: offerEndTime || undefined, daysOfWeek: offerDays };
+    const previous = editingOfferId ? offers.find((o) => o.id === editingOfferId) : undefined;
     const offerPayload: BusinessOffer = {
+      ...(previous || {}),
       id: editingOfferId || `off-${Date.now()}`,
       businessId: currentBiz.id,
       businessName: currentBiz.name,
       businessCategory: currentBiz.category,
       title: offerTitle.trim(),
-      description: offerDesc.trim() || 'Exclusive promotion verified on RADA.',
+      description: offerDesc.trim() || offerHighlight.trim(),
       category: offerCategory,
-      discount: offerDiscount.trim() || 'SPECIAL DEAL',
+      discount: offerHighlight.trim(),
+      highlight: offerHighlight.trim(),
       posterUrl: offerPosterUrl,
-      validUntil: offerValidUntil.trim() || 'Valid while stocks last',
-      claimCode: offerClaimCode.trim() || 'RADADEAL',
-      createdAt: new Date().toISOString().split('T')[0],
-      endsAt: offerEndsAt || undefined,
-      maxRedemptions: Number(offerMax) > 0 ? Math.floor(Number(offerMax)) : undefined,
-      terms: offerTerms.trim() || undefined
+      validUntil: offerScheduleText(schedule) || 'Open now',
+      actionUrl: link || undefined,
+      bookingUrl: link || undefined,
+      contactPhone: phone || undefined,
+      venue: offerVenue.trim() || undefined,
+      location: offerLocation.trim() || undefined,
+      audience: offerAudience,
+      ...schedule,
+      createdAt: previous?.createdAt || new Date().toISOString().split('T')[0],
+      terms: offerTerms.trim() || undefined,
     };
 
     if (editingOfferId) {
@@ -4257,12 +4306,12 @@ isSpotFormOpen && (
                     <div className="p-4 space-y-3">
                       <p className="text-xs text-slate-600 dark:text-slate-300">{offer.description}</p>
                       
-                      <div className="flex items-center justify-between bg-[#FBFBF9] dark:bg-[#121113] p-2.5 rounded-xl">
-                        <div className="flex items-center gap-2">
-                          <Tag className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68]" />
-                          <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200">{offer.claimCode || 'RADADEAL'}</span>
+                      <div className="flex items-center justify-between gap-3 bg-[#FBFBF9] dark:bg-[#121113] p-2.5 rounded-xl">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <MapPin className="w-3.5 h-3.5 shrink-0 text-[#E0533C] dark:text-[#D17A68]" />
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{offer.venue || offer.location || offer.businessName}</span>
                         </div>
-                        <span className="text-[10px] font-bold text-emerald-600">Active on Home Feed</span>
+                        <span className="text-[10px] font-bold text-emerald-600 shrink-0">Active on Home Feed</span>
                       </div>
 
                       <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
@@ -4963,9 +5012,9 @@ isSpotFormOpen && (
             <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <div>
                 <h3 className="font-black text-base">
-                  {editingOfferId ? 'Edit Promotional Offer' : 'Launch New Promotional Offer'}
+                  {editingOfferId ? 'Edit promotion' : 'Create a promotion'}
                 </h3>
-                <p className="text-xs text-slate-500">Showcased on Home running offers feed</p>
+                <p className="text-xs text-slate-500">Bring people to your place. Shown on the Home feed.</p>
               </div>
               <button onClick={() => setIsOfferFormOpen(false)} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                 <X className="w-4 h-4 text-slate-500" />
@@ -4974,59 +5023,39 @@ isSpotFormOpen && (
 
             <form onSubmit={handleSaveOffer} className="p-5 overflow-y-auto space-y-4 flex-1">
               <div>
-                <label className="block text-xs font-bold mb-1">Offer Title *</label>
-                <input 
-                  type="text" 
-                  value={offerTitle} 
-                  onChange={(e) => setOfferTitle(e.target.value)} 
-                  placeholder="e.g. Happy Hour 2-for-1 Cocktails, 20% Off Gate Pass"
-                  className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold mb-1">Offer Category</label>
-                  <select 
-                    value={offerCategory} 
-                    onChange={(e) => setOfferCategory(e.target.value as OfferCategory)}
-                    className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none"
-                  >
-                    <option value="Drinks">Drinks</option>
-                    <option value="Food">Food</option>
-                    <option value="Tickets">Tickets</option>
-                    <option value="Apparel">Apparel</option>
-                    <option value="Special Deals">Special Deals</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold mb-1">Discount Tag (Pill)</label>
-                  <input 
-                    type="text" 
-                    value={offerDiscount} 
-                    onChange={(e) => setOfferDiscount(e.target.value)} 
-                    placeholder="e.g. BUY 1 GET 1, 20% OFF, KES 500 OFF"
-                    className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none"
-                  />
-                </div>
+                <label className="block text-xs font-bold mb-1">Title *</label>
+                <input type="text" value={offerTitle} onChange={(e) => setOfferTitle(e.target.value)} placeholder="e.g. Friday Rooftop Sundowners"
+                  className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]" required />
               </div>
 
               <div>
-                <label className="block text-xs font-bold mb-1">Description & Terms</label>
-                <textarea 
-                  rows={2}
-                  value={offerDesc} 
-                  onChange={(e) => setOfferDesc(e.target.value)} 
-                  placeholder="Describe what customers get and how to redeem it..."
-                  className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]"
-                />
+                <label className="block text-xs font-bold mb-1">What's on offer *</label>
+                <input type="text" value={offerHighlight} onChange={(e) => setOfferHighlight(e.target.value)} placeholder="e.g. Live band + 2-for-1 cocktails, free entry before 8pm"
+                  className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold mb-1">Category</label>
+                <select value={offerCategory} onChange={(e) => setOfferCategory(e.target.value as OfferCategory)}
+                  className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none">
+                  <option value="Drinks">Drinks & nightlife</option>
+                  <option value="Food">Food</option>
+                  <option value="Tickets">Events & tickets</option>
+                  <option value="Apparel">Shopping</option>
+                  <option value="Special Deals">Experiences & other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold mb-1">Description</label>
+                <textarea rows={3} value={offerDesc} onChange={(e) => setOfferDesc(e.target.value)}
+                  placeholder="What will people do, see or taste when they show up? Anything to know before they come."
+                  className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]" />
               </div>
 
               <div>
                 <label className="block text-xs font-bold mb-1.5 text-slate-800 dark:text-slate-200">
-                  Promotional Poster Image *
+                  Photo *
                 </label>
                 {offerPosterUrl ? (
                   <div className="relative rounded-2xl overflow-hidden shadow-sm group h-36 bg-slate-900">
@@ -5066,8 +5095,8 @@ isSpotFormOpen && (
                 ) : (
                   <label className="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] dark:hover:border-[#D17A68] rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer bg-[#FBFBF9] dark:bg-[#121113] transition text-center">
                     <Upload className="w-5 h-5 text-[#E0533C] dark:text-[#D17A68]" />
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Upload Promotional Poster</span>
-                    <span className="text-[10px] text-slate-400">Select promo flyer or banner from device</span>
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Add a photo</span>
+                    <span className="text-[10px] text-slate-400">A shot of the place, the food or the crowd</span>
                     <input 
                       type="file"
                       accept="image/*"
@@ -5087,68 +5116,84 @@ isSpotFormOpen && (
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+
+              <div className="space-y-3">
+                <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">Where</p>
                 <div>
-                  <label className="block text-xs font-bold mb-1">Valid Until / Schedule</label>
-                  <input 
-                    type="text" 
-                    value={offerValidUntil} 
-                    onChange={(e) => setOfferValidUntil(e.target.value)} 
-                    placeholder="e.g. Every Friday 5PM-8PM"
-                    className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-2.5 focus:outline-none"
-                  />
+                  <label className="block text-xs font-bold mb-1">Venue *</label>
+                  <input type="text" value={offerVenue} onChange={(e) => setOfferVenue(e.target.value)} placeholder="Venue name" className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold mb-1">Claim Code</label>
-                  <input 
-                    type="text" 
-                    value={offerClaimCode} 
-                    onChange={(e) => setOfferClaimCode(e.target.value)} 
-                    placeholder="e.g. RADA-HAPPY"
-                    className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-2.5 focus:outline-none"
-                  />
+                  <label className="block text-xs font-bold mb-1">Location</label>
+                  <input type="text" value={offerLocation} onChange={(e) => setOfferLocation(e.target.value)} placeholder="Street, building or area, e.g. Ngong Rd, Kilimani" className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none focus:border-[#E0533C] dark:focus:border-[#D17A68]" />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold mb-1">Last day to claim</label>
-                  <input
-                    type="date"
-                    value={offerEndsAt}
-                    onChange={(e) => setOfferEndsAt(e.target.value)}
-                    className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-2.5 focus:outline-none"
-                  />
+              <div className="space-y-3">
+                <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">When</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold mb-1">Starts</label>
+                    <input type="date" value={offerStartsAt} onChange={(e) => setOfferStartsAt(e.target.value)} className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-2.5 focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold mb-1">Last day</label>
+                    <input type="date" value={offerEndsAt} min={offerStartsAt || undefined} onChange={(e) => setOfferEndsAt(e.target.value)} className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-2.5 focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold mb-1">From</label>
+                    <input type="time" value={offerStartTime} onChange={(e) => setOfferStartTime(e.target.value)} className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-2.5 focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold mb-1">Until</label>
+                    <input type="time" value={offerEndTime} onChange={(e) => setOfferEndTime(e.target.value)} className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-2.5 focus:outline-none" />
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold mb-1">Max claims (optional)</label>
-                  <input
-                    type="number"
-                    min={1}
-                    inputMode="numeric"
-                    value={offerMax}
-                    onChange={(e) => setOfferMax(e.target.value)}
-                    placeholder="e.g. 50"
-                    className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-2.5 focus:outline-none"
-                  />
+                  <label className="block text-xs font-bold mb-1.5">Days of the week <span className="font-medium text-slate-400">(none = every day)</span></label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {DOW_SHORT.map((d, i) => {
+                      const on = offerDays.includes(i);
+                      return (
+                        <button key={d} type="button" aria-pressed={on}
+                          onClick={() => setOfferDays((prev) => (prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i]))}
+                          className={`px-3 py-1.5 rounded-full text-[11px] font-black cursor-pointer ${on ? 'bg-[#E0533C] text-white' : 'bg-slate-100 dark:bg-[#121113] text-slate-600 dark:text-slate-300'}`}>{d}</button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
+
               <div>
-                <label className="block text-xs font-bold mb-1">Terms (optional)</label>
-                <input
-                  type="text"
-                  value={offerTerms}
-                  onChange={(e) => setOfferTerms(e.target.value)}
-                  placeholder="e.g. One per table. Dine-in only."
-                  className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-2.5 focus:outline-none"
-                />
+                <label className="block text-xs font-bold mb-1">Who is it for?</label>
+                <select value={offerAudience} onChange={(e) => setOfferAudience(e.target.value)}
+                  className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-3 focus:outline-none">
+                  {AUDIENCES.map((a) => <option key={a} value={a}>{a}</option>)}
+                </select>
               </div>
 
-              <button 
-                type="submit"
-                className="w-full bg-[#E0533C] dark:bg-[#A94F3E] text-white font-black text-sm py-3 rounded-2xl shadow-lg mt-4 cursor-pointer"
-              >
-                {editingOfferId ? 'Update Promotion' : 'Publish Offer Live'}
+              <div className="space-y-3">
+                <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">How people reach you *</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold mb-1">Phone / WhatsApp</label>
+                    <input type="tel" inputMode="tel" value={offerPhone} onChange={(e) => setOfferPhone(e.target.value)} placeholder="07XX XXX XXX" className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-2.5 focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold mb-1">Booking link</label>
+                    <input type="url" inputMode="url" value={offerBookingUrl} onChange={(e) => setOfferBookingUrl(e.target.value)} placeholder="https://..." className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-2.5 focus:outline-none" />
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-400">Add at least one, so people can book or ask before they come.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold mb-1">Good to know (optional)</label>
+                <input type="text" value={offerTerms} onChange={(e) => setOfferTerms(e.target.value)} placeholder="e.g. Book ahead for groups of 6+. Dress code: smart casual." className="w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-xl p-2.5 focus:outline-none" />
+              </div>
+
+              <button type="submit" className="w-full bg-[#E0533C] dark:bg-[#A94F3E] text-white font-black text-sm py-3 rounded-2xl shadow-lg mt-4 cursor-pointer">
+                {editingOfferId ? 'Save changes' : 'Publish promotion'}
               </button>
             </form>
           </div>

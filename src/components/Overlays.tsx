@@ -2509,13 +2509,19 @@ export const Overlays: React.FC<OverlaysProps> = ({
                         </div>
                       </div>
 
+                      {offer.claimCode && (
                       <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
                         <ClaimOfferButton offerId={offer.id} onMessage={showToast} />
                       </div>
+                      )}
                       <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                        {offer.claimCode ? (
                         <span className="text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-700 dark:text-slate-300">
-                          {offer.claimCode || 'RADA-DEAL'}
+                          {offer.claimCode}
                         </span>
+                        ) : (
+                        <span className="text-[10px] font-bold text-slate-500 truncate">{offer.venue || offer.location || offer.businessName}</span>
+                        )}
                         <button
                           type="button"
                           onClick={() => {
@@ -2536,7 +2542,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                           }}
                           className="px-3 py-1.5 bg-[#E0533C] text-white rounded-lg text-[10px] font-bold hover:bg-orange-700 transition"
                         >
-                          Claim / View Spot
+                          {offer.claimCode ? 'Claim / View Spot' : 'View Spot'}
                         </button>
                       </div>
                     </div>
