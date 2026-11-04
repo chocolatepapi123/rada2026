@@ -479,7 +479,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   onClick={() => {
                     shareContent({
                       title: `RADA Spot: ${selectedSpot.title}`,
-                      text: `Check out ${selectedSpot.title} (${selectedSpot.category}) in ${selectedSpot.address} on RADA Nairobi! Rating: ★${selectedSpot.rating}.`,
+                      text: `Check out ${selectedSpot.title} (${selectedSpot.category}) in ${selectedSpot.address} on RADA Nairobi! Rating: ${selectedSpot.rating}/5.`,
                       url: window.location.href,
                       onSuccess: showToast,
                       onError: showToast
@@ -608,7 +608,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
               </p>
               {selectedSpot.exactLocationTag && (
                 <p className="text-xs text-[#E0533C] font-semibold flex items-center gap-1">
-                  <span>📍 Tag: {selectedSpot.exactLocationTag}</span>
+                  <span>Tag: {selectedSpot.exactLocationTag}</span>
                   {selectedSpot.landmark && <span className="text-slate-400">• Near {selectedSpot.landmark}</span>}
                 </p>
               )}
@@ -804,7 +804,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 <div className="flex flex-wrap gap-1.5">
                   {selectedSpot.featuredDishes.map((dish, idx) => (
                     <span key={idx} className="px-2.5 py-1 rounded-xl bg-white dark:bg-[#121113] border border-orange-200 dark:border-orange-900/50 text-xs font-semibold text-slate-800 dark:text-slate-200 shadow-xs">
-                      ✨ {dish}
+                      {dish}
                     </span>
                   ))}
                 </div>
@@ -935,7 +935,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">{item.description}</p>
                       {item.equipmentProvided && (
                         <p className="text-[10px] text-[#2D6A4F] font-semibold pt-0.5 flex items-center gap-1">
-                          <span>🎒 Gear provided:</span>
+                          <span>Gear provided:</span>
                           <span className="text-slate-700 dark:text-slate-300 font-normal">{item.equipmentProvided}</span>
                         </p>
                       )}
@@ -1068,7 +1068,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 </div>
                 {selectedSpot.meetingPoint && (
                   <p className="text-[11px] text-slate-700 dark:text-slate-300 pt-1">
-                    <strong className="text-slate-900 dark:text-slate-100">📍 Meeting Point: </strong>
+                    <strong className="text-slate-900 dark:text-slate-100">Meeting Point: </strong>
                     {selectedSpot.meetingPoint}
                   </p>
                 )}
@@ -1263,7 +1263,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                           </div>
                         </div>
                         <div className="flex items-center text-amber-500 text-[10px] font-bold">
-                          ★ {rev.rating}.0
+                          {rev.rating}.0 / 5
                         </div>
                       </div>
                       <p className="text-slate-700 dark:text-slate-300 text-xs">{rev.comment}</p>
@@ -1550,7 +1550,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   }`}
                 >
                   <CheckCircle2 className={`w-4 h-4 ${goingEventIds.includes(selectedEvent.id) ? 'text-white' : 'text-[#2D6A4F]'}`} />
-                  <span>{goingEventIds.includes(selectedEvent.id) ? 'Going ✓' : "I'm Going"}</span>
+                  <span>{goingEventIds.includes(selectedEvent.id) ? 'Going' : "I'm Going"}</span>
                 </button>
                 <button
                   onClick={() => onBuyEventTicket(selectedEvent)}
@@ -1823,7 +1823,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   </p>
                 </div>
                 <a
-                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`🚨 EMERGENCY SOS (RADA): Urgent help needed! ${sosLocationText}`)}`}
+                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`EMERGENCY SOS (RADA): Urgent help needed! ${sosLocationText}`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs text-center transition flex items-center justify-center gap-1.5 shrink-0"
@@ -1921,7 +1921,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   ) : (
                     emergencyContacts.map((c) => {
                       const cleanPhone = c.phone.replace(/[^0-9+]/g, '');
-                      const emergencyDraftMsg = `🚨 EMERGENCY SOS (RADA): Urgent assistance needed! ${sosLocationText} Please check on me immediately.`;
+                      const emergencyDraftMsg = `EMERGENCY SOS (RADA): Urgent assistance needed! ${sosLocationText} Please check on me immediately.`;
                       return (
                         <div key={c.id} className="p-3 bg-[#F8F8F6] dark:bg-[#151319] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between gap-2">
                           <div className="min-w-0 flex-1">
@@ -2386,7 +2386,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                             ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
                             : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
                         }`}>
-                          {currentUserProfile?.isLivenessVerified ? '✓ Verified' : 'Action Required'}
+                          {currentUserProfile?.isLivenessVerified ? 'Verified' : 'Action Required'}
                         </span>
                       </div>
                       {!currentUserProfile?.isLivenessVerified ? (

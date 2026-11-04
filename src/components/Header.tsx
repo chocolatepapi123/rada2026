@@ -171,7 +171,7 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-extrabold text-purple-700 dark:text-purple-300">👑 Admin Control Hub</span>
+                        <span className="font-extrabold text-purple-700 dark:text-purple-300">Admin Control Hub</span>
                         <span className="text-[9px] bg-purple-600 text-white font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider">
                           Admin
                         </span>

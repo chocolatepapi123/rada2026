@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { CategoryIcon } from './CategoryIcon';
 import { Search, X, Clock, MapPin, Bookmark, Calendar, Ticket, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
 import { EventItem, SavedItem } from '../types.ts';
 import {
@@ -108,7 +109,7 @@ export const EventsExplorer: React.FC<EventsExplorerProps> = ({
                 : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
             }`}
           >
-            <span aria-hidden="true">{c.emoji}</span>
+            <CategoryIcon name={c.icon} />
             <span>{c.label}</span>
             <span className={`text-[10px] ${category === c.id ? 'text-white/80' : 'text-slate-400'}`}>{categoryCounts[c.id]}</span>
           </button>

@@ -219,7 +219,7 @@ export const DynamicLocationSelector: React.FC<DynamicLocationSelectorProps> = (
                     </div>
                     {item.stageOrLandmark && (
                       <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5 font-normal">
-                        📍 {item.stageOrLandmark}
+                        {item.stageOrLandmark}
                       </p>
                     )}
                   </div>

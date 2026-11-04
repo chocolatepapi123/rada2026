@@ -330,7 +330,7 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
                         </div>
                         <h4 className="font-extrabold text-xs truncate">{spot.title}</h4>
                         <p className="text-[10px] text-slate-400 truncate">{spot.exactLocationTag || spot.address}</p>
-                        <p className="text-[10px] text-amber-600 font-bold">★ {spot.rating} • {spot.menuItems?.length || 0} menu items</p>
+                        <p className="text-[10px] text-amber-600 font-bold">{spot.rating}/5 • {spot.menuItems?.length || 0} menu items</p>
                       </div>
                     </div>
                     <span className="text-[10px] font-bold shrink-0" style={{ color: primary.color }}>View Spot →</span>

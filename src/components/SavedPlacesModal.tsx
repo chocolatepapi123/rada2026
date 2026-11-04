@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { CategoryIcon, FOLDER_ICON_KEYS } from './CategoryIcon';
 import { 
   X, 
   Bookmark, 
@@ -49,7 +50,7 @@ interface SavedPlacesModalProps {
   showToast: (msg: string) => void;
 }
 
-const EMOJI_OPTIONS = ['🎂', '☕', '✨', '🌴', '🍕', '🎵', '🛍️', '🏕️', '🎨', '💃', '🚗', '🥂'];
+const EMOJI_OPTIONS = FOLDER_ICON_KEYS;
 
 export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
   isOpen,
@@ -75,7 +76,7 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
   // New Folder Creation UI State
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
-  const [newFolderEmoji, setNewFolderEmoji] = useState('✨');
+  const [newFolderEmoji, setNewFolderEmoji] = useState('heart');
 
   // Active Dropdown for assigning an item to a folder
   const [activeFolderMenuForItemId, setActiveFolderMenuForItemId] = useState<string | null>(null);
@@ -179,7 +180,7 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
     }
     if (onCreateFolder) {
       onCreateFolder(newFolderName.trim(), newFolderEmoji);
-      showToast(`Created folder "${newFolderEmoji} ${newFolderName.trim()}"!`);
+      showToast(`Created folder "${newFolderName.trim()}"!`);
     }
     setNewFolderName('');
     setIsCreatingFolder(false);
@@ -284,8 +285,8 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
               <form onSubmit={handleCreateFolderSubmit} className="p-2.5 bg-white dark:bg-[#1C1A1E] border border-orange-200 dark:border-orange-950/60 rounded-2xl space-y-2 animate-in fade-in zoom-in-95 duration-150">
                 <div className="flex items-center gap-2">
                   <div className="relative">
-                    <span className="text-lg p-1.5 rounded-lg bg-orange-50 dark:bg-orange-950/50 inline-block border border-orange-200 dark:border-orange-900">
-                      {newFolderEmoji}
+                    <span className="p-1.5 rounded-lg bg-orange-50 dark:bg-orange-950/50 inline-block border border-orange-200 dark:border-orange-900">
+                      <CategoryIcon name={newFolderEmoji} className="w-5 h-5" />
                     </span>
                   </div>
                   <input
@@ -312,9 +313,9 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
                       key={em}
                       type="button"
                       onClick={() => setNewFolderEmoji(em)}
-                      className={`text-sm p-1 rounded-md transition ${newFolderEmoji === em ? 'bg-orange-100 dark:bg-orange-950 ring-2 ring-[#E0533C]' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                      className={`p-1.5 rounded-md transition ${newFolderEmoji === em ? 'bg-orange-100 dark:bg-orange-950 ring-2 ring-[#E0533C]' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                     >
-                      {em}
+                      <CategoryIcon name={em} className="w-4 h-4" />
                     </button>
                   ))}
                 </div>
@@ -348,7 +349,7 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
                         : 'bg-white dark:bg-[#1C1A1E] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-amber-400'
                     }`}
                   >
-                    <span>{folder.emoji || '📁'}</span>
+                    <CategoryIcon name={folder.emoji} />
                     <span>{folder.name}</span>
                     <span className="opacity-75 text-[9px]">({count})</span>
                   </button>
@@ -416,7 +417,7 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
                         {/* Folder assignment label */}
                         {item.assignedFolder && (
                           <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300/40">
-                            {item.assignedFolder.emoji || '📁'} {item.assignedFolder.name}
+                            <span className="inline-flex items-center gap-1"><CategoryIcon name={item.assignedFolder.emoji} className="w-3 h-3" />{item.assignedFolder.name}</span>
                           </span>
                         )}
 
@@ -493,7 +494,7 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
                               onClick={() => {
                                 onAssignItemFolder?.(item.id, item.kind, folder.id);
                                 setActiveFolderMenuForItemId(null);
-                                showToast(`Moved to "${folder.emoji || '📁'} ${folder.name}"!`);
+                                showToast(`Moved to "${folder.name}"!`);
                               }}
                               className={`w-full text-left px-2 py-1.5 rounded-lg text-[11px] font-bold transition flex items-center justify-between ${
                                 item.folderId === folder.id 
@@ -502,7 +503,7 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
                               }`}
                             >
                               <span className="flex items-center gap-1.5 truncate">
-                                <span>{folder.emoji || '📁'}</span>
+                                <CategoryIcon name={folder.emoji} />
                                 <span className="truncate">{folder.name}</span>
                               </span>
                               {item.folderId === folder.id && <Check className="w-3 h-3 text-amber-600 shrink-0" />}

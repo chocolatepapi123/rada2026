@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { CategoryIcon } from './CategoryIcon';
 import {
   X,
   Upload,
@@ -33,16 +34,16 @@ interface SuggestSpotModalProps {
 }
 
 const CATEGORY_OPTIONS: { id: SpotCategory; label: string; icon: string }[] = [
-  { id: 'restaurants_dining', label: 'Restaurants & Dining', icon: '🍽️' },
-  { id: 'cafes_bakeries', label: 'Cafés & Bakeries', icon: '☕' },
-  { id: 'clubs_lounges', label: 'Clubs & Lounges', icon: '🍸' },
-  { id: 'date_spots', label: 'Date Spots', icon: '✨' },
-  { id: 'nature', label: 'Nature & Outdoors', icon: '🌿' },
-  { id: 'creative_leisure', label: 'Creative & Leisure', icon: '🎨' },
-  { id: 'tech_gaming', label: 'Tech & Gaming', icon: '🎮' },
-  { id: 'action_sports', label: 'Action & Sports', icon: '🎳' },
-  { id: 'hotels_luxury', label: 'Hotels & Luxury', icon: '🏨' },
-  { id: 'vacation_escapes', label: 'Vacation Escapes', icon: '🌴' },
+  { id: 'restaurants_dining', label: 'Restaurants & Dining', icon: 'dining' },
+  { id: 'cafes_bakeries', label: 'Cafés & Bakeries', icon: 'cafe' },
+  { id: 'clubs_lounges', label: 'Clubs & Lounges', icon: 'bar' },
+  { id: 'date_spots', label: 'Date Spots', icon: 'date' },
+  { id: 'nature', label: 'Nature & Outdoors', icon: 'nature' },
+  { id: 'creative_leisure', label: 'Creative & Leisure', icon: 'creative' },
+  { id: 'tech_gaming', label: 'Tech & Gaming', icon: 'gaming' },
+  { id: 'action_sports', label: 'Action & Sports', icon: 'action' },
+  { id: 'hotels_luxury', label: 'Hotels & Luxury', icon: 'hotel' },
+  { id: 'vacation_escapes', label: 'Vacation Escapes', icon: 'vacation' },
 ];
 
 const PRICE_TIERS = [
@@ -290,7 +291,7 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
                         : 'bg-slate-50 dark:bg-[#121113] border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700'
                     }`}
                   >
-                    <span>{cat.icon}</span>
+                    <CategoryIcon name={cat.icon} className="w-4 h-4" />
                     <span className="truncate">{cat.label}</span>
                   </button>
                 );

@@ -681,7 +681,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       return;
     }
     if (currentStatus === 'pending') {
-      showToast('Your request is already pending host approval ⏳');
+      showToast('Your request is already pending host approval');
       return;
     }
 
@@ -787,7 +787,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       };
 
       await onCreateOuting(newPlan);
-      showToast(`Outing Plan "${spotTitle}" Published! 🎉`);
+      showToast(`Outing Plan "${spotTitle}" Published!`);
       setIsHostModalOpen(false);
       setDescription('');
       setCustomSpotTitle('');
@@ -1239,7 +1239,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="px-2.5 py-1.5 rounded-xl text-xs font-black bg-emerald-100 dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1 shadow-2xs">
                           <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
-                          <span>Joined ✓</span>
+                          <span>Joined</span>
                         </span>
 
                         <button
@@ -1785,7 +1785,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
             >
               <div className="flex items-center justify-between">
                 <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-black/75 backdrop-blur-md text-white uppercase">
-                  {selectedOutingDetail.accessType === 'singles_only' ? '💖 Singles Only' : '👥 Open Outing'}
+                  {selectedOutingDetail.accessType === 'singles_only' ? 'Singles Only' : 'Open Outing'}
                 </span>
                 <button
                   type="button"
@@ -1898,7 +1898,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                           ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300'
                           : 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300'
                       }`}>
-                        {att.status === 'joined' || att.status === 'approved' ? 'Approved ✓' : 'Pending'}
+                        {att.status === 'joined' || att.status === 'approved' ? 'Approved' : 'Pending'}
                       </span>
                     </div>
                   ))}
@@ -1949,7 +1949,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                       <div className="flex items-center gap-2 flex-1 flex-wrap">
                         <div className="px-3.5 py-3 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 font-extrabold text-xs flex items-center justify-center gap-1">
                           <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
-                          <span>Joined ✓</span>
+                          <span>Joined</span>
                         </div>
                         <button
                           type="button"
@@ -1968,7 +1968,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                   if (status === 'pending') {
                     return (
                       <div className="flex-1 py-3 text-center rounded-2xl bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-200 font-extrabold text-xs">
-                        Join request pending host approval ⏳
+                        Join request pending host approval
                       </div>
                     );
                   }
@@ -2064,7 +2064,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                   </div>
 
                   <span className="px-2.5 py-1 rounded-xl text-[10px] font-black bg-orange-100 dark:bg-orange-950 text-[#E0533C] border border-orange-200 dark:border-orange-900 shrink-0">
-                    {activeManagingOuting.accessType === 'singles_only' ? '💖 Singles' : '👥 Open'}
+                    {activeManagingOuting.accessType === 'singles_only' ? 'Singles' : 'Open'}
                   </span>
                 </div>
 

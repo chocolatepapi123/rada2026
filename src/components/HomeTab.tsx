@@ -806,7 +806,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 } else {
                   await new Promise(r => setTimeout(r, 600));
                 }
-                showToast('Feed refreshed ✨');
+                showToast('Feed refreshed');
               } finally {
                 setIsRefreshing(false);
               }
@@ -919,11 +919,11 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <div className="grid grid-cols-3 gap-1.5 text-xs">
                   {[
                     { id: 'all', label: 'All Feed' },
-                    { id: 'events', label: '🎟️ Events' },
-                    { id: 'spots', label: '📍 Hangouts' },
-                    { id: 'cinemas', label: '🎬 Movies' },
-                    { id: 'offers', label: '🔥 Offers' },
-                    { id: 'statuses', label: '💬 Statuses' },
+                    { id: 'events', label: 'Events' },
+                    { id: 'spots', label: 'Hangouts' },
+                    { id: 'cinemas', label: 'Movies' },
+                    { id: 'offers', label: 'Offers' },
+                    { id: 'statuses', label: 'Statuses' },
                   ].map((s) => (
                     <button
                       key={s.id}
@@ -2196,7 +2196,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   onClick={() => setStatusMediaUrl(null)}
                   className="absolute top-1 right-1 w-4 h-4 bg-black/70 text-white rounded-full flex items-center justify-center text-[9px] cursor-pointer"
                 >
-                  ✕
+                  ×
                 </button>
               </div>
             )}

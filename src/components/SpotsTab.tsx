@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Check as CheckMark } from 'lucide-react';
 import {
   Search,
   MapPin,
@@ -617,7 +618,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
             {/* Special offer preview badge */}
             {spot.specialOffers && spot.specialOffers.length > 0 && (
               <div className="mt-1 inline-flex items-center gap-1 text-[10px] font-black bg-red-50 dark:bg-red-950/40 text-[#E0533C] dark:text-[#D17A68] border border-red-200 dark:border-red-900 px-2 py-0.5 rounded-md">
-                🔥 {spot.specialOffers[0].title} ({spot.specialOffers[0].discount})
+                {spot.specialOffers[0].title} ({spot.specialOffers[0].discount})
               </div>
             )}
           </div>
@@ -927,8 +928,8 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                 <div className="grid grid-cols-2 gap-1.5 text-xs">
                   {[
                     { id: 'all', label: 'Any Rating' },
-                    { id: '4.5', label: '★ 4.5+ Top Rated' },
-                    { id: '4.0', label: '★ 4.0+ Great' },
+                    { id: '4.5', label: '4.5+ Top Rated' },
+                    { id: '4.0', label: '4.0+ Great' },
                     { id: 'reviewed', label: 'Has Reviews' }
                   ].map((r) => (
                     <button
@@ -956,10 +957,10 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                   }`}
                 >
                   <span className="flex items-center gap-1.5">
-                    <span>🔥 Has Running Special Offers</span>
+                    <span>Has Running Special Offers</span>
                   </span>
                   <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] text-white ${onlySpecialOffers ? 'bg-rose-600' : 'bg-slate-300 dark:bg-slate-700'}`}>
-                    {onlySpecialOffers ? '✓' : ''}
+                    {onlySpecialOffers ? <CheckMark className="w-3 h-3" /> : null}
                   </span>
                 </button>
               </div>

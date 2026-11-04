@@ -148,7 +148,7 @@ export const AdminConfirmModal: React.FC<AdminConfirmModalProps> = ({
                 {config.title}
               </h3>
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                👑 Admin Security Confirmation
+                Admin Security Confirmation
               </p>
             </div>
           </div>

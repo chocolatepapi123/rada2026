@@ -877,7 +877,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
             </div>
           </div>
           <div className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
-            {data.averageRating > 0 ? `★ ${data.averageRating.toFixed(1)}` : 'New'}
+            {data.averageRating > 0 ? `${data.averageRating.toFixed(1)} / 5` : 'New'}
           </div>
           <p className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold mt-0.5">
             {data.totalReviews} customer ratings
@@ -913,7 +913,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
             </h4>
           </div>
           <span className="text-[10px] font-extrabold text-[#E0533C] dark:text-[#D17A68] bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">
-            🔥 Friday & Saturday Peak
+            Friday & Saturday Peak
           </span>
         </div>
 
@@ -3735,7 +3735,7 @@ isSpotFormOpen && (
                               <span>{spot.exactLocationTag || spot.address}</span>
                             </p>
                             <div className="flex items-center gap-2 mt-1.5 text-[10px] text-slate-400 font-semibold">
-                              <span>★ {spot.rating} ({spot.reviewCount || 0} reviews)</span>
+                              <span>{spot.rating}/5 ({spot.reviewCount || 0} reviews)</span>
                               <span>•</span>
                               <span>{spot.menuItems?.length || 0} Menu Items</span>
                               <span>•</span>
@@ -4140,7 +4140,7 @@ isSpotFormOpen && (
                             <span>{[spot.neighborhood, spot.address].filter(Boolean).join(' • ')}</span>
                           </p>
                           <p className="text-[10px] text-slate-500 mt-0.5">
-                            Rating ★ {spot.rating || '4.8'} ({spot.reviewCount || 0} reviews)
+                            Rating {spot.rating || '4.8'} ({spot.reviewCount || 0} reviews)
                           </p>
                         </div>
                       </div>

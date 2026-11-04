@@ -511,7 +511,7 @@ export function AdminDashboardModal({
       toast(err, { type: 'error' });
       return;
     }
-    toast(`${adminModalUser.name || adminModalUser.username || 'User'} is now an Admin with custom limits. 🛡️`, { type: 'success' });
+    toast(`${adminModalUser.name || adminModalUser.username || 'User'} is now an Admin with custom limits.`, { type: 'success' });
     setUsers(prev => prev ? prev.map(u => u.id === adminModalUser.id ? { ...u, role: 'admin', adminPermissions: adminPermsForm } : u) : null);
     setAdminModalUser(null);
     onRefresh?.();
@@ -583,15 +583,15 @@ export function AdminDashboardModal({
                   <p className="text-xs font-bold text-purple-600">RADA Admin</p>
                   {isOfficial ? (
                     <span className="text-[10px] bg-gradient-to-r from-amber-500 to-purple-600 text-white font-extrabold px-1.5 py-0.5 rounded shadow-xs">
-                      👑 Official Super Admin
+                      Official Super Admin
                     </span>
                   ) : (
                     <span className="text-[10px] bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-300 font-extrabold px-1.5 py-0.5 rounded border border-purple-300 dark:border-purple-800">
-                      🛡️ Delegated Admin
+                      Delegated Admin
                     </span>
                   )}
                 </div>
-                <h1 className="text-lg font-black leading-tight truncate">👑 Admin Control Hub</h1>
+                <h1 className="text-lg font-black leading-tight truncate">Admin Control Hub</h1>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -1319,7 +1319,7 @@ export function AdminDashboardModal({
               <div className="p-4 space-y-3">
                 <SearchBox value={userSearch} onChange={setUserSearch} placeholder="Search name, @username, email or ID..." />
                 <div className="flex gap-2 overflow-x-auto">
-                  {([['all', 'All'], ['admins', '👑 Admins'], ['merchants', 'Merchants'], ['hosts', 'Pro hosts'], ['suspended', 'Suspended']] as const).map(([id, label]) => (
+                  {([['all', 'All'], ['admins', 'Admins'], ['merchants', 'Merchants'], ['hosts', 'Pro hosts'], ['suspended', 'Suspended']] as const).map(([id, label]) => (
                     <button
                       key={id}
                       onClick={() => setUserFilter(id)}
@@ -1355,11 +1355,11 @@ export function AdminDashboardModal({
                         <div className="flex flex-wrap gap-1 justify-end">
                           {isSuper ? (
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-amber-500 to-purple-600 text-white shadow-2xs flex items-center gap-1">
-                              👑 Official Super Admin
+                              Official Super Admin
                             </span>
                           ) : isAdmin ? (
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-300 dark:border-purple-800 flex items-center gap-1">
-                              🛡️ Delegated Admin
+                              Delegated Admin
                             </span>
                           ) : null}
                           {u.isMerchant && <Pill tone="amber">Merchant</Pill>}
@@ -1381,12 +1381,12 @@ export function AdminDashboardModal({
                             </span>
                           </div>
                           <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px]">
-                            <span>Spots: {u.adminPermissions?.canManageSpots !== false ? '✅' : '❌'}</span>
-                            <span>Claims: {u.adminPermissions?.canApproveClaims !== false ? '✅' : '❌'}</span>
-                            <span>Merchants: {u.adminPermissions?.canVerifyMerchants ? '✅' : '❌'}</span>
-                            <span>Cinema: {u.adminPermissions?.canManageCinema !== false ? '✅' : '❌'}</span>
-                            <span>Users: {u.adminPermissions?.canManageUsers ? '✅' : '❌'}</span>
-                            <span>Subscriptions: {u.adminPermissions?.canManageSubscriptions ? '✅' : '❌'}</span>
+                            <span>Spots: {u.adminPermissions?.canManageSpots !== false ? 'On' : 'Off'}</span>
+                            <span>Claims: {u.adminPermissions?.canApproveClaims !== false ? 'On' : 'Off'}</span>
+                            <span>Merchants: {u.adminPermissions?.canVerifyMerchants ? 'On' : 'Off'}</span>
+                            <span>Cinema: {u.adminPermissions?.canManageCinema !== false ? 'On' : 'Off'}</span>
+                            <span>Users: {u.adminPermissions?.canManageUsers ? 'On' : 'Off'}</span>
+                            <span>Subscriptions: {u.adminPermissions?.canManageSubscriptions ? 'On' : 'Off'}</span>
                           </div>
                         </div>
                       )}
@@ -1398,7 +1398,7 @@ export function AdminDashboardModal({
                       <div className="flex flex-wrap gap-2 pt-0.5">
                         {isSuper ? (
                           <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 py-1">
-                            ⭐️ Protected Account (Platform Owner)
+                            Protected Account (Platform Owner)
                           </span>
                         ) : (
                           <>
@@ -1407,7 +1407,7 @@ export function AdminDashboardModal({
                               <ActionBtn
                                 onClick={() => openAdminPermsModal(u)}
                                 icon={<Crown className="w-3.5 h-3.5 text-purple-600" />}
-                                label={isAdmin ? 'Configure Limits ⚙️' : 'Make Admin 🛡️'}
+                                label={isAdmin ? 'Configure Limits' : 'Make Admin'}
                               />
                             )}
 

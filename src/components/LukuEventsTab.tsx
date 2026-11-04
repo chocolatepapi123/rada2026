@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { CategoryIcon } from './CategoryIcon';
 import { 
   Calendar as CalendarIcon, 
   Clock, 
@@ -364,7 +365,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
                   : 'bg-white dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-[#E0533C]/60 dark:hover:border-[#D17A68]/60'
               }`}
             >
-              <span aria-hidden="true">{f.emoji}</span>
+              <CategoryIcon name={f.icon} />
               <span>{f.label}</span>
             </button>
           );

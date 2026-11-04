@@ -513,7 +513,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({
                       e.stopPropagation();
                       await shareContent({
                         title: `RADA Pass: ${t.title}`,
-                        text: `🎟️ Outing locked in! Catch me at "${t.title}" on ${t.dateStr} at ${t.locationStr}. Check it out on RADA!`,
+                        text: `Outing locked in! Catch me at "${t.title}" on ${t.dateStr} at ${t.locationStr}. Check it out on RADA!`,
                         url: window.location.href,
                         onError: (m: string) => showToast?.(m, { type: 'error' })
                       });

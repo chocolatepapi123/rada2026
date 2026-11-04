@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { CategoryIcon } from './CategoryIcon';
 import { fetchMilestones, MILESTONE_META, type MilestoneData, type MilestoneKind } from '../lib/milestones';
 
 const KINDS: MilestoneKind[] = ['outings', 'spots', 'photo_reviews'];
@@ -28,8 +29,8 @@ export const MilestoneBadges: React.FC<{ userId?: string | null }> = ({ userId }
           return (
             <div key={k} className="rounded-3xl p-4 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 shadow-sm">
               <div className="flex items-center gap-3">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0 ${level > 0 ? 'bg-amber-100 dark:bg-amber-950/60' : 'bg-slate-100 dark:bg-slate-800 grayscale opacity-60'}`}>
-                  {meta.emoji}
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${level > 0 ? 'bg-amber-100 dark:bg-amber-950/60' : 'bg-slate-100 dark:bg-slate-800'}`}>
+                  <CategoryIcon name={meta.icon} className={`w-6 h-6 ${level > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'}`} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-black text-slate-500">{meta.title}</p>

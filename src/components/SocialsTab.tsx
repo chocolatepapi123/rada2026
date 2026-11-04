@@ -632,7 +632,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   const isInviteAccepted = (msg: ChatMessage) =>
     Boolean(msg.dateInvite?.accepted) ||
     (activeChat?.messages || []).some(
-      m => m.text?.startsWith('✅ Date accepted') && m.text.includes(msg.dateInvite?.spotTitle || '\u0000')
+      m => m.text?.startsWith('Date accepted') && m.text.includes(msg.dateInvite?.spotTitle || '\u0000')
     );
 
   const handleAcceptDateInvite = async (msg: ChatMessage) => {
@@ -640,7 +640,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
     const d = msg.dateInvite;
     const err = await onSendMessage(activeChat.id, {
       kind: 'text',
-      content: `✅ Date accepted: ${d.spotTitle} on ${d.date} at ${d.time}`,
+      content: `Date accepted: ${d.spotTitle} on ${d.date} at ${d.time}`,
     });
     if (err) showToast(friendlySendError(err), { type: 'error' });
   };
@@ -795,7 +795,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                           : 'bg-white text-slate-900 hover:bg-slate-100'
                       }`}
                     >
-                      {isInviteAccepted(msg) ? '✓ Date Accepted' : msg.sender === 'me' ? 'Invitation sent' : 'Accept Date'}
+                      {isInviteAccepted(msg) ? 'Date Accepted' : msg.sender === 'me' ? 'Invitation sent' : 'Accept Date'}
                     </button>
                   </div>
                 ) : msg.videoNoteUrl ? (
@@ -1692,7 +1692,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             aria-label="Close photo"
             style={{ marginTop: 'env(safe-area-inset-top, 0px)' }}
           >
-            ✕
+            ×
           </button>
           <img loading="lazy" decoding="async" src={viewerPhoto} alt="Photo" onClick={(e) => e.stopPropagation()} className="max-w-full max-h-full object-contain" />
         </div>
