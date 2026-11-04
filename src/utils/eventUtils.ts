@@ -346,17 +346,17 @@ export function compareByStart(a: EventItem, b: EventItem): number {
 export type EventCategoryFilter =
   | 'all' | 'nightlife' | 'music' | 'arts' | 'food' | 'sports' | 'tech' | 'community' | 'learn' | 'cinema';
 
-export const EVENT_CATEGORY_FILTERS: { id: EventCategoryFilter; label: string; emoji: string }[] = [
-  { id: 'all', label: 'All', emoji: '✨' },
-  { id: 'nightlife', label: 'Parties & Nightlife', emoji: '🪩' },
-  { id: 'music', label: 'Live Music', emoji: '🎤' },
-  { id: 'arts', label: 'Arts & Culture', emoji: '🎨' },
-  { id: 'food', label: 'Food & Drink', emoji: '🍽️' },
-  { id: 'sports', label: 'Sports & Fitness', emoji: '⚽' },
-  { id: 'tech', label: 'Tech & Business', emoji: '💼' },
-  { id: 'community', label: 'Community & Family', emoji: '🤝' },
-  { id: 'learn', label: 'Workshops & Learning', emoji: '📚' },
-  { id: 'cinema', label: 'Cinema', emoji: '🎬' }
+export const EVENT_CATEGORY_FILTERS: { id: EventCategoryFilter; label: string; icon: string }[] = [
+  { id: 'all', label: 'All', icon: 'all' },
+  { id: 'nightlife', label: 'Parties & Nightlife', icon: 'nightlife' },
+  { id: 'music', label: 'Live Music', icon: 'music' },
+  { id: 'arts', label: 'Arts & Culture', icon: 'arts' },
+  { id: 'food', label: 'Food & Drink', icon: 'food' },
+  { id: 'sports', label: 'Sports & Fitness', icon: 'sports' },
+  { id: 'tech', label: 'Tech & Business', icon: 'tech' },
+  { id: 'community', label: 'Community & Family', icon: 'community' },
+  { id: 'learn', label: 'Workshops & Learning', icon: 'learn' },
+  { id: 'cinema', label: 'Cinema', icon: 'cinema' }
 ];
 
 export function eventMatchesCategory(e: EventItem, f: string): boolean {

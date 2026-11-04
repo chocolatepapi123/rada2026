@@ -169,7 +169,7 @@ export async function generateFallbackVideoBlobUrl(durationSeconds: number = 4):
         ctx.font = 'bold 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('RADA ✨', w / 2, h / 2 - 12);
+        ctx.fillText('RADA', w / 2, h / 2 - 12);
         ctx.font = '600 14px monospace';
         ctx.fillText(`0:0${Math.floor(elapsed)} / 0:0${durationSeconds}`, w / 2, h / 2 + 18);
       }, 33);
