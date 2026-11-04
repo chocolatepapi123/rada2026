@@ -215,6 +215,112 @@ export async function adminConfirmPayment(id: string, receipt: string) {
   if (error) throw new Error(error.message);
 }
 
+export interface AdminPromotionEdit {
+  targetTitle?: string | null;
+  category?: string | null;
+  zone?: string | null;
+  start?: string | null; // YYYY-MM-DD
+  end?: string | null;
+  status?: PromoStatus | null;
+  amountKes?: number | null;
+  slotOrder?: number | null;
+  note?: string | null;
+}
+
+/** Edit any promotion, whatever its status (approved and live ones included). Omitted fields stay as they are. */
+export async function adminUpdatePromotion(id: string, e: AdminPromotionEdit) {
+  const { error } = await supabase.rpc('admin_update_promotion', {
+    p_id: id,
+    p_target_title: e.targetTitle ?? null,
+    p_category: e.category ?? null,
+    p_zone: e.zone ?? null,
+    p_start: e.start ?? null,
+    p_end: e.end ?? null,
+    p_status: e.status ?? null,
+    p_amount_kes: e.amountKes ?? null,
+    p_slot_order: e.slotOrder ?? null,
+    p_note: e.note ?? null,
+  });
+  if (error) throw new Error(error.message);
+}
+
+/** Take a promotion off the app but keep the record (it can be switched back on by editing its status). */
+export async function adminRemovePromotion(id: string, note?: string | null) {
+  const { error } = await supabase.rpc('admin_remove_promotion', { p_id: id, p_note: note ?? null });
+  if (error) throw new Error(error.message);
+}
+
+/** Delete for good. A promotion with a confirmed payment needs force = true (the payment record is kept, unlinked). */
+export async function adminDeletePromotion(id: string, force = false) {
+  const { error } = await supabase.rpc('admin_delete_promotion', { p_id: id, p_force: force });
+  if (error) throw new Error(error.message);
+}
+
+export const isPaidDeleteError = (e: unknown) => String((e as any)?.message || '').startsWith('PAID:');
+
+// Offer schedule text (shown on the offer card as "Fri & Sat · 5–8pm · until 20 Nov") ---------------------------
+export const DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+export const AUDIENCES = ['Everyone', 'Friends & groups', 'Couples', 'Families', 'Students', 'Women', 'Professionals', '18+ only'];
+
+const fmtTime = (t?: string) => {
+  if (!t) return '';
+  const [hh, mm] = t.split(':').map(Number);
+  if (Number.isNaN(hh)) return '';
+  const h12 = hh % 12 === 0 ? 12 : hh % 12;
+  return `${h12}${mm ? ':' + String(mm).padStart(2, '0') : ''}${hh >= 12 ? 'pm' : 'am'}`;
+};
+const fmtDay = (iso?: string) => {
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+};
+
+export function offerScheduleText(o: { startsAt?: string; endsAt?: string; startTime?: string; endTime?: string; daysOfWeek?: number[] }): string {
+  const days = [...new Set(o.daysOfWeek || [])].sort((a, b) => a - b);
+  const dayText = days.length === 0 || days.length === 7 ? (days.length === 7 ? 'Every day' : '') : days.map((d) => DOW_SHORT[d]).join(', ');
+  const t1 = fmtTime(o.startTime), t2 = fmtTime(o.endTime);
+  const time = t1 && t2 ? `${t1}–${t2}` : t1 ? `from ${t1}` : t2 ? `until ${t2}` : '';
+  const a = fmtDay(o.startsAt), b = fmtDay(o.endsAt);
+  const range = a && b ? (a === b ? a : `${a} – ${b}`) : b ? `until ${b}` : a ? `from ${a}` : '';
+  return [dayText, time, range].filter(Boolean).join(' · ');
+}
+
+// Offers (the promos businesses post on the Home feed) ----------------------------------------------------------
+export interface AdminOffer {
+  id: string;
+  owner_id: string;
+  owner_label: string;
+  business_name: string | null;
+  title: string;
+  description: string | null;
+  status: string | null;
+  data: Record<string, any>;
+  created_at: string;
+  boosted: boolean;
+}
+
+export async function adminListOffers(search?: string | null): Promise<AdminOffer[]> {
+  const { data, error } = await supabase.rpc('admin_list_offers', { p_search: search || null, p_limit: 200 });
+  if (error) throw new Error(error.message);
+  return (data as AdminOffer[]) || [];
+}
+
+/** `patch` is merged into the offer's stored JSON; status 'draft' hides it, 'published' shows it. */
+export async function adminUpdateOffer(id: string, patch: Record<string, any>, status?: 'published' | 'draft' | null) {
+  const { error } = await supabase.rpc('admin_update_offer', { p_id: id, p_patch: patch, p_status: status ?? null });
+  if (error) throw new Error(error.message);
+}
+
+export async function adminRemoveOffer(id: string, note?: string | null) {
+  const { error } = await supabase.rpc('admin_remove_offer', { p_id: id, p_note: note ?? null });
+  if (error) throw new Error(error.message);
+}
+
+export async function adminDeleteOffer(id: string) {
+  const { error } = await supabase.rpc('admin_delete_offer', { p_id: id });
+  if (error) throw new Error(error.message);
+}
+
 export async function adminSetAutoApprove(productId: string, on: boolean) {
   const { error } = await supabase.from('promo_products').update({ auto_approve: on }).eq('id', productId);
   if (error) throw new Error(error.message);
