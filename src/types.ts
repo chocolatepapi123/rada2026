@@ -76,6 +76,22 @@ export interface BusinessOffer {
   maxRedemptions?: number;
   /** Offer builder: fine print shown to customers. */
   terms?: string;
+  /** What the venue is offering, in plain words (e.g. "Live band + 2-for-1 cocktails"). Also shown as the pill (`discount`). */
+  highlight?: string;
+  /** Venue name and where to find it (area / address). */
+  venue?: string;
+  location?: string;
+  /** Dates (YYYY-MM-DD) and daily times (HH:mm). endsAt above is the last day. */
+  startsAt?: string;
+  startTime?: string;
+  endTime?: string;
+  /** Days it runs, 0 = Sunday ... 6 = Saturday. Empty = every day in the date range. */
+  daysOfWeek?: number[];
+  /** Who it is for (Everyone, Couples, Students...). */
+  audience?: string;
+  /** How people book or ask: phone and/or a link. */
+  contactPhone?: string;
+  bookingUrl?: string;
 }
 
 export interface SpecialOffer {

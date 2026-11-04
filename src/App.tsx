@@ -7,7 +7,8 @@ import { AlertTriangle as WarnIcon, X as CloseIcon, Ban as BanIcon } from 'lucid
 import { rememberSession, forgetAccount } from './lib/accounts';
 import { track } from './lib/tracking';
 import { logPlatformEvent } from './lib/platformAnalytics';
-import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense, memo, startTransition } from 'react';
+import { useTabSwipe } from './lib/useTabSwipe';
 import { ClaimUsernamePrompt, hasAutoUsername } from './components/ClaimUsernamePrompt';
 
 // Claim-username popup is switched off for now. Flip to true to bring it back.
@@ -277,6 +278,19 @@ const MOCK_SPOT_TITLE_SET = new Set(LEGACY_MOCK_SPOT_TITLES.map(t => t.trim().to
 const isLegacyMockSpot = (s: any) =>
   /^\d{1,2}$/.test(String(s?.id ?? '')) && Number(s.id) <= 20 && MOCK_SPOT_TITLE_SET.has(String(s?.title || '').trim().toLowerCase());
 const stripMockSpots = <T,>(list: T[]): T[] => list.filter(s => !isLegacyMockSpot(s));
+
+// Main tabs that stay mounted (hidden) after their first visit, so switching back is instant and nothing refetches.
+const KEEP_ALIVE_TABS = ['home', 'spots', 'outings', 'socials', 'vault'];
+
+// One pane per kept tab. Hidden panes skip re-rendering while App state changes; they refresh the moment they are shown.
+const TabPane = memo(
+  ({ active, slide, children }: { active: boolean; ready: boolean; slide: number; children: React.ReactNode }) => (
+    <div hidden={!active} className="rada-tab-enter" style={{ ['--rada-slide' as any]: `${slide}px` }}>
+      {children}
+    </div>
+  ),
+  (p, n) => !p.active && !n.active && p.ready === n.ready
+);
 
 // Direction the tab content slides in from (1 = from the right, -1 = from the left).
 const TAB_ORDER = ['home', 'spots', 'outings', 'plans', 'socials', 'vault', 'calendar', 'merchant'];
@@ -602,6 +616,55 @@ export default function App() {
   const SocialsTab: React.ComponentType<any> = tabComps.socials || TabFallback;
   const VaultTab: React.ComponentType<any> = tabComps.vault || TabFallback;
   const LukuEventsTab: React.ComponentType<any> = tabComps.calendar || TabFallback;
+
+  // Keep-alive: a tab that was opened once stays mounted (hidden). Its heavy first render happens in a low-priority
+  // transition, so the nav highlight and slide animation respond instantly and the spinner shows for that moment only.
+  const paneTab = activeTab === 'plans' ? 'outings' : activeTab;
+  const visitedTabsRef = useRef<Set<string>>(new Set());
+  if (KEEP_ALIVE_TABS.includes(paneTab)) visitedTabsRef.current.add(paneTab);
+  const [readyTabs, setReadyTabs] = useState<Set<string>>(() => new Set([readDeepLinkTab() === 'plans' ? 'outings' : readDeepLinkTab()]));
+  useEffect(() => {
+    if (!KEEP_ALIVE_TABS.includes(paneTab) || readyTabs.has(paneTab)) return;
+    startTransition(() => setReadyTabs((prev) => new Set(prev).add(paneTab)));
+  }, [paneTab, readyTabs]);
+  // Warm the Spots tab (the heaviest one) in the background once the app is idle, so the first tap is instant.
+  useEffect(() => {
+    if (authLoading) return;
+    const c: any = (navigator as any).connection || {};
+    if (c.saveData || document.documentElement.classList.contains('low-end')) return;
+    const t = setTimeout(() => {
+      const run = () => {
+        visitedTabsRef.current.add('spots');
+        startTransition(() => setReadyTabs((prev) => (prev.has('spots') ? prev : new Set(prev).add('spots'))));
+      };
+      const ric = (window as any).requestIdleCallback;
+      if (ric) ric(run, { timeout: 3000 }); else run();
+    }, 2500);
+    return () => clearTimeout(t);
+  }, [authLoading]);
+
+  // One tab-change handler for the nav bar AND swipes (history.pushState included).
+  const changeTab = (tab: string) => {
+    if (tab === 'merchant') {
+      requireAuth('access the Merchant Hub', () => {
+        if (tab !== activeTab) {
+          window.history.pushState({ radaApp: true, tab }, '');
+          setActiveTab(tab);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      });
+      return;
+    }
+    if (tab !== activeTab) {
+      if (tab !== 'home') {
+        window.history.pushState({ radaApp: true, tab }, '');
+      }
+      setActiveTab(tab);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+  const mainRef = useRef<HTMLElement | null>(null);
+  const tabSlide = tabSlideDir(activeTab) * 14;
   const [calendarTargetDate, setCalendarTargetDate] = useState<string | null>(null);
   const [calendarTargetEventId, setCalendarTargetEventId] = useState<number | string | null>(null);
   const lastSpotsScrollPosRef = useRef<number>(0);
@@ -1354,6 +1417,9 @@ export default function App() {
     isLivenessModalOpen ||
     isSuggestSpotModalOpen
   );
+
+  // Swipe left/right on the main content to move between tabs (blocked while any modal / full-screen view is open).
+  useTabSwipe(mainRef, { enabled: !authLoading && !isAnyModalOpen, activeTab, onChange: changeTab });
 
   const lastBackPressRef = useRef<number>(0);
   const prevModalOpenRef = useRef<boolean>(false);
@@ -2626,12 +2692,13 @@ export default function App() {
           />
 
           {/* Main Content Viewports */}
-          <main className="flex-1 pb-[calc(7.5rem+env(safe-area-inset-bottom,0px))] min-[900px]:pb-10 max-w-lg min-[900px]:max-w-none mx-auto w-full relative px-0 min-[900px]:pl-60">
+          <main ref={mainRef} className="flex-1 pb-[calc(7.5rem+env(safe-area-inset-bottom,0px))] min-[900px]:pb-10 max-w-lg min-[900px]:max-w-none mx-auto w-full relative px-0 min-[900px]:pl-60">
             <div className="w-full min-[900px]:max-w-5xl min-[900px]:mx-auto min-[900px]:px-8 min-[900px]:py-6">
-            <ErrorBoundary key={activeTab} fallbackTitle="Resuming View">
             <Suspense fallback={<TabFallback />}>
-            <div key={activeTab} className="rada-tab-enter" style={{ ['--rada-slide' as any]: `${tabSlideDir(activeTab) * 14}px` }}>
-            {activeTab === 'home' && (
+            {visitedTabsRef.current.has('home') && (
+              <TabPane active={paneTab === 'home'} ready={readyTabs.has('home')} slide={tabSlide}>
+                <ErrorBoundary fallbackTitle="Resuming View">
+                {!readyTabs.has('home') ? <TabFallback /> : (
               <HomeTab
                 events={allEvents}
                 cinemaMovies={cinemaMovies}
@@ -2666,8 +2733,13 @@ export default function App() {
                 isGpsActive={isGpsActive}
               />
             )}
-
-            {activeTab === 'spots' && (
+                </ErrorBoundary>
+              </TabPane>
+            )}
+            {visitedTabsRef.current.has('spots') && (
+              <TabPane active={paneTab === 'spots'} ready={readyTabs.has('spots')} slide={tabSlide}>
+                <ErrorBoundary fallbackTitle="Resuming View">
+                {!readyTabs.has('spots') ? <TabFallback /> : (
               <SpotsTab
                 spots={spots}
                 savedItems={savedItems}
@@ -2690,8 +2762,13 @@ export default function App() {
                 onDeleteSpot={handleDeleteSpot}
               />
             )}
-
-            {(activeTab === 'outings' || activeTab === 'plans') && (
+                </ErrorBoundary>
+              </TabPane>
+            )}
+            {visitedTabsRef.current.has('outings') && (
+              <TabPane active={paneTab === 'outings'} ready={readyTabs.has('outings')} slide={tabSlide}>
+                <ErrorBoundary fallbackTitle="Resuming View">
+                {!readyTabs.has('outings') ? <TabFallback /> : (
               <OutingsTab
                 outings={allOutings}
                 spots={spots}
@@ -2708,7 +2785,58 @@ export default function App() {
                 showToast={showToast}
               />
             )}
-
+                </ErrorBoundary>
+              </TabPane>
+            )}
+            {visitedTabsRef.current.has('socials') && (
+              <TabPane active={paneTab === 'socials'} ready={readyTabs.has('socials')} slide={tabSlide}>
+                <ErrorBoundary fallbackTitle="Resuming View">
+                {!readyTabs.has('socials') ? <TabFallback /> : (
+              <SocialsTab
+                discoveryProfiles={discoveryProfiles}
+                conversations={conversations}
+                currentUserProfile={currentUserProfile}
+                myUserId={session?.user?.id && !isGuestMode ? session.user.id : undefined}
+                requests={socials.requests}
+                onSendMatchRequest={socials.sendRequest}
+                onRespondRequest={socials.respondRequest}
+                onSendMessage={socials.sendMessage}
+                onLoadHistory={socials.loadHistory}
+                onRefreshSocials={socials.refresh}
+                onOpenPlanDateModal={(chatId) => requireAuth('send messages', () => { setPlanDateChatId(chatId || null); setIsPlanDateModalOpen(true); })}
+                onOpenCreateGroupModal={() => requireAuth('send messages', () => setIsCreateGroupOpen(true))}
+                onViewUserProfile={(profile) => setViewingProfile(profile)}
+                onOpenVerificationModal={() => setIsLivenessModalOpen(true)}
+                targetChatId={targetChatId}
+                onClearTargetChatId={() => setTargetChatId(null)}
+                showToast={showToast}
+              />
+            )}
+                </ErrorBoundary>
+              </TabPane>
+            )}
+            {visitedTabsRef.current.has('vault') && (
+              <TabPane active={paneTab === 'vault'} ready={readyTabs.has('vault')} slide={tabSlide}>
+                <ErrorBoundary fallbackTitle="Resuming View">
+                {!readyTabs.has('vault') ? <TabFallback /> : (
+              <VaultTab
+                tickets={tickets}
+                events={allEvents}
+                onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
+                onExploreTrendingEvents={() => {
+                  setActiveTab('home');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                onShowQrCode={(title) => setQrPassTitle(title)}
+                showToast={showToast}
+              />
+            )}
+                </ErrorBoundary>
+              </TabPane>
+            )}
+            {(activeTab === 'merchant' || activeTab === 'calendar') && (
+              <ErrorBoundary key={activeTab} fallbackTitle="Resuming View">
+              <div className="rada-tab-enter" style={{ ['--rada-slide' as any]: `${tabSlide}px` }}>
             {activeTab === 'merchant' && (
               <MerchantHubTab
                 businesses={businesses}
@@ -2741,44 +2869,7 @@ export default function App() {
                 showToast={showToast}
               />
             )}
-
-            {activeTab === 'socials' && (
-              <SocialsTab
-                discoveryProfiles={discoveryProfiles}
-                conversations={conversations}
-                currentUserProfile={currentUserProfile}
-                myUserId={session?.user?.id && !isGuestMode ? session.user.id : undefined}
-                requests={socials.requests}
-                onSendMatchRequest={socials.sendRequest}
-                onRespondRequest={socials.respondRequest}
-                onSendMessage={socials.sendMessage}
-                onLoadHistory={socials.loadHistory}
-                onRefreshSocials={socials.refresh}
-                onOpenPlanDateModal={(chatId) => requireAuth('send messages', () => { setPlanDateChatId(chatId || null); setIsPlanDateModalOpen(true); })}
-                onOpenCreateGroupModal={() => requireAuth('send messages', () => setIsCreateGroupOpen(true))}
-                onViewUserProfile={(profile) => setViewingProfile(profile)}
-                onOpenVerificationModal={() => setIsLivenessModalOpen(true)}
-                targetChatId={targetChatId}
-                onClearTargetChatId={() => setTargetChatId(null)}
-                showToast={showToast}
-              />
-            )}
-
-            {activeTab === 'vault' && (
-              <VaultTab
-                tickets={tickets}
-                events={allEvents}
-                onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
-                onExploreTrendingEvents={() => {
-                  setActiveTab('home');
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                onShowQrCode={(title) => setQrPassTitle(title)}
-                showToast={showToast}
-              />
-            )}
-
-            {activeTab === 'calendar' && (
+{activeTab === 'calendar' && (
               <LukuEventsTab
                 events={allEvents}
                 initialDate={calendarTargetDate}
@@ -2793,9 +2884,10 @@ export default function App() {
                 showToast={showToast}
               />
             )}
-            </div>
+              </div>
+              </ErrorBoundary>
+            )}
             </Suspense>
-            </ErrorBoundary>
             </div>
           </main>
 
@@ -2803,25 +2895,7 @@ export default function App() {
           <Navigation
             activeTab={activeTab}
             onPrefetchTab={prefetchTab}
-            onTabChange={(tab) => {
-              if (tab === 'merchant') {
-                requireAuth('access the Merchant Hub', () => {
-                  if (tab !== activeTab) {
-                    window.history.pushState({ radaApp: true, tab }, '');
-                    setActiveTab(tab);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }
-                });
-                return;
-              }
-              if (tab !== activeTab) {
-                if (tab !== 'home') {
-                  window.history.pushState({ radaApp: true, tab }, '');
-                }
-                setActiveTab(tab);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }
-            }}
+            onTabChange={changeTab}
           />
 
           {/* Modals & Overlays */}
