@@ -1,56 +1,55 @@
 name: Seed spots (free gosom scraper, no Apify)
 
+# ── When it runs ───────────────────────────────────────────────────────────────────────
+# 1. schedule          : every day at 06:15 UTC — one category per day, rotating through all 17.
+# 2. workflow_run      : right after "Test gosom Google Maps scraper" finishes — the seed prompt.
+#                        Only a SUCCESSFUL test run seeds.
+# 3. workflow_dispatch : manual retry, or a one-off with the overrides below.
+#
+# ── The fixed seed prompt ─────────────────────────────────────────────────────────────
+#   location : Nairobi, Thika Road, Kiambu (always, in that order)
+#   category : exactly ONE category per run, alternating day by day through the app's 17
+#              categories (scripts/seed-next-category.mjs — same order as src/lib/spotCategories.ts)
+#   spots    : at least 15 per place
+#   dry run  : OFF — every run writes the places to Supabase
+#
+# The rotation is derived from the UTC day, so a scheduled run and a same-day retry fill the
+# SAME category instead of skipping ahead. Set the repository variable
+# ROTATION_CATEGORY_TODAY=YYYY-MM-DD to pin the rotation to that date for the day.
+
 on:
+  schedule:
+    - cron: '15 6 * * *'
+  workflow_run:
+    workflows: ['Test gosom Google Maps scraper (writes nothing to your database)']
+    types: [completed]
   workflow_dispatch:
     inputs:
       areas:
-        description: 'Places, separated by ;  Each: Name  or  Search|Label  or  Search|Label|lat,lng   e.g. Westlands; Kilimani; Mpaka Road|Westlands|-1.2640,36.8040'
+        description: 'OVERRIDE. Blank = fixed prompt (Nairobi; Thika Road; Kiambu). Format: Name or Search|Label|lat,lng separated by ;'
         type: string
-        default: 'Roysambu; Kasarani; Mirema'
+        default: ''
       categories:
-        description: 'Categories, comma separated, exact names, e.g. Rooftops, Restaurants, Clubs & Lounges (all 17 are listed in the run error if you mistype one)'
+        description: 'OVERRIDE. Blank = the rotation category for today. Comma separated exact names.'
         type: string
-        default: 'Clubs & Lounges'
-      add_count:
-        description: 'Add exactly this many NEW spots per place per category (0 = use the target below instead)'
+        default: ''
+      min_spots_per_place:
+        description: 'OVERRIDE. Spots each place must end up with (blank = 15)'
         type: string
-        default: '10'
-      target:
-        description: 'Only used when add_count is 0: top each place up to this many spots per category'
-        type: string
-        default: '30'
-      dry_run:
-        description: 'Dry run = preview only, writes nothing to your database'
-        type: boolean
-        default: true
-      depth:
-        description: 'Result pages scrolled per search on the first try (1 = about 15 places, 2 = about 30)'
-        type: string
-        default: '2'
-      strict:
-        description: 'Strict fill: if a place is still short, search deeper until it has enough (slower)'
-        type: boolean
-        default: true
-      max_depth:
-        description: 'Strict fill only: the deepest it will search before giving up'
-        type: string
-        default: '4'
-      max_photos:
-        description: 'Photos kept per spot'
-        type: string
-        default: '5'
-      min_reviews:
-        description: 'Skip places with fewer reviews than this'
-        type: string
-        default: '20'
+        default: ''
 
 permissions:
   contents: write
+  actions: read
+
+concurrency:
+  group: seed-spots
+  cancel-in-progress: false
 
 jobs:
   seed:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
 
@@ -58,34 +57,132 @@ jobs:
         with:
           node-version: '22'
 
+      # ── 1. Did the seed prompt succeed? ─────────────────────────────────────────────
+      - name: Check the seed prompt
+        id: check
+        env:
+          EVENT_NAME_IN: ${{ github.event_name }}
+          EVENT_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          PINNED_DAY: ${{ vars.ROTATION_CATEGORY_TODAY }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME_IN" = "workflow_run" ] && [ "$EVENT_CONCLUSION" != "success" ]; then
+            echo "::notice title=Seed skipped::The scraper test finished '$EVENT_CONCLUSION', so nothing was seeded."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "run=true" >> "$GITHUB_OUTPUT"
+
+      # ── 2. Resolve the fixed seed prompt (or the manual overrides) ───────────────────
+      - name: Resolve what this run seeds
+        id: plan
+        if: ${{ steps.check.outputs.run == 'true' }}
+        env:
+          MANUAL_AREAS: ${{ inputs.areas }}
+          MANUAL_CATEGORIES: ${{ inputs.categories }}
+          MANUAL_MIN: ${{ inputs.min_spots_per_place }}
+          PINNED_DAY: ${{ vars.ROTATION_CATEGORY_TODAY }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "${MANUAL_AREAS//[[:space:]]/}" ]; then
+            areas="$MANUAL_AREAS"
+          else
+            areas='Nairobi; Thika Road; Kiambu'
+          fi
+
+          if [ -n "${MANUAL_MIN//[[:space:]]/}" ]; then
+            min_spots="$MANUAL_MIN"
+          else
+            min_spots=15
+          fi
+          if ! [[ "$min_spots" =~ ^[0-9]+$ ]] || [ "$min_spots" -lt 1 ]; then
+            echo "::error title=Bad min_spots_per_place::'$min_spots' is not a whole number >= 1"; exit 1
+          fi
+
+          if [ -n "${MANUAL_CATEGORIES//[[:space:]]/}" ]; then
+            categories="$MANUAL_CATEGORIES"
+            echo "Category: manual override"
+          else
+            rotation_day="${PINNED_DAY//[[:space:]]/}"
+            if [ -z "$rotation_day" ]; then rotation_day=$(date -u +%Y-%m-%d); fi
+            categories=$(node scripts/seed-next-category.mjs --date="$rotation_day")
+            echo "Category: rotation for $rotation_day"
+          fi
+
+          echo "Places: $areas"
+          echo "Category: $categories"
+          echo "Min per place: $min_spots"
+
+          {
+            echo "areas=$areas"
+            echo "categories=$categories"
+            echo "min_spots=$min_spots"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Seed prompt"
+            echo ""
+            echo "| Setting | Value |"
+            echo "|---|---|"
+            echo "| Location | ${areas//;/,} |"
+            echo "| Category | $categories |"
+            echo "| Spots per place | at least $min_spots |"
+            echo "| Mode | live (writes to Supabase) |"
+            echo "| Trigger | ${{ github.event_name }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # ── 3. Seed (live) ──────────────────────────────────────────────────────────────
       - name: Seed spots
+        if: ${{ steps.plan.outputs.areas != '' }}
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          AREAS: ${{ inputs.areas }}
-          CATEGORIES: ${{ inputs.categories }}
-          ADD_COUNT: ${{ inputs.add_count }}
-          TARGET: ${{ inputs.target }}
-          DRY_RUN: ${{ inputs.dry_run }}
-          DEPTH: ${{ inputs.depth }}
-          STRICT: ${{ inputs.strict }}
-          MAX_DEPTH: ${{ inputs.max_depth }}
-          MAX_PHOTOS: ${{ inputs.max_photos }}
-          MIN_REVIEWS: ${{ inputs.min_reviews }}
-          INPUTS: ${{ toJSON(inputs) }}
+          AREAS: ${{ steps.plan.outputs.areas }}
+          CATEGORIES: ${{ steps.plan.outputs.categories }}
+          # add_count 0 + target = min_spots => top each place up to 15 for this category.
+          # A rerun the same day only adds the shortfall; it never overshoots.
+          ADD_COUNT: '0'
+          TARGET: ${{ steps.plan.outputs.min_spots }}
+          # Never a dry run: every run must actually save the places.
+          DRY_RUN: 'false'
+          DEPTH: '3'
+          STRICT: 'true'
+          MAX_DEPTH: '6'
+          MAX_PHOTOS: '5'
+          MIN_REVIEWS: '20'
         run: |
+          set -euo pipefail
           SCRIPT=$(git ls-files | grep -m1 'seed-spots\.mjs$' || true)
           if [ -z "$SCRIPT" ]; then echo "seed-spots.mjs is not committed to the repo"; exit 1; fi
           echo "Running $SCRIPT"
           node "$SCRIPT"
 
-      - name: Save the run log (live runs only)
-        if: ${{ always() && !inputs.dry_run }}
+      # ── 4. Gate: 15 spots per place, and show exactly what landed ───────────────────
+      - name: Check the result (15 spots per place)
+        if: ${{ steps.plan.outputs.areas != '' }}
+        env:
+          MIN_SPOTS_OUT: ${{ steps.plan.outputs.min_spots }}
         run: |
-          if [ -d seed-runs ]; then
+          set -euo pipefail
+          LATEST=$(ls -1t seed-runs/*.json 2>/dev/null | head -1 || true)
+          if [ -z "$LATEST" ]; then
+            echo "::error title=Nothing saved::The run finished without inserting a single spot (no seed-runs log was written)."
+            exit 1
+          fi
+          echo "Run log: $LATEST"
+          node scripts/check-seed-run.mjs "$LATEST" "$MIN_SPOTS_OUT"
+
+      # ── 5. Persist the run log ──────────────────────────────────────────────────────
+      - name: Save the run log
+        if: ${{ always() && steps.plan.outputs.areas != '' }}
+        run: |
+          if [ -n "$(git status --porcelain seed-runs 2>/dev/null)" ]; then
             git config user.name "github-actions"
             git config user.email "github-actions@users.noreply.github.com"
             git add seed-runs
-            git commit -m "Seed run log" || true
+            git commit -m "Seed run log"
+            git pull --rebase --autostash || true
             git push || true
           fi
