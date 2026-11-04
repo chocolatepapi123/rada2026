@@ -154,6 +154,7 @@ const PublicBusinessProfileModal = lazyNamed(() => import('./components/PublicBu
 const Overlays = lazyNamed(() => import('./components/Overlays.tsx'), 'Overlays');
 const LocationMapModal = lazyNamed(() => import('./components/LocationMapModal.tsx'), 'LocationMapModal');
 const UserProfileModal = lazyNamed(() => import('./components/UserProfileModal.tsx'), 'UserProfileModal');
+const ProfilePage = lazyNamed(() => import('./components/ProfilePage.tsx'), 'ProfilePage');
 const AccountSettingsModal = lazyNamed(() => import('./components/AccountSettingsModal.tsx'), 'AccountSettingsModal');
 const SavedPlacesModal = lazyNamed(() => import('./components/SavedPlacesModal.tsx'), 'SavedPlacesModal');
 const LivenessVerificationModal = lazyNamed(() => import('./components/LivenessVerificationModal.tsx'), 'LivenessVerificationModal');
@@ -504,6 +505,7 @@ export default function App() {
 
     // Dismiss any open user/admin/merchant modals
     setIsAccountSettingsOpen(false);
+    setIsProfilePageOpen(false);
     setIsBusinessHubOpen(false);
     setIsAdminOpen(false);
     setViewingProfile(null);
@@ -1275,6 +1277,7 @@ export default function App() {
   // Modals state for Account Settings and Saved Items
   const [isSavedModalOpen, setIsSavedModalOpen] = useState(false);
   const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
+  const [isProfilePageOpen, setIsProfilePageOpen] = useState(false);
 
   // Sync state to localStorage
   useEffect(() => {
@@ -1414,6 +1417,7 @@ export default function App() {
   const isAnyModalOpen = Boolean(
     isAuthModalOpen ||
     isAccountSettingsOpen ||
+    isProfilePageOpen ||
     isSavedModalOpen ||
     isAdminOpen ||
     viewingProfile ||
@@ -1468,6 +1472,7 @@ export default function App() {
         modalHistoryPushedRef.current = false;
         if (isAuthModalOpen) setIsAuthModalOpen(false);
         if (isAccountSettingsOpen) setIsAccountSettingsOpen(false);
+        if (isProfilePageOpen) setIsProfilePageOpen(false);
         if (isSavedModalOpen) setIsSavedModalOpen(false);
         if (isAdminOpen) setIsAdminOpen(false);
         if (viewingProfile) setViewingProfile(null);
@@ -1534,6 +1539,7 @@ export default function App() {
     isAnyModalOpen,
     isAuthModalOpen,
     isAccountSettingsOpen,
+    isProfilePageOpen,
     isSavedModalOpen,
     isAdminOpen,
     viewingProfile,
@@ -2561,7 +2567,7 @@ export default function App() {
         setIsSavedModalOpen(true);
       });
     } else if (overlayId === 'youOverlay' || overlayId === 'accountSettings') {
-      setIsAccountSettingsOpen(true);
+      setIsProfilePageOpen(true);
     } else {
       setActiveOverlay(overlayId);
     }
@@ -2623,7 +2629,7 @@ export default function App() {
   return (
     <ToastProvider>
       <BusinessesProvider businesses={businesses}>
-        <div className="min-h-screen bg-white text-slate-900 dark:bg-[#121113] dark:text-slate-100 flex flex-col transition-colors duration-200 antialiased overflow-x-hidden">
+        <div className="min-h-screen bg-white text-slate-900 dark:bg-[#121113] dark:text-slate-100 flex flex-col transition-colors duration-200 antialiased overflow-x-clip">
           {/* Primary Application Splash Screen */}
           {showSplash && <SplashScreen durationMs={1200} onDismiss={() => setShowSplash(false)} />}
 
@@ -2700,7 +2706,10 @@ export default function App() {
             onLogout={handleSignOut}
             onOpenSaved={() => setIsSavedModalOpen(true)}
             savedCount={savedItems.length}
-            onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
+            onOpenProfile={() => setIsProfilePageOpen(true)}
+            avatar={currentUserProfile?.avatar}
+            displayName={currentUserProfile?.name || currentUserProfile?.handle}
+            showToast={showToast}
             onOpenSuggestSpot={() => setIsSuggestSpotModalOpen(true)}
             onRefresh={handleHeaderRefresh}
           />
@@ -2796,7 +2805,7 @@ export default function App() {
                 isUserSignedIn={Boolean(session?.user?.id)}
                 onOpenAuth={() => setIsAuthModalOpen(true)}
                 onCreateOuting={handleCreateOuting}
-                onOpenPlans={() => setIsAccountSettingsOpen(true)}
+                onOpenPlans={() => setIsProfilePageOpen(true)}
                 onRequestJoin={handleRequestJoin}
                 onUpdateAttendeeStatus={handleUpdateAttendeeStatus}
                 onOpenOutingChat={handleOpenOutingChat}
@@ -3040,7 +3049,7 @@ export default function App() {
             onToggleTheme={handleToggleTheme}
             showToast={showToast}
             onOpenSaved={() => requireAuth('view saved collections', () => setIsSavedModalOpen(true))}
-            onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
+            onOpenAccountSettings={() => setIsProfilePageOpen(true)}
             savedCount={savedItems.length}
             savedItems={savedItems}
             onToggleSave={handleToggleSave}
@@ -3077,7 +3086,7 @@ export default function App() {
             }}
             showToast={showToast}
             onOpenSavedItems={() => requireAuth('view saved collections', () => setIsSavedModalOpen(true))}
-            onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
+            onOpenAccountSettings={() => setIsProfilePageOpen(true)}
             currentUserId={session?.user?.id}
             onOpenAuth={() => setIsAuthModalOpen(true)}
           />
@@ -3093,6 +3102,26 @@ export default function App() {
               onOpenEventDetails={(event) => setSelectedEventModal(event)}
               showToast={showToast}
             />
+          )}
+
+          {isProfilePageOpen && (
+            <Suspense fallback={null}>
+              <ProfilePage
+                onClose={() => setIsProfilePageOpen(false)}
+                session={session}
+                currentUserProfile={currentUserProfile}
+                showToast={showToast}
+                onOpenAuth={() => setIsAuthModalOpen(true)}
+                onProfileChange={handleOwnProfileChange}
+                outings={allOutings}
+                myBusinesses={session?.user?.id ? businesses.filter(b => b.ownerId === session.user.id && !isDemoId(b.id)) : []}
+                savedCount={savedItems.length}
+                ticketCount={tickets.length}
+                onOpenSaved={() => setIsSavedModalOpen(true)}
+                isDarkMode={isDarkMode}
+                onToggleTheme={handleToggleTheme}
+              />
+            </Suspense>
           )}
 
           {isAccountSettingsOpen && (
