@@ -88,7 +88,7 @@ html.dark .rada-sketch-map { background: #17151a; }
 
 /* Dark mode: darker, richer, deeper accents and darker surfaces */
 html.dark {
-  background-color: #0C0A0E;
+  background-color: #121113;
   color: #F1F5F9;
   --color-brandTerracotta: #B83D26;
   --color-brandSage: #1E5338;
@@ -140,19 +140,7 @@ html.low-end .toast-notification { animation-duration: 0.01ms !important; }
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
-/* Phone bottom system bar (gesture line / 3 buttons): same colour as the screen at the bottom edge, never themed.
-   --rada-bar-bottom is kept up to date by src/lib/systemBars.ts. The strip is exactly as tall as the phone's bottom inset. */
-body::after {
-  content: "";
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: env(safe-area-inset-bottom, 0px);
-  background: var(--rada-bar-bottom, transparent);
-  pointer-events: none;
-  z-index: 2147483647;
-}
+/* Phone bottom system bar: no coloured strip. The page background shows through. */
 
 /* Bottom navigation: follows the IN-APP theme (html.light / html.dark, toggled by App.tsx),
    not the phone's prefers-color-scheme. */
@@ -254,15 +242,17 @@ html.dark .rada-nav-badge {
   box-shadow: 0 0 0 2px #1F1D24, 0 2px 4px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
-/* Tab switch: content slides a few px in the direction of travel and fades in. */
+/* Tab switch: content swipes in from the direction of travel (set by --rada-slide) while fading in. */
 @keyframes radaTabEnter {
-  from { opacity: 0; transform: translate3d(var(--rada-slide, 0px), 4px, 0); }
+  from { opacity: 0; transform: translate3d(var(--rada-slide, 0px), 0, 0); }
   to { opacity: 1; transform: none; }
 }
 .rada-tab-enter {
-  animation: radaTabEnter 280ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation: radaTabEnter 340ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
-html.low-end .rada-tab-enter { animation: none; }
+/* Low-memory phones: plain quick fade, no movement. */
+@keyframes radaTabFade { from { opacity: 0; } to { opacity: 1; } }
+html.low-end .rada-tab-enter { animation: radaTabFade 180ms ease-out backwards !important; transform: none; }
 
 /* Soft fade behind the floating bottom nav (phone only): content dissolves into the page colour instead of
    hard-cutting under the pill. Follows the in-app theme. Delete this block (and .rada-nav-fade in Navigation.tsx) to remove it. */

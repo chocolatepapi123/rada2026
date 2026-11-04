@@ -678,7 +678,7 @@ export default function App() {
     }
   };
   const mainRef = useRef<HTMLElement | null>(null);
-  const tabSlide = tabSlideDir(activeTab) * 14;
+  const tabSlide = tabSlideDir(activeTab) * 48;
   const [calendarTargetDate, setCalendarTargetDate] = useState<string | null>(null);
   const [calendarTargetEventId, setCalendarTargetEventId] = useState<number | string | null>(null);
   const lastSpotsScrollPosRef = useRef<number>(0);
