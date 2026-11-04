@@ -21,7 +21,6 @@ import { Header } from './components/Header.tsx';
 import { Navigation } from './components/Navigation.tsx';
 import { HomeTab } from './components/HomeTab.tsx';
 import { SplashScreen } from './components/SplashScreen.tsx';
-import { useSystemBarColors } from './lib/systemBars.ts';
 import { ToastProvider, showToast as triggerToast, type ToastOptions } from './components/Toast.tsx';
 import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 import { getTimeOfDayGreeting } from './utils/greetingUtils';
@@ -552,7 +551,6 @@ export default function App() {
   
 
   // Theme State: the app always opens in light mode until the person picks dark with the toggle.
-  // (Phone bars do not follow this: see useSystemBarColors below.)
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     try { return localStorage.getItem('rada_theme') === 'dark'; } catch { return false; }
   });
@@ -562,12 +560,17 @@ export default function App() {
     document.documentElement.classList.toggle('light', !isDarkMode);
   }, [isDarkMode]);
 
-  // Phone top + bottom bars are NOT themed: they copy whatever colour the current screen paints at that edge
-  // (splash, home, modals...). See src/lib/systemBars.ts. Only the browser's own widgets follow the theme.
-  useSystemBarColors();
+  // Phone top bar = the colour of the screen under it. Only two states, set from app state (no measuring, so no flicker):
+  // orange while the splash / loading screen shows, otherwise the page background (white, or #121113 in dark mode).
   useEffect(() => {
+    const color = (showSplash || authLoading) ? '#E05328' : (isDarkMode ? '#121113' : '#FFFFFF');
+    let m = document.querySelector('meta[name="theme-color"]');
+    if (!m) { m = document.createElement('meta'); m.setAttribute('name', 'theme-color'); document.head.appendChild(m); }
+    m.setAttribute('content', color);
+    // Android app (Capacitor wrapper): tell the native side so the phone bars show the same colour.
+    try { (window as any).Capacitor?.Plugins?.RadaBars?.setColor({ color }); } catch {}
     document.documentElement.style.colorScheme = isDarkMode ? 'dark' : 'light';
-  }, [isDarkMode]);
+  }, [isDarkMode, showSplash, authLoading]);
 
   const handleToggleTheme = () => {
     setIsDarkMode(prev => {
