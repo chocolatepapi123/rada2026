@@ -254,12 +254,12 @@ html.dark .rada-nav-badge {
   box-shadow: 0 0 0 2px #1F1D24, 0 2px 4px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
-/* Tab switch: content eases up 6px and fades in. Felt more than seen. */
+/* Tab switch: content slides a few px in the direction of travel and fades in. */
 @keyframes radaTabEnter {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translate3d(var(--rada-slide, 0px), 4px, 0); }
   to { opacity: 1; transform: none; }
 }
 .rada-tab-enter {
-  animation: radaTabEnter 240ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation: radaTabEnter 280ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 html.low-end .rada-tab-enter { animation: none; }

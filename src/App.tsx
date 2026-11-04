@@ -278,6 +278,18 @@ const isLegacyMockSpot = (s: any) =>
   /^\d{1,2}$/.test(String(s?.id ?? '')) && Number(s.id) <= 20 && MOCK_SPOT_TITLE_SET.has(String(s?.title || '').trim().toLowerCase());
 const stripMockSpots = <T,>(list: T[]): T[] => list.filter(s => !isLegacyMockSpot(s));
 
+// Direction the tab content slides in from (1 = from the right, -1 = from the left).
+const TAB_ORDER = ['home', 'spots', 'outings', 'plans', 'socials', 'vault', 'calendar', 'merchant'];
+let prevSlideTab = 'home';
+let slideDir = 1;
+const tabSlideDir = (tab: string): number => {
+  if (tab !== prevSlideTab) {
+    slideDir = TAB_ORDER.indexOf(tab) >= TAB_ORDER.indexOf(prevSlideTab) ? 1 : -1;
+    prevSlideTab = tab;
+  }
+  return slideDir;
+};
+
 export default function App() {
   const [session, setSession] = useState<any>(null);
   // Demo accounts (see lib/demoPersonas.ts) open in Demo Mode automatically. Must run before anything reads isDemoMode().
@@ -2614,11 +2626,11 @@ export default function App() {
           />
 
           {/* Main Content Viewports */}
-          <main className="flex-1 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] min-[900px]:pb-10 max-w-lg min-[900px]:max-w-none mx-auto w-full relative px-0 min-[900px]:pl-60">
+          <main className="flex-1 pb-[calc(7.5rem+env(safe-area-inset-bottom,0px))] min-[900px]:pb-10 max-w-lg min-[900px]:max-w-none mx-auto w-full relative px-0 min-[900px]:pl-60">
             <div className="w-full min-[900px]:max-w-5xl min-[900px]:mx-auto min-[900px]:px-8 min-[900px]:py-6">
             <ErrorBoundary key={activeTab} fallbackTitle="Resuming View">
-            <div className="rada-tab-enter">
             <Suspense fallback={<TabFallback />}>
+            <div key={activeTab} className="rada-tab-enter" style={{ ['--rada-slide' as any]: `${tabSlideDir(activeTab) * 14}px` }}>
             {activeTab === 'home' && (
               <HomeTab
                 events={allEvents}
@@ -2781,8 +2793,8 @@ export default function App() {
                 showToast={showToast}
               />
             )}
-            </Suspense>
             </div>
+            </Suspense>
             </ErrorBoundary>
             </div>
           </main>
