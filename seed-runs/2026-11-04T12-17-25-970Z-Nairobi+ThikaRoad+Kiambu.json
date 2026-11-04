@@ -1,0 +1,226 @@
+{
+  "ranAt": "2026-11-04T12:17:25.971Z",
+  "areas": [
+    "Nairobi|Nairobi",
+    "Thika Road|Thika Road",
+    "Kiambu|Kiambu"
+  ],
+  "categories": [
+    "Clubs & Lounges"
+  ],
+  "target": 30,
+  "summary": [
+    {
+      "area": "Nairobi",
+      "category": "Clubs & Lounges",
+      "qualified": 41,
+      "alreadyInDb": 30,
+      "new": 11,
+      "note": "SHORT by 19"
+    },
+    {
+      "area": "Thika Road",
+      "category": "Clubs & Lounges",
+      "qualified": 28,
+      "alreadyInDb": 19,
+      "new": 8,
+      "note": "SHORT by 22"
+    },
+    {
+      "area": "Kiambu",
+      "category": "Clubs & Lounges",
+      "qualified": 24,
+      "alreadyInDb": 8,
+      "new": 12,
+      "note": "SHORT by 18"
+    }
+  ],
+  "spots": [
+    {
+      "google_place_id": "ChIJ1X_M25ASLxgRTKxgrtjff-A",
+      "name": "Turkish Airlines Lounge",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJtaM5BAATLxgRO3CSPKnBvUI",
+      "name": "Plaza Premium Lounge Nairobi (International Departures, Terminal 1D)",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ17Q6Nf8RLxgRhYZE3dHEsr4",
+      "name": "Rabbit Hole Lounge",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ4zKUICoRLxgRggdIKI-HqZ8",
+      "name": "Club Signature",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ8x2ZE-cTLxgRf0JkqhdMq3o",
+      "name": "Aspire Lounge, Jomo Kenyatta International Airport",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJxxqfOdYQLxgRmj7bUcb5xP4",
+      "name": "Sixtyfour Restaurant & Lounge",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJE3qUESgRLxgRBschhWZKib4",
+      "name": "City Platinum Club",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJuyfi4a4RLxgRW2MCRib_VoU",
+      "name": "Humidor Bar & Lounge",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJV_x5_yIaLxgRiVi8TX8uGtk",
+      "name": "207 Lounge Bar",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJIyQcg98VLxgRYkIecwGlMZo",
+      "name": "Beast Of Barrel Lounge",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJTVBoLXYbLxgRZlOQ5khACBU",
+      "name": "Club M's",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJSfC0SuYVLxgROLSQW_kon_E",
+      "name": "Homeland Inn",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJH4p_RJRALxgR2AWTxM0GD2Q",
+      "name": "@1.7 Lounge",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJyR7f2E9PLxgRdhbImmbqNUw",
+      "name": "Vspot Nightlife Thika",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJk0FUWzI_LxgR4zCqKQcsiP0",
+      "name": "Spiral lounge club and restaurant",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJHxKcPgZHLxgRRAvHbRWD-lM",
+      "name": "1759 Spiral Lounge",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJZ7vYpNQXLxgRpyy2ZuOWEnY",
+      "name": "Truce Lounge & Grill",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJL0v5wd09LxgRMLGIVwRSuoE",
+      "name": "Kikie's Lounge",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJC_jpQwBrLxgRFgP4fv9MZEI",
+      "name": "Q Lounge 505",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJYQFQ3IE9LxgRJYfdxHgBmAk",
+      "name": "Bar Next Door Kiambu Road",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJ9bQGQiE9LxgRP6D-JZulIsw",
+      "name": "The Pelikan Village",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJt5zSZgA9LxgRNa6HCJ_X5kk",
+      "name": "X LOUNGE 254",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJ9X-R7PA9LxgRYe6_eGqETfM",
+      "name": "Capital Noir",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJiTL89Bg9LxgRqnzBsQ7WQhQ",
+      "name": "KLM Lounge-Kiambu Road",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJA0PFmGE8LxgRT_twlUjRffk",
+      "name": "Spillaz Lounge",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJA69joGk_LxgRIGFCJX6G9Ps",
+      "name": "LUNA LOUNGE AND GRILL",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJKzOntMQXLxgRY7w4m-nsyJo",
+      "name": "Saape Lounge - Ciata City Mall",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJff2ZeI89LxgRQNLIBPdXB98",
+      "name": "Devine Resort, Bar and Restaurant",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJGRzKRAk9LxgR4EDjov_zmUk",
+      "name": "Feliz Place",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJRdh-DwAjLxgR4cCbYxQ46Hw",
+      "name": "QCUTTER",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJmQ_Hb9c5LxgRoi4x3whsF9Y",
+      "name": "Bush Lounge Park & Chill",
+      "category": "Clubs & Lounges",
+      "neighborhood": "Kiambu"
+    }
+  ]
+}
