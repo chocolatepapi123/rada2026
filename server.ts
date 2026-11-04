@@ -12,6 +12,9 @@ const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
+  app.disable('x-powered-by');
+  // Behind Render/Railway/Cloud Run etc. the real client IP is in X-Forwarded-For; without this every user shares one rate-limit bucket.
+  if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
   const PORT = Number(process.env.PORT) || 3000;
 
   // Enforce security headers
@@ -20,16 +23,25 @@ async function startServer() {
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=(self), payment=()');
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+    if (process.env.NODE_ENV === 'production') {
+      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
     next();
   });
 
-  app.use(express.json({ limit: '2mb' }));
+  app.use(express.json({ limit: '256kb' }));
 
   // In-memory rate limiting for AI endpoints: max 30 requests per minute per IP
   const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
   const aiRateLimiter = (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const now = Date.now();
+    // Drop expired entries so the map cannot grow forever on a long-running server.
+    if (rateLimitMap.size > 5000) {
+      for (const [k, v] of rateLimitMap) if (now > v.resetTime) rateLimitMap.delete(k);
+    }
     const entry = rateLimitMap.get(ip);
     if (!entry || now > entry.resetTime) {
       rateLimitMap.set(ip, { count: 1, resetTime: now + 60000 });
@@ -58,11 +70,7 @@ async function startServer() {
 
   // Health check endpoint
   app.get('/api/health', (_req, res) => {
-    res.json({
-      status: 'ok',
-      hasGeminiKey: Boolean(apiKey),
-      timestamp: new Date().toISOString(),
-    });
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
   // Dynamic Wagwan AI chat endpoint with full location, category & listings context
@@ -79,13 +87,13 @@ async function startServer() {
         thriftItems = [] 
       } = req.body;
 
-      if (!message || typeof message !== 'string') {
-        return res.status(400).json({ error: 'A valid text prompt message is required.' });
+      if (!message || typeof message !== 'string' || message.length > 1000) {
+        return res.status(400).json({ error: 'A valid text prompt message (max 1000 characters) is required.' });
       }
 
       // If Gemini client is active, execute dynamic model inference with comprehensive context
       if (ai) {
-        const spotsContext = (spots || []).map((s: any) => ({
+        const spotsContext = (Array.isArray(spots) ? spots.slice(0, 60) : []).map((s: any) => ({
           id: s.id,
           title: s.title,
           category: s.category,
@@ -101,7 +109,7 @@ async function startServer() {
           featuredDishes: s.featuredDishes,
         }));
 
-        const eventsContext = (events || []).map((e: any) => ({
+        const eventsContext = (Array.isArray(events) ? events.slice(0, 60) : []).map((e: any) => ({
           id: e.id,
           title: e.title,
           category: e.category,
@@ -114,7 +122,7 @@ async function startServer() {
           goingCount: e.goingCount,
         }));
 
-        const thriftContext = (thriftItems || []).map((t: any) => ({
+        const thriftContext = (Array.isArray(thriftItems) ? thriftItems.slice(0, 60) : []).map((t: any) => ({
           id: t.id,
           name: t.name,
           category: t.category,
@@ -269,7 +277,7 @@ Respond as Wagwan AI in JSON format.`;
     } catch (err: any) {
       console.error('Server error in /api/ai/chat:', err);
       return res.status(500).json({
-        error: err.message || 'Internal server error processing AI chat prompt',
+        error: 'Wagwan AI is having a moment. Please try again.',
         reply: "Wagwan! I'm temporarily unable to reach the AI models, please try again in a moment.",
       });
     }
@@ -297,13 +305,13 @@ Respond as Wagwan AI in JSON format.`;
         thriftItems = [] 
       } = req.body;
 
-      if (!message || typeof message !== 'string') {
+      if (!message || typeof message !== 'string' || message.length > 1000) {
         sendSSE('error', { error: 'Valid prompt message is required.' });
         return res.end();
       }
 
       if (ai) {
-        const spotsContext = (spots || []).map((s: any) => ({
+        const spotsContext = (Array.isArray(spots) ? spots.slice(0, 60) : []).map((s: any) => ({
           id: s.id,
           title: s.title,
           category: s.category,
@@ -316,7 +324,7 @@ Respond as Wagwan AI in JSON format.`;
           address: s.address,
         }));
 
-        const eventsContext = (events || []).map((e: any) => ({
+        const eventsContext = (Array.isArray(events) ? events.slice(0, 60) : []).map((e: any) => ({
           id: e.id,
           title: e.title,
           category: e.category,
@@ -326,7 +334,7 @@ Respond as Wagwan AI in JSON format.`;
           goingCount: e.goingCount,
         }));
 
-        const thriftContext = (thriftItems || []).map((t: any) => ({
+        const thriftContext = (Array.isArray(thriftItems) ? thriftItems.slice(0, 60) : []).map((t: any) => ({
           id: t.id,
           name: t.name,
           category: t.category,
@@ -454,14 +462,14 @@ Thrift Database: ${JSON.stringify(thriftContext)}`,
       res.end();
     } catch (err: any) {
       console.error('Error in /api/ai/chat-stream:', err);
-      sendSSE('error', { error: err.message || 'Stream processing error' });
+      sendSSE('error', { error: 'Wagwan AI is having a moment. Please try again.' });
       res.end();
     }
   });
 
   // Mount Vite middleware in development or serve static files in production
   if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.resolve(__dirname, 'dist')));
+    app.use(express.static(path.resolve(__dirname, 'dist'), { maxAge: '1h', setHeaders: (res, p) => { if (p.endsWith('sw.js') || p.endsWith('index.html')) res.setHeader('Cache-Control', 'no-cache'); } }));
     app.get('*', (_req, res) => {
       res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
     });
@@ -669,16 +677,16 @@ function generateIntelligentFallbackResponse(params: {
 
     let responsePersonaText = '';
     if (isQuietCafe) {
-      responsePersonaText = `Wagwan! For a peaceful remote work vibe with good Wi-Fi and artisan brews, I highly recommend ${topMatch.title} in ${topMatch.neighborhood}! Rating: topMatch.rating} (${topMatch.price}). ${topMatch.description} Perfect for getting focused work done or quiet one-on-ones.`;
+      responsePersonaText = `Wagwan! For a peaceful remote work vibe with good Wi-Fi and artisan brews, I highly recommend ${topMatch.title} in ${topMatch.neighborhood}! Rating: ${topMatch.rating}/5 (${topMatch.price}). ${topMatch.description} Perfect for getting focused work done or quiet one-on-ones.`;
     } else if (isIndoorSports) {
       responsePersonaText = `Rada safi! Looking for indoor sports and action in Nairobi? Check out ${topMatch.title} in ${topMatch.neighborhood}! ${topMatch.description} Tap View Details below to check pricing, lane times, and squad bookings!`;
     } else if (isDate) {
-      responsePersonaText = `Wagwan! For a memorable date night with intimate atmosphere, ${topMatch.title} in ${topMatch.neighborhood} is unmatched! topMatch.rating} (${topMatch.price}). ${topMatch.description} Great wine selection and cozy seating.`;
+      responsePersonaText = `Wagwan! For a memorable date night with intimate atmosphere, ${topMatch.title} in ${topMatch.neighborhood} is unmatched! ${topMatch.rating}/5 (${topMatch.price}). ${topMatch.description} Great wine selection and cozy seating.`;
     } else if (isNature) {
       responsePersonaText = `Rada safi! Need fresh air away from Nairobi traffic? I recommend heading over to ${topMatch.title} (${topMatch.neighborhood})! ${topMatch.description} Trail fee is super affordable and great for a Saturday morning jog.`;
     } else {
       const locNotice = selectedLocation ? ` near ${selectedLocation}` : '';
-      responsePersonaText = `Wagwan! For your prompt "${message}"${locNotice}, my top pick is ${topMatch.title} in ${topMatch.neighborhood}! topMatch.rating} (${topMatch.price}). ${topMatch.description || 'Verified local hangout.'}`;
+      responsePersonaText = `Wagwan! For your prompt "${message}"${locNotice}, my top pick is ${topMatch.title} in ${topMatch.neighborhood}! ${topMatch.rating}/5 (${topMatch.price}). ${topMatch.description || 'Verified local hangout.'}`;
     }
 
     const matchedSpotIds = [topMatch.id];
