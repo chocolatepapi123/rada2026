@@ -44,7 +44,9 @@ jobs:
           if [ ! -f rada-icon.png ]; then echo "rada-icon.png not found in repo root, keeping default icon"; exit 0; fi
           BG='#E9562A'
           R=android-app/android/app/src/main/res
-          convert rada-icon.png -background "$BG" -alpha remove -alpha off -gravity center -crop 491x491+0+0 +repage sq.png
+          sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick
+          S=$(identify -format "%[fx:max(w,h)]" rada-icon.png)
+          convert rada-icon.png -background "$BG" -alpha remove -alpha off -gravity center -extent ${S}x${S} sq.png
           for pair in mdpi:48:108 hdpi:72:162 xhdpi:96:216 xxhdpi:144:324 xxxhdpi:192:432; do
             IFS=: read d l f <<< "$pair"
             mkdir -p $R/mipmap-$d
