@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Home, MapPin, CalendarPlus, Users, Wallet } from 'lucide-react';
+import { motion } from 'motion/react';
 import { getStoredLanguage, translations, type AppLanguage } from '../utils/i18n.ts';
 
 interface NavigationProps {
@@ -47,14 +48,22 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange, 
             onPointerDown={() => onPrefetchTab?.(tab.id)}
             onMouseEnter={() => onPrefetchTab?.(tab.id)}
             onClick={() => onTabChange(tab.id)}
-            className={`nav-btn relative flex flex-col items-center gap-1 flex-1 py-1.5 transition-colors duration-200 cursor-pointer active:scale-95 min-[900px]:active:scale-100 min-[900px]:flex-none min-[900px]:flex-row min-[900px]:justify-start min-[900px]:gap-3 min-[900px]:px-4 min-[900px]:py-3 min-[900px]:rounded-xl ${
+            className={`nav-btn relative flex flex-col items-center gap-1 flex-1 py-1.5 transition-colors duration-300 cursor-pointer active:scale-95 min-[900px]:active:scale-100 min-[900px]:flex-none min-[900px]:flex-row min-[900px]:justify-start min-[900px]:gap-3 min-[900px]:px-4 min-[900px]:py-3 min-[900px]:rounded-xl ${
               isActive 
                 ? 'rada-nav-btn-active font-bold' 
                 : 'rada-nav-btn-idle font-medium'
             }`}
           >
-            <Icon className={`w-6 h-6 min-[900px]:w-5 min-[900px]:h-5 transition-transform ${isActive ? 'stroke-[2.25px]' : 'stroke-[1.75px]'}`} />
-            <span className="text-[11px] leading-none tracking-tight min-[900px]:text-sm min-[900px]:leading-normal min-[900px]:tracking-normal">{tab.label}</span>
+            {isActive && (
+              <motion.span
+                layoutId="rada-nav-indicator"
+                aria-hidden="true"
+                className="rada-nav-indicator absolute inset-0 rounded-full min-[900px]:rounded-xl"
+                transition={{ type: 'spring', stiffness: 420, damping: 34, mass: 0.9 }}
+              />
+            )}
+            <Icon className={`relative w-6 h-6 min-[900px]:w-5 min-[900px]:h-5 transition-transform duration-300 ease-out ${isActive ? 'stroke-[2.25px] -translate-y-px scale-110 min-[900px]:translate-y-0 min-[900px]:scale-100' : 'stroke-[1.75px]'}`} />
+            <span className="relative text-[11px] leading-none tracking-tight min-[900px]:text-sm min-[900px]:leading-normal min-[900px]:tracking-normal">{tab.label}</span>
           </button>
         );
       })}
