@@ -161,6 +161,13 @@ body::after {
   border-color: #E2E8F0;
   color-scheme: light;
 }
+/* Phone / tablet portrait: floating pill. >=900px keeps the flat left sidebar. */
+@media (max-width: 899.98px) {
+  .rada-nav {
+    border-color: rgba(15, 23, 42, 0.06);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.08);
+  }
+}
 .rada-nav-btn-idle { color: #94A3B8; }
 .rada-nav-btn-idle:hover { color: #1E293B; }
 .rada-nav-btn-active { color: #B83D26; }
@@ -171,6 +178,13 @@ body::after {
 }
 
 html.dark .rada-nav { background: #121113; border-color: rgba(30, 41, 59, 0.8); color-scheme: dark; }
+@media (max-width: 899.98px) {
+  html.dark .rada-nav {
+    background: #1C1A1E;
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  }
+}
 html.dark .rada-nav-btn-idle { color: #94A3B8; }
 html.dark .rada-nav-btn-idle:hover { color: #E2E8F0; }
 html.dark .rada-nav-btn-active { color: #E0533C; }
