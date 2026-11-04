@@ -7,7 +7,7 @@ import { AlertTriangle as WarnIcon, X as CloseIcon, Ban as BanIcon } from 'lucid
 import { rememberSession, forgetAccount } from './lib/accounts';
 import { track } from './lib/tracking';
 import { logPlatformEvent } from './lib/platformAnalytics';
-import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense, memo, startTransition } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense, memo } from 'react';
 import { useTabSwipe } from './lib/useTabSwipe';
 import { ClaimUsernamePrompt, hasAutoUsername } from './components/ClaimUsernamePrompt';
 
@@ -551,7 +551,7 @@ export default function App() {
   
 
   // Theme State: the app always opens in light mode until the person picks dark with the toggle.
-  // (The phone's top and bottom bars always follow the phone setting, not this; see the theme-color tags in index.html.)
+  // (The phone's top and bottom bars follow this too: see the theme-color effect below and index.html.)
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     try { return localStorage.getItem('rada_theme') === 'dark'; } catch { return false; }
   });
@@ -559,6 +559,18 @@ export default function App() {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDarkMode);
     document.documentElement.classList.toggle('light', !isDarkMode);
+  }, [isDarkMode]);
+
+  // Phone status bar / system bars follow the APP theme (not the phone's): same colour as the page background.
+  useEffect(() => {
+    const color = isDarkMode ? '#121113' : '#FFFFFF';
+    let m = document.querySelector('meta[name="theme-color"]');
+    if (!m) { m = document.createElement('meta'); m.setAttribute('name', 'theme-color'); document.head.appendChild(m); }
+    m.setAttribute('content', color);
+    let cs = document.querySelector('meta[name="color-scheme"]');
+    if (!cs) { cs = document.createElement('meta'); cs.setAttribute('name', 'color-scheme'); document.head.appendChild(cs); }
+    cs.setAttribute('content', isDarkMode ? 'dark' : 'light');
+    document.documentElement.style.colorScheme = isDarkMode ? 'dark' : 'light';
   }, [isDarkMode]);
 
   const handleToggleTheme = () => {
@@ -625,7 +637,10 @@ export default function App() {
   const [readyTabs, setReadyTabs] = useState<Set<string>>(() => new Set([readDeepLinkTab() === 'plans' ? 'outings' : readDeepLinkTab()]));
   useEffect(() => {
     if (!KEEP_ALIVE_TABS.includes(paneTab) || readyTabs.has(paneTab)) return;
-    startTransition(() => setReadyTabs((prev) => new Set(prev).add(paneTab)));
+    // Let the spinner and nav highlight paint first, then mount the real tab. This is a normal (urgent) update on purpose:
+    // a transition here can be held back by another pending transition and leave the tab on the spinner.
+    const t = setTimeout(() => setReadyTabs((prev) => (prev.has(paneTab) ? prev : new Set(prev).add(paneTab))), 30);
+    return () => clearTimeout(t);
   }, [paneTab, readyTabs]);
   // Warm the Spots tab (the heaviest one) in the background once the app is idle, so the first tap is instant.
   useEffect(() => {
@@ -635,7 +650,7 @@ export default function App() {
     const t = setTimeout(() => {
       const run = () => {
         visitedTabsRef.current.add('spots');
-        startTransition(() => setReadyTabs((prev) => (prev.has('spots') ? prev : new Set(prev).add('spots'))));
+        setReadyTabs((prev) => (prev.has('spots') ? prev : new Set(prev).add('spots')));
       };
       const ric = (window as any).requestIdleCallback;
       if (ric) ric(run, { timeout: 3000 }); else run();
@@ -2698,6 +2713,7 @@ export default function App() {
             {visitedTabsRef.current.has('home') && (
               <TabPane active={paneTab === 'home'} ready={readyTabs.has('home')} slide={tabSlide}>
                 <ErrorBoundary fallbackTitle="Resuming View">
+                <Suspense fallback={<TabFallback />}>
                 {!readyTabs.has('home') ? <TabFallback /> : (
               <HomeTab
                 events={allEvents}
@@ -2733,12 +2749,14 @@ export default function App() {
                 isGpsActive={isGpsActive}
               />
             )}
+                </Suspense>
                 </ErrorBoundary>
               </TabPane>
             )}
             {visitedTabsRef.current.has('spots') && (
               <TabPane active={paneTab === 'spots'} ready={readyTabs.has('spots')} slide={tabSlide}>
                 <ErrorBoundary fallbackTitle="Resuming View">
+                <Suspense fallback={<TabFallback />}>
                 {!readyTabs.has('spots') ? <TabFallback /> : (
               <SpotsTab
                 spots={spots}
@@ -2762,12 +2780,14 @@ export default function App() {
                 onDeleteSpot={handleDeleteSpot}
               />
             )}
+                </Suspense>
                 </ErrorBoundary>
               </TabPane>
             )}
             {visitedTabsRef.current.has('outings') && (
               <TabPane active={paneTab === 'outings'} ready={readyTabs.has('outings')} slide={tabSlide}>
                 <ErrorBoundary fallbackTitle="Resuming View">
+                <Suspense fallback={<TabFallback />}>
                 {!readyTabs.has('outings') ? <TabFallback /> : (
               <OutingsTab
                 outings={allOutings}
@@ -2785,12 +2805,14 @@ export default function App() {
                 showToast={showToast}
               />
             )}
+                </Suspense>
                 </ErrorBoundary>
               </TabPane>
             )}
             {visitedTabsRef.current.has('socials') && (
               <TabPane active={paneTab === 'socials'} ready={readyTabs.has('socials')} slide={tabSlide}>
                 <ErrorBoundary fallbackTitle="Resuming View">
+                <Suspense fallback={<TabFallback />}>
                 {!readyTabs.has('socials') ? <TabFallback /> : (
               <SocialsTab
                 discoveryProfiles={discoveryProfiles}
@@ -2812,12 +2834,14 @@ export default function App() {
                 showToast={showToast}
               />
             )}
+                </Suspense>
                 </ErrorBoundary>
               </TabPane>
             )}
             {visitedTabsRef.current.has('vault') && (
               <TabPane active={paneTab === 'vault'} ready={readyTabs.has('vault')} slide={tabSlide}>
                 <ErrorBoundary fallbackTitle="Resuming View">
+                <Suspense fallback={<TabFallback />}>
                 {!readyTabs.has('vault') ? <TabFallback /> : (
               <VaultTab
                 tickets={tickets}
@@ -2831,6 +2855,7 @@ export default function App() {
                 showToast={showToast}
               />
             )}
+                </Suspense>
                 </ErrorBoundary>
               </TabPane>
             )}
