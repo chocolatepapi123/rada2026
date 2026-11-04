@@ -517,7 +517,7 @@ function generateIntelligentFallbackResponse(params: {
       ) || thriftItems[0];
 
     return {
-      reply: `Wagwan fam! Looking for that fresh Nairobi drip? I scouted "${matched.name}" from ${matched.seller} over at ${matched.storeLocation}! Going for ${matched.price} (condition: ${matched.condition}). Check the direct merchant link below to cop! 🔥`,
+      reply: `Wagwan fam! Looking for that fresh Nairobi drip? I scouted "${matched.name}" from ${matched.seller} over at ${matched.storeLocation}! Going for ${matched.price} (condition: ${matched.condition}). Check the direct merchant link below to cop!`,
       matchedSpotId: 0,
       matchedEventId: 0,
       matchedThriftId: matched.id,
@@ -549,7 +549,7 @@ function generateIntelligentFallbackResponse(params: {
       ) || events[0];
 
     return {
-      reply: `Wagwan! If you want to turn up proper, lock in "${matchedEvt.title}" at ${matchedEvt.location} on ${matchedEvt.date}! ${matchedEvt.goingCount}+ party lovers already going. Tap View Details below to secure tickets! 🎉`,
+      reply: `Wagwan! If you want to turn up proper, lock in "${matchedEvt.title}" at ${matchedEvt.location} on ${matchedEvt.date}! ${matchedEvt.goingCount}+ party lovers already going. Tap View Details below to secure tickets!`,
       matchedSpotId: 0,
       matchedEventId: matchedEvt.id,
       matchedThriftId: 0,
@@ -669,16 +669,16 @@ function generateIntelligentFallbackResponse(params: {
 
     let responsePersonaText = '';
     if (isQuietCafe) {
-      responsePersonaText = `Wagwan! For a peaceful remote work vibe with good Wi-Fi and artisan brews, I highly recommend ${topMatch.title} in ${topMatch.neighborhood}! Rating: ★${topMatch.rating} (${topMatch.price}). ${topMatch.description} Perfect for getting focused work done or quiet one-on-ones.`;
+      responsePersonaText = `Wagwan! For a peaceful remote work vibe with good Wi-Fi and artisan brews, I highly recommend ${topMatch.title} in ${topMatch.neighborhood}! Rating: topMatch.rating} (${topMatch.price}). ${topMatch.description} Perfect for getting focused work done or quiet one-on-ones.`;
     } else if (isIndoorSports) {
-      responsePersonaText = `Rada safi! Looking for indoor sports and action in Nairobi? Check out ${topMatch.title} in ${topMatch.neighborhood}! ${topMatch.description} Tap View Details below to check pricing, lane times, and squad bookings! 🎳`;
+      responsePersonaText = `Rada safi! Looking for indoor sports and action in Nairobi? Check out ${topMatch.title} in ${topMatch.neighborhood}! ${topMatch.description} Tap View Details below to check pricing, lane times, and squad bookings!`;
     } else if (isDate) {
-      responsePersonaText = `Wagwan! For a memorable date night with intimate atmosphere, ${topMatch.title} in ${topMatch.neighborhood} is unmatched! ★${topMatch.rating} (${topMatch.price}). ${topMatch.description} Great wine selection and cozy seating.`;
+      responsePersonaText = `Wagwan! For a memorable date night with intimate atmosphere, ${topMatch.title} in ${topMatch.neighborhood} is unmatched! topMatch.rating} (${topMatch.price}). ${topMatch.description} Great wine selection and cozy seating.`;
     } else if (isNature) {
       responsePersonaText = `Rada safi! Need fresh air away from Nairobi traffic? I recommend heading over to ${topMatch.title} (${topMatch.neighborhood})! ${topMatch.description} Trail fee is super affordable and great for a Saturday morning jog.`;
     } else {
       const locNotice = selectedLocation ? ` near ${selectedLocation}` : '';
-      responsePersonaText = `Wagwan! For your prompt "${message}"${locNotice}, my top pick is ${topMatch.title} in ${topMatch.neighborhood}! ★${topMatch.rating} (${topMatch.price}). ${topMatch.description || 'Verified local hangout.'}`;
+      responsePersonaText = `Wagwan! For your prompt "${message}"${locNotice}, my top pick is ${topMatch.title} in ${topMatch.neighborhood}! topMatch.rating} (${topMatch.price}). ${topMatch.description || 'Verified local hangout.'}`;
     }
 
     const matchedSpotIds = [topMatch.id];
