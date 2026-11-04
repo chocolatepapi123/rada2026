@@ -1,4 +1,5 @@
 import React, { useState, useRef, useLayoutEffect } from 'react';
+import { markChatRead } from '../lib/unreadChats.ts';
 import { 
   Heart, 
   X, 
@@ -108,6 +109,10 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   React.useEffect(() => {
     if (activeChatId) onLoadHistory(activeChatId);
   }, [activeChatId]);
+  // an open chat is a read chat (also when new messages land while it is open)
+  React.useEffect(() => {
+    if (activeChat) markChatRead(activeChat);
+  }, [activeChat?.id, activeChat?.messages.length, (activeChat as any)?.lastMessageAt]);
   const [isSending, setIsSending] = useState(false);
   const [chatInputText, setChatInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
