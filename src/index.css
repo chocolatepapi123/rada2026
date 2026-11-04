@@ -140,8 +140,8 @@ html.low-end .toast-notification { animation-duration: 0.01ms !important; }
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
-/* Phone bottom system bar (gesture line / 3 buttons): ALWAYS dark.
-   The strip is exactly as tall as the phone's bottom inset, so it is invisible on phones that have none. */
+/* Phone bottom system bar (gesture line / 3 buttons): same colour as the screen at the bottom edge, never themed.
+   --rada-bar-bottom is kept up to date by src/lib/systemBars.ts. The strip is exactly as tall as the phone's bottom inset. */
 body::after {
   content: "";
   position: fixed;
@@ -149,7 +149,7 @@ body::after {
   right: 0;
   bottom: 0;
   height: env(safe-area-inset-bottom, 0px);
-  background: #121113;
+  background: var(--rada-bar-bottom, transparent);
   pointer-events: none;
   z-index: 2147483647;
 }
