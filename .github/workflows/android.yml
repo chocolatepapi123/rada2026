@@ -1,0 +1,153 @@
+name: Build Android app (APK)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Create the Capacitor shell (loads the live site)
+        run: |
+          mkdir android-app && cd android-app
+          npm init -y
+          npm i @capacitor/core@7 @capacitor/android@7
+          npm i -D @capacitor/cli@7
+          mkdir www
+          echo '<!doctype html><title>RADA</title>' > www/index.html
+          cat > capacitor.config.json <<'EOF'
+          {
+            "appId": "com.rada.app",
+            "appName": "RADA",
+            "webDir": "www",
+            "server": {
+              "url": "https://rada2026-omega.vercel.app/",
+              "androidScheme": "https"
+            }
+          }
+          EOF
+          npx cap add android
+
+      - name: RADA app icon
+        run: |
+          if [ ! -f rada-icon.png ]; then echo "rada-icon.png not found in repo root, keeping default icon"; exit 0; fi
+          BG='#E9562A'
+          R=android-app/android/app/src/main/res
+          convert rada-icon.png -background "$BG" -alpha remove -alpha off -gravity center -crop 491x491+0+0 +repage sq.png
+          for pair in mdpi:48:108 hdpi:72:162 xhdpi:96:216 xxhdpi:144:324 xxxhdpi:192:432; do
+            IFS=: read d l f <<< "$pair"
+            mkdir -p $R/mipmap-$d
+            convert sq.png -resize ${l}x${l} $R/mipmap-$d/ic_launcher.png
+            convert sq.png -resize ${l}x${l} \( -size ${l}x${l} xc:none -fill white -draw "circle $((l/2)),$((l/2)) $((l/2)),0" \) -compose DstIn -composite $R/mipmap-$d/ic_launcher_round.png
+            inner=$((f*62*491/367/100))
+            convert sq.png -resize ${inner}x${inner} -background "$BG" -gravity center -extent ${f}x${f} $R/mipmap-$d/ic_launcher_foreground.png
+          done
+          mkdir -p $R/mipmap-anydpi-v26 $R/values
+          echo '<?xml version="1.0" encoding="utf-8"?><resources><color name="rada_icon_bg">#E9562A</color></resources>' > $R/values/rada_icon_colors.xml
+          for n in ic_launcher ic_launcher_round; do
+            echo '<?xml version="1.0" encoding="utf-8"?><adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/rada_icon_bg"/><foreground android:drawable="@mipmap/ic_launcher_foreground"/></adaptive-icon>' > $R/mipmap-anydpi-v26/$n.xml
+          done
+
+      - name: Transparent phone bars (native code)
+        run: |
+          D=android-app/android/app/src/main/java/com/rada/app
+          cat > $D/RadaBarsPlugin.java <<'EOF'
+          package com.rada.app;
+
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginCall;
+          import com.getcapacitor.PluginMethod;
+          import com.getcapacitor.annotation.CapacitorPlugin;
+
+          @CapacitorPlugin(name = "RadaBars")
+          public class RadaBarsPlugin extends Plugin {
+            @PluginMethod
+            public void setColor(PluginCall call) {
+              final String color = call.getString("color");
+              getActivity().runOnUiThread(() -> {
+                ((MainActivity) getActivity()).applyBarColor(color);
+                call.resolve();
+              });
+            }
+          }
+          EOF
+          cat > $D/MainActivity.java <<'EOF'
+          package com.rada.app;
+
+          import android.graphics.Color;
+          import android.os.Build;
+          import android.os.Bundle;
+          import android.view.View;
+          import android.view.Window;
+          import androidx.core.graphics.ColorUtils;
+          import androidx.core.graphics.Insets;
+          import androidx.core.view.ViewCompat;
+          import androidx.core.view.WindowCompat;
+          import androidx.core.view.WindowInsetsCompat;
+          import androidx.core.view.WindowInsetsControllerCompat;
+          import com.getcapacitor.BridgeActivity;
+
+          public class MainActivity extends BridgeActivity {
+            @Override
+            public void onCreate(Bundle savedInstanceState) {
+              registerPlugin(RadaBarsPlugin.class);
+              super.onCreate(savedInstanceState);
+
+              Window w = getWindow();
+              WindowCompat.setDecorFitsSystemWindows(w, false);
+              w.setStatusBarColor(Color.TRANSPARENT);
+              w.setNavigationBarColor(Color.TRANSPARENT);
+              if (Build.VERSION.SDK_INT >= 29) {
+                w.setNavigationBarContrastEnforced(false);
+              }
+
+              // The app sits between the bars; the bars show the colour behind it (set by the web app).
+              View content = findViewById(android.R.id.content);
+              ViewCompat.setOnApplyWindowInsetsListener(content, (v, insets) -> {
+                Insets b = insets.getInsets(
+                    WindowInsetsCompat.Type.systemBars()
+                        | WindowInsetsCompat.Type.displayCutout()
+                        | WindowInsetsCompat.Type.ime());
+                v.setPadding(b.left, b.top, b.right, b.bottom);
+                return WindowInsetsCompat.CONSUMED;
+              });
+
+              applyBarColor("#E05328");
+            }
+
+            public void applyBarColor(String hex) {
+              int c;
+              try { c = Color.parseColor(hex); } catch (Exception e) { return; }
+              Window w = getWindow();
+              w.getDecorView().setBackgroundColor(c);
+              boolean light = ColorUtils.calculateLuminance(c) > 0.5;
+              WindowInsetsControllerCompat ctl = WindowCompat.getInsetsController(w, w.getDecorView());
+              ctl.setAppearanceLightStatusBars(light);
+              ctl.setAppearanceLightNavigationBars(light);
+            }
+          }
+          EOF
+
+      - name: Build APK
+        run: |
+          cd android-app
+          npx cap sync android
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RADA-apk
+          path: android-app/android/app/build/outputs/apk/debug/app-debug.apk
