@@ -1,0 +1,56 @@
+name: Reorder spot photos (venue photo first)
+
+on:
+  workflow_dispatch:
+    inputs:
+      categories:
+        description: 'Only these categories, comma separated, exact names (blank = all), e.g. Restaurants, Cafes & Bakeries'
+        type: string
+        default: ''
+      max_spots:
+        description: 'How many spots to check in this run (spots already checked are skipped)'
+        type: string
+        default: '50'
+      dry_run:
+        description: 'Dry run = shows what would move, writes nothing'
+        type: boolean
+        default: true
+      provider:
+        description: 'gemini = free (needs GEMINI_API_KEY secret), anthropic = paid (needs ANTHROPIC_API_KEY secret)'
+        type: choice
+        options:
+          - gemini
+          - anthropic
+        default: gemini
+      model:
+        description: 'Leave blank for the default. Only type a model name if the default is rejected'
+        type: string
+        default: ''
+
+jobs:
+  reorder:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Reorder photos
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PROVIDER: ${{ inputs.provider }}
+          CATEGORIES: ${{ inputs.categories }}
+          MAX_SPOTS: ${{ inputs.max_spots }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          MODEL: ${{ inputs.model }}
+        run: |
+          SCRIPT=$(git ls-files | grep -m1 'reorder-photos\.mjs$' || true)
+          if [ -z "$SCRIPT" ]; then echo "reorder-photos.mjs is not committed to the repo"; exit 1; fi
+          echo "Running $SCRIPT"
+          node "$SCRIPT"
