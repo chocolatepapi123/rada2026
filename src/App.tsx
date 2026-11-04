@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { AlertTriangle as WarnIcon, X as CloseIcon, Ban as BanIcon } from 'lucide-react';
 import { rememberSession, forgetAccount } from './lib/accounts';
 import { track } from './lib/tracking';
 import { logPlatformEvent } from './lib/platformAnalytics';
@@ -248,7 +249,7 @@ const DEFAULT_PROFILE: UserProfile = {
   username: defaultExplorerName,
   handle: `@${defaultExplorerName}`,
   avatar: '',
-  bio: 'Exploring Nairobi spots, events, and fashion setups. Hit me up for hangouts! ✨',
+  bio: 'Exploring Nairobi spots, events, and fashion setups. Hit me up for hangouts!',
   loc: 'Nairobi',
   relationshipStatus: 'single',
   relationship_status: 'single',
@@ -905,9 +906,9 @@ export default function App() {
       } catch (e) {}
     }
     return [
-      { id: 'f-1', name: 'Weekend Vibes', emoji: '🌴', createdAt: new Date().toISOString() },
-      { id: 'f-2', name: 'Date Ideas', emoji: '🥂', createdAt: new Date().toISOString() },
-      { id: 'f-3', name: 'Outdoor Moves', emoji: '🏕️', createdAt: new Date().toISOString() }
+      { id: 'f-1', name: 'Weekend Vibes', emoji: 'sun', createdAt: new Date().toISOString() },
+      { id: 'f-2', name: 'Date Ideas', emoji: 'heart', createdAt: new Date().toISOString() },
+      { id: 'f-3', name: 'Outdoor Moves', emoji: 'camp', createdAt: new Date().toISOString() }
     ];
   });
 
@@ -919,7 +920,7 @@ export default function App() {
     const newFolder: CollectionFolder = {
       id: `f-${Date.now()}`,
       name,
-      emoji: emoji || '✨',
+      emoji: emoji || 'folder',
       createdAt: new Date().toISOString()
     };
     setSavedFolders(prev => [newFolder, ...prev]);
@@ -953,7 +954,7 @@ export default function App() {
         triggerToast('Removed from saved items', { type: 'info' });
       } else {
         updated = [{ id: item.id, kind, savedAt: new Date().toISOString() }, ...prev];
-        triggerToast('Saved to your collection! 🔖', { type: 'success' });
+        triggerToast('Saved to your collection', { type: 'success' });
       }
       if (session?.user?.id) {
         cloud.syncSavedPlans(session.user.id, updated, savedFolders);
@@ -2574,7 +2575,7 @@ export default function App() {
           {suspensionReason && (
             <div className="bg-red-600 text-white px-4 py-2.5 text-xs font-bold flex items-center justify-between gap-3 shadow-md z-40 sticky top-0">
               <div className="flex items-center gap-2 flex-1">
-                <span aria-hidden="true" className="text-amber-200">⚠</span>
+                <WarnIcon aria-hidden="true" className="w-4 h-4 text-amber-200" />
                 <span>Account Suspended: {suspensionReason}</span>
               </div>
               <button
@@ -2582,7 +2583,7 @@ export default function App() {
                 className="text-white/80 hover:text-white px-1.5 py-0.5 rounded text-xs cursor-pointer"
                 title="Dismiss banner"
               >
-                <span aria-hidden="true">✕</span>
+                <CloseIcon aria-hidden="true" className="w-4 h-4" />
               </button>
             </div>
           )}
@@ -3120,7 +3121,7 @@ export default function App() {
             <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
               <div className="bg-white dark:bg-[#1C1A1E] border border-red-500/40 rounded-3xl p-6 max-w-md w-full shadow-2xl text-center space-y-4">
                 <div className="w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-950/60 text-red-600 flex items-center justify-center mx-auto shadow-inner">
-                  <span aria-hidden="true" className="text-2xl">🚫</span>
+                  <BanIcon aria-hidden="true" className="w-7 h-7" />
                 </div>
                 <div>
                   <h3 className="text-lg font-black text-slate-900 dark:text-slate-100">

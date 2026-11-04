@@ -120,6 +120,22 @@ html.low-end .shadow-2xl,
 html.low-end .shadow-xl {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12) !important;
 }
+/* Low-memory phones: no looping animations, no shadows, no long transitions. Spinners still spin. */
+html.low-end .animate-pulse,
+html.low-end .animate-bounce,
+html.low-end .animate-ping,
+html.low-end [class*="animate-in"] {
+  animation: none !important;
+}
+html.low-end *,
+html.low-end *::before,
+html.low-end *::after {
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+html.low-end [class*="shadow-"] { box-shadow: none !important; }
+html.low-end .toast-notification { animation-duration: 0.01ms !important; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
