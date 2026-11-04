@@ -632,7 +632,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   const isInviteAccepted = (msg: ChatMessage) =>
     Boolean(msg.dateInvite?.accepted) ||
     (activeChat?.messages || []).some(
-      m => m.text?.startsWith('Date accepted') && m.text.includes(msg.dateInvite?.spotTitle || '\u0000')
+      m => m.text?.includes('Date accepted') && m.text.includes(msg.dateInvite?.spotTitle || '\u0000')
     );
 
   const handleAcceptDateInvite = async (msg: ChatMessage) => {
