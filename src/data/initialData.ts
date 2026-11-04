@@ -303,9 +303,9 @@ export const LEGACY_SAMPLE_TICKET_IDS = ['t-1', 't-2'];
 export const LEGACY_SAMPLE_CONTACT_IDS = ['ec-1', 'ec-2'];
 
 export const initialFolders: CollectionFolder[] = [
-  { id: 'folder-1', name: 'Birthday Move', emoji: '🎂', createdAt: '2026-10-14T10:00:00Z', description: 'Birthday celebrations and group dining' },
-  { id: 'folder-2', name: 'Sunday Chill', emoji: '☕', createdAt: '2026-10-14T11:00:00Z', description: 'Relaxed cafe hangouts and nature trails' },
-  { id: 'folder-3', name: 'Date Ideas', emoji: '✨', createdAt: '2026-10-14T12:00:00Z', description: 'Romantic dinners, sunsets and cozy spots' }
+  { id: 'folder-1', name: 'Birthday Move', emoji: 'cake', createdAt: '2026-10-14T10:00:00Z', description: 'Birthday celebrations and group dining' },
+  { id: 'folder-2', name: 'Sunday Chill', emoji: 'cafe', createdAt: '2026-10-14T11:00:00Z', description: 'Relaxed cafe hangouts and nature trails' },
+  { id: 'folder-3', name: 'Date Ideas', emoji: 'heart', createdAt: '2026-10-14T12:00:00Z', description: 'Romantic dinners, sunsets and cozy spots' }
 ];
 
 export const initialOutings: OutingPlan[] = [];
