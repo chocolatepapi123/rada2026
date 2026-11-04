@@ -207,10 +207,25 @@ async function workingPhotos(urls) {
   return out;
 }
 
-const sb = (path, init = {}) => fetch(SB_URL + '/rest/v1/' + path, {
-  ...init,
-  headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', ...(init.headers || {}) },
-});
+// Network blips happen on long runs, so each Supabase call gets 4 tries before the area is marked failed.
+const sb = async (path, init = {}) => {
+  let last;
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    try {
+      return await fetch(SB_URL + '/rest/v1/' + path, {
+        ...init,
+        signal: AbortSignal.timeout(60000),
+        headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', ...(init.headers || {}) },
+      });
+    } catch (e) {
+      last = e;
+      const why = e.cause?.code || e.cause?.message || e.message;
+      console.warn(`  Supabase request failed (try ${attempt}/4): ${why}`);
+      if (attempt < 4) await new Promise(r => setTimeout(r, attempt * 4000));
+    }
+  }
+  throw new Error('Supabase unreachable after 4 tries: ' + (last.cause?.code || last.cause?.message || last.message));
+};
 
 async function existingIds(ids) {
   const found = new Set();
