@@ -204,7 +204,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           onClick={hideToastInternal}
           className={`fixed left-1/2 -translate-x-1/2 z-[9999] pointer-events-auto max-w-[92vw] sm:max-w-md w-auto select-none cursor-pointer transition-all duration-300 ease-out ${
             currentToast.position === 'bottom'
-              ? 'bottom-20 sm:bottom-24'
+              ? 'bottom-[calc(6.5rem+env(safe-area-inset-bottom,0px))]'
               : 'top-5 sm:top-6'
           } ${
             isExiting
