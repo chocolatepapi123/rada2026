@@ -1,0 +1,463 @@
+{
+  "ranAt": "2026-11-05T15:54:21.807Z",
+  "areas": [
+    "Nairobi|Nairobi",
+    "Westlands|Nairobi",
+    "Kilimani|Nairobi",
+    "Thika Road|Thika Road",
+    "Ruiru|Thika Road",
+    "Juja|Thika Road",
+    "Kiambu|Kiambu",
+    "Ruaka|Kiambu"
+  ],
+  "categories": [
+    "Outdoors & Nature"
+  ],
+  "target": 15,
+  "summary": [
+    {
+      "area": "Nairobi",
+      "category": "Outdoors & Nature",
+      "qualified": 39,
+      "alreadyInDb": 24,
+      "new": 15,
+      "note": ""
+    },
+    {
+      "area": "Westlands -> Nairobi",
+      "category": "Outdoors & Nature",
+      "qualified": 42,
+      "alreadyInDb": 26,
+      "new": 15,
+      "note": ""
+    },
+    {
+      "area": "Kilimani -> Nairobi",
+      "category": "Outdoors & Nature",
+      "qualified": 55,
+      "alreadyInDb": 25,
+      "new": 15,
+      "note": ""
+    },
+    {
+      "area": "Thika Road",
+      "category": "Outdoors & Nature",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Ruiru -> Thika Road",
+      "category": "Outdoors & Nature",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Juja -> Thika Road",
+      "category": "Outdoors & Nature",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Kiambu",
+      "category": "Outdoors & Nature",
+      "qualified": 30,
+      "alreadyInDb": 15,
+      "new": 9,
+      "note": ""
+    },
+    {
+      "area": "Ruaka -> Kiambu",
+      "category": "Outdoors & Nature",
+      "qualified": 33,
+      "alreadyInDb": 16,
+      "new": 9,
+      "note": ""
+    }
+  ],
+  "spots": [
+    {
+      "google_place_id": "ChIJfaO36CXWLhgR7_VyxURkvog",
+      "name": "The Great Rift Valley View Point",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJO0R13cARLxgRrTdWlNCxh50",
+      "name": "Jeevanjee Gardens",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJA4IAUSUrLxgRsJSsu2wjgJ0",
+      "name": "Mathore ViewPoint & Curio",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJebRhrhsWLxgRdEjagjQ6s1Y",
+      "name": "Tayiana Gardens",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJHdIoTG8qLxgRZXJF_SbtVuo",
+      "name": "Rift Valley View Point",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJD4n6P0AFLxgR9Lz6ppcURWA",
+      "name": "Maro Gardens",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ4yVoTtQQLxgRWDEapxkAxfQ",
+      "name": "Views Coffee House",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJK61BWgEFLxgRanZ7UiJSPFQ",
+      "name": "Bongani Gardens",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJWRSJtMEcLxgRha_Ocr56y40",
+      "name": "Natare Gardens",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ40vEl5McLxgRJzwO4f-7yGc",
+      "name": "Bethany Gardens",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJk4Jc2hsFLxgRXOiKMBw5aTs",
+      "name": "Serenity Gardens Karen",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ0Ys21NMbLxgR7N67w6LsjHk",
+      "name": "INZU GARDENS COMPLEX",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ7_CTZAARLxgRn97Qi85t0sg",
+      "name": "kicc",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ-09fbpgpKRgRTpkP2_SLxTk",
+      "name": "Viewpoint",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJabCPpE_BLhgRV4dw5zrHEUU",
+      "name": "Scenic View Point",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJqSrsEU8XLxgR2-0oWAYkI18",
+      "name": "Westlands Market",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJca7VOmcXLxgRZhnuzGW8Avc",
+      "name": "John Michuki Memorial Park",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJj_ctD0EXLxgR_m4z0h20eNk",
+      "name": "Arboretum",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJL7qQpWsXLxgRJMhMIzdn9aI",
+      "name": "Sky Park, Woodvale Close, Westlands",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJJZ7vwzsXLxgR7s1LOQwWevI",
+      "name": "Westlands Business Park",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJKVXj4hYXLxgRpiYsIH8B4BU",
+      "name": "Oshwal Park",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ97HZ65URLxgRKF_7NKgjktc",
+      "name": "AdventureGo Hiking and Safaris",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ2_ftXtERLxgRy6_APyw_Lno",
+      "name": "The Dusty Fellowship",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ27DxHkAXLxgRAPV1CJpDC8w",
+      "name": "The Mall, Westlands",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJTUzYmWoXLxgRa4X1tgPU-sQ",
+      "name": "Westlands Square",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJrWGDMxIFLxgRDwTtaYP3lZE",
+      "name": "Saifee Park",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJG_5o_moXLxgRT1nEWtnGkPU",
+      "name": "Westpark Towers",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJWYiBF6sRLxgR8Uzg4arwwN4",
+      "name": "Great Horizon Trails",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ2QgirhUXLxgRXt9D6C9MY-Y",
+      "name": "One Westpark",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ91iyNuAFLxgR-5RPMARE5Tk",
+      "name": "Nairobi National Park Banda Gate",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJGR9z4abgKBgRx_oQcnUpOUE",
+      "name": "Elephant Hill Hiking Trail (Aberdare ) Njabini, Kenya.",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJr-BVhIKVYk8RcaoAJ60ESl0",
+      "name": "United Nomads (UN) – Hiking, Outdoor Adventures, Tours, Safaris & Team Building Experts in Kenya",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJY8CfcqYQLxgR9saaGQDOMFQ",
+      "name": "Skyview Park",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ6xd6DWwDLxgR1_nK8IVJzSA",
+      "name": "Hikemaniak - Hiking, Rock Climbing, Trekking & Safaris in Kenya",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ8_FaN6kQLxgRqUpOsQrQhHE",
+      "name": "Crestpark Apartment",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJHauf6koXLxgRSQCcGaPs9Dw",
+      "name": "Aboretum Office",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ3Q5tEdwQLxgRXXEalYXoZss",
+      "name": "Railways Park",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJVZ32v-YRLxgRKZwFY4rxBKQ",
+      "name": "Wood Avenue Park",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJw5iPJHkRLxgRn8kMObk43oU",
+      "name": "Itchyfeet Hikers",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ4YYi1Q0RLxgR9bFTYXSaLlE",
+      "name": "ALPINE_TREKKERS.ke",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJsc-2jmMXLxgR2GuK8CGybrg",
+      "name": "The Nairobi Arboretum revised",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJPX0-63sVLxgRkUeHdb5WOcg",
+      "name": "Meektrails Safaris | Kenya, Tanzania & Beyond",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJlyw4ZboQLxgRalGYyriHtrk",
+      "name": "Mountain Slayers Kenya",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ6aghyNERLxgR8z2pokDW-tU",
+      "name": "Denis Gardens Apartments",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJgwzRxLEQLxgRBEr6PwMJXfg",
+      "name": "Rosedale Gardens Kilimani",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ-fYV9YQ9LxgRVBOcmGydHrw",
+      "name": "Royal Gardenia Gardens",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJSWtz6NsjLxgRKUG333V1j48",
+      "name": "EVA'S GARDEN - REDHILL",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJfUFIjt8lLxgRzhp2RMy1pv0",
+      "name": "Camellia Gardens Limuru",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJF8oA1PYjLxgR0mqsEht7j4c",
+      "name": "Naishola Gardens",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJT9kzBxk-LxgRsEk85V9WEYk",
+      "name": "By Faith Gardens Mirema",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJB1d_p8k5LxgRVtIPfId_9cY",
+      "name": "Destiny Gardens",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJqy81RjQ8LxgR6fkNNYVczJA",
+      "name": "Fairview Gardens",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJ3UGHq849LxgR-t8obHLxTA4",
+      "name": "Lily Of The Valley Garden",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJi81Wst09LxgRdrBAX5y4BDo",
+      "name": "Vester Gardens",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJ_wMimEw9LxgRCjQMSxxSbA0",
+      "name": "Quick Mart Ruaka",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJ57yEEEw9LxgR7_-2dCxil9M",
+      "name": "La Cascada Sports Bar and Gardens",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJ-4OUd9cWLxgRBlcThcteqXM",
+      "name": "Ruaka Square",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJVXSm1bAiLxgR3qZwVViNQAU",
+      "name": "Haven Park Apartments - Ruaka",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJiwpj5ZMXLxgRFm5ppBSRMi8",
+      "name": "Ruaka Shopping Mall",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJSze8N7QiLxgRrVStUyX4rlQ",
+      "name": "Ruaka Landmark Plaza",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJSQOU5YIjLxgRU3QYccmQ9Ag",
+      "name": "Valley Oak Apartments - Ruaka",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJ8fVRMyTWLhgRXVzbfdgeM6Y",
+      "name": "Jambo Scenic View",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJjfUhzc4jLxgRLBfx9CcHK4o",
+      "name": "The Loftel",
+      "category": "Outdoors & Nature",
+      "neighborhood": "Kiambu"
+    }
+  ]
+}
