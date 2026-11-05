@@ -190,7 +190,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     let off = false;
     if (!isLoggedIn) { setMLoading(false); return; }
     setMLoading(true);
-    fetchMilestones()
+    // Never leave the spinner up forever if the request stalls on a cold start.
+    Promise.race([
+      fetchMilestones(),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('milestones timed out')), 8000)),
+    ])
       .then((d) => { if (!off) { setMData(d); setMLoading(false); } })
       .catch(() => { if (!off) setMLoading(false); });
     return () => { off = true; };
