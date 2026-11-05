@@ -8,6 +8,7 @@ import { rememberSession, forgetAccount } from './lib/accounts';
 import { track } from './lib/tracking';
 import { logPlatformEvent } from './lib/platformAnalytics';
 import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense, memo } from 'react';
+import { getStoredAppColor, storeAppColor, applyAppColor } from './lib/appTheme';
 import { useTabSwipe } from './lib/useTabSwipe';
 import { ClaimUsernamePrompt, hasAutoUsername } from './components/ClaimUsernamePrompt';
 
@@ -557,6 +558,13 @@ export default function App() {
     try { return localStorage.getItem('rada_theme') === 'dark'; } catch { return false; }
   });
 
+  // App colour: a background-only colour wash (see src/lib/appTheme.ts). Remembered on this device.
+  const [appColor, setAppColor] = useState<string>(() => getStoredAppColor());
+  const handleSetAppColor = (id: string) => {
+    storeAppColor(id);
+    setAppColor(id);
+  };
+
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDarkMode);
     document.documentElement.classList.toggle('light', !isDarkMode);
@@ -565,14 +573,15 @@ export default function App() {
   // Phone top bar = the colour of the screen under it. Only two states, set from app state (no measuring, so no flicker):
   // orange while the splash / loading screen shows, otherwise the page background (white, or #121113 in dark mode).
   useEffect(() => {
-    const color = (showSplash || authLoading) ? '#E05328' : (isDarkMode ? '#121113' : '#FFFFFF');
+    const pageTop = applyAppColor(appColor, isDarkMode);
+    const color = (showSplash || authLoading) ? '#E05328' : pageTop;
     let m = document.querySelector('meta[name="theme-color"]');
     if (!m) { m = document.createElement('meta'); m.setAttribute('name', 'theme-color'); document.head.appendChild(m); }
     m.setAttribute('content', color);
     // Android app (Capacitor wrapper): tell the native side so the phone bars show the same colour.
     try { (window as any).Capacitor?.Plugins?.RadaBars?.setColor({ color }); } catch {}
     document.documentElement.style.colorScheme = isDarkMode ? 'dark' : 'light';
-  }, [isDarkMode, showSplash, authLoading]);
+  }, [isDarkMode, showSplash, authLoading, appColor]);
 
   const handleToggleTheme = () => {
     setIsDarkMode(prev => {
@@ -2629,7 +2638,7 @@ export default function App() {
   return (
     <ToastProvider>
       <BusinessesProvider businesses={businesses}>
-        <div className="min-h-screen bg-white text-slate-900 dark:bg-[#121113] dark:text-slate-100 flex flex-col transition-colors duration-200 antialiased overflow-x-clip">
+        <div className="min-h-screen text-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-200 antialiased overflow-x-clip">
           {/* Primary Application Splash Screen */}
           {showSplash && <SplashScreen durationMs={1200} onDismiss={() => setShowSplash(false)} />}
 
@@ -3048,6 +3057,8 @@ export default function App() {
             }}
             isDarkMode={isDarkMode}
             onToggleTheme={handleToggleTheme}
+            appColor={appColor}
+            onSetAppColor={handleSetAppColor}
             showToast={showToast}
             onOpenSaved={() => requireAuth('view saved collections', () => setIsSavedModalOpen(true))}
             onOpenAccountSettings={() => setIsProfilePageOpen(true)}

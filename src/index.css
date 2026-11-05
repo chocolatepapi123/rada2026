@@ -262,3 +262,28 @@ html.low-end .rada-tab-enter { animation: radaTabFade 180ms ease-out backwards !
 html.dark .rada-nav-fade {
   background: linear-gradient(to top, rgba(18, 17, 19, 0.96) 0%, rgba(18, 17, 19, 0.8) 40%, rgba(18, 17, 19, 0) 100%);
 }
+
+/* ===== App colour (Settings > App Colour) =====
+   A fixed wash layer behind everything, the same wash as the profile theme. Background only:
+   no button, icon or text colours change. Values are set by applyAppColor() in src/lib/appTheme.ts. */
+html { --rada-base: #FFFFFF; }
+html.dark { --rada-base: #121113; }
+html::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--rada-wash, none);
+}
+/* Sticky header: opaque page colour with the same wash on top, so it matches the page under it. */
+html.rada-washed .rada-header {
+  background-color: var(--rada-base);
+  background-image: var(--rada-wash);
+  background-repeat: no-repeat;
+  background-size: 100% 100vh;
+}
+/* Bottom nav fade dissolves into the washed page colour. */
+html.rada-washed .rada-nav-fade {
+  background: linear-gradient(to top, rgba(var(--rada-fade-rgb), 0.96) 0%, rgba(var(--rada-fade-rgb), 0.8) 40%, rgba(var(--rada-fade-rgb), 0) 100%);
+}
