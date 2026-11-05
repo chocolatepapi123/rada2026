@@ -2821,7 +2821,7 @@ isSpotFormOpen && (
   // ----------------------------------------------------
   if (isOnboardingOpen || !currentBiz) {
     return (
-      <div className="min-h-screen bg-[#FBFBF9] dark:bg-[#121113] text-slate-900 dark:text-slate-100 pb-28 px-4 py-6">
+      <div className="min-h-screen text-slate-900 dark:text-slate-100 pb-28 px-4 py-6">
         <div className="max-w-md mx-auto">
           {/* Top Bar with Cancel / Exit if businesses exist */}
           <div className="flex items-center justify-between mb-6">
@@ -3191,7 +3191,7 @@ isSpotFormOpen && (
   // RENDER: FULL DEDICATED MERCHANT DASHBOARD VIEWPORT
   // ----------------------------------------------------
   return (
-    <div className="min-h-screen bg-[#FBFBF9] dark:bg-[#121113] text-slate-900 dark:text-slate-100 pb-28">
+    <div className="min-h-screen text-slate-900 dark:text-slate-100 pb-28">
       {/* Top Merchant Workspace Banner */}
       <div className="bg-white dark:bg-[#1C1A1E] sticky top-0 z-40 shadow-sm">
         <div className="max-w-lg mx-auto px-4 pt-4 pb-3.5 overflow-visible">
