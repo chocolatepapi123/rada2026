@@ -2,6 +2,7 @@
 import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending, formatOpeningHours } from '../lib/spotsFeed.ts';
 import React, { useState, useEffect, useRef } from 'react';
 import { track } from '../lib/tracking';
+import { THEMES } from '../lib/profileLook';
 import { SpotDetailSections } from './SpotDetailSections';
 import { useActivePromotions, offerRankMap, offerPromoKey, sortByPromotion } from '../lib/promotions';
 import { searchProfiles, type CloudProfileHit } from '../lib/socialsCloud.ts';
@@ -157,6 +158,8 @@ interface OverlaysProps {
   // Theme
   isDarkMode: boolean;
   onToggleTheme: () => void;
+  appColor?: string;
+  onSetAppColor?: (id: string) => void;
 
   showToast: (msg: string, options?: any) => void;
   selectedLocation?: string;
@@ -225,6 +228,8 @@ export const Overlays: React.FC<OverlaysProps> = ({
   onDeleteEmergencyContact,
   isDarkMode,
   onToggleTheme,
+  appColor = 'none',
+  onSetAppColor,
   showToast,
   onOpenSaved,
   onOpenAccountSettings,
@@ -2040,6 +2045,33 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     >
                       <div className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${isDarkMode ? 'translate-x-6' : 'translate-x-0'}`} />
                     </button>
+                  </div>
+
+                  <div className="p-3.5">
+                    <h4 className="font-bold">App Colour</h4>
+                    <p className="text-[10px] text-slate-400 mb-2.5">A soft colour wash behind the app. Buttons and text stay the same.</p>
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => onSetAppColor?.('none')}
+                        aria-label="No app colour"
+                        title="None"
+                        className={`w-8 h-8 rounded-full border bg-white dark:bg-[#121113] flex items-center justify-center text-[9px] font-black text-slate-400 cursor-pointer ${appColor === 'none' ? 'ring-2 ring-offset-2 ring-slate-400 ring-offset-[#F8F8F6] dark:ring-offset-[#1C1A1E] border-slate-300' : 'border-slate-300 dark:border-slate-700'}`}
+                      >
+                        Off
+                      </button>
+                      {THEMES.map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => onSetAppColor?.(t.id)}
+                          aria-label={`${t.name} app colour`}
+                          title={t.name}
+                          style={{ backgroundColor: t.color, ...(appColor === t.id ? { boxShadow: `0 0 0 2px ${t.color}` } : {}) }}
+                          className={`w-8 h-8 rounded-full cursor-pointer ${appColor === t.id ? 'ring-2 ring-offset-2 ring-transparent ring-offset-[#F8F8F6] dark:ring-offset-[#1C1A1E]' : ''}`}
+                        />
+                      ))}
+                    </div>
                   </div>
 
                   <div className="p-3.5 flex items-center justify-between">

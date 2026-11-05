@@ -136,7 +136,7 @@ export const Header: React.FC<HeaderProps> = ({
   const initial = (displayName || userEmail || 'R').replace(/^@/, '').trim().charAt(0).toUpperCase() || 'R';
 
   return (
-    <header className={`${isHome ? "sticky top-0 transition-transform duration-200 will-change-transform " + (hidden ? "-translate-y-full" : "translate-y-0") : "relative"} z-40 bg-white dark:bg-[#121113] border-b border-slate-200 dark:border-slate-800 shadow-xs`}>
+    <header className={`${isHome ? "sticky top-0 transition-transform duration-200 will-change-transform " + (hidden ? "-translate-y-full" : "translate-y-0") : "relative"} z-40 rada-header bg-white dark:bg-[#121113] border-b border-slate-200 dark:border-slate-800 shadow-xs`}>
       <div className="max-w-lg min-[900px]:max-w-none mx-auto w-full px-3.5 sm:px-4 min-[900px]:px-8 py-2.5 min-h-[60px] sm:min-h-[64px] grid grid-cols-[1fr_auto_1fr] items-center gap-2">
         {/* Left: profile (or sign-in for guests) */}
         <div className="justify-self-start">

@@ -434,9 +434,14 @@ export const AvatarHero: React.FC<{ p: OwnProfile; subtitle?: React.ReactNode; e
           accept="image/*"
           className="hidden"
           onChange={(e) => {
-            const f = e.target.files?.[0];
-            e.target.value = '';
-            if (f) p.pickAvatar(f);
+            const input = e.target;
+            const f = input.files?.[0];
+            if (!f) return;
+            // Do NOT clear the input before the photo has been read: on Android that makes the file
+            // unreadable ("Could not read file"). Clear it only when the upload is finished.
+            Promise.resolve(p.pickAvatar(f)).finally(() => {
+              try { input.value = ''; } catch {}
+            });
           }}
         />
           </>
