@@ -25,6 +25,15 @@ const MenuAccountSection = lazy(() =>
   import('./MenuAccountSection').then((m) => ({ default: m.MenuAccountSection }))
 );
 
+// Shared look for rows inside the 3-dot menu (big tap targets, soft rounded tiles).
+const MENU_ROW =
+  'w-full text-left flex items-center gap-3.5 px-4 py-3.5 min-h-[60px] transition cursor-pointer focus:outline-none hover:bg-white dark:hover:bg-white/[0.06] active:bg-slate-100 dark:active:bg-white/10';
+const MENU_TILE = 'w-11 h-11 rounded-2xl flex items-center justify-center shrink-0';
+const MENU_TITLE = 'block text-[15px] font-bold leading-tight text-slate-900 dark:text-slate-100';
+const MENU_SUB = 'block text-xs font-normal leading-snug text-slate-500 dark:text-slate-400 mt-0.5';
+const MENU_GROUP =
+  'rounded-3xl overflow-hidden bg-slate-50 dark:bg-white/[0.04] border border-slate-200/70 dark:border-white/5 divide-y divide-slate-200/70 dark:divide-white/5';
+
 interface HeaderProps {
   onOpenOverlay: (overlayId: string) => void;
   onSwitchTab: (tabId: string) => void;
@@ -196,202 +205,205 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={() => setMenuOpen(!menuOpen)}
-            className="w-10 h-10 shrink-0 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition text-slate-800 dark:text-slate-100 focus:outline-none cursor-pointer"
+            className={`w-10 h-10 shrink-0 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition text-slate-800 dark:text-slate-100 focus:outline-none cursor-pointer ${menuOpen ? "bg-slate-100 dark:bg-slate-800" : ""}`}
             aria-label="More options"
+            aria-haspopup="menu"
             aria-expanded={menuOpen}
           >
             <Menu className="w-6 h-6" strokeWidth={2.25} />
           </button>
 
           {menuOpen && (
-            <div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-1.5rem)] max-h-[calc(100dvh-5.5rem)] overflow-y-auto bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
-                {menuView === 'account' && !isGuestMode ? (
-                  <>
+            <div
+              role="menu"
+              className="absolute right-0 mt-3 w-[21rem] max-w-[calc(100vw-1.5rem)] max-h-[calc(100dvh-5.5rem)] overflow-y-auto overscroll-contain bg-white dark:bg-[#1C1A1E] border border-slate-200/80 dark:border-white/10 rounded-[28px] shadow-[0_24px_60px_-16px_rgba(18,17,19,0.35)] z-50 origin-top-right animate-in fade-in zoom-in-95 duration-200"
+            >
+              {menuView === 'account' && !isGuestMode ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setMenuView('main')}
+                    className="w-full text-left px-4 py-3.5 text-[15px] font-bold flex items-center gap-3 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-white/[0.06] border-b border-slate-100 dark:border-white/5 cursor-pointer"
+                  >
+                    <span className="w-9 h-9 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center">
+                      <ArrowLeft className="w-4.5 h-4.5" />
+                    </span>
+                    <span>Menu</span>
+                  </button>
+                  <Suspense fallback={<p className="px-4 py-4 text-xs text-slate-400">Loading account…</p>}>
+                    <MenuAccountSection
+                      userId={userId}
+                      showToast={showToast}
+                      onOpenAuth={onOpenAuth}
+                      onLogout={onLogout}
+                      onDone={() => setMenuOpen(false)}
+                    />
+                  </Suspense>
+                </>
+              ) : (
+                <div className="p-2.5 space-y-2.5">
+                  {/* ADMIN ONLY: Admin Control Hub */}
+                  {isAdmin && (
                     <button
                       type="button"
-                      onClick={() => setMenuView('main')}
-                      className="w-full text-left px-4 py-2.5 text-xs font-bold flex items-center gap-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800/80 cursor-pointer"
+                      onClick={openAdminHub}
+                      className="relative overflow-hidden w-full text-left rounded-3xl p-4 flex items-center gap-3.5 bg-gradient-to-br from-purple-600 to-fuchsia-500 text-white shadow-lg shadow-purple-600/25 active:scale-[0.98] transition cursor-pointer focus:outline-none"
                     >
-                      <ArrowLeft className="w-4 h-4" />
-                      <span>Menu</span>
-                    </button>
-                    <Suspense fallback={<p className="px-4 py-3 text-[11px] text-slate-400">Loading account…</p>}>
-                      <MenuAccountSection
-                        userId={userId}
-                        showToast={showToast}
-                        onOpenAuth={onOpenAuth}
-                        onLogout={onLogout}
-                        onDone={() => setMenuOpen(false)}
-                      />
-                    </Suspense>
-                  </>
-                ) : (
-                  <>
-                {/* ADMIN ONLY: Admin Control Hub (top of the menu) */}
-                {isAdmin && (
-                  <button
-                    type="button"
-                    onClick={openAdminHub}
-                    className="w-full text-left px-4 py-3 text-xs font-bold bg-gradient-to-r from-purple-50 to-amber-50 dark:from-purple-950/40 dark:to-amber-950/20 hover:from-purple-100 hover:to-amber-100 dark:hover:from-purple-950/60 dark:hover:to-amber-950/30 flex items-start gap-3 border-b border-purple-200/70 dark:border-purple-900/60 transition cursor-pointer"
-                  >
-                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-600 to-fuchsia-500 text-white flex items-center justify-center shrink-0 shadow-sm">
-                      <Crown className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-extrabold text-purple-700 dark:text-purple-300">Admin Control Hub</span>
-                        <span className="text-[9px] bg-purple-600 text-white font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider">
-                          Admin
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 font-normal mt-0.5">
-                        Spots, verification, users & revenue
-                      </p>
-                    </div>
-                  </button>
-                )}
-
-                {/* PRIMARY PROMINENT OPTION: Business & Merchant Hub */}
-                <button
-                  onClick={() => handleMenuClick('businessHub')}
-                  className="w-full text-left px-4 py-3 text-xs font-bold hover:bg-amber-50/70 dark:hover:bg-amber-950/30 flex items-start gap-3 text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800/80 group transition"
-                >
-                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#E0533C] to-[#E9C46A] text-white flex items-center justify-center shrink-0 shadow-sm">
-                    <Building2 className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="font-extrabold text-[#E0533C]">Business & Merchant Hub</span>
-                      <span className="text-[9px] bg-red-100 dark:bg-red-950/80 text-[#E0533C] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider">
-                        Merchant
+                      <span aria-hidden className="pointer-events-none absolute -right-8 -top-8 w-32 h-32 rounded-full bg-white/15 blur-2xl" />
+                      <span className="relative w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+                        <Crown className="w-6 h-6" />
                       </span>
-                    </div>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-normal mt-0.5 truncate">
-                      {hasBusinessAccount 
-                        ? `Managing: ${businessName || 'My Business'}`
-                        : 'Create account, spots, events & fits'}
-                    </p>
-                  </div>
-                </button>
-
-
-                {/* Prominent Saved Items */}
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    if (onOpenSaved) {
-                      onOpenSaved();
-                    } else {
-                      handleMenuClick('savedOverlay');
-                    }
-                  }}
-                  className="w-full text-left px-4 py-2.5 text-xs font-bold hover:bg-orange-50/80 dark:hover:bg-orange-950/20 flex items-center justify-between text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800/80 transition group cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <Bookmark className="w-4 h-4 text-[#E0533C] fill-[#E0533C]/20 group-hover:fill-[#E0533C] transition" />
-                    <span>Saved Items</span>
-                  </div>
-                  {savedCount !== undefined && savedCount > 0 && (
-                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#E0533C]/10 text-[#E0533C]">
-                      {savedCount}
-                    </span>
+                      <span className="relative flex-1 min-w-0">
+                        <span className="inline-block text-[10px] font-black uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full mb-1">Admin</span>
+                        <span className="block text-base font-extrabold leading-tight">Admin Control Hub</span>
+                        <span className="block text-xs text-white/85 mt-0.5">Spots, verification, users &amp; revenue</span>
+                      </span>
+                      <ChevronRight className="relative w-5 h-5 text-white/80 shrink-0" />
+                    </button>
                   )}
-                </button>
 
-                {/* Suggest a Spot (Community Contribution) */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    if (onOpenSuggestSpot) {
-                      onOpenSuggestSpot();
-                    }
-                  }}
-                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-orange-50/80 dark:hover:bg-orange-950/20 flex items-center justify-between text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800/80 transition group cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <MapPin className="w-4 h-4 text-[#E0533C] group-hover:scale-110 transition shrink-0" />
-                    <div>
-                      <span className="font-bold">Suggest a Spot</span>
-                      <p className="text-[10px] text-slate-400 font-normal">Recommend a hangout or venue</p>
-                    </div>
-                  </div>
-                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-orange-100 dark:bg-orange-950/80 text-[#E0533C]">
-                    + Add
-                  </span>
-                </button>
-
-                {/* Settings & Appearance */}
-                <button
-                  onClick={() => handleMenuClick('settingsOverlay')}
-                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-3 text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
-                >
-                  <Settings className="w-4 h-4 text-[#2D6A4F]" />
-                  <span>App settings</span>
-                </button>
-
-                {/* Appearance */}
-                <button
-                  type="button"
-                  onClick={onToggleTheme}
-                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center justify-between text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
-                >
-                  <span className="flex items-center gap-3">
-                    {isDarkMode ? <Sun className="w-4 h-4 text-[#E9C46A]" /> : <Moon className="w-4 h-4 text-slate-500" />}
-                    <span>{isDarkMode ? 'Light mode' : 'Dark mode'}</span>
-                  </span>
-                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">
-                    {isDarkMode ? 'Dark' : 'Light'}
-                  </span>
-                </button>
-
-                {/* Emergency & SOS Hub */}
-                <button
-                  type="button"
-                  onClick={() => handleMenuClick('sosOverlay')}
-                  className="w-full text-left px-4 py-2.5 text-xs font-bold hover:bg-red-50/80 dark:hover:bg-red-950/20 flex items-center justify-between text-red-600 dark:text-red-400 border-b border-slate-100 dark:border-slate-800/80 transition group cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <ShieldAlert className="w-4 h-4 text-red-600 dark:text-red-400 group-hover:scale-110 transition shrink-0" />
-                    <div>
-                      <span className="font-extrabold text-red-600 dark:text-red-400">Emergency & SOS Hub</span>
-                      <p className="text-[10px] text-red-500/80 dark:text-red-400/70 font-normal">Helplines & emergency contacts</p>
-                    </div>
-                  </div>
-                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-950/80 text-red-600 dark:text-red-400 uppercase tracking-wider">
-                    SOS
-                  </span>
-                </button>
-
-                {isGuestMode && onOpenAuth ? (
-                  <button
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onOpenAuth();
-                    }}
-                    className="w-full text-left px-4 py-2.5 text-xs font-bold hover:bg-amber-50 dark:hover:bg-amber-950/30 flex items-center gap-3 text-amber-600 dark:text-amber-400 border-t border-slate-100 dark:border-slate-800/80 transition cursor-pointer"
-                  >
-                    <UserCheck className="w-4 h-4 text-amber-500" />
-                    <span>Log In / Sign Up</span>
-                  </button>
-                ) : (
+                  {/* Business & Merchant Hub (hero card) */}
                   <button
                     type="button"
-                    onClick={() => setMenuView('account')}
-                    className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center justify-between text-slate-700 dark:text-slate-300 transition cursor-pointer"
+                    onClick={() => handleMenuClick('businessHub')}
+                    className="relative overflow-hidden w-full text-left rounded-3xl p-4 flex items-center gap-3.5 bg-gradient-to-br from-[#E0533C] to-[#EE8A47] text-white shadow-lg shadow-[#E0533C]/30 active:scale-[0.98] transition cursor-pointer focus:outline-none"
                   >
-                    <div className="flex items-center gap-3">
-                      <ShieldCheck className="w-4 h-4 text-slate-500 shrink-0" />
-                      <div>
-                        <span className="font-bold">Account & security</span>
-                        <p className="text-[10px] text-slate-400 font-normal">Email, password, accounts, log out</p>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span aria-hidden className="pointer-events-none absolute -right-8 -top-8 w-32 h-32 rounded-full bg-white/20 blur-2xl" />
+                    <span className="relative w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+                      <Building2 className="w-6 h-6" />
+                    </span>
+                    <span className="relative flex-1 min-w-0">
+                      <span className="inline-block text-[10px] font-black uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full mb-1">Merchant</span>
+                      <span className="block text-base font-extrabold leading-tight">Business &amp; Merchant Hub</span>
+                      <span className="block text-xs text-white/85 mt-0.5 truncate">
+                        {hasBusinessAccount
+                          ? `Managing: ${businessName || 'My Business'}`
+                          : 'Create account, spots, events & fits'}
+                      </span>
+                    </span>
+                    <ChevronRight className="relative w-5 h-5 text-white/80 shrink-0" />
                   </button>
-                )}
-                  </>
-                )}
+
+                  {/* Everyday actions */}
+                  <div className={MENU_GROUP}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        if (onOpenSaved) onOpenSaved();
+                        else handleMenuClick('savedOverlay');
+                      }}
+                      className={MENU_ROW}
+                    >
+                      <span className={`${MENU_TILE} bg-[#E0533C]/10 text-[#E0533C]`}>
+                        <Bookmark className="w-5 h-5 fill-[#E0533C]/25" />
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className={MENU_TITLE}>Saved Items</span>
+                      </span>
+                      {savedCount !== undefined && savedCount > 0 && (
+                        <span className="min-w-7 h-7 px-2 rounded-full bg-[#E0533C] text-white text-xs font-black flex items-center justify-center shadow-sm shadow-[#E0533C]/30">
+                          {savedCount}
+                        </span>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        if (onOpenSuggestSpot) onOpenSuggestSpot();
+                      }}
+                      className={MENU_ROW}
+                    >
+                      <span className={`${MENU_TILE} bg-[#E9C46A]/20 text-[#C98A12] dark:text-[#E9C46A]`}>
+                        <MapPin className="w-5 h-5" />
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className={MENU_TITLE}>Suggest a Spot</span>
+                        <span className={MENU_SUB}>Recommend a hangout or venue</span>
+                      </span>
+                      <span className="text-xs font-black px-3 py-1.5 rounded-full bg-[#E0533C]/10 text-[#E0533C] shrink-0">
+                        + Add
+                      </span>
+                    </button>
+
+                    <button type="button" onClick={() => handleMenuClick('settingsOverlay')} className={MENU_ROW}>
+                      <span className={`${MENU_TILE} bg-[#2D6A4F]/10 text-[#2D6A4F] dark:text-emerald-400`}>
+                        <Settings className="w-5 h-5" />
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className={MENU_TITLE}>App settings</span>
+                      </span>
+                      <ChevronRight className="w-5 h-5 text-slate-300 dark:text-slate-600 shrink-0" />
+                    </button>
+
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={!!isDarkMode}
+                      onClick={onToggleTheme}
+                      className={MENU_ROW}
+                    >
+                      <span className={`${MENU_TILE} ${isDarkMode ? 'bg-[#E9C46A]/20 text-[#E9C46A]' : 'bg-slate-200/70 text-slate-600'}`}>
+                        {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className={MENU_TITLE}>Dark mode</span>
+                      </span>
+                      <span className={`relative w-12 h-7 rounded-full shrink-0 transition-colors ${isDarkMode ? 'bg-[#E0533C]' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                        <span className={`absolute top-0.5 left-0.5 w-6 h-6 rounded-full bg-white shadow-sm transition-transform duration-200 ${isDarkMode ? 'translate-x-5' : 'translate-x-0'}`} />
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Emergency & SOS Hub */}
+                  <button
+                    type="button"
+                    onClick={() => handleMenuClick('sosOverlay')}
+                    className="w-full text-left flex items-center gap-3.5 px-4 py-3.5 min-h-[64px] rounded-3xl bg-red-50 dark:bg-red-950/30 border border-red-200/70 dark:border-red-900/40 hover:bg-red-100/70 dark:hover:bg-red-950/50 active:scale-[0.98] transition cursor-pointer focus:outline-none"
+                  >
+                    <span className={`${MENU_TILE} bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400`}>
+                      <ShieldAlert className="w-5 h-5" />
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-[15px] font-extrabold leading-tight text-red-600 dark:text-red-400">Emergency &amp; SOS Hub</span>
+                      <span className="block text-xs font-normal leading-snug text-red-500/80 dark:text-red-400/70 mt-0.5">Helplines &amp; emergency contacts</span>
+                    </span>
+                    <span className="text-[11px] font-black tracking-wider px-2.5 py-1 rounded-full bg-red-600 text-white shrink-0">
+                      SOS
+                    </span>
+                  </button>
+
+                  {/* Account */}
+                  {isGuestMode && onOpenAuth ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onOpenAuth();
+                      }}
+                      className="w-full rounded-full bg-[#E0533C] text-white text-[15px] font-extrabold py-3.5 flex items-center justify-center gap-2 shadow-lg shadow-[#E0533C]/25 active:scale-[0.98] transition cursor-pointer focus:outline-none"
+                    >
+                      <UserCheck className="w-5 h-5" />
+                      <span>Log In / Sign Up</span>
+                    </button>
+                  ) : (
+                    <div className={MENU_GROUP}>
+                      <button type="button" onClick={() => setMenuView('account')} className={MENU_ROW}>
+                        <span className={`${MENU_TILE} bg-slate-200/70 dark:bg-white/10 text-slate-600 dark:text-slate-300`}>
+                          <ShieldCheck className="w-5 h-5" />
+                        </span>
+                        <span className="flex-1 min-w-0">
+                          <span className={MENU_TITLE}>Account &amp; security</span>
+                          <span className={MENU_SUB}>Email, password, accounts, log out</span>
+                        </span>
+                        <ChevronRight className="w-5 h-5 text-slate-300 dark:text-slate-600 shrink-0" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
