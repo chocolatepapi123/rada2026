@@ -287,3 +287,17 @@ html.rada-washed .rada-header {
 html.rada-washed .rada-nav-fade {
   background: linear-gradient(to top, rgba(var(--rada-fade-rgb), 0.96) 0%, rgba(var(--rada-fade-rgb), 0.8) 40%, rgba(var(--rada-fade-rgb), 0) 100%);
 }
+
+/* ===== Translucent cards (only while an app colour is on) =====
+   Cards (spot, event, movie, outing, offer... any big rounded white/dark panel) let a little of the
+   wash through. Only the card's BACKGROUND gets see-through; text, images, buttons and inputs are untouched.
+   Modals/popups (shadow-xl / shadow-2xl), fixed / absolute / sticky bits, buttons and inputs are skipped.
+   Change the 0.8 below: lower = more see-through, 1 = solid. */
+html { --rada-card-alpha: 0.8; }
+html.rada-washed:not(.dark) :is([class~="rounded-3xl"],[class~="rounded-2xl"],[class*="rounded-[2"],[class*="rounded-[3"])[class~="bg-white"]:not(.fixed,.absolute,.sticky,[class~="shadow-2xl"],[class~="shadow-xl"],button,input,textarea,select,label,a) { background-color: rgb(255 255 255 / var(--rada-card-alpha, 0.8)); }
+html.rada-washed:not(.dark) :is([class~="rounded-3xl"],[class~="rounded-2xl"],[class*="rounded-[2"],[class*="rounded-[3"])[class~="bg-[#F8F8F6]"]:not(.fixed,.absolute,.sticky,[class~="shadow-2xl"],[class~="shadow-xl"],button,input,textarea,select,label,a) { background-color: rgb(248 248 246 / var(--rada-card-alpha, 0.8)); }
+html.rada-washed:not(.dark) :is([class~="rounded-3xl"],[class~="rounded-2xl"],[class*="rounded-[2"],[class*="rounded-[3"])[class~="bg-[#FBFBF9]"]:not(.fixed,.absolute,.sticky,[class~="shadow-2xl"],[class~="shadow-xl"],button,input,textarea,select,label,a) { background-color: rgb(251 251 249 / var(--rada-card-alpha, 0.8)); }
+html.rada-washed:not(.dark) :is([class~="rounded-3xl"],[class~="rounded-2xl"],[class*="rounded-[2"],[class*="rounded-[3"])[class~="bg-[#F1F1EE]"]:not(.fixed,.absolute,.sticky,[class~="shadow-2xl"],[class~="shadow-xl"],button,input,textarea,select,label,a) { background-color: rgb(241 241 238 / var(--rada-card-alpha, 0.8)); }
+html.dark.rada-washed :is([class~="rounded-3xl"],[class~="rounded-2xl"],[class*="rounded-[2"],[class*="rounded-[3"])[class~="dark:bg-[#1C1A1E]"]:not(.fixed,.absolute,.sticky,[class~="shadow-2xl"],[class~="shadow-xl"],button,input,textarea,select,label,a) { background-color: rgb(28 26 30 / var(--rada-card-alpha, 0.8)); }
+html.dark.rada-washed :is([class~="rounded-3xl"],[class~="rounded-2xl"],[class*="rounded-[2"],[class*="rounded-[3"])[class~="dark:bg-[#121113]"]:not(.fixed,.absolute,.sticky,[class~="shadow-2xl"],[class~="shadow-xl"],button,input,textarea,select,label,a) { background-color: rgb(18 17 19 / var(--rada-card-alpha, 0.8)); }
+html.dark.rada-washed :is([class~="rounded-3xl"],[class~="rounded-2xl"],[class*="rounded-[2"],[class*="rounded-[3"])[class~="dark:bg-[#151319]"]:not(.fixed,.absolute,.sticky,[class~="shadow-2xl"],[class~="shadow-xl"],button,input,textarea,select,label,a) { background-color: rgb(21 19 25 / var(--rada-card-alpha, 0.8)); }
