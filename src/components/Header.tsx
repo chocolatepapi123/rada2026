@@ -12,7 +12,10 @@ import {
   LogIn,
   Crown,
   HelpCircle,
-  Sparkles
+  Sparkles,
+  ShieldCheck,
+  ChevronRight,
+  ArrowLeft
 } from 'lucide-react';
 import { isPlatformAdmin } from '../types';
 import type { ToastOptions } from './Toast.tsx';
@@ -89,6 +92,9 @@ export const Header: React.FC<HeaderProps> = ({
   isHome = false,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  // The menu has two pages: the main list, and "Account & security" (its own page inside the menu).
+  const [menuView, setMenuView] = useState<'main' | 'account'>('main');
+  useEffect(() => { if (!menuOpen) setMenuView('main'); }, [menuOpen]);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // hello.rada.app@gmail.com OR role === 'admin'. Guests never qualify.
@@ -199,6 +205,28 @@ export const Header: React.FC<HeaderProps> = ({
 
           {menuOpen && (
             <div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-1.5rem)] max-h-[calc(100dvh-5.5rem)] overflow-y-auto bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                {menuView === 'account' && !isGuestMode ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setMenuView('main')}
+                      className="w-full text-left px-4 py-2.5 text-xs font-bold flex items-center gap-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800/80 cursor-pointer"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      <span>Menu</span>
+                    </button>
+                    <Suspense fallback={<p className="px-4 py-3 text-[11px] text-slate-400">Loading account…</p>}>
+                      <MenuAccountSection
+                        userId={userId}
+                        showToast={showToast}
+                        onOpenAuth={onOpenAuth}
+                        onLogout={onLogout}
+                        onDone={() => setMenuOpen(false)}
+                      />
+                    </Suspense>
+                  </>
+                ) : (
+                  <>
                 {/* ADMIN ONLY: Admin Control Hub (top of the menu) */}
                 {isAdmin && (
                   <button
@@ -347,15 +375,22 @@ export const Header: React.FC<HeaderProps> = ({
                     <span>Log In / Sign Up</span>
                   </button>
                 ) : (
-                  <Suspense fallback={<p className="px-4 py-3 text-[11px] text-slate-400">Loading account…</p>}>
-                    <MenuAccountSection
-                      userId={userId}
-                      showToast={showToast}
-                      onOpenAuth={onOpenAuth}
-                      onLogout={onLogout}
-                      onDone={() => setMenuOpen(false)}
-                    />
-                  </Suspense>
+                  <button
+                    type="button"
+                    onClick={() => setMenuView('account')}
+                    className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center justify-between text-slate-700 dark:text-slate-300 transition cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <ShieldCheck className="w-4 h-4 text-slate-500 shrink-0" />
+                      <div>
+                        <span className="font-bold">Account & security</span>
+                        <p className="text-[10px] text-slate-400 font-normal">Email, password, accounts, log out</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                  </button>
+                )}
+                  </>
                 )}
             </div>
           )}
