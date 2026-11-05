@@ -21,6 +21,7 @@ import { Header } from './components/Header.tsx';
 import { Navigation } from './components/Navigation.tsx';
 import { HomeTab } from './components/HomeTab.tsx';
 import { SplashScreen } from './components/SplashScreen.tsx';
+import { initAppAccent } from './lib/appAccent.ts';
 import { ToastProvider, showToast as triggerToast, type ToastOptions } from './components/Toast.tsx';
 import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 import { getTimeOfDayGreeting } from './utils/greetingUtils';
@@ -561,6 +562,9 @@ export default function App() {
     document.documentElement.classList.toggle('dark', isDarkMode);
     document.documentElement.classList.toggle('light', !isDarkMode);
   }, [isDarkMode]);
+
+  // Re-apply the app colour the person picked (does nothing for the default orange).
+  useEffect(() => { initAppAccent(); }, []);
 
   // Phone top bar = the colour of the screen under it. Only two states, set from app state (no measuring, so no flicker):
   // orange while the splash / loading screen shows, otherwise the page background (white, or #121113 in dark mode).
