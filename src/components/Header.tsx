@@ -15,6 +15,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { isPlatformAdmin } from '../types';
+import { AccentPicker } from './AccentPicker';
 import type { ToastOptions } from './Toast.tsx';
 
 // Account & security settings live inside the 3-dot menu; loaded only when the menu is first opened.
@@ -316,6 +317,12 @@ export const Header: React.FC<HeaderProps> = ({
                     {isDarkMode ? 'Dark' : 'Light'}
                   </span>
                 </button>
+
+                {/* App colour */}
+                <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800/80">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2">App colour</p>
+                  <AccentPicker isDarkMode={isDarkMode} />
+                </div>
 
                 {/* Emergency & SOS Hub */}
                 <button
