@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -7,14 +7,9 @@ import {
   MapPin,
   CheckCircle2,
   Lock,
-  Sparkles,
-  User,
-  Trophy,
-  Ticket,
-  Store,
-  Shield,
   Crown,
-  Calendar,
+  PartyPopper,
+  Camera,
   Briefcase,
   Loader2,
   Sun,
@@ -36,7 +31,7 @@ import {
   Section,
   useOwnProfile,
 } from './ProfileSettingsKit';
-import { computeMilestones, type MilestoneIcon } from '../lib/profileMilestones';
+import { fetchMilestones, MILESTONE_META, type MilestoneKind, type MilestoneData } from '../lib/milestones';
 import type { ToastOptions } from './Toast.tsx';
 
 interface ProfilePageProps {
@@ -69,17 +64,9 @@ const THEMES = [
   { id: 'slate', name: 'Slate', color: '#475569' },
 ];
 
-const ICONS: Record<MilestoneIcon, React.ComponentType<{ className?: string }>> = {
-  sparkles: Sparkles,
-  user: User,
-  bookmark: Bookmark,
-  trophy: Trophy,
-  ticket: Ticket,
-  store: Store,
-  shield: Shield,
-  crown: Crown,
-  calendar: Calendar,
-};
+const KINDS: MilestoneKind[] = ['outings', 'spots', 'photo_reviews'];
+const KIND_COLOR: Record<MilestoneKind, string> = { outings: '#F9D6CE', spots: '#D9EFE3', photo_reviews: '#E4DAF7' };
+const KIND_ICON: Record<string, React.ComponentType<{ className?: string }>> = { party: PartyPopper, pin: MapPin, camera: Camera };
 
 const cleanLoc = (loc?: string) =>
   loc
@@ -150,26 +137,33 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     try { localStorage.setItem(themeKey, id); } catch {}
   };
 
-  // ---- Milestones, computed from what the app already knows ----
+  // ---- Milestones: the app's real badges (outings, spots, photo reviews), from the database ----
+  const [mData, setMData] = useState<MilestoneData | null>(null);
+  const [mLoading, setMLoading] = useState(true);
+  useEffect(() => {
+    let off = false;
+    if (!isLoggedIn) { setMLoading(false); return; }
+    setMLoading(true);
+    fetchMilestones()
+      .then((d) => { if (!off) { setMData(d); setMLoading(false); } })
+      .catch(() => { if (!off) setMLoading(false); });
+    return () => { off = true; };
+  }, [user?.id, isLoggedIn]);
+
   const p: any = currentUserProfile || {};
-  const milestones = useMemo(
-    () =>
-      computeMilestones({
-        signedIn: isLoggedIn,
-        hasAvatar: !!p.avatar,
-        hasBio: !!(p.bio || '').trim(),
-        hasUsername: !!(p.username || handle),
-        savedCount,
-        hostedCount: hostedOutings.length,
-        ticketCount,
-        businessCount: myBusinesses.length,
-        isVerified: !!p.isLivenessVerified,
-        isCreator: !!own.isPro,
-      }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isLoggedIn, p.avatar, p.bio, p.username, handle, savedCount, hostedOutings.length, ticketCount, myBusinesses.length, p.isLivenessVerified, own.isPro]
-  );
-  const earned = milestones.filter((m) => m.earned).length;
+  const thresholds = mData?.thresholds ?? [];
+  const progress = (kind: MilestoneKind) => {
+    const names = MILESTONE_META[kind].names;
+    const count = mData?.counts?.[kind] ?? 0;
+    const level = Math.min(names.length, thresholds.filter((t) => count >= t).length);
+    const next = level < names.length ? thresholds[level] : undefined;
+    const prev = level > 0 ? thresholds[level - 1] : 0;
+    const pct = next ? Math.max(0, Math.min(1, (count - prev) / (next - prev))) : 1;
+    return { kind, meta: MILESTONE_META[kind], count, level, next, pct, name: level > 0 ? names[level - 1] : null };
+  };
+  const kinds = KINDS.map(progress);
+  const earnedBadges = kinds.reduce((n, k) => n + k.level, 0);
+  const totalBadges = kinds.reduce((n, k) => n + k.meta.names.length, 0);
 
   const isSingle = p.relationshipStatus === 'single';
   const name = p.name || handle || 'Your profile';
@@ -311,34 +305,39 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
 
             {/* Milestones row */}
             <div className="mt-5 flex gap-4 overflow-x-auto hide-scrollbar px-4 pb-3">
-              {milestones.map((m) => {
-                const Icon = ICONS[m.icon];
+              {kinds.map((k) => {
+                const Icon = KIND_ICON[k.meta.icon] || PartyPopper;
+                const earned = k.level > 0;
                 return (
                   <button
-                    key={m.id}
+                    key={k.kind}
                     type="button"
                     onClick={() =>
-                      showToast(m.earned ? `${m.title}: earned!` : `${m.title}: ${m.hint} (${m.current}/${m.target})`)
+                      showToast(
+                        earned
+                          ? `${k.name}: ${k.count} ${k.meta.unit}${k.next ? `, next badge at ${k.next}` : ', top badge!'}`
+                          : `${k.meta.title}: ${k.count}${k.next ? ` of ${k.next}` : ''} to unlock your first badge`
+                      )
                     }
-                    className="shrink-0 w-[84px] flex flex-col items-center gap-1.5 cursor-pointer"
+                    className="shrink-0 w-[96px] flex flex-col items-center gap-1.5 cursor-pointer"
                   >
                     <span
                       className="relative w-[84px] h-[84px] rounded-full flex items-center justify-center"
-                      style={{ background: m.color, opacity: m.earned ? 1 : 0.5, filter: m.earned ? 'none' : 'grayscale(0.7)' }}
+                      style={{ background: KIND_COLOR[k.kind], opacity: earned ? 1 : 0.5, filter: earned ? 'none' : 'grayscale(0.7)' }}
                     >
                       <Icon className="w-9 h-9 text-slate-800" />
-                      {!m.earned && (
+                      {earned ? (
+                        <span className="absolute -bottom-0.5 -right-0.5 min-w-6 h-6 px-1.5 rounded-full text-white text-[11px] font-black shadow flex items-center justify-center" style={{ background: accent }}>
+                          {k.level}
+                        </span>
+                      ) : (
                         <span className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full bg-white dark:bg-[#1C1A1E] shadow flex items-center justify-center">
                           <Lock className="w-3 h-3 text-slate-500" />
                         </span>
                       )}
-                      {m.earned && (
-                        <span className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full text-white shadow flex items-center justify-center" style={{ background: accent }}>
-                          <Check className="w-3.5 h-3.5" />
-                        </span>
-                      )}
                     </span>
-                    <span className="text-[12px] font-bold leading-tight text-center line-clamp-2">{m.title}</span>
+                    <span className="text-[12px] font-bold leading-tight text-center line-clamp-2">{k.name || 'Locked'}</span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 -mt-1">{k.meta.title}</span>
                   </button>
                 );
               })}
@@ -362,29 +361,53 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             {/* ===== Milestones ===== */}
             {tab === 'milestones' && (
               <div className="px-4 pt-4 space-y-3">
-                <p className="text-[13px] font-bold text-slate-500 dark:text-slate-400">
-                  {earned} of {milestones.length} earned
-                </p>
-                {milestones.map((m) => {
-                  const Icon = ICONS[m.icon];
-                  return (
-                    <div key={m.id} className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-[#1C1A1E]">
-                      <span className="w-12 h-12 rounded-full flex items-center justify-center shrink-0" style={{ background: m.color, opacity: m.earned ? 1 : 0.55 }}>
-                        <Icon className="w-6 h-6 text-slate-800" />
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-[14px] font-black truncate">{m.title}</p>
-                          <span className="text-[11px] font-bold text-slate-500 shrink-0">{m.current}/{m.target}</span>
+                {mLoading ? (
+                  <p className="text-[13px] text-slate-400 py-6 text-center">Loading your badges…</p>
+                ) : (
+                  <>
+                    <p className="text-[13px] font-bold text-slate-500 dark:text-slate-400">
+                      {earnedBadges} of {totalBadges} badges earned
+                    </p>
+                    {!mData && (
+                      <p className="text-[12px] text-slate-400">Could not load your progress right now. Pull down later to retry.</p>
+                    )}
+                    {kinds.map((k) => {
+                      const Icon = KIND_ICON[k.meta.icon] || PartyPopper;
+                      return (
+                        <div key={k.kind} className="p-3 rounded-2xl bg-slate-50 dark:bg-[#1C1A1E]">
+                          <div className="flex items-center gap-3">
+                            <span className="w-12 h-12 rounded-full flex items-center justify-center shrink-0" style={{ background: KIND_COLOR[k.kind], opacity: k.level > 0 ? 1 : 0.55 }}>
+                              <Icon className="w-6 h-6 text-slate-800" />
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-[14px] font-black truncate">{k.meta.title}</p>
+                                <span className="text-[11px] font-bold text-slate-500 shrink-0">Level {k.level}/{k.meta.names.length}</span>
+                              </div>
+                              <p className="text-[12px] text-slate-500 dark:text-slate-400 truncate">
+                                {k.count} {k.meta.unit}{k.next ? ` · next badge at ${k.next}` : ' · top badge reached'}
+                              </p>
+                              <div className="mt-1.5 h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                                <div className="h-full rounded-full" style={{ width: `${Math.round(k.pct * 100)}%`, background: accent }} />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            {k.meta.names.map((n, idx) => (
+                              <span
+                                key={n}
+                                className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${idx < k.level ? 'text-white' : 'bg-slate-200/70 dark:bg-slate-800 text-slate-500'}`}
+                                style={idx < k.level ? { background: accent } : undefined}
+                              >
+                                {n}
+                              </span>
+                            ))}
+                          </div>
                         </div>
-                        <p className="text-[12px] text-slate-500 dark:text-slate-400 truncate">{m.hint}</p>
-                        <div className="mt-1.5 h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width: `${Math.round(m.progress * 100)}%`, background: accent }} />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                      );
+                    })}
+                  </>
+                )}
               </div>
             )}
 
