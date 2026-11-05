@@ -1,0 +1,355 @@
+{
+  "ranAt": "2026-11-05T00:59:40.299Z",
+  "areas": [
+    "Nairobi|Nairobi",
+    "Westlands|Nairobi",
+    "Kilimani|Nairobi",
+    "Thika Road|Thika Road",
+    "Ruiru|Thika Road",
+    "Juja|Thika Road",
+    "Kiambu|Kiambu",
+    "Ruaka|Kiambu"
+  ],
+  "categories": [
+    "Sports & Adventure"
+  ],
+  "target": 15,
+  "summary": [
+    {
+      "area": "Nairobi",
+      "category": "Sports & Adventure",
+      "qualified": 49,
+      "alreadyInDb": 34,
+      "new": 15,
+      "note": ""
+    },
+    {
+      "area": "Westlands -> Nairobi",
+      "category": "Sports & Adventure",
+      "qualified": 50,
+      "alreadyInDb": 14,
+      "new": 15,
+      "note": ""
+    },
+    {
+      "area": "Kilimani -> Nairobi",
+      "category": "Sports & Adventure",
+      "qualified": 42,
+      "alreadyInDb": 17,
+      "new": 15,
+      "note": ""
+    },
+    {
+      "area": "Thika Road",
+      "category": "Sports & Adventure",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Ruiru -> Thika Road",
+      "category": "Sports & Adventure",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Juja -> Thika Road",
+      "category": "Sports & Adventure",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Kiambu",
+      "category": "Sports & Adventure",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Ruaka -> Kiambu",
+      "category": "Sports & Adventure",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    }
+  ],
+  "spots": [
+    {
+      "google_place_id": "ChIJ867zlVARLxgRJEm5oQ50LmA",
+      "name": "Mwakazi Adventures",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ4bwK9V4aLxgRxtUbJaxWPLE",
+      "name": "Nairobi Polo Club",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJO3jY8dMQLxgRABHXFyb5SUw",
+      "name": "Axis Africa Safaris Tour Company & Travel Agency Nairobi | Vacations, Trips, Holidays adventures Kenya, Tanzania & Abroad",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJa_KnksQbLxgRXy9pbk0NVV0",
+      "name": "Bigfoot Adventures Kenya",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ9yiYiaIRLxgRgpE10RtLsSM",
+      "name": "Monkey Adventures",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJr-BVhIKVYk8RcaoAJ60ESl0",
+      "name": "United Nomads (UN) – Hiking, Outdoor Adventures, Tours, Safaris & Team Building Experts in Kenya",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJLe7F7TYXLxgRTKePJ1zvyMg",
+      "name": "Bamba Adventures and Events Ltd",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJV1tkmboRLxgRqDHC_MgICwY",
+      "name": "Nairobi Railway Club",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJNXzGqz4RLxgR6xtaL_QN7uA",
+      "name": "Roadman Adventures",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJhbVhn54bLxgRZWeohIlPzNQ",
+      "name": "Dojo Wellness Club",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJJXHWFXwRLxgReYIgXI6y8ls",
+      "name": "Jumbo Adventures -Tours and Travel Agency in Kenya",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJnfDwxNYQLxgRlH5XG9dbf_o",
+      "name": "Go To Mount Kenya climbing",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ00nXhYERLxgRiIsyJHgcOTk",
+      "name": "KING & QUEEN FINEST ADVENTURE",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJQZlUrOE9LxgRFAjBftZtJsM",
+      "name": "Wookar Adventures",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJQ4avjDAXLxgRYUS6gE7DJbI",
+      "name": "Bucketlist Adventures Africa",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJl5BlresXLxgRCXL0bNgGVBo",
+      "name": "Bounce and Play",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJVaa8awAXLxgRkOT4ZVk6epQ",
+      "name": "Padel Kenya Westlands",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJMT0Nz9sXLxgRbRii_Stg4YU",
+      "name": "Creston Adventures Kenya",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJZ5cpzzQXLxgR-Ea119lGN58",
+      "name": "SK Adventures",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJEVd1-IsXLxgRE96YuNNTun8",
+      "name": "Triangle Sports Badminton & Restringing center Kenya Limited",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJqXTXXi8XLxgRr6DL7HJmBm8",
+      "name": "The Padel Point Westlands",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJQVAk688XLxgRi6Rqwze-XQs",
+      "name": "African Adventure Specialists",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJEbe6bJcXLxgRUsFljNcpjO0",
+      "name": "Kenya Catch Me Adventures",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJzalnM5UXLxgRbShZv48W1-M",
+      "name": "Arrow Adventures Kenya",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJkWDXv9sXLxgRc3rDjBlcXb0",
+      "name": "Mbogi Safaris",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJiY7R8NUQLxgR8D4-MbBrfqs",
+      "name": "BuyMore Adventures Ltd.",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJj24gRiARLxgRa5Th3wOemAA",
+      "name": "Orange Adventures",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ97HZ65URLxgRKF_7NKgjktc",
+      "name": "AdventureGo Hiking and Safaris",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJR_utMwkaLxgRBOJBh6HfUUw",
+      "name": "Methodist Resort Swimming Pool",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ65Nz0lAXLxgRJnle6g0-hIA",
+      "name": "The Burn Club",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJqetfMxQbLxgRWftKdpIKArU",
+      "name": "AVFitness Kenya",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJUZUf4GAZLxgR7Xnolco942E",
+      "name": "PLAYON Football Turf Jaffery",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ__9uOHQaLxgRZkOGULI3FBs",
+      "name": "Ultra Fitness Gym",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJBwoCvs8RLxgRCxzFqKzyd1A",
+      "name": "Hyat Fitness - Kilimani",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ27wGZTgRLxgRp8YusMAg390",
+      "name": "COCO SPORTS BAR",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJSRduZpcQLxgRJjuoBIF_cLI",
+      "name": "Noga Sports",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ3SezHAwZLxgRtVRt0jg8n-c",
+      "name": "Jaffreys Gym",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJNbqbJ14RLxgRLDeQLToC_6k",
+      "name": "Back of Africa Adventure (Kenya & Tanzania Safari Tours Provider)",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ3cs1XfJH7UIRDxbEGR6f_WU",
+      "name": "WILDSASA ADVENTURES KENYA LTD",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJjak5Ps4QLxgRx_G_J3RwVmc",
+      "name": "African Home Adventure Safaris",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJF3HbmIwaLxgRtRufybtLTbc",
+      "name": "Aslan Adventure Tours & Travel Ltd",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJyZBr9z0RLxgRBhkXU-9yy8I",
+      "name": "VIKAPU ELITE BASKETBALL ACADEMY",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJx14QL9QQLxgRLTsaFXJ-9RE",
+      "name": "Scenery Adventures Ltd",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJTTk1DNYQLxgRAchGxm-qzoE",
+      "name": "Nairobi Sports House Ltd. (Moi Avenue)",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ5Y1izykRLxgROmpLdM-xZE4",
+      "name": "Isker Safaris Limited",
+      "category": "Sports & Adventure",
+      "neighborhood": "Nairobi"
+    }
+  ]
+}
