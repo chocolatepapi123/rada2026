@@ -2710,6 +2710,7 @@ export default function App() {
             avatar={currentUserProfile?.avatar}
             displayName={currentUserProfile?.name || currentUserProfile?.handle}
             showToast={showToast}
+            isHome={activeTab === 'home'}
             onOpenSuggestSpot={() => setIsSuggestSpotModalOpen(true)}
             onRefresh={handleHeaderRefresh}
           />
