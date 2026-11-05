@@ -1,0 +1,583 @@
+{
+  "ranAt": "2026-11-05T05:41:25.003Z",
+  "areas": [
+    "Nairobi|Nairobi",
+    "Westlands|Nairobi",
+    "Kilimani|Nairobi",
+    "Thika Road|Thika Road",
+    "Ruiru|Thika Road",
+    "Juja|Thika Road",
+    "Kiambu|Kiambu",
+    "Ruaka|Kiambu"
+  ],
+  "categories": [
+    "Getaways & Resorts"
+  ],
+  "target": 15,
+  "summary": [
+    {
+      "area": "Nairobi",
+      "category": "Getaways & Resorts",
+      "qualified": 44,
+      "alreadyInDb": 22,
+      "new": 15,
+      "note": ""
+    },
+    {
+      "area": "Westlands -> Nairobi",
+      "category": "Getaways & Resorts",
+      "qualified": 48,
+      "alreadyInDb": 32,
+      "new": 13,
+      "note": "SHORT by 2"
+    },
+    {
+      "area": "Kilimani -> Nairobi",
+      "category": "Getaways & Resorts",
+      "qualified": 43,
+      "alreadyInDb": 27,
+      "new": 11,
+      "note": "SHORT by 4"
+    },
+    {
+      "area": "Thika Road",
+      "category": "Getaways & Resorts",
+      "qualified": 32,
+      "alreadyInDb": 15,
+      "new": 11,
+      "note": "SHORT by 4"
+    },
+    {
+      "area": "Ruiru -> Thika Road",
+      "category": "Getaways & Resorts",
+      "qualified": 29,
+      "alreadyInDb": 10,
+      "new": 10,
+      "note": "SHORT by 5"
+    },
+    {
+      "area": "Juja -> Thika Road",
+      "category": "Getaways & Resorts",
+      "qualified": 9,
+      "alreadyInDb": 2,
+      "new": 4,
+      "note": "SHORT by 11"
+    },
+    {
+      "area": "Kiambu",
+      "category": "Getaways & Resorts",
+      "qualified": 18,
+      "alreadyInDb": 6,
+      "new": 7,
+      "note": "SHORT by 8"
+    },
+    {
+      "area": "Ruaka -> Kiambu",
+      "category": "Getaways & Resorts",
+      "qualified": 33,
+      "alreadyInDb": 14,
+      "new": 12,
+      "note": "SHORT by 3"
+    }
+  ],
+  "spots": [
+    {
+      "google_place_id": "ChIJy4gsBC0XLxgRYYmqBERDcfI",
+      "name": "Fairmont The Norfolk",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJMfE5RxcPLxgRIpGt4klkPXg",
+      "name": "Masai Lodge",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJDbymF7A9LxgRbVAvFmTSH2k",
+      "name": "Elysian Resort",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ9XQx9kAFLxgRTAa_AzqqEpY",
+      "name": "Bali's Best Resort, Nairobi Kenya",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJO0GupFYXLxgRwhD3AugOxhA",
+      "name": "La Mada Hotel",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJJbU2xvUFLxgRTqR7OaKLIKY",
+      "name": "Osoita Lodge",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJw7GjducOLxgRlkXfA_0WCmo",
+      "name": "Ololo Safari Lodge & Farm",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ--VBPqcMLxgRBY4XdJrLFGE",
+      "name": "African Heritage House",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ2ZUh2AgPLxgR2xh0ZLxBvpw",
+      "name": "Esidai Spa & Resort, Tuala",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJqbdLfgAPLxgR7blmEOtEums",
+      "name": "Esidai spa and resort",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJw6RnK8caLxgRktPD3u0XObw",
+      "name": "Stedmak Gardens & Recreation Centre",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJAWIeqc4ELxgRNUhMnKv7Phw",
+      "name": "THE BLIXEN RESORT & SPA",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJP6O2tvImLxgRtyavJq1FsG0",
+      "name": "Limuru Country Club",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJSYtZeakFLxgRGp1hfnrKae8",
+      "name": "Giraffe Manor",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJvWCK9hYRLxgRyNRzbz9isEM",
+      "name": "The United Kenya Club",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJXfH7KTMWLxgRQFGA7cR7ND4",
+      "name": "Villa Rock-Stop Falls",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJu0-_kZsQLxgRVfgxUlp0VA8",
+      "name": "Wuduria Hotel",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJj7llb9uqLxgRr08fLRoB_GM",
+      "name": "Olepolos Country Club",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJN5Lr4tqdLxgR8raji300IzU",
+      "name": "Small World Country Club",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJVWlHuFUaLxgRuiFPVfJVqDU",
+      "name": "Golf Park",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ1dcCFCU9LxgRtfjwx5Ny3ug",
+      "name": "KIAMBU Golf Course",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJqyv_z8EXLxgRQePwpRfzppk",
+      "name": "Hyatt Place Nairobi Westlands",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJoRS12xIXLxgR0ZDdMFLwaNo",
+      "name": "The Landmark Suites Westlands, Nairobi- Near Westgate Mall",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJLcDfYDkXLxgREQhlrKRPxcM",
+      "name": "The Crossroads Hotel",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ89f-E8c7LxgRWWaSPFvwBlY",
+      "name": "Migaa Golf Estate",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ04-VXd8TLxgRatHwJqvVRSU",
+      "name": "Eastlands Country Club ECCO",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJnUoWuy4XLxgR9bc1CfwkqQQ",
+      "name": "King's Suites",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJFZLr-M0XLxgRNllGGs7Pdmk",
+      "name": "Simba Union Club from ngara footbridge",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ5a3CZE8QLxgRwBOHjo4Z6I8",
+      "name": "Aero Club Of East Africa",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ1VGMqpcQLxgRy6ejk40YtMQ",
+      "name": "Myra Residences",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJO4B3nvgaLxgREL94RntW6z8",
+      "name": "Ngong Race Course and Golf Park",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJP1ryJakQLxgRlY5_z1vFoz0",
+      "name": "Gracia Gardens",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ0eiDG6YQLxgRAq6Qc3IjCKE",
+      "name": "O'Sinkirri",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJye-SfCkRLxgRUFfDp4Y51pY",
+      "name": "Smart Homes Airbnbs Kilimani, Nairobi",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJZeAIRacQLxgR23JUrt7Fy6U",
+      "name": "Wu Yi plaza",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJofq0F64RLxgRpNb5olU5COM",
+      "name": "Padmore Residences",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJFbDZK2wXLxgR6Tbovsx8yv4",
+      "name": "MGM Muthu Hotels, Kenya",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJm-DZTV4RLxgRE6k_e0AQ9bE",
+      "name": "Nursing Council of Kenya",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJM9Hm6GsaLxgR2knR4kx1kfg",
+      "name": "Eldon Hotel & Apartments",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJIc5rytsWLxgRY_286PPQggU",
+      "name": "Pearl Palace Hotel",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJu_Tl2uQjLxgRGNsKEOzC_7c",
+      "name": "Bamboo Dam Resort",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJaUSqKqdHLxgREr9LAqeb3Jw",
+      "name": "Rock Beach Resort",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJ-8c_b9wkLxgRcQUVqZH8Ufw",
+      "name": "Ramsha (Shark's Palace Resort)",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJw905a99ALxgRqd3rPU1snUw",
+      "name": "Olive Green Resort",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJKS4iX221KBgREhHcIIH9ohU",
+      "name": "Sabby Grand Hotel",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJL4dgJSFPLxgRzWBjczVGLeU",
+      "name": "Fountain brook Gardens & Resort",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJE25yDQBNLxgRlN0hPnPyjr4",
+      "name": "Thika Greens Golf Resort",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJHZX2ogU-LxgRqqYYkMQjNOc",
+      "name": "Eden Bliss Gardens - Thome",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJc5Twp9sWLxgRfPgcI7IcCqc",
+      "name": "Park Road Hotel",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJGYYESn0VLxgRD268MjE2eDM",
+      "name": "Loft",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJv6F4KSs_LxgRm_0Camw0v-I",
+      "name": "BTL Christian International Conference Centre",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJQaFeJl8-LxgR2-DL9OSDCg8",
+      "name": "Greenvale Hotel",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJBVKFRbtALxgRgPSpKdaCRCI",
+      "name": "Royal pine cottage Hotel",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJ8VdcOqdHLxgRgv44TshoApo",
+      "name": "Courtesy Beach Ruiru",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJ9QAdWNI4LxgRhkteHwU1TO8",
+      "name": "Overstone Park Hotel",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJGx0rDwQ5LxgRugT4OEipwTY",
+      "name": "Kenton Green Hotel Ruiru",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJKcj8RwAbLxgRvswOuBSNSUo",
+      "name": "Kivulini Eco-Park",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJG9svPlFHLxgRJ4ffFJRf4og",
+      "name": "Club Ranges",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJWfib3_FBLxgR7qpO-FEB6kk",
+      "name": "Mark Lounge",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJVUpp0nZBLxgRsz5jg4sJbAs",
+      "name": "Skyview Opal Cuisine Hotel",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJMRRPaZZJLxgRciMVnSTEJBc",
+      "name": "The New Rain",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJ0WcpGFhHLxgRQiENWOf9s3Q",
+      "name": "Centurion Hotel Kenya",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJnbM5NLJILxgRRYM4eBlHTR0",
+      "name": "WATERFRONT COUNTRY CLUB - JUJA",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJpxAKVhtHLxgR8ujzoV6mTJc",
+      "name": "JOYMARK HOSTEL",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJHXvrCB4WLxgRzfzN2bfP_vs",
+      "name": "Oak Place Conference & Training Centre",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJq4guZwAWLxgRI8GWYG6XqsA",
+      "name": "Garden Houses Kenya",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJt-N0uiE9LxgRcEwRCDgT1uM",
+      "name": "Casa bella suites",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJj63EqrUiLxgRIc8CsewY7Hk",
+      "name": "La Miguela Guest House",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJhZ-D7Ug9LxgRgLnA71LrSfA",
+      "name": "Sahara West Park Hotel",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJ3720G7k9LxgRO6JQW_ia1Cs",
+      "name": "Phoenicia Hotel Kiambu",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJyf4J2B4_LxgRdR-uAfMMEHw",
+      "name": "277 Luxury Accommodation Kenya",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJU1D8l8cXLxgR0aNrGqPiMsw",
+      "name": "China Garden Hotel",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJN9anB88XLxgRGYkwnBDiGDE",
+      "name": "Villa Leone Boutique Hotel",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJleVL7x0XLxgRCANv1WPPmik",
+      "name": "Cozy Stead Hotel - Garden House, Gigiri",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJjXi8Ek4XLxgRIDnlsoitJ5s",
+      "name": "Pax Manor Muthaiga",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJtdvq9OEWLxgRcs4IcjYp2Aw",
+      "name": "Gigiri Express Hotel",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJ9d9dPgsXLxgRuQTifbf2Du8",
+      "name": "DB SPACE",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJSbRWxqQXLxgRSRMJU6vgb2s",
+      "name": "Cozy Stead Hotel - Haven House, Gigiri",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJh6RwM7Y9LxgRrvHdre9PzsM",
+      "name": "KONQA 254",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJWXl1dgA9LxgRoTqdV8dcCJM",
+      "name": "Blooming Homes Ruaka",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJDz7lnAUXLxgRs7eM57_NQ8Q",
+      "name": "Fourth Parklands Guest House & Conference",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJacTC2PM9LxgRpwZdq_RUmtU",
+      "name": "Countryside Villa 4BDR with Unlimited WiFi &Netflix",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJpa93msUXLxgR6w5BYoDOrP4",
+      "name": "ADIE's Garden Suites",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Kiambu"
+    }
+  ]
+}
