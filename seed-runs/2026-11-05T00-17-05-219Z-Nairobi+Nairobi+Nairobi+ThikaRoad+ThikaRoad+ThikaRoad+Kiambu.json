@@ -1,0 +1,343 @@
+{
+  "ranAt": "2026-11-05T00:17:05.219Z",
+  "areas": [
+    "Nairobi|Nairobi",
+    "Westlands|Nairobi",
+    "Kilimani|Nairobi",
+    "Thika Road|Thika Road",
+    "Ruiru|Thika Road",
+    "Juja|Thika Road",
+    "Kiambu|Kiambu",
+    "Ruaka|Kiambu"
+  ],
+  "categories": [
+    "Date Spots"
+  ],
+  "target": 15,
+  "summary": [
+    {
+      "area": "Nairobi",
+      "category": "Date Spots",
+      "qualified": 84,
+      "alreadyInDb": 70,
+      "new": 11,
+      "note": ""
+    },
+    {
+      "area": "Westlands -> Nairobi",
+      "category": "Date Spots",
+      "qualified": 83,
+      "alreadyInDb": 71,
+      "new": 9,
+      "note": "SHORT by 2"
+    },
+    {
+      "area": "Kilimani -> Nairobi",
+      "category": "Date Spots",
+      "qualified": 63,
+      "alreadyInDb": 54,
+      "new": 8,
+      "note": "SHORT by 3"
+    },
+    {
+      "area": "Thika Road",
+      "category": "Date Spots",
+      "qualified": 57,
+      "alreadyInDb": 47,
+      "new": 5,
+      "note": ""
+    },
+    {
+      "area": "Ruiru -> Thika Road",
+      "category": "Date Spots",
+      "qualified": 13,
+      "alreadyInDb": 6,
+      "new": 5,
+      "note": ""
+    },
+    {
+      "area": "Juja -> Thika Road",
+      "category": "Date Spots",
+      "qualified": 18,
+      "alreadyInDb": 8,
+      "new": 5,
+      "note": ""
+    },
+    {
+      "area": "Kiambu",
+      "category": "Date Spots",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Ruaka -> Kiambu",
+      "category": "Date Spots",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    }
+  ],
+  "spots": [
+    {
+      "google_place_id": "ChIJgSX6bmUZLxgRXChAFTi-W2c",
+      "name": "The Wine Shop Kenya",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJU9g6awAXLxgRPNklNv5fdhw",
+      "name": "The Wine & Bottle Nyari",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJsWz-91AXLxgRUib12fKjjt0",
+      "name": "WOW Beverages Wine Shop Kileleshwa",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJufU1b8UbLxgRxyb4rwXXHMs",
+      "name": "The Wine Box - Lavington",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJYdrTegAXLxgRzpXJHbk46Ts",
+      "name": "The Wine and Bottle Parklands (Impala)",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJk9tREaoXLxgR6AtF3D2iUvU",
+      "name": "Chateau254 - Restaurant & Wine Cellar",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJNyD4Y4kXLxgRXNZmHhuuIuc",
+      "name": "The Tasting Room",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ4fBKrbkWLxgRXvJSIZOjY7A",
+      "name": "Sunset Take Away",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ5w0j7qsRLxgR-9xKydm9kSE",
+      "name": "Hidden Wine Lounge",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJmzOqsxgXLxgRfrg7bVKStBk",
+      "name": "Red Ginger",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJHWrqvQ0XLxgRyAQi3Ye-FHo",
+      "name": "Furusato Japanese Restaurant",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJpzzR9zkXLxgRA8JBGSbTTPY",
+      "name": "The Balcony",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJNdkHrAQXLxgRwf5ZYsZhvbs",
+      "name": "Mughal Indian Cuisine",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJLZ1o2JcXLxgRfNy9gkBg_OQ",
+      "name": "Glam Rooftop Restaurant & Bar, General Mathenge Road - Near Sarit Center",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJuYI27A0XLxgRRUFc0is0Xi0",
+      "name": "GRAZE & GRAPE WINES",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ3TfssRQXLxgRgZl41X59g-A",
+      "name": "California Wines by Rose Wine Shop & Wine Lounge in Nairobi",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJeTYIwDYXLxgR543BMygb39o",
+      "name": "Onza",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJl3dhPQAXLxgRPhUS-P_s8MA",
+      "name": "Jekyll and Hyde",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJPR91LAAXLxgRiAOFelXNS5s",
+      "name": "Hudson's Tavern Bar & Grill",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ0ylkNAAXLxgRDUijh76OYts",
+      "name": "E.A.T Restaurant",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJuyURZRIRLxgRi36NuYNn1Q0",
+      "name": "Arabian Palace",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJCYkhqZMRLxgRolOj7rGn1LM",
+      "name": "Misono Japanese Restaurant-The Green House",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJv5s2FuwRLxgRR_Kh53ciroo",
+      "name": "Pot of Jollof Kitchen",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJf5O3DgARLxgR_s_hQuU3jzg",
+      "name": "Amayas Swahili Kitchen Kilimani",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJE1BhX2QRLxgRDGktTgs16g8",
+      "name": "Green's Backyard Lounge",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJZRmGqb8RLxgRqRCC6stfEPU",
+      "name": "Kabuda's Kitchen",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJnd3_RekRLxgREqjbq9zOFMc",
+      "name": "HOUSE OF MANDI",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ6daghwIRLxgRvYfJNl2wcKE",
+      "name": "Xiang Restaurant 湘菜馆",
+      "category": "Date Spots",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJx4HvkRUXLxgRf9Jq1rsktzw",
+      "name": "La Casa Di Nico Ristorante",
+      "category": "Date Spots",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJ0-OShvMjKRgRJkRwEIXUYdY",
+      "name": "Chicken Inn Thika Road Mall",
+      "category": "Date Spots",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJ58RLef0_LxgRugrD85-vEDQ",
+      "name": "Majiwa's Fish Restaurant",
+      "category": "Date Spots",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJoxF018k_LxgRd5_b9LyTBuk",
+      "name": "C. E. O Joint Club & Restaurant",
+      "category": "Date Spots",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJK1UMuTcVLxgRPMzhNJD0vwk",
+      "name": "Osumo Brad fish",
+      "category": "Date Spots",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJK4scp71ALxgRLbXH8JRopAQ",
+      "name": "Green Spot Gardens",
+      "category": "Date Spots",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJ6TVb2l5BLxgRx4QpVjAja-4",
+      "name": "Artcaffé Restaurant Ruiru",
+      "category": "Date Spots",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJEUEa1hpHLxgREvdSPXvjJi8",
+      "name": "Tango Gardens",
+      "category": "Date Spots",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJUdBfquRHLxgRWj7iaeyCnnE",
+      "name": "Faraja Restaurant Ruiru",
+      "category": "Date Spots",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJebkuHFk_LxgRYJ8DRFIWKl4",
+      "name": "Mseries",
+      "category": "Date Spots",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJMdCgTRpGLxgRV-wgPERW0BU",
+      "name": "Seagull Gardens and Restaurant",
+      "category": "Date Spots",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJmcLHMoRHLxgRP1p5UrHnufw",
+      "name": "Country Bistro, Juja City Mall",
+      "category": "Date Spots",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJgwivCCFHLxgRioylcQJmHXA",
+      "name": "The Cafe Aticas",
+      "category": "Date Spots",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJDaKrqqFJLxgRiYSIGtO4dDw",
+      "name": "SILVER LUNA GARDENS JUJA",
+      "category": "Date Spots",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJGVuarf9HLxgRHRmO5dCgkgQ",
+      "name": "Savanna Sky Resort",
+      "category": "Date Spots",
+      "neighborhood": "Thika Road"
+    }
+  ]
+}
