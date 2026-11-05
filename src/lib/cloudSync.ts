@@ -1241,9 +1241,40 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
+/**
+ * Decodes a picked photo. Tries createImageBitmap first (reads the file directly, applies the camera
+ * rotation), then an object-URL <img>, then FileReader as a last resort. FileReader alone fails on some
+ * Android gallery / camera files.
+ */
+async function drawableFromFile(file: File): Promise<{ src: CanvasImageSource; width: number; height: number }> {
+  try {
+    const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' } as any);
+    return { src: bmp, width: bmp.width, height: bmp.height };
+  } catch {
+    // try the next way
+  }
+  try {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await loadImage(url);
+      return { src: img, width: img.naturalWidth || img.width, height: img.naturalHeight || img.height };
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  } catch {
+    // try the next way
+  }
+  try {
+    const img = await loadImage(await fileToDataUrl(file));
+    return { src: img, width: img.naturalWidth || img.width, height: img.naturalHeight || img.height };
+  } catch {
+    throw new Error("This photo couldn't be opened. Try a JPG or PNG, or take a new photo.");
+  }
+}
+
 /** Center-crops to a square and downsizes to 512px, so avatars stay small and consistent. */
 async function avatarBlobFromFile(file: File): Promise<Blob> {
-  const img = await loadImage(await fileToDataUrl(file));
+  const img = await drawableFromFile(file);
   const side = Math.min(img.width, img.height);
   const size = Math.min(512, side);
   const canvas = document.createElement('canvas');
@@ -1253,7 +1284,7 @@ async function avatarBlobFromFile(file: File): Promise<Blob> {
   if (!ctx) throw new Error('no canvas');
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, size, size);
-  ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, size, size);
+  ctx.drawImage(img.src, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, size, size);
   const blob: Blob | null = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.85));
   if (!blob) throw new Error('could not process image');
   return blob;
@@ -1270,7 +1301,7 @@ export const AVATAR_MAX_BYTES = 8 * 1024 * 1024;
  *   (storage.foldername(name))[1] = auth.uid()::text
  */
 export async function uploadAvatar(uid: string, file: File): Promise<{ url?: string; error: string | null }> {
-  if (!file.type.startsWith('image/')) return { error: 'Please choose an image file.' };
+  if (file.type && !file.type.startsWith('image/')) return { error: 'Please choose an image file.' };
   if (file.size > AVATAR_MAX_BYTES) return { error: 'Image is too large (max 8 MB).' };
 
   let blob: Blob;
@@ -1317,7 +1348,7 @@ const COVER_MAX_EDGE = 1600;
 
 /** Resize (keep aspect ratio, no crop) to a web-friendly JPEG. */
 async function coverBlobFromFile(file: File): Promise<Blob> {
-  const img = await loadImage(await fileToDataUrl(file));
+  const img = await drawableFromFile(file);
   const scale = Math.min(1, COVER_MAX_EDGE / Math.max(img.width, img.height));
   const w = Math.max(1, Math.round(img.width * scale));
   const h = Math.max(1, Math.round(img.height * scale));
@@ -1328,7 +1359,7 @@ async function coverBlobFromFile(file: File): Promise<Blob> {
   if (!ctx) throw new Error('no canvas');
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, w, h);
-  ctx.drawImage(img, 0, 0, w, h);
+  ctx.drawImage(img.src, 0, 0, w, h);
   const blob: Blob | null = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.85));
   if (!blob) throw new Error('could not process image');
   return blob;
@@ -1340,7 +1371,7 @@ async function coverBlobFromFile(file: File): Promise<Blob> {
  * is needed (the avatar policy already allows writes to your own `<uid>/` folder).
  */
 export async function uploadCoverImage(uid: string, file: File): Promise<{ url?: string; error: string | null }> {
-  if (!file.type.startsWith('image/')) return { error: 'Please choose an image file.' };
+  if (file.type && !file.type.startsWith('image/')) return { error: 'Please choose an image file.' };
   if (file.size > COVER_MAX_BYTES) return { error: 'Image is too large (max 12 MB).' };
 
   let blob: Blob;
