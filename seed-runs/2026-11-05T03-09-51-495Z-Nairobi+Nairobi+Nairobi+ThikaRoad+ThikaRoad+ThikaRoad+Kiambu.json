@@ -1,0 +1,787 @@
+{
+  "ranAt": "2026-11-05T03:09:51.495Z",
+  "areas": [
+    "Nairobi|Nairobi",
+    "Westlands|Nairobi",
+    "Kilimani|Nairobi",
+    "Thika Road|Thika Road",
+    "Ruiru|Thika Road",
+    "Juja|Thika Road",
+    "Kiambu|Kiambu",
+    "Ruaka|Kiambu"
+  ],
+  "categories": [
+    "Fast Food"
+  ],
+  "target": 15,
+  "summary": [
+    {
+      "area": "Nairobi",
+      "category": "Fast Food",
+      "qualified": 25,
+      "alreadyInDb": 5,
+      "new": 15,
+      "note": ""
+    },
+    {
+      "area": "Westlands -> Nairobi",
+      "category": "Fast Food",
+      "qualified": 43,
+      "alreadyInDb": 19,
+      "new": 15,
+      "note": ""
+    },
+    {
+      "area": "Kilimani -> Nairobi",
+      "category": "Fast Food",
+      "qualified": 39,
+      "alreadyInDb": 18,
+      "new": 15,
+      "note": ""
+    },
+    {
+      "area": "Thika Road",
+      "category": "Fast Food",
+      "qualified": 34,
+      "alreadyInDb": 13,
+      "new": 15,
+      "note": ""
+    },
+    {
+      "area": "Ruiru -> Thika Road",
+      "category": "Fast Food",
+      "qualified": 17,
+      "alreadyInDb": 2,
+      "new": 13,
+      "note": "SHORT by 2"
+    },
+    {
+      "area": "Juja -> Thika Road",
+      "category": "Fast Food",
+      "qualified": 29,
+      "alreadyInDb": 7,
+      "new": 14,
+      "note": "SHORT by 1"
+    },
+    {
+      "area": "Kiambu",
+      "category": "Fast Food",
+      "qualified": 42,
+      "alreadyInDb": 15,
+      "new": 15,
+      "note": ""
+    },
+    {
+      "area": "Ruaka -> Kiambu",
+      "category": "Fast Food",
+      "qualified": 19,
+      "alreadyInDb": 0,
+      "new": 15,
+      "note": ""
+    }
+  ],
+  "spots": [
+    {
+      "google_place_id": "ChIJ0WJwyMARLxgRMoKt15w1Dpk",
+      "name": "KFC Kimathi",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ_QJ7MH8ZLxgRfiWanShmWM4",
+      "name": "Burgerking - Lavington",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJBXvuvH4RLxgRNJmAK_GUcvM",
+      "name": "Big Square Moi Avenue",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJRQUQ9ZUQLxgRyGDzL6j-x4c",
+      "name": "KFC",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJlXb0dVoQLxgR9mvepUs4pXY",
+      "name": "Big Square Wilson",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJqQNyt2saLxgRImtUJlK15YA",
+      "name": "Chicken Inn Shell Uja Drive Thru",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJO-6hGdYQLxgRG2Re0Xbnb5Y",
+      "name": "Manhattan Chicken",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJnbflitQQLxgRjAXtcq9HFKM",
+      "name": "Galito's Moi Avenue",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJG0AzUtQQLxgRyLHnU9KgTgo",
+      "name": "Sonford Fish & Chips",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ-YV4D4sRLxgRIUUm3MM4yiE",
+      "name": "Shawarma Street",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJD83w3VYQLxgRG_zB1DEu1ZA",
+      "name": "The Shack - Nairobi West",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJXzid4VYQLxgRrhC17zziteo",
+      "name": "Marita's Bhajias",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJo_PLCCgRLxgRk3Q4TM4vRqE",
+      "name": "Mc Dee Fast Foods",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ2WYzU_kTLxgRcN3_MNhF4dE",
+      "name": "KFC Embakasi",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJa3FWa98RLxgR9r7HHaQs7ME",
+      "name": "KFC Buruburu",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJkyBcxz8XLxgRr2sjTZXAVhE",
+      "name": "Chowpaty Westlands",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ_xsxrGoXLxgRjNmRrydKQic",
+      "name": "Chicken Inn Westlands",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ07UmFREXLxgRMZhynsS_9XU",
+      "name": "RocoMamas Sarit Centre",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ8wQfJhUXLxgRjfX4qi-icFk",
+      "name": "SUBZ - Amee Arcade",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJaWjGuLMXLxgR2rN6BzZ9ZC0",
+      "name": "Burger Hut Restaurant",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJhfmijlcXLxgRD8ScChPEaYw",
+      "name": "Falafel house",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJAfNWMsMXLxgRs2dqQuvcmqY",
+      "name": "Chicken Cottage -Westlands",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJIRnALS0XLxgRiBbDr5zgbOc",
+      "name": "Burger 82 Westlands",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJyQwLNQAXLxgRo4k7BbXgD90",
+      "name": "ChicKing WestLands",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJzXU2kzgTQBgRg0o861ilDnc",
+      "name": "Slush Coffee World",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJC3uEUTUbLxgRUGQR9Gp2CMc",
+      "name": "Wings Kenya",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJpcV_HwwXLxgR7Vg8Dr8bZUA",
+      "name": "Stavrose Restaurant",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJPSETBTkXLxgRD5va7c7nUQI",
+      "name": "Khan's - Pakistani Kitchen",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJq6pqdBsXLxgR2jeoRrIlls8",
+      "name": "Giriraj Fast Food - Laxcon",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJBwlkGBMXLxgRaNj3KIpFAgo",
+      "name": "Hashmi Barbeque",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ5QDBAqIQLxgR9axBstwXKK4",
+      "name": "Big Square AdLife Plaza",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJO65Dk6MQLxgRyMJ7OXadc2g",
+      "name": "SUBZ - Timau Plaza",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJw8O9ww8RLxgREKVy4rFsFQk",
+      "name": "Big Knife Hurlingham",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ6U9m1ikRLxgRECaBWO0ndf0",
+      "name": "The Cheese Pull",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJnzlDfP4RLxgRY-fC9Fhooxc",
+      "name": "Bun & Beef Yaya Center",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJr_ss1eUbLxgR6pH_6Ko6ylw",
+      "name": "Munch Kilimani",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJMcgULJYbLxgRdmkjLlM8awY",
+      "name": "DRIP BURGERS KILIMANI",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJC0qDuSoRLxgR6wtz3ZCNCXQ",
+      "name": "Rush Burgers Kenya",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ6fQZlXIRLxgRQzsjcj128Ow",
+      "name": "Yahya Food",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJe1olYGoaLxgRYruO1YN0sRY",
+      "name": "KFC Junction",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJzax_wrARLxgRyXMG1wdybBw",
+      "name": "Street Wok",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJP4WeCRoRLxgRkK-ZsS6Jzhc",
+      "name": "Kukito - Hurlingham",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJw9tPJKgRLxgRf8dmiOKkOg4",
+      "name": "Chicken Inn Ola Ngong Road management",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ7yakGAAbLxgRzyCZJt1bUZc",
+      "name": "GHOST BURGERS",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ-0YlQ1MRLxgRcU_jTzCLXik",
+      "name": "Ribs & Wings, Kilimani",
+      "category": "Fast Food",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJOekzHIcWLxgR6RcmByR1OCg",
+      "name": "KFC Northview",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJuYRFrMIVLxgRXguk27x3aqc",
+      "name": "KFC Garden City Mall",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJVxbb3s8VLxgRpZDphxUyh3s",
+      "name": "KFC Kasarani",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJC9gz-ecVLxgRZ63PVXd-NGs",
+      "name": "Big Square Garden City",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJjUg5rvQVLxgR9a3fQCIAEok",
+      "name": "Galito's TRM",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJYQNXHjc_LxgRARqIci2DI2E",
+      "name": "Chicken Inn Kahawa Sukari",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJZ209HFQVLxgR-UGJJCwSYRU",
+      "name": "Koreana Chicken",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJpT2MrvQVLxgRtCLm9w3GWfY",
+      "name": "Creamy Inn-TRM",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJvWNCzIA_LxgROiyPSRxuNtM",
+      "name": "Urban Kings Fried Chicken KU City Mall",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJG-WL-ucVLxgROV0AaENKAZ0",
+      "name": "Java House - Garden City Mall",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJjUN_uDs9LxgR46VBS0AmURM",
+      "name": "Big Square Two Rivers",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJcbNEG7MXLxgRj0XrAYcn-zQ",
+      "name": "Link Up Cafe",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJ8b_8teU_LxgRvetHwq9hrz4",
+      "name": "KFC Kahawa Sukari Ave",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJgcqKdgAXLxgR79XfZTMAGW0",
+      "name": "DRIP BURGERS PARKLANDS",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJZfpTI4Q_LxgRaR6t1d4FaRw",
+      "name": "Sukari Burgers",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJG7EluoFBLxgRRjjjTYJHJYA",
+      "name": "KFC Kamakis",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJA3m8Z61HLxgRcjWQVSnzSUQ",
+      "name": "Chicken Inn (Gwa Kairu)",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJiWqDkY5BLxgRXiYaV4nnhvA",
+      "name": "Jiji Foods Kihunguro",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJX8z0w8hHLxgRLijy9iCCQ4U",
+      "name": "RHAPSODY DELICACIES /BISTRO (KIMBO) - Pizza & Fast-Food Restaurant",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJn00y_vJrLxgR_tGqT7uoieA",
+      "name": "Chicken Inn Delta Ruiru",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJgwkEP1FHLxgRTV7Xkc28pcg",
+      "name": "Chicken Inn - Nord Mall, Ruiru",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJn_NbgWJBLxgR_XmgnDl_HJs",
+      "name": "Tabasamu Bites",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJT_F3RolBLxgRrc9OZsd6Bh0",
+      "name": "Ribs and Wings - Kamakis",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJJQiWitY5LxgRWICOyUOaitI",
+      "name": "Chipo ChapChap",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJR1_2c2lBLxgRzsImMbo3UHU",
+      "name": "Exit Eleven Inn",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJ2wYTIGtBLxgRNfdlWo51S9I",
+      "name": "Square 7 Lounge & Grill",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJb1igN5hBLxgRKt7gvfOHpeA",
+      "name": "Greenleaf Kitchen and Bar",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJZZf_MwBHLxgRvVKqXkSDR5Y",
+      "name": "Choma Zone Ruiru",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJ7XTX92oaLxgRQ8AYt45qmbw",
+      "name": "SUBZ - Junction",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJ8Vt5NupPLxgRnL-PXDz2YTA",
+      "name": "RHAPSODY DELICACIES -PIZZA & FAST FOOD JUJA",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJBSYQbwBHLxgRulSljpCjc3Q",
+      "name": "Kwetu Cafe Juja",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJqZDK9j1HLxgR8XaBtnlLBwo",
+      "name": "Naivas Foodmarket - Juja City Mall",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJBYqKGTxGLxgRJxJPUHhQJ60",
+      "name": "Mohaz Grill",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJe-U-GVpGLxgRIIOtiQ8TSoE",
+      "name": "Juja City Mall",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJC8TbwEBGLxgRnTwR_BdZWe0",
+      "name": "Moriah Deli/Moriah chicken Grill Juja",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJSWUMeSxHLxgRyHovitOK5wo",
+      "name": "Senate Restaurant",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJ_43DUHZHLxgRtg6hR8w7uuY",
+      "name": "Scoops&Spoons+Kitchen",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJI8d6j3g9LxgRVnIxMfEABRA",
+      "name": "Al's Pizza, Juja City Mall",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJO0JkEwBHLxgRxO6EOKpt10c",
+      "name": "Junk Joint juja",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJQyWWbTI_LxgRYF27Cm6gB4Y",
+      "name": "Moyo's Fast Food",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJzYMpLYA_LxgRUjNklatETDw",
+      "name": "Muncheez Bistro",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJI36Y8ZVHLxgRTRic49RoZYM",
+      "name": "Pork Novela",
+      "category": "Fast Food",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJNbnnSHQ9LxgR-OoKp544ydA",
+      "name": "Ha Njeri",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJgXGVWkk9LxgRvv33tMvq810",
+      "name": "Pizza Inn Kiambu Mall",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJdzQFKV48LxgRLBp8Q7qxh9g",
+      "name": "Chicken Inn Kiambu Mall",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJBY7Enss9LxgRJliAkgvupEQ",
+      "name": "The Rapha Bake & Brew Garden",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJZ-gAGgA9LxgRSiJQzsa1nyg",
+      "name": "Derby Restaurant",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJu30U_Wo9LxgR7V0pHZMrEag",
+      "name": "Neighbourhood Grill",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJJRcRTF49LxgR1pOxgBXqKQM",
+      "name": "The OakBerry Restaurant",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJMZNtGp89LxgRSDzgyDp-1Pc",
+      "name": "Spur Steak Kiambu Road",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJ0ZRJJVs9LxgRDvQGL_XJ50A",
+      "name": "Burger King - Two Rivers Mall",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJZ1O81EQ9LxgRHmI4NOm4_y4",
+      "name": "Chicken Inn Two Rivers Mall",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJjZD94409LxgROONWdr6F8u4",
+      "name": "Deli Pork House",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJEdn-5SIXLxgRvOKuILCTbhQ",
+      "name": "Chicken Inn Total Fourways",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJUTWFI8U9LxgR6nHpaHCJNBU",
+      "name": "Panarottis Kiambu",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJ5RvI0G89LxgR6gmKI8X5ZQY",
+      "name": "IZAK'S BARBEQUE GRILL",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJCwAHlOoXLxgRG4ye6P1Fwt4",
+      "name": "The Grilll Shack",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJ_wMimEw9LxgRCjQMSxxSbA0",
+      "name": "Quick Mart Ruaka",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJk7UxoEw9LxgR4rVRSQX4ric",
+      "name": "Pork Pit",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJc6ZiSwA9LxgRDNdHTSJyAu0",
+      "name": "KFC Ruaka",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJn4IEL0w9LxgRHoY1BiXvHys",
+      "name": "Ruaka Chicken Inn",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJO9mVhesTLxgR5AZnIvUW1dk",
+      "name": "Munchies O'clock fries",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJJ1NZtk49LxgR6ptGiHtXui0",
+      "name": "Valley Park Falls -Ruaka Bar, Lounge & Restaurant",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJU09WHgA9LxgREqAnsGxeiBM",
+      "name": "LEGACY RESTAURANT",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJwxPZtt8jLxgRxYHBtlDB6z4",
+      "name": "Bara Swahili Dishes Ruaka",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJUdGqAcEiLxgRwczYry1WAME",
+      "name": "Licky Fresh Fish",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJCed58E89LxgRnA_LGGasK0o",
+      "name": "Pepino's Pizza Ruaka",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJFy6CrUs9LxgRQ8_JCm9U3Y0",
+      "name": "Queens bar and restaurant Ruaka",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJBYDqNgA9LxgRBJ1R0eM1BZI",
+      "name": "BB Chicken - Two Rivers",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJ6YWfUAA9LxgRyjerjLwG4TA",
+      "name": "Chicken Cottage Northern Bypass.",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJDW2HPEw9LxgRj9lp5pI9C8k",
+      "name": "Chicken Hut Inn",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJ3zp1Yi49LxgRDrQdn4s-uXw",
+      "name": "The Backroom Lounge || Kitchen Terrace Kitchen",
+      "category": "Fast Food",
+      "neighborhood": "Kiambu"
+    }
+  ]
+}
