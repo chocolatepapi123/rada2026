@@ -58,62 +58,75 @@ export const MenuAccountSection: React.FC<Props> = ({ userId, showToast, onOpenA
     }
   };
 
+  // Same look as the main 3-dot menu (see Header.tsx).
+  const GROUP =
+    'rounded-3xl overflow-hidden bg-slate-50 dark:bg-white/[0.04] border border-slate-200/70 dark:border-white/5 divide-y divide-slate-200/70 dark:divide-white/5';
+  const TILE = 'w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 bg-slate-200/70 dark:bg-white/10 text-slate-600 dark:text-slate-300';
+  const TITLE = 'block text-[15px] font-bold leading-tight text-slate-900 dark:text-slate-100';
+  const SUB = 'block text-xs font-normal leading-snug text-slate-500 dark:text-slate-400 mt-0.5 truncate';
   const input =
-    'w-full pl-9 pr-9 py-2 text-xs bg-slate-100 dark:bg-[#121113] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E0533C]/40 text-slate-900 dark:text-slate-100';
+    'w-full pl-11 pr-11 py-3 text-sm bg-white dark:bg-[#121113] border border-slate-200 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#E0533C]/40 text-slate-900 dark:text-slate-100 placeholder:text-slate-400';
 
   return (
-    <div className="border-t border-slate-100 dark:border-slate-800/80 mt-1 pt-1">
-      <p className="px-4 pt-2 pb-1 text-[10px] font-black uppercase tracking-wider text-slate-400">Account & security</p>
+    <div className="p-2.5 space-y-2.5">
+      <p className="px-2 pt-1 text-[11px] font-black uppercase tracking-wider text-slate-400">Account &amp; security</p>
 
-      <div className="px-4 py-2 flex items-center gap-3 text-xs">
-        <Mail className="w-4 h-4 text-slate-500 shrink-0" />
-        <div className="min-w-0">
-          <p className="font-semibold text-slate-800 dark:text-slate-200">Email (private)</p>
-          <p className="text-[10px] text-slate-500 truncate">{email || '…'}</p>
+      <div className={GROUP}>
+        <div className="flex items-center gap-3.5 px-4 py-3.5 min-h-[60px]">
+          <span className={TILE}><Mail className="w-5 h-5" /></span>
+          <span className="flex-1 min-w-0">
+            <span className={TITLE}>Email (private)</span>
+            <span className={SUB}>{email || '…'}</span>
+          </span>
         </div>
-      </div>
-      <div className="px-4 py-2 flex items-center gap-3 text-xs">
-        <Globe className="w-4 h-4 text-slate-500 shrink-0" />
-        <div className="min-w-0">
-          <p className="font-semibold text-slate-800 dark:text-slate-200">Sign-in method</p>
-          <p className="text-[10px] text-slate-500 truncate">{providerName}</p>
-        </div>
-      </div>
 
-      <button
-        type="button"
-        onClick={() => {
-          if (!canChangePassword) { showToast?.(`Your password is managed by ${providerName}.`, { type: 'error' } as any); return; }
-          setPwOpen((o) => !o);
-        }}
-        className="w-full px-4 py-2.5 flex items-center gap-3 text-xs text-left hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer"
-      >
-        <KeyRound className="w-4 h-4 text-slate-500 shrink-0" />
-        <span className="flex-1 font-semibold text-slate-800 dark:text-slate-200">Change password</span>
-        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${pwOpen ? 'rotate-180' : ''}`} />
-      </button>
-      {pwOpen && (
-        <form onSubmit={updatePassword} className="px-4 pb-3 space-y-2">
-          {err && <p className="text-[11px] text-red-500 font-medium">{err}</p>}
-          <div className="relative">
-            <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-            <input type={showPw ? 'text' : 'password'} value={pw} onChange={(e) => setPw(e.target.value)} placeholder="New password" autoComplete="new-password" className={input} />
-            <button type="button" onClick={() => setShowPw((s) => !s)} className="absolute right-3 top-2 text-slate-400" aria-label="Show or hide password">
-              {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-          <div className="relative">
-            <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-            <input type={showPw ? 'text' : 'password'} value={pw2} onChange={(e) => setPw2(e.target.value)} placeholder="Confirm new password" autoComplete="new-password" className={input} />
-          </div>
-          <button type="submit" disabled={busy || !pw} className="w-full py-2 bg-[#E0533C] disabled:opacity-50 text-white font-black rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer">
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Update password'}
+        <div className="flex items-center gap-3.5 px-4 py-3.5 min-h-[60px]">
+          <span className={TILE}><Globe className="w-5 h-5" /></span>
+          <span className="flex-1 min-w-0">
+            <span className={TITLE}>Sign-in method</span>
+            <span className={SUB}>{providerName}</span>
+          </span>
+        </div>
+
+        <div>
+          <button
+            type="button"
+            onClick={() => {
+              if (!canChangePassword) { showToast?.(`Your password is managed by ${providerName}.`, { type: 'error' } as any); return; }
+              setPwOpen((o) => !o);
+            }}
+            className="w-full text-left flex items-center gap-3.5 px-4 py-3.5 min-h-[60px] transition cursor-pointer focus:outline-none hover:bg-white dark:hover:bg-white/[0.06] active:bg-slate-100 dark:active:bg-white/10"
+          >
+            <span className={TILE}><KeyRound className="w-5 h-5" /></span>
+            <span className="flex-1 min-w-0">
+              <span className={TITLE}>Change password</span>
+            </span>
+            <ChevronDown className={`w-5 h-5 text-slate-300 dark:text-slate-600 shrink-0 transition-transform ${pwOpen ? 'rotate-180' : ''}`} />
           </button>
-        </form>
-      )}
+          {pwOpen && (
+            <form onSubmit={updatePassword} className="px-4 pb-4 space-y-2.5">
+              {err && <p className="text-xs text-red-500 font-medium px-1">{err}</p>}
+              <div className="relative">
+                <Lock className="w-4.5 h-4.5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                <input type={showPw ? 'text' : 'password'} value={pw} onChange={(e) => setPw(e.target.value)} placeholder="New password" autoComplete="new-password" className={input} />
+                <button type="button" onClick={() => setShowPw((s) => !s)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 p-0.5" aria-label="Show or hide password">
+                  {showPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+              <div className="relative">
+                <Lock className="w-4.5 h-4.5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                <input type={showPw ? 'text' : 'password'} value={pw2} onChange={(e) => setPw2(e.target.value)} placeholder="Confirm new password" autoComplete="new-password" className={input} />
+              </div>
+              <button type="submit" disabled={busy || !pw} className="w-full py-3.5 bg-[#E0533C] disabled:opacity-50 text-white text-[15px] font-extrabold rounded-full flex items-center justify-center gap-2 shadow-lg shadow-[#E0533C]/25 active:scale-[0.98] transition cursor-pointer">
+                {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Update password'}
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
 
       {userId && showToast && (
-        <div className="px-1">
+        <div className="-mx-2.5 px-1">
           <AccountSwitcher
             currentUserId={userId}
             showToast={showToast}
@@ -122,21 +135,32 @@ export const MenuAccountSection: React.FC<Props> = ({ userId, showToast, onOpenA
         </div>
       )}
 
-      <div className="px-4 py-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
-        <button type="button" onClick={() => setLegalDoc('terms')} className="underline cursor-pointer">Terms</button>
-        <button type="button" onClick={() => setLegalDoc('privacy')} className="underline cursor-pointer">Privacy</button>
-        <button type="button" onClick={() => setLegalDoc('guidelines')} className="underline cursor-pointer">Guidelines</button>
-        <button type="button" onClick={() => setLegalDoc('merchant')} className="underline cursor-pointer">Merchant Terms</button>
-        <span className="opacity-70">v{LEGAL_VERSION}</span>
+      <div className="px-1 flex flex-wrap items-center gap-2">
+        {([
+          ['terms', 'Terms'],
+          ['privacy', 'Privacy'],
+          ['guidelines', 'Guidelines'],
+          ['merchant', 'Merchant Terms'],
+        ] as [LegalDoc, string][]).map(([doc, label]) => (
+          <button
+            key={doc}
+            type="button"
+            onClick={() => setLegalDoc(doc)}
+            className="px-3.5 py-2 rounded-full bg-slate-100 dark:bg-white/10 text-xs font-bold text-slate-600 dark:text-slate-300 active:scale-95 transition cursor-pointer"
+          >
+            {label}
+          </button>
+        ))}
+        <span className="text-[11px] font-semibold text-slate-400 px-1">v{LEGAL_VERSION}</span>
       </div>
 
       {onLogout && (
         <button
           type="button"
           onClick={() => { onDone(); onLogout(); }}
-          className="w-full px-4 py-2.5 text-xs font-semibold hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-3 text-red-600 dark:text-red-400 border-t border-slate-100 dark:border-slate-800/80 cursor-pointer"
+          className="w-full rounded-full bg-red-50 dark:bg-red-950/30 border border-red-200/70 dark:border-red-900/40 text-red-600 dark:text-red-400 text-[15px] font-extrabold py-3.5 flex items-center justify-center gap-2 hover:bg-red-100/70 dark:hover:bg-red-950/50 active:scale-[0.98] transition cursor-pointer focus:outline-none"
         >
-          <LogOut className="w-4 h-4" />
+          <LogOut className="w-5 h-5" />
           <span>Log out</span>
         </button>
       )}
