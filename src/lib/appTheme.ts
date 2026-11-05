@@ -5,19 +5,22 @@ import { THEMES } from './profileLook';
 
 export const APP_COLOR_KEY = 'rada_app_color';
 
+// Default (nothing chosen yet) = Sage. 'none' is stored on purpose when someone picks Off.
+export const DEFAULT_APP_COLOR = 'sage';
+
 export const getStoredAppColor = (): string => {
   try {
     const v = localStorage.getItem(APP_COLOR_KEY);
-    return v && THEMES.some((t) => t.id === v) ? v : 'none';
+    if (v === 'none') return 'none';
+    return v && THEMES.some((t) => t.id === v) ? v : DEFAULT_APP_COLOR;
   } catch {
-    return 'none';
+    return DEFAULT_APP_COLOR;
   }
 };
 
 export const storeAppColor = (id: string): void => {
   try {
-    if (id === 'none') localStorage.removeItem(APP_COLOR_KEY);
-    else localStorage.setItem(APP_COLOR_KEY, id);
+    localStorage.setItem(APP_COLOR_KEY, id);
   } catch {}
 };
 
