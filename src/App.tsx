@@ -586,7 +586,7 @@ export default function App() {
   // Get the profile page ready in the background so tapping the photo opens it straight away
   // (it used to download on the first tap, which looked like nothing happened).
   useEffect(() => {
-    const t = window.setTimeout(() => { import('./components/ProfilePage.tsx').catch(() => {}); }, 2000);
+    const t = window.setTimeout(() => { import('./components/ProfilePage.tsx').catch(() => {}); }, 1200);
     return () => window.clearTimeout(t);
   }, []);
 
@@ -1469,6 +1469,9 @@ export default function App() {
       if (readDeepLinkTab() === 'outings') {
         window.history.pushState({ radaApp: true, tab: 'outings' }, '');
       }
+      // Extra "guard" entry on top: the first Back press on Home pops this one (and shows the
+      // "Press Back again" toast) instead of closing the app straight away.
+      window.history.pushState({ radaApp: true, guard: true }, '');
     }
 
     const handlePopState = (e: PopStateEvent) => {
@@ -1536,6 +1539,10 @@ export default function App() {
       if (now - lastBackPressRef.current < 2000) {
         // Double-press within 2 seconds: leave the app on the second press
         isExitingRef.current = true;
+        try {
+          const appPlugin = (window as any).Capacitor?.Plugins?.App;
+          if (appPlugin?.exitApp) { appPlugin.exitApp(); return; }
+        } catch (_) {}
         window.history.back();
         try {
           window.close();
