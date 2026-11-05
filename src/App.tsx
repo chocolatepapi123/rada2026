@@ -583,6 +583,13 @@ export default function App() {
     document.documentElement.style.colorScheme = isDarkMode ? 'dark' : 'light';
   }, [isDarkMode, showSplash, authLoading, appColor]);
 
+  // Get the profile page ready in the background so tapping the photo opens it straight away
+  // (it used to download on the first tap, which looked like nothing happened).
+  useEffect(() => {
+    const t = window.setTimeout(() => { import('./components/ProfilePage.tsx').catch(() => {}); }, 2000);
+    return () => window.clearTimeout(t);
+  }, []);
+
   const handleToggleTheme = () => {
     setIsDarkMode(prev => {
       try { localStorage.setItem('rada_theme', prev ? 'light' : 'dark'); } catch {}
@@ -3117,7 +3124,11 @@ export default function App() {
           )}
 
           {isProfilePageOpen && (
-            <Suspense fallback={null}>
+            <Suspense fallback={
+              <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full border-4 border-slate-200 dark:border-slate-700 border-t-[#E0533C] animate-spin" />
+              </div>
+            }>
               <ProfilePage
                 onClose={() => setIsProfilePageOpen(false)}
                 session={session}

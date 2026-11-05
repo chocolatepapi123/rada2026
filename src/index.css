@@ -278,6 +278,8 @@ html::before {
 }
 /* Sticky header: opaque page colour with the same wash on top, so it matches the page under it. */
 html.rada-washed .rada-header {
+  border-bottom-color: transparent;
+  box-shadow: none;
   background-color: var(--rada-base);
   background-image: var(--rada-wash);
   background-repeat: no-repeat;
