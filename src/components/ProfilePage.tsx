@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -23,7 +23,8 @@ import { useMySubscriptions } from '../lib/subscriptions';
 import { saveUnifiedProfile } from '../lib/cloudSync';
 import { NotificationBell } from './NotificationBell';
 import { ProProfileCard, ProProfilePage } from './ProProfile';
-import { CreatorHubTab } from './CreatorHubTab';
+// Loaded only when the Creator hub is opened, so the profile page itself opens faster.
+const CreatorHubTab = lazy(() => import('./CreatorHubTab').then((m) => ({ default: m.CreatorHubTab })));
 import {
   AvatarHero,
   IdentityFields,
@@ -647,14 +648,16 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       )}
 
       {hubOpen && (
-        <CreatorHubTab
-          own={own}
-          outings={outings}
-          userId={user?.id}
-          onClose={() => setHubOpen(false)}
-          onOpenAuth={onOpenAuth}
-          showToast={showToast}
-        />
+        <Suspense fallback={null}>
+          <CreatorHubTab
+            own={own}
+            outings={outings}
+            userId={user?.id}
+            onClose={() => setHubOpen(false)}
+            onOpenAuth={onOpenAuth}
+            showToast={showToast}
+          />
+        </Suspense>
       )}
     </div>
   );
