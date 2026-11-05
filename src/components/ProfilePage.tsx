@@ -15,6 +15,7 @@ import {
   Sun,
   Moon,
   Check,
+  X,
   AlertCircle,
 } from 'lucide-react';
 import { UserProfile, OutingPlan, BusinessAccount } from '../types';
@@ -32,6 +33,16 @@ import {
   useOwnProfile,
 } from './ProfileSettingsKit';
 import { fetchMilestones, MILESTONE_META, type MilestoneKind, type MilestoneData } from '../lib/milestones';
+import {
+  THEMES,
+  DEFAULT_THEME,
+  MAX_TAGS,
+  MAX_TAG_LEN,
+  cleanTag,
+  themeColor,
+  fetchProfileLook,
+  saveMyProfileLook,
+} from '../lib/profileLook';
 import type { ToastOptions } from './Toast.tsx';
 
 interface ProfilePageProps {
@@ -54,15 +65,6 @@ interface ProfilePageProps {
 
 type Tab = 'milestones' | 'creator' | 'settings';
 
-const THEMES = [
-  { id: 'terracotta', name: 'Terracotta', color: '#E0533C' },
-  { id: 'sage', name: 'Sage', color: '#2D6A4F' },
-  { id: 'ocean', name: 'Ocean', color: '#2563EB' },
-  { id: 'violet', name: 'Violet', color: '#7C3AED' },
-  { id: 'rose', name: 'Rose', color: '#E11D48' },
-  { id: 'amber', name: 'Amber', color: '#D97706' },
-  { id: 'slate', name: 'Slate', color: '#475569' },
-];
 
 const KINDS: MilestoneKind[] = ['outings', 'spots', 'photo_reviews'];
 const KIND_COLOR: Record<MilestoneKind, string> = { outings: '#F9D6CE', spots: '#D9EFE3', photo_reviews: '#E4DAF7' };
@@ -126,15 +128,58 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const creatorPlan = mySubs.subs.creator?.effective_plan ?? 'free';
   const hostedOutings = outings.filter((o) => user?.id && o.hostId === user.id);
 
-  // ---- Profile theme (colour). Saved on this device per account. ----
+  // ---- Profile look: colour theme + tags. Public (saved in the database) so other people see it too. ----
   const themeKey = `rada_profile_theme_${user?.id || 'guest'}`;
   const [themeId, setThemeId] = useState<string>(() => {
-    try { return localStorage.getItem(themeKey) || 'terracotta'; } catch { return 'terracotta'; }
+    try { return localStorage.getItem(themeKey) || DEFAULT_THEME; } catch { return DEFAULT_THEME; }
   });
-  const accent = (THEMES.find((t) => t.id === themeId) || THEMES[0]).color;
-  const pickTheme = (id: string) => {
+  const [tags, setTags] = useState<string[]>([]);
+  const [savedTags, setSavedTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
+  const [lookSaving, setLookSaving] = useState(false);
+  const accent = themeColor(themeId);
+  const tagsDirty = JSON.stringify(tags) !== JSON.stringify(savedTags);
+
+  useEffect(() => {
+    let off = false;
+    if (!user?.id) return;
+    fetchProfileLook(user.id).then((look) => {
+      if (off || !look) return;
+      setThemeId(look.theme);
+      setTags(look.tags);
+      setSavedTags(look.tags);
+    });
+    return () => { off = true; };
+  }, [user?.id]);
+
+  const shareLook = async (theme: string, nextTags: string[]) => {
+    const err = await saveMyProfileLook({ theme, tags: nextTags });
+    if (err) showToast('Saved on this phone only. Run profile_look.sql in Supabase so others can see it.', { type: 'error' });
+    return !err;
+  };
+  const pickTheme = async (id: string) => {
     setThemeId(id);
     try { localStorage.setItem(themeKey, id); } catch {}
+    await shareLook(id, savedTags);
+  };
+  const addTag = () => {
+    const t = cleanTag(tagInput);
+    if (!t) return;
+    if (tags.some((x) => x.toLowerCase() === t.toLowerCase())) { setTagInput(''); return; }
+    if (tags.length >= MAX_TAGS) { showToast(`You can add up to ${MAX_TAGS} tags.`, { type: 'error' }); return; }
+    setTags([...tags, t]);
+    setTagInput('');
+  };
+  const saveAll = async () => {
+    setLookSaving(true);
+    try {
+      if (own.dirty) await own.save();
+      if (tagsDirty) {
+        if (await shareLook(themeId, tags)) { setSavedTags(tags); showToast('Tags saved.'); }
+      }
+    } finally {
+      setLookSaving(false);
+    }
   };
 
   // ---- Milestones: the app's real badges (outings, spots, photo reviews), from the database ----
@@ -193,8 +238,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       className="fixed inset-0 z-50 bg-white dark:bg-[#121113] text-slate-900 dark:text-slate-100 flex flex-col animate-in fade-in duration-200"
       style={{ ['--rp-accent' as any]: accent }}
     >
+      {/* Theme wash over the whole page */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: `linear-gradient(180deg, ${accent}38 0px, ${accent}16 280px, ${accent}0A 100%)` }}
+      />
       {/* Top bar */}
-      <div className="shrink-0 px-2 py-2 flex items-center gap-1 bg-white dark:bg-[#121113]">
+      <div className="relative shrink-0 px-2 py-2 flex items-center gap-1">
         <button
           type="button"
           onClick={onClose}
@@ -217,7 +267,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto pb-6">
+      <div className="relative flex-1 overflow-y-auto pb-6">
         {!isLoggedIn ? (
           <div className="mx-4 mt-6 p-4 rounded-2xl bg-amber-500/10 flex items-start gap-3">
             <AlertCircle className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" />
@@ -275,6 +325,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                   <Crown className="w-3.5 h-3.5" /> Creator
                 </span>
               )}
+              {savedTags.map((t) => (
+                <span key={t} className="text-[12px] font-semibold px-3 py-1.5 rounded-full" style={{ background: `${accent}1F`, color: accent }}>
+                  {t}
+                </span>
+              ))}
             </div>
 
             {/* Stats + actions */}
@@ -344,7 +399,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             </div>
 
             {/* Tabs */}
-            <div ref={tabsRef} className="mt-1 flex border-y border-slate-200 dark:border-slate-800 sticky top-0 bg-white dark:bg-[#121113] z-10">
+            <div ref={tabsRef} className="mt-1 flex border-y border-slate-200 dark:border-slate-800 sticky top-0 bg-white/80 dark:bg-[#121113]/80 backdrop-blur-md z-10">
               {tabs.map(([id, label]) => (
                 <button
                   key={id}
@@ -462,7 +517,37 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                   <RelationshipStatusField p={own} />
                 </Section>
 
-                <Section title="Profile theme" description="Pick the colour of your profile page.">
+                <Section title="Tags" description={`Short labels shown on your profile, like Founder or Foodie. Up to ${MAX_TAGS}.`}>
+                  <div className="p-4 space-y-3">
+                    {tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {tags.map((t) => (
+                          <span key={t} className="inline-flex items-center gap-1 text-[12px] font-semibold pl-3 pr-1.5 py-1.5 rounded-full" style={{ background: `${accent}1F`, color: accent }}>
+                            {t}
+                            <button type="button" onClick={() => setTags(tags.filter((x) => x !== t))} aria-label={`Remove ${t}`} className="w-5 h-5 rounded-full flex items-center justify-center cursor-pointer">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <input
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value.slice(0, MAX_TAG_LEN))}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(); } }}
+                        placeholder="Add a tag"
+                        className="flex-1 px-3 py-2.5 text-[13px] rounded-xl bg-slate-100 dark:bg-slate-800 focus:outline-none focus:ring-2 text-slate-900 dark:text-slate-100"
+                        style={{ ['--tw-ring-color' as any]: `${accent}66` }}
+                      />
+                      <button type="button" onClick={addTag} disabled={!tagInput.trim()} className="px-4 rounded-xl text-white text-[13px] font-black disabled:opacity-40 cursor-pointer" style={{ background: accent }}>
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                </Section>
+
+                <Section title="Profile theme" description="Colours your whole profile. Other people see it too.">
                   <div className="p-4 flex flex-wrap gap-3">
                     {THEMES.map((t) => (
                       <button
@@ -514,12 +599,12 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
         <div className="shrink-0 px-3 py-3 bg-white dark:bg-[#1C1A1E] shadow-[0_-1px_6px_rgba(0,0,0,0.06)]">
           <button
             type="button"
-            onClick={own.save}
-            disabled={!own.dirty || own.saving}
+            onClick={saveAll}
+            disabled={(!own.dirty && !tagsDirty) || own.saving || lookSaving}
             className="w-full py-3 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black rounded-xl text-[13px] transition flex items-center justify-center gap-2 cursor-pointer"
             style={{ background: accent }}
           >
-            {own.saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Save changes</span>}
+            {own.saving || lookSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Save changes</span>}
           </button>
         </div>
       )}

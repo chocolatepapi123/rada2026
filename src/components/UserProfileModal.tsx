@@ -2,6 +2,9 @@ import React from 'react';
 import { track } from '../lib/tracking';
 import {
   X,
+  ChevronLeft,
+  PartyPopper,
+  Camera,
   Heart,
   MessageSquare,
   MapPin,
@@ -24,6 +27,8 @@ import { usePublicTiers } from '../lib/subscriptions';
 import { fetchMyBroadcastSubscriptions, setBroadcastSubscription } from '../lib/broadcasts';
 import { listHostVideos, type HostVideo } from '../lib/hostVideos';
 import { toHandle } from '../lib/cloudSync';
+import { fetchProfileLook, themeColor, DEFAULT_THEME, type ProfileLook } from '../lib/profileLook';
+import { fetchMilestones, MILESTONE_META, type MilestoneKind, type MilestoneData } from '../lib/milestones';
 import {
   AvatarHero,
   Section,
@@ -164,6 +169,19 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       setUpdatesBusy(false);
     }
   };
+
+  // Their public look (colour theme + tags) and milestone badges
+  const [look, setLook] = React.useState<ProfileLook | null>(null);
+  const [mData, setMData] = React.useState<MilestoneData | null>(null);
+  React.useEffect(() => {
+    let off = false;
+    setLook(null);
+    setMData(null);
+    if (!viewedId) return;
+    fetchProfileLook(viewedId).then((l) => { if (!off) setLook(l); });
+    fetchMilestones(viewedId).then((d) => { if (!off) setMData(d); }).catch(() => {});
+    return () => { off = true; };
+  }, [viewedId]);
 
   if (!user) return null;
 
@@ -311,87 +329,139 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     onClose();
   };
 
+  const accent = themeColor(look?.theme || DEFAULT_THEME);
+  const tags = look?.tags ?? [];
+  const thresholds = mData?.thresholds ?? [];
+  const KIND_COLOR: Record<MilestoneKind, string> = { outings: '#F9D6CE', spots: '#D9EFE3', photo_reviews: '#E4DAF7' };
+  const KIND_ICON: Record<string, React.ComponentType<{ className?: string }>> = { party: PartyPopper, pin: MapPin, camera: Camera };
+  const badges = (['outings', 'spots', 'photo_reviews'] as MilestoneKind[]).map((kind) => {
+    const meta = MILESTONE_META[kind];
+    const count = mData?.counts?.[kind] ?? 0;
+    const level = Math.min(meta.names.length, thresholds.filter((t) => count >= t).length);
+    return { kind, meta, count, level, name: level > 0 ? meta.names[level - 1] : null };
+  });
+  const hasAnyBadge = badges.some((b) => b.level > 0);
+  const initial = String(handle || 'R').replace(/^@/, '').charAt(0).toUpperCase() || 'R';
+
   return (
-    <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] text-slate-900 dark:text-slate-100 flex flex-col animate-in fade-in duration-200">
+      {/* Their theme colours the whole page */}
       <div
-        className="bg-white dark:bg-[#121113] text-slate-900 dark:text-slate-100 w-full h-full overflow-y-auto flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Full uncropped photo with ambient fill */}
-        <div className="relative h-[62vh] sm:h-[70vh] w-full bg-[#121113] shrink-0 overflow-hidden flex items-center justify-center">
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: `linear-gradient(180deg, ${accent}38 0px, ${accent}16 280px, ${accent}0A 100%)` }}
+      />
+
+      {/* Top bar */}
+      <div className="relative shrink-0 px-2 py-2 flex items-center gap-1" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.5rem)' }}>
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-10 h-10 rounded-full hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center cursor-pointer"
+          aria-label="Back"
+        >
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+        <h2 className="flex-1 text-center text-[17px] font-black tracking-tight flex items-center justify-center gap-1.5 min-w-0">
+          <span className="truncate">{handle}</span>
+          <VerifiedBadge status={isVerifiedPro ? 'approved' : 'none'} size="md" golden={myTiers?.creator === 'elite'} />
+        </h2>
+        {user.id ? (
+          <button
+            type="button"
+            onClick={() => {
+              if (!currentUserId) { requireLogin(); return; }
+              setReportOpen(true);
+            }}
+            className="w-10 h-10 rounded-full hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center cursor-pointer"
+            title="Report or block"
+            aria-label="Report or block this person"
+          >
+            <Flag className="w-5 h-5" />
+          </button>
+        ) : (
+          <span className="w-10" />
+        )}
+      </div>
+
+      <div className="relative flex-1 overflow-y-auto pb-28">
+        {/* Identity */}
+        <div className="px-4 pt-3 flex items-center gap-4">
           <div
-            className="absolute inset-0 bg-cover bg-center filter blur-2xl scale-125 opacity-50 dark:opacity-40"
-            style={{ backgroundImage: `url('${user.avatar}')` }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40 z-10 pointer-events-none" />
-          <img loading="lazy" decoding="async"
-            src={user.avatar}
-            alt={handle}
-            className="relative z-10 max-h-full max-w-full object-contain drop-shadow-2xl"
-          />
-
-          <div className="absolute inset-x-3 z-20 flex items-center justify-between" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}>
-            <span className="bg-black/60 backdrop-blur-md text-white text-[11px] font-black px-3 py-1 rounded-full flex items-center gap-1.5 shadow-sm">
-              <Sparkles className="w-3.5 h-3.5 text-[#E9C46A] dark:text-[#BFA25F]" />
-              <span>RADA profile</span>
-            </span>
-            <div className="flex items-center gap-2">
-              {user.id && (
-                <button
-                  onClick={() => {
-                    if (!currentUserId) { requireLogin(); return; }
-                    setReportOpen(true);
-                  }}
-                  className="w-8 h-8 rounded-full bg-black/60 hover:bg-black/85 backdrop-blur-md text-white flex items-center justify-center transition cursor-pointer shadow-md"
-                  title="Report or block"
-                  aria-label="Report or block this person"
-                >
-                  <Flag className="w-4 h-4" />
-                </button>
-              )}
-              <button
-                onClick={onClose}
-                className="w-8 h-8 rounded-full bg-black/60 hover:bg-black/85 backdrop-blur-md text-white flex items-center justify-center transition cursor-pointer shadow-md"
-                title="Close profile"
-                aria-label="Close profile"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+            className="w-[88px] h-[88px] rounded-full overflow-hidden shrink-0 flex items-center justify-center text-white text-3xl font-black"
+            style={{ background: accent, boxShadow: `0 0 0 3px ${accent}33` }}
+          >
+            {user.avatar ? (
+              <img src={user.avatar} alt={handle} className="w-full h-full object-cover" decoding="async" />
+            ) : (
+              initial
+            )}
           </div>
-
-          <div className="absolute bottom-3 left-3 right-3 z-20 flex items-center justify-between">
-            <h3 className="text-xl font-black flex items-center gap-1.5 text-white drop-shadow-md min-w-0">
-              <span className="truncate">{handle}</span>
-              <VerifiedBadge status={isVerifiedPro ? 'approved' : 'none'} size="md" golden={myTiers?.creator === 'elite'} />
-            </h3>
-            <span
-              className={`text-[10px] font-black px-3 py-1 rounded-full backdrop-blur-md shadow-md flex items-center gap-1 shrink-0 ${
-                isSingle ? 'bg-emerald-600/90 text-white' : 'bg-slate-800/90 text-slate-200'
-              }`}
-            >
-              {isSingle && <CheckCircle2 className="w-3 h-3 text-white" />}
-              <span>{isSingle ? (user.isLivenessVerified ? 'Single (verified)' : 'Single') : 'Not single'}</span>
-            </span>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-[22px] leading-tight font-black truncate">{handle}</h3>
+            {myTiers?.creator && (
+              <div className="mt-1">
+                <PublicTierBadges tiers={myTiers} kinds={['creator']} size="md" />
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="p-4 sm:p-5 pb-24 flex-1 space-y-3.5 w-full max-w-xl mx-auto">
-          <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-semibold">
-            <MapPin className="w-3.5 h-3.5 text-[#E0533C] dark:text-[#D17A68] shrink-0" />
-            <span>{cleanLoc(user.loc)}</span>
-          </p>
+        <p className="px-4 mt-3 text-[15px] leading-snug text-slate-800 dark:text-slate-200">
+          {user.bio || 'Exploring Kenyan hangouts, good music, food, and culture.'}
+        </p>
 
-          {myTiers?.creator && (
-            <div>
-              <PublicTierBadges tiers={myTiers} kinds={['creator']} size="md" />
-            </div>
-          )}
+        {/* Chips: location, status, tags, vibes */}
+        <div className="px-4 mt-3 flex flex-wrap gap-2">
+          <span className="inline-flex items-center gap-1 text-[12px] font-semibold px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+            <MapPin className="w-3.5 h-3.5" style={{ color: accent }} />
+            {cleanLoc(user.loc)}
+          </span>
+          <span
+            className={`inline-flex items-center gap-1 text-[12px] font-semibold px-3 py-1.5 rounded-full ${
+              isSingle ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+            }`}
+          >
+            {isSingle && <CheckCircle2 className="w-3.5 h-3.5" />}
+            {isSingle ? (user.isLivenessVerified ? 'Single (verified)' : 'Single') : 'Not single'}
+          </span>
+          {tags.map((t) => (
+            <span key={t} className="text-[12px] font-semibold px-3 py-1.5 rounded-full" style={{ background: `${accent}1F`, color: accent }}>
+              {t}
+            </span>
+          ))}
+          {(user.vibes || []).map((v, idx) => (
+            <span key={`v${idx}`} className="text-[12px] font-semibold px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              #{v}
+            </span>
+          ))}
+        </div>
 
+        {/* Milestones */}
+        {hasAnyBadge && (
+          <div className="mt-5 flex gap-4 overflow-x-auto hide-scrollbar px-4 pb-1">
+            {badges.filter((b) => b.level > 0).map((b) => {
+              const Icon = KIND_ICON[b.meta.icon] || PartyPopper;
+              return (
+                <div key={b.kind} className="shrink-0 w-[96px] flex flex-col items-center gap-1.5">
+                  <span className="relative w-[84px] h-[84px] rounded-full flex items-center justify-center" style={{ background: KIND_COLOR[b.kind] }}>
+                    <Icon className="w-9 h-9 text-slate-800" />
+                    <span className="absolute -bottom-0.5 -right-0.5 min-w-6 h-6 px-1.5 rounded-full text-white text-[11px] font-black shadow flex items-center justify-center" style={{ background: accent }}>
+                      {b.level}
+                    </span>
+                  </span>
+                  <span className="text-[12px] font-bold leading-tight text-center line-clamp-2">{b.name}</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 -mt-1">{b.meta.title}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="px-4 mt-5 space-y-3.5">
           {isVerifiedPro && (
-            <div className="p-3 rounded-2xl bg-[#E0533C]/10 dark:bg-[#A94F3E]/10 flex items-center justify-between gap-3">
+            <div className="p-3 rounded-2xl flex items-center justify-between gap-3" style={{ background: `${accent}14` }}>
               <div className="min-w-0">
-                <p className={`text-[12px] font-black ${myTiers?.creator === 'elite' ? 'text-amber-600 dark:text-amber-400' : 'text-[#E0533C] dark:text-[#D17A68]'}`}>{myTiers?.creator === 'elite' ? 'Golden verified host' : 'Verified host'}</p>
+                <p className="text-[12px] font-black" style={{ color: accent }}>{myTiers?.creator === 'elite' ? 'Golden verified host' : 'Verified host'}</p>
                 {proCategory && <p className="text-xs font-bold truncate">{proCategory}</p>}
               </div>
               {proWebsite && (
@@ -399,7 +469,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   href={proWebsite.startsWith('http') ? proWebsite : `https://${proWebsite}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-[11px] font-black text-[#E0533C] dark:text-[#D17A68] shrink-0"
+                  className="text-[11px] font-black shrink-0"
+                  style={{ color: accent }}
                 >
                   Website
                 </a>
@@ -412,11 +483,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               type="button"
               onClick={toggleUpdates}
               disabled={updatesBusy}
-              className={`w-full py-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition cursor-pointer disabled:opacity-60 ${
-                followsUpdates
-                  ? 'bg-white dark:bg-[#1C1A1E] text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                  : 'bg-[#E0533C] text-white border-[#E0533C]'
+              className={`w-full py-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-60 ${
+                followsUpdates ? 'bg-white/80 dark:bg-[#1C1A1E] text-slate-600 dark:text-slate-300' : 'text-white'
               }`}
+              style={followsUpdates ? undefined : { background: accent }}
             >
               {followsUpdates ? <BellOff className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
               <span>{followsUpdates ? 'Stop updates from this host' : 'Get updates from this host'}</span>
@@ -428,107 +498,57 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <h4 className="text-[12px] font-black text-slate-500">Videos</h4>
               <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
                 {hostVideos.map((v) => (
-                  <video
-                    key={v.path}
-                    src={v.url}
-                    controls
-                    preload="metadata"
-                    playsInline
-                    className="h-44 w-auto rounded-xl bg-black shrink-0"
-                  />
+                  <video key={v.path} src={v.url} controls preload="metadata" playsInline className="h-44 w-auto rounded-xl bg-black shrink-0" />
                 ))}
               </div>
             </div>
           )}
 
-          <div className="p-3.5 bg-[#F8F8F6] dark:bg-[#121113] rounded-2xl space-y-1">
-            <h4 className="text-[12px] font-black text-slate-500">Bio & vibe</h4>
-            <p className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed">
-              {user.bio || 'Exploring Kenyan hangouts, good music, food, and culture.'}
-            </p>
-          </div>
-
-          {user.vibes && user.vibes.length > 0 && (
-            <div className="space-y-1.5">
-              <h4 className="text-[12px] font-black text-slate-500">Favorite vibes</h4>
-              <div className="flex flex-wrap gap-1.5">
-                {user.vibes.map((v, idx) => (
-                  <span
-                    key={idx}
-                    className="text-[11px] font-bold px-3 py-1 rounded-xl bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300"
-                  >
-                    #{v}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="p-3 rounded-2xl text-[11px] bg-slate-50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400">
+          <div className="p-3 rounded-2xl text-[11px] bg-slate-50/80 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400">
             {isMutualMatch ? (
               <p className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-semibold">
                 <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-                <span>
-                  You and <strong>{handle}</strong> are mutual matches. Direct messaging is unlocked!
-                </span>
+                <span>You and <strong>{handle}</strong> are mutual matches. Direct messaging is unlocked!</span>
               </p>
             ) : isSingle ? (
               <p className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                <Lock className="w-4 h-4 shrink-0 text-[#E0533C] dark:text-[#D17A68]" />
+                <Lock className="w-4 h-4 shrink-0" style={{ color: accent }} />
                 <span>Direct messaging requires mutual match acceptance. Send a request to connect!</span>
               </p>
             ) : (
               <p className="flex items-center gap-1.5 text-slate-500">
                 <Shield className="w-4 h-4 shrink-0 text-slate-400" />
-                <span>
-                  This user is <strong>Not single</strong>. Hangout matching is disabled.
-                </span>
+                <span>This user is <strong>Not single</strong>. Hangout matching is disabled.</span>
               </p>
             )}
           </div>
-
-          <div className="pt-2 flex gap-2">
-            {isMutualMatch ? (
-              <button
-                type="button"
-                onClick={handleMessageClick}
-                className="w-full py-3 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white font-black rounded-2xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <MessageSquare className="w-4 h-4" />
-                <span>Open direct message</span>
-              </button>
-            ) : isSingle ? (
-              <>
-                <button
-                  type="button"
-                  onClick={handleMatchClick}
-                  className="flex-1 py-3 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white font-black rounded-2xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Heart className="w-4 h-4 fill-white" />
-                  <span>Send match request</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleMessageClick}
-                  className="py-3 px-3.5 bg-[#F8F8F6] dark:bg-[#121113] text-slate-600 dark:text-slate-300 font-bold rounded-2xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
-                  title="Direct message"
-                >
-                  <Lock className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Message</span>
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                onClick={() => showToast(`${handle} is Not Single. Matching requests are disabled.`, { type: 'error' })}
-                className="w-full py-3 bg-slate-200 dark:bg-slate-800 text-slate-400 font-bold rounded-2xl text-xs cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                <Heart className="w-4 h-4 opacity-40" />
-                <span>Matching disabled (not single)</span>
-              </button>
-            )}
-          </div>
         </div>
+      </div>
+
+      {/* Actions */}
+      <div className="absolute inset-x-0 bottom-0 px-3 py-3 bg-white/90 dark:bg-[#121113]/90 backdrop-blur-md flex gap-2" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.75rem)' }}>
+        {isMutualMatch ? (
+          <button type="button" onClick={handleMessageClick} className="w-full py-3 text-white font-black rounded-2xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer" style={{ background: accent }}>
+            <MessageSquare className="w-4 h-4" />
+            <span>Open direct message</span>
+          </button>
+        ) : isSingle ? (
+          <>
+            <button type="button" onClick={handleMatchClick} className="flex-1 py-3 text-white font-black rounded-2xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer" style={{ background: accent }}>
+              <Heart className="w-4 h-4 fill-white" />
+              <span>Send match request</span>
+            </button>
+            <button type="button" onClick={handleMessageClick} className="py-3 px-3.5 bg-slate-100 dark:bg-[#1C1A1E] text-slate-600 dark:text-slate-300 font-bold rounded-2xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer" title="Direct message">
+              <Lock className="w-3.5 h-3.5 text-slate-400" />
+              <span>Message</span>
+            </button>
+          </>
+        ) : (
+          <button type="button" onClick={() => showToast(`${handle} is Not Single. Matching requests are disabled.`, { type: 'error' })} className="w-full py-3 bg-slate-200 dark:bg-slate-800 text-slate-400 font-bold rounded-2xl text-xs cursor-not-allowed flex items-center justify-center gap-2">
+            <Heart className="w-4 h-4 opacity-40" />
+            <span>Matching disabled (not single)</span>
+          </button>
+        )}
       </div>
       <ReportUserModal
         open={reportOpen}

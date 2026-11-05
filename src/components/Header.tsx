@@ -4,7 +4,7 @@ import {
   ShieldAlert, 
   Settings, 
   UserCheck, 
-  MoreVertical, 
+  Menu, 
   MapPin,
   Sun,
   Moon,
@@ -57,6 +57,8 @@ interface HeaderProps {
   /** Opens the full profile page. */
   onOpenProfile?: () => void;
   showToast?: (msg: string, options?: ToastOptions) => void;
+  /** True on the home tab: the header hides when you scroll down and comes back as soon as you scroll up. Other tabs: it scrolls away normally. */
+  isHome?: boolean;
   /** @deprecated The header no longer renders a refresh button. Accepted so existing callers still compile. */
   onRefresh?: () => void;
   /** @deprecated See onRefresh. */
@@ -84,6 +86,7 @@ export const Header: React.FC<HeaderProps> = ({
   displayName,
   onOpenProfile,
   showToast,
+  isHome = false,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -112,25 +115,90 @@ export const Header: React.FC<HeaderProps> = ({
     onOpenOverlay(overlayId);
   };
 
+  // Home only: hide on scroll down, show again the moment you scroll up. Other tabs: header just scrolls with the page.
+  const [hidden, setHidden] = useState(false);
+  const lastY = useRef(0);
+  useEffect(() => {
+    if (!isHome) { setHidden(false); return; }
+    lastY.current = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      const d = y - lastY.current;
+      if (y <= 8) setHidden(false);
+      else if (d > 6) { setHidden(true); setMenuOpen(false); }
+      else if (d < -6) setHidden(false);
+      lastY.current = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [isHome]);
+
   const initial = (displayName || userEmail || 'R').replace(/^@/, '').trim().charAt(0).toUpperCase() || 'R';
 
   return (
-    <header className="sticky top-0 z-40 bg-white dark:bg-[#121113] border-b border-slate-200 dark:border-slate-800 shadow-xs transition-colors duration-200">
+    <header className={`${isHome ? "sticky top-0 transition-transform duration-200 will-change-transform " + (hidden ? "-translate-y-full" : "translate-y-0") : "relative"} z-40 bg-white dark:bg-[#121113] border-b border-slate-200 dark:border-slate-800 shadow-xs`}>
       <div className="max-w-lg min-[900px]:max-w-none mx-auto w-full px-3.5 sm:px-4 min-[900px]:px-8 py-2.5 min-h-[60px] sm:min-h-[64px] grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-        {/* Left: 3-dot menu */}
-        <div className="relative justify-self-start" ref={menuRef}>
+        {/* Left: profile (or sign-in for guests) */}
+        <div className="justify-self-start">
+          {isGuestMode && onOpenAuth ? (
+            <button
+              type="button"
+              onClick={onOpenAuth}
+              className="w-10 h-10 shrink-0 flex items-center justify-center rounded-full bg-slate-100 dark:bg-[#1C1A1E] border border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-white active:scale-95 transition-all shadow-xs cursor-pointer focus:outline-none"
+              aria-label="Sign In"
+              title="Sign In"
+            >
+              <LogIn className="w-4.5 h-4.5 shrink-0" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onOpenProfile}
+              className="relative w-10 h-10 rounded-full active:scale-95 transition-transform cursor-pointer focus:outline-none"
+              aria-label="Your profile"
+              title="Your profile"
+            >
+              <span className="block w-full h-full rounded-full overflow-hidden flex items-center justify-center">
+                {avatar ? (
+                  <img src={avatar} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+                ) : (
+                  <span className="w-full h-full flex items-center justify-center rounded-full bg-[#E0533C]/12 text-[#E0533C] font-black text-base">{initial}</span>
+                )}
+              </span>
+            </button>
+          )}
+        </div>
+        {/* Middle: logo + name */}
+        <button
+          type="button"
+          onClick={() => onSwitchTab('home')}
+          className="justify-self-center flex items-center gap-2 cursor-pointer hover:opacity-90 active:scale-95 transition-all focus:outline-none"
+          title="RADA Home"
+        >
+          <div className="w-8 h-8 rounded-xl bg-[#E0533C] text-white flex items-center justify-center shadow-xs shrink-0">
+            <svg viewBox="0 0 100 130" className="w-5 h-5 fill-none stroke-white" strokeLinejoin="round">
+              <path d="M50 6 C26 6 10 26 10 50 C10 76 45 116 48.5 120 C49.3 121 50.7 121 51.5 120 C55 116 90 76 90 50 C90 26 74 6 50 6 Z" strokeWidth="8" />
+              <path d="M22 35 C15 45 16 58 25 74 C34 90 46 106 50 112" strokeWidth="6" strokeLinecap="round" />
+              <circle cx="50" cy="48" r="17" strokeWidth="8" />
+            </svg>
+          </div>
+          <span className="text-2xl font-black tracking-tight text-[#E0533C] leading-none">RADA</span>
+        </button>
+
+        {/* Right: menu (three lines) */}
+        <div className="relative justify-self-end" ref={menuRef}>
           <button
             type="button"
             onClick={() => setMenuOpen(!menuOpen)}
-            className="w-10 h-10 shrink-0 flex items-center justify-center rounded-full bg-slate-100 dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
+            className="w-10 h-10 shrink-0 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition text-slate-800 dark:text-slate-100 focus:outline-none cursor-pointer"
             aria-label="More options"
             aria-expanded={menuOpen}
           >
-            <MoreVertical className="w-4.5 h-4.5" />
+            <Menu className="w-6 h-6" strokeWidth={2.25} />
           </button>
 
           {menuOpen && (
-            <div className="absolute left-0 mt-2 w-72 max-w-[calc(100vw-1.5rem)] max-h-[calc(100dvh-5.5rem)] overflow-y-auto bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-1.5rem)] max-h-[calc(100dvh-5.5rem)] overflow-y-auto bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
                 {/* ADMIN ONLY: Admin Control Hub (top of the menu) */}
                 {isAdmin && (
                   <button
@@ -293,54 +361,6 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        {/* Middle: logo + name */}
-        <button
-          type="button"
-          onClick={() => onSwitchTab('home')}
-          className="justify-self-center flex items-center gap-2 cursor-pointer hover:opacity-90 active:scale-95 transition-all focus:outline-none"
-          title="RADA Home"
-        >
-          <div className="w-8 h-8 rounded-xl bg-[#E0533C] text-white flex items-center justify-center shadow-xs shrink-0">
-            <svg viewBox="0 0 100 130" className="w-5 h-5 fill-none stroke-white" strokeLinejoin="round">
-              <path d="M50 6 C26 6 10 26 10 50 C10 76 45 116 48.5 120 C49.3 121 50.7 121 51.5 120 C55 116 90 76 90 50 C90 26 74 6 50 6 Z" strokeWidth="8" />
-              <path d="M22 35 C15 45 16 58 25 74 C34 90 46 106 50 112" strokeWidth="6" strokeLinecap="round" />
-              <circle cx="50" cy="48" r="17" strokeWidth="8" />
-            </svg>
-          </div>
-          <span className="text-2xl font-black tracking-tight text-[#E0533C] leading-none">RADA</span>
-        </button>
-
-        {/* Right: profile (or sign-in for guests) */}
-        <div className="justify-self-end">
-          {isGuestMode && onOpenAuth ? (
-            <button
-              type="button"
-              onClick={onOpenAuth}
-              className="w-10 h-10 shrink-0 flex items-center justify-center rounded-full bg-slate-100 dark:bg-[#1C1A1E] border border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-white active:scale-95 transition-all shadow-xs cursor-pointer focus:outline-none"
-              aria-label="Sign In"
-              title="Sign In"
-            >
-              <LogIn className="w-4.5 h-4.5 shrink-0" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={onOpenProfile}
-              className="relative w-10 h-10 rounded-full active:scale-95 transition-transform cursor-pointer focus:outline-none"
-              aria-label="Your profile"
-              title="Your profile"
-            >
-              <span className="block w-full h-full rounded-full overflow-hidden bg-[#E0533C] text-white flex items-center justify-center font-black text-sm ring-2 ring-[#E0533C]/30">
-                {avatar ? (
-                  <img src={avatar} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
-                ) : (
-                  <span className="w-full h-full flex items-center justify-center">{initial}</span>
-                )}
-              </span>
-              <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-[#121113]" />
-            </button>
-          )}
-        </div>
       </div>
     </header>
   );
