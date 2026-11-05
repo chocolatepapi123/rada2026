@@ -22,7 +22,6 @@ import { UserProfile, OutingPlan, BusinessAccount } from '../types';
 import { useMySubscriptions } from '../lib/subscriptions';
 import { saveUnifiedProfile } from '../lib/cloudSync';
 import { NotificationBell } from './NotificationBell';
-import { AccentPicker } from './AccentPicker';
 import { ProProfileCard, ProProfilePage } from './ProProfile';
 import { CreatorHubTab } from './CreatorHubTab';
 import {
@@ -583,9 +582,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                         </button>
                       ))}
                     </div>
-                    <p className="mt-4 mb-2 text-[12px] font-bold text-slate-500 dark:text-slate-400">App colour</p>
-                    <AccentPicker isDarkMode={isDarkMode} />
-                    <p className="mt-2 text-[11px] text-slate-400">Changes the colour of the whole app on this phone.</p>
                   </div>
                 </Section>
 
