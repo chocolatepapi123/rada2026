@@ -50,11 +50,13 @@ export function applyAppColor(id: string, isDark: boolean): string {
   if (!theme) {
     root.classList.remove('rada-washed');
     root.style.removeProperty('--rada-wash');
+    root.style.removeProperty('--rada-color');
     root.style.removeProperty('--rada-fade-rgb');
     return base;
   }
   const c = theme.color;
   root.classList.add('rada-washed');
+  root.style.setProperty('--rada-color', c);
   root.style.setProperty('--rada-wash', `linear-gradient(180deg, ${c}38 0px, ${c}16 280px, ${c}0A 100%)`);
   // Bottom of the screen (wash is 0A = 4%): the nav fade dissolves into this colour.
   root.style.setProperty('--rada-fade-rgb', mix(base, c, 0x0a / 255).join(', '));
