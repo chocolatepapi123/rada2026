@@ -1,0 +1,97 @@
+{
+  "ranAt": "2026-11-05T16:32:28.607Z",
+  "areas": [
+    "Nairobi|Nairobi",
+    "Westlands|Nairobi",
+    "Kilimani|Nairobi",
+    "Thika Road|Thika Road",
+    "Ruiru|Thika Road",
+    "Juja|Thika Road",
+    "Kiambu|Kiambu",
+    "Ruaka|Kiambu"
+  ],
+  "categories": [
+    "Getaways & Resorts"
+  ],
+  "target": 15,
+  "summary": [
+    {
+      "area": "Nairobi",
+      "category": "Getaways & Resorts",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Westlands -> Nairobi",
+      "category": "Getaways & Resorts",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Kilimani -> Nairobi",
+      "category": "Getaways & Resorts",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Thika Road",
+      "category": "Getaways & Resorts",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Ruiru -> Thika Road",
+      "category": "Getaways & Resorts",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Juja -> Thika Road",
+      "category": "Getaways & Resorts",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Kiambu",
+      "category": "Getaways & Resorts",
+      "qualified": 20,
+      "alreadyInDb": 20,
+      "new": 0,
+      "note": "SHORT by 4"
+    },
+    {
+      "area": "Ruaka -> Kiambu",
+      "category": "Getaways & Resorts",
+      "qualified": 35,
+      "alreadyInDb": 33,
+      "new": 2,
+      "note": "SHORT by 2"
+    }
+  ],
+  "spots": [
+    {
+      "google_place_id": "ChIJCSq-9cciLxgROHWY3VCJ0wc",
+      "name": "Club Decimo - Ruaka",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJCQjPGZwXLxgRFOg1WoJCVko",
+      "name": "Glam Hotel",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Kiambu"
+    }
+  ]
+}
