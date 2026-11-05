@@ -155,7 +155,6 @@ const PublicBusinessProfileModal = lazyNamed(() => import('./components/PublicBu
 const Overlays = lazyNamed(() => import('./components/Overlays.tsx'), 'Overlays');
 const LocationMapModal = lazyNamed(() => import('./components/LocationMapModal.tsx'), 'LocationMapModal');
 const UserProfileModal = lazyNamed(() => import('./components/UserProfileModal.tsx'), 'UserProfileModal');
-const ProfilePage = lazyNamed(() => import('./components/ProfilePage.tsx'), 'ProfilePage');
 const AccountSettingsModal = lazyNamed(() => import('./components/AccountSettingsModal.tsx'), 'AccountSettingsModal');
 const SavedPlacesModal = lazyNamed(() => import('./components/SavedPlacesModal.tsx'), 'SavedPlacesModal');
 const LivenessVerificationModal = lazyNamed(() => import('./components/LivenessVerificationModal.tsx'), 'LivenessVerificationModal');
@@ -1294,6 +1293,25 @@ export default function App() {
   const [isSavedModalOpen, setIsSavedModalOpen] = useState(false);
   const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
   const [isProfilePageOpen, setIsProfilePageOpen] = useState(false);
+  // Profile page is loaded into state (not React.lazy) so it always appears the moment its code arrives.
+  const [ProfilePageComp, setProfilePageComp] = useState<React.ComponentType<any> | null>(null);
+  useEffect(() => {
+    if (!isProfilePageOpen || ProfilePageComp) return;
+    let off = false;
+    retryImport(() => import('./components/ProfilePage.tsx'), 3, 500)
+      .then((m) => {
+        if (off) return;
+        if (!m?.ProfilePage) throw new Error('ProfilePage export missing');
+        setProfilePageComp(() => m.ProfilePage);
+      })
+      .catch(() => {
+        if (off) return;
+        showToast('Could not load profile. Check your connection and try again.', { type: 'error' });
+        setIsProfilePageOpen(false);
+      });
+    return () => { off = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isProfilePageOpen, ProfilePageComp]);
 
   // Sync state to localStorage
   useEffect(() => {
@@ -3130,29 +3148,27 @@ export default function App() {
             />
           )}
 
-          {isProfilePageOpen && (
-            <Suspense fallback={
-              <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex items-center justify-center">
-                <div className="w-8 h-8 rounded-full border-4 border-slate-200 dark:border-slate-700 border-t-[#E0533C] animate-spin" />
-              </div>
-            }>
-              <ProfilePage
-                onClose={() => setIsProfilePageOpen(false)}
-                session={session}
-                currentUserProfile={currentUserProfile}
-                showToast={showToast}
-                onOpenAuth={() => setIsAuthModalOpen(true)}
-                onProfileChange={handleOwnProfileChange}
-                outings={allOutings}
-                myBusinesses={session?.user?.id ? businesses.filter(b => b.ownerId === session.user.id && !isDemoId(b.id)) : []}
-                savedCount={savedItems.length}
-                ticketCount={tickets.length}
-                onOpenSaved={() => setIsSavedModalOpen(true)}
-                isDarkMode={isDarkMode}
-                onToggleTheme={handleToggleTheme}
-              />
-            </Suspense>
-          )}
+          {isProfilePageOpen && (ProfilePageComp ? (
+            <ProfilePageComp
+              onClose={() => setIsProfilePageOpen(false)}
+              session={session}
+              currentUserProfile={currentUserProfile}
+              showToast={showToast}
+              onOpenAuth={() => setIsAuthModalOpen(true)}
+              onProfileChange={handleOwnProfileChange}
+              outings={allOutings}
+              myBusinesses={session?.user?.id ? businesses.filter(b => b.ownerId === session.user.id && !isDemoId(b.id)) : []}
+              savedCount={savedItems.length}
+              ticketCount={tickets.length}
+              onOpenSaved={() => setIsSavedModalOpen(true)}
+              isDarkMode={isDarkMode}
+              onToggleTheme={handleToggleTheme}
+            />
+          ) : (
+            <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full border-4 border-slate-200 dark:border-slate-700 border-t-[#E0533C] animate-spin" />
+            </div>
+          ))}
 
           {isAccountSettingsOpen && (
             <AccountSettingsModal
