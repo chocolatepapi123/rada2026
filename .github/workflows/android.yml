@@ -22,7 +22,7 @@ jobs:
         run: |
           mkdir android-app && cd android-app
           npm init -y
-          npm i @capacitor/core@7 @capacitor/android@7
+          npm i @capacitor/core@7 @capacitor/android@7 @capacitor/app@7
           npm i -D @capacitor/cli@7
           mkdir www
           echo '<!doctype html><title>RADA</title>' > www/index.html
