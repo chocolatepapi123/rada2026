@@ -31,7 +31,7 @@ export function normalizeKenyanPhone(input: string): string | null {
   return m ? `254${m[1]}` : null;
 }
 
-export type BillingPeriod = 'weekly' | 'monthly';
+export type BillingPeriod = 'weekly' | 'monthly' | 'yearly';
 
 async function invokeStk(body: Record<string, unknown>): Promise<StkStarted> {
   const { data, error } = await supabase.functions.invoke('mpesa-stk-push', { body });

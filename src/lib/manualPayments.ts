@@ -15,7 +15,7 @@ export async function getManualPayInfo(): Promise<ManualPayInfo | null> {
 
 /** Returns an error message, or null on success. */
 export async function submitManualPayment(args: {
-  kind: 'creator' | 'merchant' | 'promotion'; plan: string; period?: 'weekly' | 'monthly';
+  kind: 'creator' | 'merchant' | 'promotion'; plan: string; period?: 'weekly' | 'monthly' | 'yearly';
   promotionId?: string | null; code: string; senderPhone: string;
 }): Promise<string | null> {
   const { error } = await supabase.rpc('submit_manual_payment', {

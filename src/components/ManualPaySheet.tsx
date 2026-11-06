@@ -5,7 +5,7 @@ import { getManualPayInfo, getPlanAmount, submitManualPayment, type ManualPayInf
 interface Props {
   kind: 'creator' | 'merchant' | 'promotion';
   plan: string;                       // 'pro' | 'elite' (use 'promo' for promotions)
-  period?: 'weekly' | 'monthly';
+  period?: 'weekly' | 'monthly' | 'yearly';
   promotionId?: string | null;
   amountKes?: number | null;          // pass it if you already know it (promotions)
   onClose: () => void;

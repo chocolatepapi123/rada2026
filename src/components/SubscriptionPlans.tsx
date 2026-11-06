@@ -200,8 +200,12 @@ export const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({
     };
   }, []);
   const [period, setPeriod] = useState<BillingPeriod>('monthly');
-  const hasWeekly = prices.some((p) => p.kind === kind && p.billing_period === 'weekly');
-  // a plan with no weekly price falls back to its monthly price (the card always shows the real number of days)
+  // only offer the periods that really have a price for this account type (monthly is always first)
+  const periodsOffered = (['weekly', 'monthly', 'yearly'] as BillingPeriod[]).filter((b) =>
+    prices.some((p) => p.kind === kind && p.billing_period === b)
+  );
+  const showPeriodToggle = periodsOffered.length > 1;
+  // a plan with no price for the chosen period falls back to its monthly price (the card always shows the real number of days)
   const priceFor = (plan: PlanId) =>
     prices.find((p) => p.kind === kind && p.plan === plan && p.billing_period === period) ||
     prices.find((p) => p.kind === kind && p.plan === plan && p.billing_period === 'monthly') ||
@@ -224,7 +228,7 @@ export const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({
         <PlanIcon plan="pro" />
         <p className="text-[15px] font-black">Sign in to see your plan</p>
         <p className="text-[13px] text-slate-500 dark:text-slate-400 leading-relaxed">
-          New professional and merchant accounts start with a free 30-day Pro trial.
+          New professional and merchant accounts start with a free 30-day Elite trial.
         </p>
         {onOpenAuth && (
           <button
@@ -296,9 +300,9 @@ export const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({
 
         <div className="flex items-center justify-between gap-3 px-1">
           <h3 className="text-[15px] font-black">Plans</h3>
-          {hasWeekly && (
+          {showPeriodToggle && (
             <div className="inline-flex rounded-full bg-slate-100 dark:bg-slate-800 p-1 text-[12px] font-black" role="tablist" aria-label="Billing period">
-              {(['weekly', 'monthly'] as BillingPeriod[]).map((b) => (
+              {periodsOffered.map((b) => (
                 <button
                   key={b}
                   type="button"
@@ -307,7 +311,7 @@ export const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({
                   onClick={() => setPeriod(b)}
                   className={`px-3.5 py-1.5 rounded-full cursor-pointer transition ${period === b ? 'bg-white dark:bg-[#1C1A1E] shadow-sm text-slate-900 dark:text-white' : 'text-slate-500'}`}
                 >
-                  {b === 'weekly' ? 'Weekly' : 'Monthly'}
+                  {b === 'weekly' ? 'Weekly' : b === 'yearly' ? 'Yearly' : 'Monthly'}
                 </button>
               ))}
             </div>
