@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { CategoryIcon } from './CategoryIcon';
+import { WeatherChip } from './WeatherChip.tsx';
 import { 
   Calendar as CalendarIcon, 
   Clock, 
@@ -306,6 +307,14 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
                 }`}
               >
                 <span>{day}</span>
+                {isSelected && (
+                  <WeatherChip
+                    variant="icon"
+                    tone="white"
+                    date={`${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`}
+                    className="absolute top-0.5 right-0.5"
+                  />
+                )}
                 {/* Event presence indicator dot */}
                 {hasEvents && (
                   <span
@@ -382,6 +391,13 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
           <p className="text-[11px] text-slate-600 dark:text-slate-300 font-bold">
             {dayEvents.length} {dayEvents.length === 1 ? 'event scheduled' : 'events scheduled'}
           </p>
+          {selectedDay !== null && (
+            <WeatherChip
+              variant="inline"
+              date={`${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`}
+              className="mt-1.5"
+            />
+          )}
         </div>
 
         {selectedDay !== null && (
@@ -427,6 +443,8 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
                   <span className={`absolute top-2.5 left-2.5 text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider backdrop-blur-md ${accent.pillClass}`}>
                     {event.genre || accent.badge}
                   </span>
+
+                  <WeatherChip date={(event as any).startAt || event.date} className="absolute top-2.5 right-2.5" />
 
                   {/* Matching Event Focus Badge */}
                   {isMatch && (

@@ -69,6 +69,8 @@ import {
 import { EventItem, CinemaMovie, StatusPost, UserProfile, BusinessOffer, OfferCategory, SpotItem, SavedItem, BusinessAccount, isOfficialAdmin } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { EmojiPicker } from './EmojiPicker.tsx';
+import { WeatherChip } from './WeatherChip.tsx';
+import { searchSpots } from '../lib/searchTags.ts';
 import { AdminConfirmModal, AdminActionType, AdminTargetAccount } from './AdminConfirmModal.tsx';
 import { deleteAccountAdmin, setUserSuspension, revokeBusinessStatus, fetchAdminUsers } from '../lib/cloudSync';
 import { 
@@ -462,7 +464,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   const homeFilteredSpots = useMemo(() => {
     // Searching looks through every spot; browsing only shows the representable set.
     const base = searchQuery.trim() ? displaySpots : homeSpots;
-    return base.filter(sp => {
+    const filtered = base.filter(sp => {
       if (selectedHomeCategory !== 'all' && !spotInCategory(sp, selectedHomeCategory)) return false;
       if (selectedHomeArea !== 'all') {
         const areaLower = selectedHomeArea.toLowerCase();
@@ -471,15 +473,10 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         if (!neigh.includes(areaLower) && !addr.includes(areaLower)) return false;
       }
       if (selectedHomeBudget !== 'all' && resolveSpotBudget(sp) !== selectedHomeBudget) return false;
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchTitle = (sp.title || '').toLowerCase().includes(q);
-        const matchDesc = (sp.description || '').toLowerCase().includes(q);
-        const matchNeigh = (sp.neighborhood || '').toLowerCase().includes(q);
-        if (!matchTitle && !matchDesc && !matchNeigh) return false;
-      }
       return true;
     });
+    // Search also looks through hidden tags (brunch, cheap date, 21+, family...) that users never see.
+    return searchQuery.trim() ? searchSpots(filtered, searchQuery, (sp) => String(resolveSpotBudget(sp))) : filtered;
   }, [displaySpots, homeSpots, selectedHomeCategory, selectedHomeArea, selectedHomeBudget, searchQuery]);
 
   // Active language hook
@@ -694,27 +691,32 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   // Filter offers by category and search query
   const activePromos = useActivePromotions();
   const promoRanks = useMemo(() => offerRankMap(activePromos), [activePromos]);
+  // Offers matching the Home category + search, before the Deals chip (All / Tickets / Food...) is applied.
+  // The section is kept on screen as long as this has anything, so tapping an empty chip never makes it vanish.
+  const offersBeforeChip = useMemo(() => (offers || []).filter(o => {
+    if (selectedHomeCategory !== 'all') {
+      const cat = o.category.toLowerCase();
+      const bCat = (o.businessCategory || '').toLowerCase();
+      if (!cat.includes(selectedHomeCategory.toLowerCase()) && !bCat.includes(selectedHomeCategory.toLowerCase())) return false;
+    }
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      o.title.toLowerCase().includes(q) ||
+      o.businessName.toLowerCase().includes(q) ||
+      o.description.toLowerCase().includes(q) ||
+      o.category.toLowerCase().includes(q) ||
+      o.discount.toLowerCase().includes(q)
+    );
+  }), [offers, selectedHomeCategory, searchQuery]);
+
   const filteredOffers = useMemo(() => {
-    const base = (offers || []).filter(o => {
-      if (selectedOfferCategory !== 'all' && o.category !== selectedOfferCategory) return false;
-      if (selectedHomeCategory !== 'all') {
-        const cat = o.category.toLowerCase();
-        const bCat = (o.businessCategory || '').toLowerCase();
-        if (!cat.includes(selectedHomeCategory.toLowerCase()) && !bCat.includes(selectedHomeCategory.toLowerCase())) return false;
-      }
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase().trim();
-      return (
-        o.title.toLowerCase().includes(q) ||
-        o.businessName.toLowerCase().includes(q) ||
-        o.description.toLowerCase().includes(q) ||
-        o.category.toLowerCase().includes(q) ||
-        o.discount.toLowerCase().includes(q)
-      );
-    });
+    const base = selectedOfferCategory === 'all'
+      ? offersBeforeChip
+      : offersBeforeChip.filter(o => o.category === selectedOfferCategory);
     // Admin-chosen order for boosted promos (no label shown to users).
     return sortByPromotion(base, (o) => offerPromoKey(o.id), promoRanks, (o) => o.createdAt);
-  }, [offers, selectedOfferCategory, selectedHomeCategory, searchQuery, promoRanks]);
+  }, [offersBeforeChip, selectedOfferCategory, promoRanks]);
 
   // Admin users filtering
   const filteredAdminUsers = useMemo(() => {
@@ -1313,7 +1315,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       </div>
 
       {/* Empty Search Result State for Home Tab */}
-      {filteredEvents.length === 0 && filteredCinemaMovies.length === 0 && filteredOffers.length === 0 && (
+      {filteredEvents.length === 0 && filteredCinemaMovies.length === 0 && offersBeforeChip.length === 0 && (
         <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-dashed border-slate-300 dark:border-slate-800 rounded-3xl p-6 text-center space-y-3 shadow-xs">
           <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/60 text-[#E0533C] mx-auto flex items-center justify-center font-black">
             <Calendar className="w-6 h-6" />
@@ -1339,7 +1341,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       {/* ========================================================
           RUNNING OFFERS & PROMOTIONS FEED (SPEC 4)
           ======================================================== */}
-      {(selectedHomeSection === 'all' || selectedHomeSection === 'offers') && filteredOffers.length > 0 && (
+      {(selectedHomeSection === 'all' || selectedHomeSection === 'offers') && offersBeforeChip.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -1381,6 +1383,21 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               </button>
             ))}
           </div>
+
+          {filteredOffers.length === 0 && (
+            <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-dashed border-slate-300 dark:border-slate-800 rounded-3xl px-4 py-5 text-center space-y-2">
+              <p className="text-xs font-black text-slate-900 dark:text-slate-100">
+                No {selectedOfferCategory === 'all' ? '' : `${selectedOfferCategory} `}offers right now
+              </p>
+              <button
+                type="button"
+                onClick={() => setSelectedOfferCategory('all')}
+                className="px-3 py-1 rounded-full bg-rose-600 text-white text-[11px] font-bold cursor-pointer"
+              >
+                Show all deals
+              </button>
+            </div>
+          )}
 
           {/* Offers Horizontal Showcase */}
           <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
@@ -1641,6 +1658,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         <span className="bg-black/60 text-white text-[9px] font-black px-2.5 py-1 rounded-md">
                           {evt.date.split(',')[0]}
                         </span>
+                        <WeatherChip date={(evt as any).startAt || evt.date} />
                         {isToday && (
                           <span className="bg-emerald-600/90 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs">
                             <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
