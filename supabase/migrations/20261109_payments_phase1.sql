@@ -6,26 +6,25 @@ alter table public.payment_plans drop constraint if exists payment_plans_billing
 alter table public.payment_plans add constraint payment_plans_billing_period_check
   check (billing_period in ('weekly','monthly','yearly'));
 
--- 2) prices (KES). Yearly = 2 months free. Weekly is switched off.
-update public.payment_plans set active = false where billing_period = 'weekly';
+-- 2) prices (KES): weekly, monthly, yearly (yearly = 10 x monthly)
 
 insert into public.payment_plans (kind, plan, billing_period, period_days, amount_kes, active)
 select v.kind, v.plan, v.bp, v.days, v.amt, true
 from (values
-  ('creator','pro','monthly',30,600),    ('creator','pro','yearly',365,6000),
-  ('creator','elite','monthly',30,1800), ('creator','elite','yearly',365,18000),
-  ('merchant','pro','monthly',30,2000),  ('merchant','pro','yearly',365,20000),
-  ('merchant','elite','monthly',30,6500),('merchant','elite','yearly',365,65000)
+  ('creator','pro','weekly',7,80),     ('creator','pro','monthly',30,250),     ('creator','pro','yearly',365,2500),
+  ('creator','elite','weekly',7,200),  ('creator','elite','monthly',30,600),   ('creator','elite','yearly',365,6000),
+  ('merchant','pro','weekly',7,120),   ('merchant','pro','monthly',30,400),    ('merchant','pro','yearly',365,4000),
+  ('merchant','elite','weekly',7,300), ('merchant','elite','monthly',30,1000), ('merchant','elite','yearly',365,10000)
 ) as v(kind, plan, bp, days, amt)
 where not exists (select 1 from public.payment_plans p
                   where p.kind = v.kind and p.plan = v.plan and p.billing_period = v.bp);
 
 update public.payment_plans p set amount_kes = v.amt, period_days = v.days, active = true
 from (values
-  ('creator','pro','monthly',30,600),    ('creator','pro','yearly',365,6000),
-  ('creator','elite','monthly',30,1800), ('creator','elite','yearly',365,18000),
-  ('merchant','pro','monthly',30,2000),  ('merchant','pro','yearly',365,20000),
-  ('merchant','elite','monthly',30,6500),('merchant','elite','yearly',365,65000)
+  ('creator','pro','weekly',7,80),     ('creator','pro','monthly',30,250),     ('creator','pro','yearly',365,2500),
+  ('creator','elite','weekly',7,200),  ('creator','elite','monthly',30,600),   ('creator','elite','yearly',365,6000),
+  ('merchant','pro','weekly',7,120),   ('merchant','pro','monthly',30,400),    ('merchant','pro','yearly',365,4000),
+  ('merchant','elite','weekly',7,300), ('merchant','elite','monthly',30,1000), ('merchant','elite','yearly',365,10000)
 ) as v(kind, plan, bp, days, amt)
 where p.kind = v.kind and p.plan = v.plan and p.billing_period = v.bp;
 
