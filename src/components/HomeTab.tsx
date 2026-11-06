@@ -71,6 +71,7 @@ import { BusinessBadge } from './BusinessBadge.tsx';
 import { EmojiPicker } from './EmojiPicker.tsx';
 import { WeatherChip } from './WeatherChip.tsx';
 import { searchSpots } from '../lib/searchTags.ts';
+import { recordInterest, categoriesForQuery, personalCategoryOrder } from '../lib/interests.ts';
 import { AdminConfirmModal, AdminActionType, AdminTargetAccount } from './AdminConfirmModal.tsx';
 import { deleteAccountAdmin, setUserSuspension, revokeBusinessStatus, fetchAdminUsers } from '../lib/cloudSync';
 import { 
@@ -489,6 +490,20 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     return () => window.removeEventListener('rada_language_changed', handleLangChange);
   }, []);
   const t = translations[appLang];
+
+  // Learn what this person likes (kept on this phone): a search they settle on, or a category they pick.
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 3) return;
+    const timer = setTimeout(() => {
+      try { recordInterest(categoriesForQuery(q, searchSpots(displaySpots, q, (sp) => String(resolveSpotBudget(sp)))), 'search'); } catch { /* never block Home */ }
+    }, 1500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
+  useEffect(() => {
+    if (selectedHomeCategory !== 'all') recordInterest([selectedHomeCategory], 'filter');
+  }, [selectedHomeCategory]);
 
   // Category rows data: all 17 RADA categories (category + extra_categories); Home only renders a few of them
   const spotsByCat = useMemo(() => {
@@ -2114,9 +2129,20 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         // Streamlined Home: only the first few categories (time-of-day order) that actually have spots.
         // A category picked in the Home filter always shows; the full list lives in the Spots tab.
         const HOME_CATEGORY_ROWS = 6;
+        // After Trending: this person's own categories first (spots they open, search, filter and save),
+        // then the usual time-of-day order. Same number of rows as before.
+        const savedSpotList = savedItems
+          .filter(si => si.kind === 'spot')
+          .map(si => displaySpots.find(sp => String(sp.id) === String(si.id)))
+          .filter(Boolean);
         const ids = selectedHomeCategory !== 'all'
           ? [selectedHomeCategory]
-          : allIds.filter(id => (spotsByCat[id] || []).length > 0).slice(0, HOME_CATEGORY_ROWS);
+          : personalCategoryOrder({
+              usualOrder: allIds,
+              available: (id) => (spotsByCat[id] || []).length > 0,
+              max: HOME_CATEGORY_ROWS,
+              savedSpots: savedSpotList,
+            });
 
         return (
           <>

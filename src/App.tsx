@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { recordSpotView } from './lib/interests';
 import { AlertTriangle as WarnIcon, X as CloseIcon, Ban as BanIcon } from 'lucide-react';
 import { rememberSession, forgetAccount } from './lib/accounts';
 import { track } from './lib/tracking';
@@ -876,6 +877,11 @@ export default function App() {
   // Overlays state
   const [activeOverlay, setActiveOverlay] = useState<string | null>(null);
   const [selectedSpotModal, setSelectedSpotModal] = useState<SpotItem | null>(null);
+  // Learn which kinds of places this person opens (kept on this phone, used to tailor Home).
+  useEffect(() => {
+    if (selectedSpotModal) { try { recordSpotView(selectedSpotModal); } catch { /* never block opening a spot */ } }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSpotModal?.id]);
   const [selectedEventModal, setSelectedEventModal] = useState<EventItem | null>(null);
   const [qrPassTitle, setQrPassTitle] = useState<string | null>(null);
 
