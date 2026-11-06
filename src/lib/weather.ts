@@ -1,10 +1,16 @@
-// Free daily forecast from Open-Meteo (no API key). One request per area, cached for 3h.
+// Free forecast from Open-Meteo (no API key). One request per ~5km area, cached for 3h.
+// Daily + hourly data. An event with a start time gets the forecast for that hour at its own venue,
+// so two events on the same day only look alike when the sky really is alike.
 // Covers today + 15 days, so events further out simply show no weather.
 
 export const NAIROBI = { lat: -1.2921, lng: 36.8219 };
 
-export type DayForecast = { code: number; tmax: number; tmin: number; rain: number };
-export type Forecast = Record<string, DayForecast>; // keyed by local YYYY-MM-DD
+export type DayForecast = { code: number; tmax: number; tmin: number; rain: number; hourly?: boolean };
+type HourForecast = { code: number; temp: number; rain: number };
+export type Forecast = {
+  days: Record<string, DayForecast>;   // keyed by local YYYY-MM-DD
+  hours: Record<string, HourForecast>; // keyed by local YYYY-MM-DDTHH
+};
 
 export type WeatherKind = 'clear' | 'partly' | 'cloudy' | 'fog' | 'drizzle' | 'rain' | 'snow' | 'storm';
 
@@ -16,13 +22,14 @@ const hasCoords = (lat?: number | null, lng?: number | null) =>
   typeof lat === 'number' && typeof lng === 'number' && isFinite(lat) && isFinite(lng) && (lat !== 0 || lng !== 0);
 
 async function load(la: number, lng: number): Promise<Forecast | null> {
-  // ~11km buckets so every Nairobi event shares one request
-  const k = `${la.toFixed(1)},${lng.toFixed(1)}`;
+  // ~5km buckets: nearby venues share a request, far-apart ones get their own forecast
+  const r = (n: number) => (Math.round(n * 20) / 20).toFixed(2);
+  const k = `${r(la)},${r(lng)}`;
   const hit = mem.get(k);
   if (hit && Date.now() - hit.at < TTL) return hit.data;
 
   try {
-    const raw = localStorage.getItem('rada.wx.' + k);
+    const raw = localStorage.getItem('rada.wx2.' + k);
     if (raw) {
       const p = JSON.parse(raw);
       if (p && Date.now() - p.at < TTL) { mem.set(k, p); return p.data as Forecast; }
@@ -37,26 +44,35 @@ async function load(la: number, lng: number): Promise<Forecast | null> {
     const timer = setTimeout(() => ctrl.abort(), 8000);
     try {
       const url =
-        `https://api.open-meteo.com/v1/forecast?latitude=${la.toFixed(2)}&longitude=${lng.toFixed(2)}` +
+        `https://api.open-meteo.com/v1/forecast?latitude=${r(la)}&longitude=${r(lng)}` +
         `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max` +
+        `&hourly=weather_code,temperature_2m,precipitation_probability` +
         `&timezone=auto&forecast_days=16`;
       const res = await fetch(url, { signal: ctrl.signal });
       if (!res.ok) return null;
       const j = await res.json();
       const d = j?.daily;
       if (!d?.time) return null;
-      const data: Forecast = {};
+      const data: Forecast = { days: {}, hours: {} };
       (d.time as string[]).forEach((day, i) => {
-        data[day] = {
+        data.days[day] = {
           code: d.weather_code?.[i] ?? 0,
           tmax: d.temperature_2m_max?.[i] ?? 0,
           tmin: d.temperature_2m_min?.[i] ?? 0,
           rain: d.precipitation_probability_max?.[i] ?? 0,
         };
       });
+      const h = j?.hourly;
+      (h?.time as string[] | undefined)?.forEach((t, i) => {
+        data.hours[t.slice(0, 13)] = {
+          code: h.weather_code?.[i] ?? 0,
+          temp: h.temperature_2m?.[i] ?? 0,
+          rain: h.precipitation_probability?.[i] ?? 0,
+        };
+      });
       const entry = { at: Date.now(), data };
       mem.set(k, entry);
-      try { localStorage.setItem('rada.wx.' + k, JSON.stringify(entry)); } catch { /* ignore */ }
+      try { localStorage.setItem('rada.wx2.' + k, JSON.stringify(entry)); } catch { /* ignore */ }
       return data;
     } catch {
       return null; // offline / blocked: just show nothing
@@ -74,6 +90,30 @@ export function getForecast(lat?: number | null, lng?: number | null): Promise<F
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
+
+/**
+ * Forecast for one event: the start hour (and the 2 after it, for rain) at the event's own venue.
+ * Falls back to the day's overall forecast when the event has no clock time or the hour is out of range.
+ */
+export function pickForecast(f: Forecast | null, dayKey: string | null, at?: string | Date | null): DayForecast | null {
+  if (!f || !dayKey) return null;
+  if (at) {
+    const d = at instanceof Date ? at : new Date(at);
+    if (!isNaN(d.getTime())) {
+      const hk = (x: Date) => `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}T${pad(x.getHours())}`;
+      const first = f.hours[hk(d)];
+      if (first) {
+        let rain = first.rain;
+        for (let i = 1; i <= 2; i++) {
+          const nx = f.hours[hk(new Date(d.getTime() + i * 36e5))];
+          if (nx) rain = Math.max(rain, nx.rain);
+        }
+        return { code: first.code, tmax: first.temp, tmin: first.temp, rain, hourly: true };
+      }
+    }
+  }
+  return f.days[dayKey] ?? null;
+}
 
 /** Turn an event/calendar date into a local YYYY-MM-DD key (or null if it can't be read). */
 export function toDateKey(input?: string | Date | null): string | null {
