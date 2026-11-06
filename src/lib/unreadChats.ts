@@ -90,6 +90,12 @@ export function markChatRead(conv: ChatConversation) {
   recount();
 }
 
+/** True when this one chat has something new from the other person. Used for the dot in the chat list. */
+export function isChatUnread(conv: ChatConversation): boolean {
+  if (!currentUid) return false; // guests / demo: no unread tracking, so no dot
+  return lastIsFromOthers(conv) && stampOf(conv) > (seen[conv.id] ?? 0);
+}
+
 const subscribe = (cb: () => void) => {
   listeners.add(cb);
   return () => {
