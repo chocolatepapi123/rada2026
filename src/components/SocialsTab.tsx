@@ -699,6 +699,37 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   const HEADING = 'text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400';
   const hasContent = chatInputText.trim().length > 0 || attachedPhotos.length > 0;
 
+  // Open the other person's profile from a chat (direct chats only; groups have no single profile)
+  const openChatProfile = (conv: ChatConversation) => {
+    const uid = (conv as any).otherUserId as string | undefined;
+    if (conv.type !== 'direct' || !uid) return;
+    const handle = conv.name.startsWith('@') ? conv.name : `@${conv.name}`;
+    const base: UserProfile = {
+      id: uid,
+      name: handle.replace(/^@/, ''),
+      handle,
+      avatar: conv.avatar,
+      bio: '',
+      loc: '',
+      relationshipStatus: 'single',
+    };
+    onViewUserProfile(base); // opens right away with what the chat already knows
+    // then fill in the bio and verification when they arrive
+    searchProfiles(handle.replace(/^@/, ''), 5)
+      .then((hits) => {
+        const hit = hits.find((h) => h.id === uid);
+        if (!hit) return;
+        onViewUserProfile({
+          ...base,
+          avatar: hit.avatar_url || base.avatar,
+          bio: hit.bio || '',
+          relationshipStatus: hit.relationship_status === 'not_single' ? 'not_single' : 'single',
+          isLivenessVerified: hit.is_liveness_verified,
+        });
+      })
+      .catch(() => { /* the basic profile is already showing */ });
+  };
+
   // If in chat room
   if (activeChat) {
     const msgs = activeChat.messages;
@@ -717,6 +748,12 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             <ArrowLeft className="w-4 h-4" />
           </button>
 
+          <div
+            className={`flex items-center gap-2.5 min-w-0 flex-1 ${activeChat.type === 'direct' && (activeChat as any).otherUserId ? 'cursor-pointer active:opacity-70 transition' : ''}`}
+            onClick={() => openChatProfile(activeChat)}
+            role={activeChat.type === 'direct' ? 'button' : undefined}
+            aria-label={activeChat.type === 'direct' ? `View ${activeChat.name}'s profile` : undefined}
+          >
           <div className="relative shrink-0">
             <div className="p-[2px] rounded-full bg-gradient-to-tr from-[#F43F5E] to-[#E0533C]">
               <div
@@ -730,9 +767,10 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           <div className="min-w-0 flex-1">
             <h4 className="font-extrabold text-sm leading-tight truncate text-slate-900 dark:text-slate-100">{activeChat.name}</h4>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-              {activeChat.isTemporary ? 'Outing group chat' : activeChat.type === 'group' ? 'Group chat' : 'Active now'}
+              {activeChat.isTemporary ? 'Outing group chat' : activeChat.type === 'group' ? 'Group chat' : 'Tap to view profile'}
               {activeChat.members ? ` · ${activeChat.members.length} members` : ''}
             </p>
+          </div>
           </div>
 
           <button
@@ -1485,7 +1523,15 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                 className={`p-3 ${CARD} rounded-2xl flex items-center justify-between gap-3 shadow-xs hover:border-[#E0533C]/50 active:scale-[0.99] transition cursor-pointer`}
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="relative shrink-0">
+                  <div
+                    className="relative shrink-0"
+                    onClick={(e) => {
+                      if (conv.type === 'direct' && (conv as any).otherUserId) {
+                        e.stopPropagation();
+                        openChatProfile(conv);
+                      }
+                    }}
+                  >
                     <div className={avatarRing}>
                       <div
                         className="w-12 h-12 rounded-full bg-cover bg-center border-2 border-white dark:border-[#1C1A1E]"

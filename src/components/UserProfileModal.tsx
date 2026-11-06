@@ -191,7 +191,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   // ===================== YOUR PROFILE (read-only preview; all editing lives in Account & Security) =====================
   if (isOwnProfile) {
     return (
-      <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+      <div className="fixed inset-0 z-[60] bg-black/75 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
         <div
           className="bg-[#F8F8F6] dark:bg-[#121113] text-slate-900 dark:text-slate-100 sm:rounded-3xl max-w-md w-full h-full sm:h-auto overflow-hidden shadow-2xl flex flex-col sm:max-h-[92vh]"
           onClick={(e) => e.stopPropagation()}
@@ -344,7 +344,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const initial = String(handle || 'R').replace(/^@/, '').charAt(0).toUpperCase() || 'R';
 
   return (
-    <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] text-slate-900 dark:text-slate-100 flex flex-col animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[60] bg-white dark:bg-[#121113] text-slate-900 dark:text-slate-100 flex flex-col animate-in fade-in duration-200">
       {/* Their theme colours the whole page */}
       <div
         className="absolute inset-0 pointer-events-none"
