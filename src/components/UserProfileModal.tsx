@@ -34,6 +34,7 @@ import {
   Section,
   useOwnProfile,
 } from './ProfileSettingsKit';
+import { UserHangouts } from './UserHangouts';
 import type { ToastOptions } from './Toast.tsx';
 
 interface ProfessionalStats {
@@ -65,6 +66,11 @@ interface UserProfileModalProps {
   /** Optional numbers from the app. Used only when the server has none. */
   professionalStats?: ProfessionalStats;
   onOpenAuth?: () => void;
+  /** Hangout actions: RADA spots, saved state, save and plan handlers (all by spot id). */
+  spots?: { id: number | string }[];
+  isSpotSaved?: (spotId: string) => boolean;
+  onSaveSpot?: (spotId: string) => void;
+  onPlanDateAtSpot?: (spotId: string, withUserId: string) => void;
 }
 
 const NavRow: React.FC<{
@@ -112,6 +118,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onProfileChange,
   professionalStats,
   onOpenAuth,
+  spots = [],
+  isSpotSaved,
+  onSaveSpot,
+  onPlanDateAtSpot,
 }) => {
   const requireLogin = () => {
     showToast('Please sign in first.', { type: 'error' });
@@ -455,6 +465,22 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               );
             })}
           </div>
+        )}
+
+        {viewedId && (
+          <UserHangouts
+            viewedId={viewedId}
+            currentUserId={currentUserId}
+            accent={accent}
+            handle={handle}
+            spots={spots}
+            isSpotSaved={(id) => !!isSpotSaved?.(id)}
+            onSaveSpot={(id) => onSaveSpot?.(id)}
+            onPlanDateAtSpot={(id) => onPlanDateAtSpot?.(id, viewedId)}
+            onSayHi={() => (isMutualMatch ? handleMessageClick() : handleMatchClick())}
+            showToast={showToast}
+            onNeedLogin={requireLogin}
+          />
         )}
 
         <div className="px-4 mt-5 space-y-3.5">

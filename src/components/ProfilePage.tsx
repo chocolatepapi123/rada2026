@@ -45,6 +45,7 @@ import {
   saveMyProfileLook,
 } from '../lib/profileLook';
 import type { ToastOptions } from './Toast.tsx';
+import { HangoutsTab, type HangoutSpotOption } from './HangoutsTab';
 
 interface ProfilePageProps {
   onClose: () => void;
@@ -62,9 +63,11 @@ interface ProfilePageProps {
   onOpenSaved?: () => void;
   isDarkMode: boolean;
   onToggleTheme: () => void;
+  /** Spots people can link a hangout to. */
+  spots?: HangoutSpotOption[];
 }
 
-type Tab = 'milestones' | 'creator' | 'settings';
+type Tab = 'hangouts' | 'milestones' | 'creator' | 'settings';
 
 
 const KINDS: MilestoneKind[] = ['outings', 'spots', 'photo_reviews'];
@@ -95,10 +98,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   onOpenSaved,
   isDarkMode,
   onToggleTheme,
+  spots = [],
 }) => {
   const user = session?.user;
   const isLoggedIn = !!user;
-  const [tab, setTab] = useState<Tab>('milestones');
+  const [tab, setTab] = useState<Tab>('hangouts');
   const [hubOpen, setHubOpen] = useState(false);
   const [proPageOpen, setProPageOpen] = useState(false);
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -233,6 +237,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   };
 
   const tabs: [Tab, string][] = [
+    ['hangouts', 'Hangouts'],
     ['milestones', 'Milestones'],
     ['creator', 'Creator'],
     ['settings', 'Settings'],
@@ -410,13 +415,18 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                   key={id}
                   type="button"
                   onClick={() => setTab(id)}
-                  className={`flex-1 py-3.5 text-[14px] font-bold relative cursor-pointer ${tab === id ? '' : 'text-slate-500 dark:text-slate-400'}`}
+                  className={`flex-1 py-3.5 text-[13px] font-bold relative cursor-pointer ${tab === id ? '' : 'text-slate-500 dark:text-slate-400'}`}
                 >
                   {label}
                   {tab === id && <span className="absolute left-6 right-6 bottom-0 h-[3px] rounded-full" style={{ background: accent }} />}
                 </button>
               ))}
             </div>
+
+            {/* ===== Hangouts ===== */}
+            {tab === 'hangouts' && user?.id && (
+              <HangoutsTab userId={user.id} accent={accent} showToast={showToast} spots={spots} />
+            )}
 
             {/* ===== Milestones ===== */}
             {tab === 'milestones' && (

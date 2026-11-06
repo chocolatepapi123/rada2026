@@ -3111,6 +3111,26 @@ export default function App() {
             onOpenAccountSettings={() => setIsProfilePageOpen(true)}
             currentUserId={session?.user?.id}
             onOpenAuth={() => setIsAuthModalOpen(true)}
+            spots={allMergedSpots}
+            isSpotSaved={(id) => savedItems.some(s => String(s.id) === String(id) && s.kind === 'spot')}
+            onSaveSpot={(id) => {
+              const sp = allMergedSpots.find(x => String(x.id) === String(id));
+              if (sp) requireAuth('save spots', () => handleToggleSave(sp, 'spot'));
+            }}
+            onPlanDateAtSpot={(id, withUserId) => {
+              const sp = allMergedSpots.find(x => String(x.id) === String(id));
+              if (!sp) return;
+              requireAuth('send messages', () => {
+                const dm = conversations.find(c => c.type === 'direct' && (c as any).otherUserId === withUserId);
+                if (!dm) {
+                  showToast('Match with them first, then you can plan a date here.', { type: 'error' });
+                  return;
+                }
+                setViewingProfile(null);
+                handlePlanDateFromSpot(sp);
+                setPlanDateChatId(dm.id);
+              });
+            }}
           />
 
           {selectedPublicBusiness && (
@@ -3141,6 +3161,7 @@ export default function App() {
               onOpenSaved={() => setIsSavedModalOpen(true)}
               isDarkMode={isDarkMode}
               onToggleTheme={handleToggleTheme}
+              spots={spots.map(s => ({ id: s.id, title: s.title, neighborhood: s.neighborhood }))}
             />
           ) : (
             <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex items-center justify-center">

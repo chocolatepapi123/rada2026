@@ -33,35 +33,10 @@ export const SplashFace: React.FC<{ progressMs?: number }> = ({ progressMs = 160
       style={{ background: SPLASH_ORANGE }}
     >
       <style>{`
-        @keyframes radaRing { 0% { transform: scale(.55); opacity: .0 } 25% { opacity: .55 } 100% { transform: scale(1.5); opacity: 0 } }
-        @keyframes radaMarkIn { 0% { transform: scale(.97) } 100% { transform: none } }
-        @keyframes radaRise { 0% { opacity: 0; transform: translateY(14px) } 100% { opacity: 1; transform: none } }
-        @keyframes radaFill { from { transform: scaleX(0) } to { transform: scaleX(1) } }
+        @keyframes radaMarkIn { 0% { opacity: .0; transform: translateY(6px) } 100% { opacity: 1; transform: none } }
+        @keyframes radaRise { 0% { opacity: 0; transform: translateY(8px) } 100% { opacity: 1; transform: none } }
         @media (prefers-reduced-motion: reduce) { .rada-anim { animation: none !important } }
       `}</style>
-
-      {/* soft light behind the mark; the edges stay solid orange so the phone bars blend in */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse 80% 42% at 50% 50%, rgba(255,160,110,0.38) 0%, rgba(255,160,110,0) 70%)' }}
-      />
-
-      {/* radar rings: a quiet nod to the name */}
-      <div className="absolute left-1/2 pointer-events-none" style={{ top: '50%' }}>
-        {[0, 1, 2].map((n) => (
-          <span
-            key={n}
-            className="rada-anim absolute rounded-full border border-white/40"
-            style={{
-              width: 'min(120vw, 560px)',
-              height: 'min(120vw, 560px)',
-              left: 'calc(min(120vw, 560px) / -2)',
-              top: 'calc(min(120vw, 560px) / -2)',
-              animation: `radaRing 3200ms cubic-bezier(.2,.6,.3,1) ${n * 900}ms infinite`,
-            }}
-          />
-        ))}
-      </div>
 
       {/* the mark, drawn straight on the screen: no box. Same size and spot as the Android launch screen (250dp, centred). */}
       <div className="absolute left-1/2 top-1/2 pointer-events-none" style={{ transform: 'translate(-50%, -50%)' }}>
@@ -70,37 +45,31 @@ export const SplashFace: React.FC<{ progressMs?: number }> = ({ progressMs = 160
           alt="RADA"
           draggable={false}
           className="rada-anim block h-auto"
-          style={{ width: 250, maxWidth: '70vw', animation: 'radaMarkIn 900ms cubic-bezier(.16,1,.3,1) both' }}
+          style={{ width: 250, maxWidth: '70vw', animation: 'radaMarkIn 700ms ease-out both' }}
         />
       </div>
 
       <div className="flex-1" />
 
-      {/* greeting, anchored low like a native welcome screen */}
+      {/* a plain, friendly hello at the bottom. No spinners, no bars. */}
       <div
         className="relative w-full px-8 text-center"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 44px)' }}
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 56px)' }}
       >
         <p
-          className="rada-anim text-[11px] font-bold uppercase text-white/70"
-          style={{ letterSpacing: '0.32em', animation: 'radaRise 700ms ease-out 350ms both' }}
+          className="rada-anim text-[15px] font-semibold text-white/80"
+          style={{ animation: 'radaRise 600ms ease-out 250ms both' }}
         >
           {hello}
         </p>
         {askText && (
           <p
-            className="rada-anim mt-2 text-[26px] leading-tight font-extrabold text-white"
-            style={{ letterSpacing: '-0.02em', animation: 'radaRise 800ms ease-out 500ms both' }}
+            className="rada-anim mt-1 text-[24px] leading-tight font-extrabold text-white"
+            style={{ letterSpacing: '-0.01em', animation: 'radaRise 700ms ease-out 400ms both' }}
           >
             {askText}
           </p>
         )}
-        <div className="mx-auto mt-7 h-[3px] w-12 rounded-full bg-white/25 overflow-hidden">
-          <div
-            className="rada-anim h-full w-full rounded-full bg-white origin-left"
-            style={{ animation: `radaFill ${progressMs}ms cubic-bezier(.4,0,.2,1) both` }}
-          />
-        </div>
       </div>
     </div>
   );
