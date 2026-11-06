@@ -1,5 +1,5 @@
 import React, { useState, useRef, useLayoutEffect } from 'react';
-import { markChatRead } from '../lib/unreadChats.ts';
+import { markChatRead, isChatUnread, useUnreadChatCount } from '../lib/unreadChats.ts';
 import { 
   Heart, 
   X, 
@@ -101,6 +101,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
 
   // Active Chat Screen State
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  useUnreadChatCount(); // re-render the chat list when a chat becomes read or unread
   const activeChat: ChatConversation | null = React.useMemo(
     () => (activeChatId ? conversations.find(c => c.id === activeChatId) || null : null),
     [activeChatId, conversations]
@@ -1475,7 +1476,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                 </p>
               </div>
             )}
-            {conversations.map((conv) => (
+            {conversations.map((conv) => {
+              const unread = isChatUnread(conv);
+              return (
               <div
                 key={conv.id}
                 onClick={() => setActiveChat(conv)}
@@ -1500,19 +1503,20 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">{conv.lastMessage}</p>
+                    <p className={`text-xs truncate mt-0.5 ${unread ? 'font-bold text-slate-900 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400'}`}>{conv.lastMessage}</p>
                   </div>
                 </div>
                 <div className="text-right shrink-0">
                   <span className="text-[11px] text-slate-400 block">{formatChatTime((conv as any).lastMessageAt)}</span>
                   {conv.isTemporary ? (
                     <span className="text-[10px] font-extrabold text-[#E0533C] block mt-0.5">Unlocked</span>
-                  ) : (
-                    <span className="w-2 h-2 rounded-full bg-[#E0533C] inline-block mt-1.5" />
-                  )}
+                  ) : unread ? (
+                    <span className="w-2 h-2 rounded-full bg-[#E0533C] inline-block mt-1.5" aria-label="Unread" />
+                  ) : null}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
