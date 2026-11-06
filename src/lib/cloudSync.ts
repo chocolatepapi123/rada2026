@@ -2255,8 +2255,12 @@ export async function setUserAdminRole(
 ): Promise<string | null> {
   const guard = await requireAdmin();
   if (guard.error) return guard.error;
-  if (guard.uid === uid && role !== 'admin') {
-    return 'You cannot revoke your own admin account.';
+  // RADA has a single admin account (hello.rada.app@gmail.com). Nobody else can be made admin.
+  if (role === 'admin') {
+    return 'RADA has one admin account only. Other accounts cannot be made admin.';
+  }
+  if (guard.uid === uid) {
+    return 'You cannot change your own admin account.';
   }
 
   const now = new Date().toISOString();

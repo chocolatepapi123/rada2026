@@ -12,13 +12,14 @@ import {
   ArrowRight, 
   Lock, 
   UserCheck,
-  Smile
+  Smile,
+  Sun
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import * as cloud from '../lib/cloudSync';
 import type { ToastOptions } from './Toast.tsx';
-import { loadFaceApi, profileDescriptor, runSelfieCheck, failureMessage } from '../lib/faceCheck';
+import { loadFaceApi, profileDescriptor, runSelfieCheck, failureMessage, openFrontCamera, tuneCamera, type LightLevel } from '../lib/faceCheck';
 
 export interface LivenessVerificationModalProps {
   isOpen: boolean;
@@ -55,6 +56,8 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
   const [checkPrompt, setCheckPrompt] = useState('');
   const [checkError, setCheckError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const [screenLight, setScreenLight] = useState(false);
+  const [light, setLight] = useState<LightLevel>('ok');
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -77,6 +80,8 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
       setChecking(false);
       setCheckPrompt('');
       setCameraError(null);
+      setScreenLight(false);
+      setLight('ok');
       setVerificationProgress(0);
       setAutoCloseCountdown(null);
 
@@ -122,14 +127,8 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
         throw new Error('Camera access is not supported by your browser or environment.');
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'user',
-          width: { ideal: 640 },
-          height: { ideal: 640 },
-        },
-        audio: false,
-      });
+      // Starts with a good picture and steps down for weak cameras; also asks for steadier exposure.
+      const stream = await openFrontCamera();
 
       streamRef.current = stream;
       if (videoRef.current) {
@@ -238,7 +237,11 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
         setCheckError(failureMessage('no_profile_face'));
         return;
       }
-      const result = await runSelfieCheck(video, profile, setCheckPrompt, ctrl.signal);
+      const result = await runSelfieCheck(video, profile, setCheckPrompt, ctrl.signal, (lvl) => {
+        setLight(lvl);
+        // dim room: light up the screen so it works as a fill light
+        if (lvl === 'dark') setScreenLight(true);
+      });
       if (!result.ok) {
         if (result.reason !== 'cancelled') setCheckError(failureMessage(result.reason));
         return;
@@ -322,7 +325,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+    <div className={`fixed inset-0 z-50 ${screenLight ? 'bg-white' : 'bg-black/80 backdrop-blur-sm'} flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200`}>
       <div 
         className="bg-white dark:bg-[#14171F] text-[#0F172A] dark:text-[#F8FAFC] rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200/90 dark:border-[#222735] flex flex-col max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
@@ -449,6 +452,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
                   playsInline
                   muted
                   className="w-full h-full object-cover scale-x-[-1]"
+                  style={light === 'dark' ? { filter: 'brightness(1.5) contrast(1.1)' } : undefined}
                 />
 
                 {/* Biometric Oval Guide Overlay */}
@@ -514,6 +518,20 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
                     <span>Turn camera on</span>
                   </button>
                 )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !screenLight;
+                    setScreenLight(next);
+                    const stream = streamRef.current;
+                    if (next && stream) void tuneCamera(stream, true);
+                  }}
+                  className="text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:text-[#FF5733] transition py-0.5 cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <Sun className="w-3.5 h-3.5" />
+                  <span>{screenLight ? 'Screen light is on (tap to turn off)' : 'Dark where you are? Turn on screen light'}</span>
+                </button>
 
                 {selectedAvatar && (
                   <button

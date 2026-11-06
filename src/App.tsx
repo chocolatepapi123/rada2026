@@ -475,8 +475,9 @@ export default function App() {
         return;
       }
 
+      // Only the official admin email is an admin. A stored 'admin' role on any other account is ignored.
       setUserRole(
-        data?.role === 'admin' || isAdminEmail
+        isAdminEmail
           ? 'admin'
           : data?.role === 'merchant'
             ? 'merchant'

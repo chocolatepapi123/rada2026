@@ -1402,15 +1402,7 @@ export function AdminDashboardModal({
                           </span>
                         ) : (
                           <>
-                            {/* Make / Configure Admin Button (Official Admin Only) */}
-                            {isOfficial && (
-                              <ActionBtn
-                                onClick={() => openAdminPermsModal(u)}
-                                icon={<Crown className="w-3.5 h-3.5 text-purple-600" />}
-                                label={isAdmin ? 'Configure Limits' : 'Make Admin'}
-                              />
-                            )}
-
+                            {/* RADA has one admin account only, so there is no "Make Admin" button. */}
                             {isAdmin && isOfficial && (
                               <ActionBtn
                                 danger
