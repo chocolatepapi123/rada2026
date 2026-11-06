@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-draft-3",
+  "version": "2026-11-draft-4",
   "support_email": "hello.rada.app@gmail.com",
   "docs": {
     "terms": {
@@ -49,7 +49,7 @@
         {
           "h": "7. Paid features",
           "p": [
-            "Some features, such as business plans and promotion boosts, cost money. The price is shown before you pay. Payments are made through M-Pesa. A boost needs RADA's approval before it is charged. Unless the law says otherwise or we say so at the time, payments for a period of service that has already started are not refundable."
+            "Normal use of RADA is free. Some features, such as creator and business plans and promotion boosts, cost money. The price is shown before you pay. Payments are made by M-Pesa or Airtel Money through a payment partner, and a plan does not renew by itself: you choose when to pay again. New accounts may get a free trial of a paid plan. When a trial or plan ends, you move to the Free plan. We keep all your content. You can still see and edit it, but you cannot add new items beyond what the Free plan allows until you upgrade. To keep RADA fair, we may limit how many hangouts, requests and similar actions an account can do in a day. A boost needs RADA's approval before it is charged. Unless the law says otherwise or we say so at the time, payments for a period of service that has already started are not refundable."
           ]
         },
         {
@@ -90,7 +90,7 @@
             "Account details: email address, display name, username, profile photo and bio.",
             "What you do in the app: saved places, outings you host or join, messages, match requests, reviews and statuses.",
             "Location, only if you allow it, to show places near you and to send your position if you use SOS.",
-            "Business details if you set up a business account, and payment records if you pay for a plan or boost.",
+            "Business details if you set up a business account, and payment records (amount, plan, date, phone number used and the payment reference) if you pay for a plan or boost. We never see your M-Pesa PIN.",
             "Photos, and videos you upload.",
             "Selfie check: if you use the selfie check, your phone's camera is compared with your profile photo on your device. Nothing from the camera is uploaded or kept. We store only that you passed. Your profile photo is stored like any other photo.",
             "Basic technical data: device and browser type, the app version, and crash reports (the error message and the page it happened on, without your name).",
@@ -112,7 +112,7 @@
         {
           "h": "4. Who can see it",
           "p": [
-            "Your public username, photo and bio can be seen by other users. Your email and phone number are not shown to other users. Messages are visible only to the people in the chat. We use service providers such as Supabase and Vercel to store and run the app, and Safaricom M-Pesa to process payments. They may only use data to provide those services. Some of these providers store data outside Kenya. We may share information if the law requires it or to protect someone's safety."
+            "Your public username, photo and bio can be seen by other users. Your email and phone number are not shown to other users. Messages are visible only to the people in the chat. We use service providers such as Supabase and Vercel to store and run the app, and our payment partner together with M-Pesa and Airtel Money to process payments. They may only use data to provide those services. Some of these providers store data outside Kenya. We may share information if the law requires it or to protect someone's safety."
           ]
         },
         {
@@ -124,7 +124,7 @@
         {
           "h": "6. How long we keep it",
           "p": [
-            "We keep your data while your account is active. When you delete your account we delete your profile and your content, except where we must keep limited records for safety, payment or legal reasons. Crash reports are kept for 30 days and anonymous usage counts for 180 days."
+            "We keep your data while your account is active. When you delete your account we delete your profile and your content, except where we must keep limited records for safety, payment, tax or legal reasons, for as long as the law requires. Crash reports are kept for 30 days and anonymous usage counts for 180 days."
           ]
         },
         {
@@ -241,7 +241,7 @@
         {
           "h": "4. Plans and fees",
           "p": [
-            "Business plans and promotion boosts are paid features. The price, what is included and the length are shown before you pay. Payments are made through M-Pesa. A boost is reviewed by RADA before you are charged and applies to the one promotion you chose. Unless the law says otherwise or we say so at the time, payments for a period of service that has already started are not refundable. We may change prices for future periods and will tell you in the app first."
+            "Business plans and promotion boosts are paid features. The price, what is included and the length are shown before you pay. Payments are made by M-Pesa or Airtel Money through a payment partner, and plans do not renew by themselves. Each plan sets limits on spots, offers, events and team members. If your trial or plan ends, you move to the Free plan: we keep your listings and data, but you cannot add new ones beyond the Free limits until you upgrade. A boost is reviewed by RADA before you are charged and applies to the one promotion you chose. If RADA offers ticket sales, a service fee may apply and will be shown before you turn it on. Unless the law says otherwise or we say so at the time, payments for a period of service that has already started are not refundable. We may change prices for future periods and will tell you in the app first."
           ]
         },
         {

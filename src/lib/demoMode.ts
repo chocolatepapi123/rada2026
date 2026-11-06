@@ -33,7 +33,10 @@ const DEMO_ACCOUNT_EMAILS: Record<string, 'merchant' | 'host' | 'user'> = {
   'prodbywayne@gmail.com': 'user',
 };
 let personaForEmail: 'merchant' | 'host' | 'user' | null = null;
+/** Production builds never switch a demo account into demo mode unless VITE_ENABLE_DEMO=true. */
+const DEMO_ALLOWED = !import.meta.env.PROD || import.meta.env.VITE_ENABLE_DEMO === 'true';
 export function setDemoAccountEmail(email?: string | null) {
+  if (!DEMO_ALLOWED) { personaForEmail = null; return; }
   personaForEmail = DEMO_ACCOUNT_EMAILS[String(email || '').trim().toLowerCase()] ?? null;
 }
 /** Which sample person the signed-in demo account plays; null for everyone else. */
