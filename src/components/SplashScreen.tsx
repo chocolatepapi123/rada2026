@@ -34,7 +34,7 @@ export const SplashFace: React.FC<{ progressMs?: number }> = ({ progressMs = 160
     >
       <style>{`
         @keyframes radaRing { 0% { transform: scale(.55); opacity: .0 } 25% { opacity: .55 } 100% { transform: scale(1.5); opacity: 0 } }
-        @keyframes radaMarkIn { 0% { opacity: 0; transform: scale(.9) translateY(6px) } 100% { opacity: 1; transform: none } }
+        @keyframes radaMarkIn { 0% { transform: scale(.97) } 100% { transform: none } }
         @keyframes radaRise { 0% { opacity: 0; transform: translateY(14px) } 100% { opacity: 1; transform: none } }
         @keyframes radaFill { from { transform: scaleX(0) } to { transform: scaleX(1) } }
         @media (prefers-reduced-motion: reduce) { .rada-anim { animation: none !important } }
@@ -43,11 +43,11 @@ export const SplashFace: React.FC<{ progressMs?: number }> = ({ progressMs = 160
       {/* soft light behind the mark; the edges stay solid orange so the phone bars blend in */}
       <div
         className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse 80% 42% at 50% 42%, rgba(255,160,110,0.38) 0%, rgba(255,160,110,0) 70%)' }}
+        style={{ background: 'radial-gradient(ellipse 80% 42% at 50% 50%, rgba(255,160,110,0.38) 0%, rgba(255,160,110,0) 70%)' }}
       />
 
       {/* radar rings: a quiet nod to the name */}
-      <div className="absolute left-1/2 pointer-events-none" style={{ top: '42%' }}>
+      <div className="absolute left-1/2 pointer-events-none" style={{ top: '50%' }}>
         {[0, 1, 2].map((n) => (
           <span
             key={n}
@@ -63,16 +63,18 @@ export const SplashFace: React.FC<{ progressMs?: number }> = ({ progressMs = 160
         ))}
       </div>
 
-      {/* the mark, drawn straight on the screen: no box */}
-      <div className="relative flex-1 w-full flex items-center justify-center" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+      {/* the mark, drawn straight on the screen: no box. Same size and spot as the Android launch screen (250dp, centred). */}
+      <div className="absolute left-1/2 top-1/2 pointer-events-none" style={{ transform: 'translate(-50%, -50%)' }}>
         <img
           src="/rada-mark.png"
           alt="RADA"
           draggable={false}
-          className="rada-anim relative w-[64vw] max-w-[320px] h-auto"
-          style={{ animation: 'radaMarkIn 900ms cubic-bezier(.16,1,.3,1) both', filter: 'drop-shadow(0 6px 18px rgba(120,30,0,.25))' }}
+          className="rada-anim block h-auto"
+          style={{ width: 250, maxWidth: '70vw', animation: 'radaMarkIn 900ms cubic-bezier(.16,1,.3,1) both' }}
         />
       </div>
+
+      <div className="flex-1" />
 
       {/* greeting, anchored low like a native welcome screen */}
       <div
