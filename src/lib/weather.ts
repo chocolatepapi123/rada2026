@@ -5,7 +5,7 @@
 
 export const NAIROBI = { lat: -1.2921, lng: 36.8219 };
 
-export type DayForecast = { code: number; tmax: number; tmin: number; rain: number; hourly?: boolean };
+export type DayForecast = { code: number; tmax: number; tmin: number; rain: number; hourly?: boolean; hour?: number };
 type HourForecast = { code: number; temp: number; rain: number };
 export type Forecast = {
   days: Record<string, DayForecast>;   // keyed by local YYYY-MM-DD
@@ -108,7 +108,7 @@ export function pickForecast(f: Forecast | null, dayKey: string | null, at?: str
           const nx = f.hours[hk(new Date(d.getTime() + i * 36e5))];
           if (nx) rain = Math.max(rain, nx.rain);
         }
-        return { code: first.code, tmax: first.temp, tmin: first.temp, rain, hourly: true };
+        return { code: first.code, tmax: first.temp, tmin: first.temp, rain, hourly: true, hour: d.getHours() };
       }
     }
   }
