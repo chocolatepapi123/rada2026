@@ -444,8 +444,6 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
                     {event.genre || accent.badge}
                   </span>
 
-                  <WeatherChip date={(event as any).startAt || event.date} className="absolute top-2.5 right-2.5" />
-
                   {/* Matching Event Focus Badge */}
                   {isMatch && (
                     <span className="absolute bottom-2.5 left-2.5 bg-[#E0533C] dark:bg-[#A94F3E] text-white text-[9px] font-black px-2 py-0.5 rounded-md shadow-md animate-pulse">
@@ -477,11 +475,28 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
                         <p className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-slate-100">
                           <Clock className="w-3.5 h-3.5 text-[#FF5733] dark:text-[#D17A68] shrink-0" />
                           <span>{event.time}</span>
+                          <WeatherChip
+                            variant="quiet"
+                            date={(event as any).startAt || event.date}
+                            at={(event as any).startAt}
+                            lat={event.lat}
+                            lng={event.lng}
+                            className="ml-1.5"
+                          />
                         </p>
                       )}
                       <p className="flex items-center gap-1.5 truncate text-slate-800 dark:text-slate-200">
                         <MapPin className="w-3.5 h-3.5 text-[#FF5733] dark:text-[#D17A68] shrink-0" />
                         <span className="truncate">{event.location}</span>
+                        {!event.time && (
+                          <WeatherChip
+                            variant="quiet"
+                            date={(event as any).startAt || event.date}
+                            lat={event.lat}
+                            lng={event.lng}
+                            className="ml-1.5 shrink-0"
+                          />
+                        )}
                       </p>
                     </div>
 

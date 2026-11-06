@@ -2,6 +2,7 @@
 import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending, formatOpeningHours } from '../lib/spotsFeed.ts';
 import React, { useState, useEffect, useRef } from 'react';
 import { track } from '../lib/tracking';
+import { WeatherChip } from './WeatherChip';
 import { THEMES } from '../lib/profileLook';
 import { SpotDetailSections } from './SpotDetailSections';
 import { useActivePromotions, offerRankMap, offerPromoKey, sortByPromotion } from '../lib/promotions';
@@ -1545,6 +1546,15 @@ export const Overlays: React.FC<OverlaysProps> = ({
             )}
 
             <div className="pt-2 flex flex-col gap-2">
+              <div className="flex justify-end empty:hidden">
+                <WeatherChip
+                  variant="quiet"
+                  date={selectedEvent.startAt || selectedEvent.date}
+                  at={selectedEvent.time ? selectedEvent.startAt : undefined}
+                  lat={selectedEvent.lat}
+                  lng={selectedEvent.lng}
+                />
+              </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => onToggleGoing(selectedEvent)}

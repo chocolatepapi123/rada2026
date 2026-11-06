@@ -1658,7 +1658,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         <span className="bg-black/60 text-white text-[9px] font-black px-2.5 py-1 rounded-md">
                           {evt.date.split(',')[0]}
                         </span>
-                        <WeatherChip date={(evt as any).startAt || evt.date} />
                         {isToday && (
                           <span className="bg-emerald-600/90 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs">
                             <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
@@ -1712,15 +1711,24 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     <span className="text-[10px] font-bold text-[#475569] dark:text-slate-300">
                       {evt.goingCount > 0 ? `${evt.goingCount} going` : (getSourceLabel(evt.source) ? `via ${getSourceLabel(evt.source)}` : 'New')}
                     </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenEventDetails(evt);
-                      }}
-                      className="px-3 py-1.5 bg-[#E0533C] text-white rounded-xl text-xs font-bold shadow-xs hover:bg-orange-700 transition"
-                    >
-                      Get Tickets
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <WeatherChip
+                        variant="quiet"
+                        date={(evt as any).startAt || evt.date}
+                        at={evt.time ? (evt as any).startAt : undefined}
+                        lat={evt.lat}
+                        lng={evt.lng}
+                      />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenEventDetails(evt);
+                        }}
+                        className="px-3 py-1.5 bg-[#E0533C] text-white rounded-xl text-xs font-bold shadow-xs hover:bg-orange-700 transition"
+                      >
+                        Get Tickets
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
