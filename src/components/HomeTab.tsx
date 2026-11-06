@@ -1707,28 +1707,31 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     </p>
                   </div>
 
-                  <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800">
+                  <div className="mt-3 pt-2 border-t border-slate-200 dark:border-slate-800">
+                  <div className="empty:hidden mb-2">
+                    <WeatherChip
+                      variant="quiet"
+                      prefix="Forecast"
+                      date={(evt as any).startAt || evt.date}
+                      at={evt.time ? (evt as any).startAt : undefined}
+                      lat={evt.lat}
+                      lng={evt.lng}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold text-[#475569] dark:text-slate-300">
                       {evt.goingCount > 0 ? `${evt.goingCount} going` : (getSourceLabel(evt.source) ? `via ${getSourceLabel(evt.source)}` : 'New')}
                     </span>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <WeatherChip
-                        variant="quiet"
-                        date={(evt as any).startAt || evt.date}
-                        at={evt.time ? (evt as any).startAt : undefined}
-                        lat={evt.lat}
-                        lng={evt.lng}
-                      />
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onOpenEventDetails(evt);
-                        }}
-                        className="px-3 py-1.5 bg-[#E0533C] text-white rounded-xl text-xs font-bold shadow-xs hover:bg-orange-700 transition"
-                      >
-                        Get Tickets
-                      </button>
-                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenEventDetails(evt);
+                      }}
+                      className="px-3 py-1.5 bg-[#E0533C] text-white rounded-xl text-xs font-bold shadow-xs hover:bg-orange-700 transition"
+                    >
+                      Get Tickets
+                    </button>
+                  </div>
                   </div>
                 </div>
               );

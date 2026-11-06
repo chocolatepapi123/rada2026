@@ -1546,9 +1546,10 @@ export const Overlays: React.FC<OverlaysProps> = ({
             )}
 
             <div className="pt-2 flex flex-col gap-2">
-              <div className="flex justify-end empty:hidden">
+              <div className="flex justify-start empty:hidden">
                 <WeatherChip
                   variant="quiet"
+                  prefix="Forecast"
                   date={selectedEvent.startAt || selectedEvent.date}
                   at={selectedEvent.time ? selectedEvent.startAt : undefined}
                   lat={selectedEvent.lat}

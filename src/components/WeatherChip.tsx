@@ -1,5 +1,5 @@
 import React, { useEffect, useState, memo } from 'react';
-import { Sun, CloudSun, Cloud, CloudFog, CloudDrizzle, CloudRain, CloudLightning, Snowflake } from 'lucide-react';
+import { Sun, CloudSun, Cloud, CloudFog, CloudDrizzle, CloudRain, CloudLightning, Snowflake, Moon } from 'lucide-react';
 import { getForecast, toDateKey, describeWeather, pickForecast, type DayForecast, type WeatherKind } from '../lib/weather';
 
 /**
@@ -20,6 +20,12 @@ export function useDayWeather(date?: string | Date | null, lat?: number | null, 
   return w;
 }
 
+// Short everyday wording for the chip
+const SHORT: Record<WeatherKind, string> = {
+  clear: 'Sunny', partly: 'Partly cloudy', cloudy: 'Cloudy', fog: 'Foggy',
+  drizzle: 'Light rain', rain: 'Rain', snow: 'Snow', storm: 'Thunderstorms',
+};
+
 const ICONS: Record<WeatherKind, { Icon: React.ComponentType<{ className?: string }>; tint: string; onDark: string }> = {
   clear:   { Icon: Sun,            tint: 'text-amber-500',  onDark: 'text-amber-300' },
   partly:  { Icon: CloudSun,       tint: 'text-amber-500',  onDark: 'text-amber-300' },
@@ -35,6 +41,8 @@ type Props = {
   date?: string | Date | null;
   lat?: number | null;
   lng?: number | null;
+  /** quiet variant: small label before the words, e.g. "Forecast" -> "Forecast 7 PM · Cloudy, 22°C" */
+  prefix?: string;
   /** event start time (ISO). When set, shows the forecast for that hour instead of the whole day. */
   at?: string | Date | null;
   /** quiet: tiny icon + temperature with no background, for sitting beside a button. overlay: small dark pill for event images. inline: pill with text for a selected-day header. icon: bare icon for calendar cells. */
@@ -44,7 +52,7 @@ type Props = {
   className?: string;
 };
 
-export const WeatherChip = memo(function WeatherChip({ date, lat, lng, at, variant = 'overlay', tone = 'color', className = '' }: Props) {
+export const WeatherChip = memo(function WeatherChip({ date, lat, lng, at, prefix, variant = 'overlay', tone = 'color', className = '' }: Props) {
   const w = useDayWeather(date, lat, lng, at);
   if (!w) return null;
 
@@ -57,16 +65,25 @@ export const WeatherChip = memo(function WeatherChip({ date, lat, lng, at, varia
   const tip = `${label}, ${temp}${w.rain >= 20 ? `, ${w.rain}% chance of rain` : ''}`;
 
   if (variant === 'quiet') {
+    // Plain words, e.g. "Cloudy, 22°C" or "Rain likely, 21°C". `prefix` adds context like "Forecast for 7 PM".
+    const night = w.hourly && typeof w.hour === 'number' && (w.hour >= 19 || w.hour < 6);
+    const clearNight = night && (kind === 'clear' || kind === 'partly');
+    const Shown = clearNight ? Moon : Icon;
+    const words = rainy && kind !== 'storm' ? 'Rain likely' : clearNight ? 'Clear night' : SHORT[kind];
+    const colour = rainy ? 'text-sky-600 dark:text-sky-400' : 'text-slate-600 dark:text-slate-300';
+    const when = w.hourly && typeof w.hour === 'number' ? `${w.hour % 12 || 12} ${w.hour >= 12 ? 'PM' : 'AM'}` : '';
     return (
       <span
         role="img"
-        aria-label={tip}
+        aria-label={`${prefix ? prefix + ' ' : ''}${when ? when + ': ' : ''}${tip}`}
         title={tip}
-        className={`inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400 ${className}`}
+        className={`inline-flex items-center gap-1.5 text-[11px] font-semibold leading-tight ${colour} ${className}`}
       >
-        <Icon className={`w-3.5 h-3.5 ${tint}`} />
-        <span>{hi}°</span>
-        {rainy && <span className="text-sky-500">{w.rain}%</span>}
+        <Shown className={`w-3.5 h-3.5 shrink-0 ${rainy ? 'text-sky-500' : clearNight ? 'text-indigo-400' : tint}`} />
+        <span>
+          {prefix && <span className="text-slate-400 dark:text-slate-500 font-medium">{prefix}{when ? ` ${when}` : ''} · </span>}
+          {words}, {w.hourly ? `${hi}°C` : `${lo}–${hi}°C`}
+        </span>
       </span>
     );
   }
