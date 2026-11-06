@@ -110,6 +110,15 @@ if (typeof window !== 'undefined') {
     ['spots', 'outings', 'socials', 'vault', 'merchant'].forEach((id, i) =>
       setTimeout(() => prefetchTab(id), i * gap)
     );
+    // Heavy screens people open from menus: load them in the background too, so the first tap is instant
+    // (same import specifiers as the real imports, so nothing is downloaded twice).
+    const extra: (() => Promise<any>)[] = [
+      () => import('./components/ProfilePage.tsx'),
+      () => import('./components/Overlays.tsx'),
+      () => import('./components/UserProfileModal.tsx'),
+      () => import('./components/AccountSettingsModal.tsx'),
+    ];
+    extra.forEach((load, i) => setTimeout(() => { load().catch(() => {}); }, (5 + i) * gap));
   };
   const kick = () => {
     const ric = (window as any).requestIdleCallback;

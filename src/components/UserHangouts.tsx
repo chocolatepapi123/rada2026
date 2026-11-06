@@ -96,12 +96,12 @@ export const UserHangouts: React.FC<Props> = ({
             <p className="flex-1 text-center text-[15px] font-black truncate pr-10">{handle}&apos;s hangout</p>
           </div>
           <div className="flex-1 overflow-y-auto pb-6">
-            <div className="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar">
+            <div className="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar items-start">
               {open.media.map((m) => (
-                <div key={m.id} className="snap-center shrink-0 w-full bg-black flex items-center justify-center" style={{ maxHeight: '55vh' }}>
+                <div key={m.id} className="snap-center shrink-0 w-full">
                   {m.kind === 'video'
-                    ? <video src={m.url} controls playsInline preload="metadata" className="w-full max-h-[55vh]" />
-                    : <img src={m.url} alt="" className="w-full max-h-[55vh] object-contain" />}
+                    ? <video src={m.url} controls playsInline preload="metadata" className="block w-full h-auto max-h-[65vh] object-cover" />
+                    : <img src={m.url} alt="" className="block w-full h-auto max-h-[65vh] object-cover" />}
                 </div>
               ))}
             </div>
