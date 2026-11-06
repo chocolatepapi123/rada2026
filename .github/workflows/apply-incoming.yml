@@ -1,0 +1,38 @@
+name: Apply incoming files
+
+# Upload a zip into the incoming/ folder (from the GitHub app or website).
+# This workflow unpacks it into the right folders, commits, and deletes the zip.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'incoming/*.zip'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-incoming
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unpack zips into the repo
+        run: python3 scripts/apply-incoming.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "rada-bot"
+          git config user.email "rada-bot@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing to commit"
+          else
+            git commit -F /tmp/commit_msg.txt
+            git push
+          fi
