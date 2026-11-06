@@ -36,6 +36,7 @@ import {
 import { DatingProfile, ChatConversation, ChatMessage, ChatTheme, UserProfile } from '../types.ts';
 import { EmojiPicker } from './EmojiPicker.tsx';
 import { AudioMessagePlayer } from './AudioMessagePlayer.tsx';
+import { SwipeToReply } from './SwipeToReply.tsx';
 import { VideoMessagePlayer } from './VideoMessagePlayer.tsx';
 import { generatePlayableWavDataUrl, generateFallbackVideoBlobUrl, formatMediaDuration, deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 import type { ToastOptions } from './Toast.tsx';
@@ -131,6 +132,15 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
 
   // Swipe-to-reply state
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+  const [flashId, setFlashId] = useState<string | number | null>(null);
+
+  // Open chats land on the latest message, and follow new ones
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  React.useEffect(() => {
+    if (!activeChatId) return;
+    const t = setTimeout(() => messagesEndRef.current?.scrollIntoView({ block: 'end' }), 30);
+    return () => clearTimeout(t);
+  }, [activeChatId, activeChat?.messages.length]);
 
   // Voice note recording state & refs
   const [isRecordingAudio, setIsRecordingAudio] = useState(false);
@@ -360,6 +370,22 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
     el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
     el.style.overflowY = el.scrollHeight > maxHeight ? 'auto' : 'hidden';
   }, [chatInputText]);
+
+  // Swipe (or tap the hover button) to reply: remember the message and put the cursor in the box
+  const startReply = (msg: ChatMessage) => {
+    setReplyingTo(msg);
+    setTimeout(() => chatTextareaRef.current?.focus(), 0);
+  };
+
+  // Tapping a quoted reply scrolls to the original and flashes it
+  const jumpToMessage = (id?: string | number) => {
+    if (id === undefined || id === null) return;
+    const el = document.getElementById(`msg-${id}`);
+    if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    setFlashId(id);
+    setTimeout(() => setFlashId(null), 1200);
+  };
 
   const replyPayload = () =>
     replyingTo
@@ -661,253 +687,249 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
     return d.toLocaleDateString([], { day: 'numeric', month: 'short' });
   };
 
-  // Clean standard chat styles matching app theme
+  // Look shared with the rest of the app: orange gradient for me, soft grey for them
   const chatStyles = {
     bg: 'bg-white dark:bg-[#121113]',
-    header: 'bg-white/95 dark:bg-[#121113]/95 text-slate-900 dark:text-slate-100',
-    myBubble: 'bg-[#E0533C] dark:bg-[#A94F3E] text-white',
-    theirBubble: 'bg-slate-100 dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800',
+    header: 'bg-white/90 dark:bg-[#121113]/90 text-slate-900 dark:text-slate-100',
+    myBubble: 'bg-gradient-to-br from-[#E0533C] to-[#EE7A4A] text-white',
+    theirBubble: 'bg-slate-100 dark:bg-white/[0.08] text-slate-900 dark:text-slate-100',
   };
+  const CARD = 'bg-white dark:bg-[#1C1A1E] border border-slate-200/80 dark:border-white/10';
+  const HEADING = 'text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400';
+  const hasContent = chatInputText.trim().length > 0 || attachedPhotos.length > 0;
 
   // If in chat room
   if (activeChat) {
+    const msgs = activeChat.messages;
     return (
       <div className={`fixed inset-0 z-50 flex flex-col ${chatStyles.bg} transition-colors duration-200`}>
         {/* Chat Room Header */}
-        <div className={`sticky top-0 z-10 backdrop-blur-md px-4 py-3 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between ${chatStyles.header}`}>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setActiveChat(null)}
-              className="w-8 h-8 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:scale-105 transition cursor-pointer"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-            <div className="flex items-center gap-2.5">
-              <div className="relative">
-                <div
-                  className="w-10 h-10 rounded-full bg-cover bg-center border-2 border-white/40 shadow-sm"
-                  style={{ backgroundImage: `url('${activeChat.avatar}')` }}
-                />
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#1C1A1E]" />
-              </div>
-              <div>
-                <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{activeChat.name}</h4>
-                <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  <span>
-                    {activeChat.isTemporary 
-                      ? 'Temporary Outing Group Chat' 
-                      : activeChat.type === 'group' 
-                      ? 'Group Chat' 
-                      : 'Active'}
-                  </span>
-                  {activeChat.members && (
-                    <span>• {activeChat.members.length} members</span>
-                  )}
-                </div>
-              </div>
+        <div
+          className={`sticky top-0 z-10 backdrop-blur-xl px-3 pb-2.5 border-b border-slate-200/70 dark:border-white/10 flex items-center gap-2.5 ${chatStyles.header}`}
+          style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.625rem)' }}
+        >
+          <button
+            onClick={() => setActiveChat(null)}
+            className="w-9 h-9 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-700 dark:text-slate-200 active:scale-95 transition cursor-pointer shrink-0"
+            aria-label="Back to chats"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+
+          <div className="relative shrink-0">
+            <div className="p-[2px] rounded-full bg-gradient-to-tr from-[#F43F5E] to-[#E0533C]">
+              <div
+                className="w-10 h-10 rounded-full bg-cover bg-center border-2 border-white dark:border-[#121113]"
+                style={{ backgroundImage: `url('${activeChat.avatar}')` }}
+              />
             </div>
+            <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#121113]" />
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => onOpenPlanDateModal(activeChat.id)}
-              className="px-3 py-1.5 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition cursor-pointer"
-            >
-              <Calendar className="w-3.5 h-3.5" />
-              <span>Plan a Date</span>
-            </button>
+          <div className="min-w-0 flex-1">
+            <h4 className="font-extrabold text-sm leading-tight truncate text-slate-900 dark:text-slate-100">{activeChat.name}</h4>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+              {activeChat.isTemporary ? 'Outing group chat' : activeChat.type === 'group' ? 'Group chat' : 'Active now'}
+              {activeChat.members ? ` · ${activeChat.members.length} members` : ''}
+            </p>
           </div>
+
+          <button
+            onClick={() => onOpenPlanDateModal(activeChat.id)}
+            className="h-9 px-3 bg-[#E0533C] text-white rounded-full text-xs font-extrabold flex items-center gap-1.5 shadow-md shadow-[#E0533C]/25 active:scale-95 transition cursor-pointer shrink-0"
+            aria-label="Plan a date"
+          >
+            <Calendar className="w-4 h-4" />
+            <span className="hidden min-[380px]:inline">Plan a Date</span>
+          </button>
         </div>
 
         {/* Messages Stream */}
-        <div className="flex-1 p-4 space-y-3 overflow-y-auto max-w-lg mx-auto w-full">
-          {/* Outing Squad Banner for Outing Group Chats */}
-          {activeChat.isTemporary && (
-            <div className="p-3 bg-gradient-to-r from-orange-500/15 via-rose-500/15 to-amber-500/15 border border-[#E0533C]/30 dark:border-[#D17A68]/30 rounded-2xl shadow-xs text-xs space-y-2 backdrop-blur-xs">
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#E0533C] dark:bg-[#A94F3E] text-white text-[10px] font-black uppercase tracking-wider">
-                  <Sparkles className="w-3 h-3" />
-                  <span>Temporary Outing Squad Chat</span>
-                </span>
-                {activeChat.members && (
-                  <span className="text-[10px] font-extrabold text-[#E0533C] dark:text-orange-300">
-                    {activeChat.members.length} Squad Members
+        <div className="flex-1 overflow-y-auto overscroll-contain">
+          <div className="max-w-lg mx-auto w-full px-3 py-3">
+            {/* Outing Squad Banner for Outing Group Chats */}
+            {activeChat.isTemporary && (
+              <div className="mb-3 p-3 bg-gradient-to-br from-[#E0533C]/15 to-amber-400/15 border border-[#E0533C]/25 rounded-2xl text-xs space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E0533C] text-white text-[10px] font-black uppercase tracking-wider">
+                    <Sparkles className="w-3 h-3" />
+                    <span>Temporary outing squad</span>
                   </span>
-                )}
-              </div>
-              {activeChat.members && activeChat.members.length > 0 && (
-                <div className="text-[11px] text-slate-700 dark:text-slate-200">
-                  <span className="font-bold opacity-75">Confirmed: </span>
-                  <span className="font-semibold">{activeChat.members.join(' • ')}</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeChat.messages.map((msg) => {
-            if (msg.sender === 'system') {
-              return (
-                <div key={msg.id} className="flex justify-center my-2 w-full animate-in fade-in duration-200">
-                  <div className="bg-black/10 dark:bg-white/10 text-slate-800 dark:text-slate-200 border border-black/5 dark:border-white/10 rounded-2xl px-4 py-2 text-[11px] font-medium text-center max-w-sm shadow-xs backdrop-blur-xs">
-                    <p className="leading-relaxed font-semibold">{msg.text}</p>
-                    <span className="text-[9px] opacity-60 block mt-1">{msg.time}</span>
-                  </div>
-                </div>
-              );
-            }
-
-            return (
-              <div
-                key={msg.id}
-                className={`flex flex-col group ${msg.sender === 'me' ? 'items-end' : 'items-start'}`}
-              >
-                {msg.sender === 'them' && activeChat.type === 'group' && (msg as any).senderHandle && (
-                  <span className="text-[10px] font-bold text-slate-400 mb-0.5 px-1">{(msg as any).senderHandle}</span>
-                )}
-                {/* Swipe-to-reply button row */}
-                <div className="flex items-center gap-1 max-w-[85%]">
-                  {msg.sender !== 'me' && (
-                    <button
-                      onClick={() => {
-                        setReplyingTo(msg);
-                      }}
-                      title="Swipe or click to reply"
-                      className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-[#E0533C] dark:hover:text-[#D17A68] transition"
-                    >
-                      <Reply className="w-3.5 h-3.5" />
-                    </button>
+                  {activeChat.members && (
+                    <span className="text-[11px] font-extrabold text-[#E0533C]">{activeChat.members.length} members</span>
                   )}
-
-                {msg.dateInvite ? (
-                  <div className="w-full bg-gradient-to-r from-[#E0533C] dark:from-[#A94F3E] to-orange-600 text-white p-3.5 rounded-2xl shadow-md space-y-2">
-                    <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider border-b border-white/20 pb-1">
-                      <Calendar className="w-3.5 h-3.5" /> Date Invitation
-                    </div>
-                    <h4 className="font-black text-sm">{msg.dateInvite.spotTitle}</h4>
-                    <p className="text-[11px] opacity-90">{msg.dateInvite.address}</p>
-                    <p className="text-[11px] font-bold bg-white/20 px-2 py-1 rounded-lg inline-block">
-                      {msg.dateInvite.date} at {msg.dateInvite.time}
-                    </p>
-                    <button
-                      disabled={isInviteAccepted(msg) || msg.sender === 'me'}
-                      onClick={() => handleAcceptDateInvite(msg)}
-                      className={`w-full mt-2 py-2 text-xs font-extrabold rounded-xl shadow transition ${
-                        isInviteAccepted(msg)
-                          ? 'bg-emerald-800 text-white cursor-default'
-                          : msg.sender === 'me'
-                          ? 'bg-white/30 text-white cursor-default'
-                          : 'bg-white text-slate-900 hover:bg-slate-100'
-                      }`}
-                    >
-                      {isInviteAccepted(msg) ? 'Date Accepted' : msg.sender === 'me' ? 'Invitation sent' : 'Accept Date'}
-                    </button>
-                  </div>
-                ) : msg.videoNoteUrl ? (
-                  /* Circular Video Note */
-                  <VideoMessagePlayer
-                    videoUrl={msg.videoNoteUrl}
-                    isCircular={true}
-                    videoDuration={msg.videoDuration || 6}
-                    isMyMessage={msg.sender === 'me'}
-                    time={msg.time}
-                    replyTo={msg.replyTo}
-                  />
-                ) : msg.videoUrl ? (
-                  /* Rectangular Video Message */
-                  <VideoMessagePlayer
-                    videoUrl={msg.videoUrl}
-                    isCircular={false}
-                    videoDuration={msg.videoDuration || 10}
-                    isMyMessage={msg.sender === 'me'}
-                    time={msg.time}
-                    replyTo={msg.replyTo}
-                  />
-                ) : msg.audioUrl ? (
-                  /* Voice Note Bubble with functional player & scrubbable waveform */
-                  <div className={`p-3 rounded-2xl text-xs shadow-xs min-w-[220px] ${
-                    msg.sender === 'me'
-                      ? `${chatStyles.myBubble} rounded-tr-none`
-                      : `${chatStyles.theirBubble} rounded-tl-none`
-                  }`}>
-                    <AudioMessagePlayer
-                      audioUrl={msg.audioUrl}
-                      durationSeconds={msg.audioDuration || 14}
-                      isMyMessage={msg.sender === 'me'}
-                      time={msg.time}
-                      replyTo={msg.replyTo}
-                    />
-                  </div>
-                ) : (
-                  /* Standard text message bubble with reply support */
-                  <div
-                    className={`p-3 rounded-2xl text-xs shadow-xs ${
-                      msg.sender === 'me'
-                        ? `${chatStyles.myBubble} rounded-tr-none`
-                        : `${chatStyles.theirBubble} rounded-tl-none`
-                    }`}
-                  >
-                    {msg.replyTo && (
-                      <div className="p-1.5 bg-black/20 rounded-lg text-[10px] border-l-2 border-white/60 mb-1">
-                        <span className="font-bold opacity-80 block">{msg.replyTo.sender}</span>
-                        <p className="truncate opacity-75">{msg.replyTo.text}</p>
-                      </div>
-                    )}
-                    {msg.photos && msg.photos.length > 0 && (
-                      <div className={`grid gap-1.5 mb-1.5 ${msg.photos.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                        {msg.photos.map((photoUrl, pIdx) => (
-                          <div key={pIdx} onClick={() => setViewerPhoto(photoUrl)} className="rounded-xl overflow-hidden max-h-48 border border-black/10 dark:border-white/10 bg-black/10 cursor-pointer">
-                            <img src={photoUrl} alt={`Attachment ${pIdx + 1}`} className="w-full h-full object-cover" />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {msg.text && <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{msg.text}</p>}
-                    <span className="text-[9px] opacity-70 block text-right mt-1">{msg.time}</span>
-                  </div>
-                )}
-
-
-                {msg.sender === 'me' && (
-                  <button
-                    onClick={() => {
-                      setReplyingTo(msg);
-                    }}
-                    title="Swipe or click to reply"
-                    className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-[#E0533C] dark:hover:text-[#D17A68] transition"
-                  >
-                    <Reply className="w-3.5 h-3.5" />
-                  </button>
+                </div>
+                {activeChat.members && activeChat.members.length > 0 && (
+                  <p className="text-[12px] text-slate-700 dark:text-slate-200">
+                    <span className="font-bold opacity-70">Confirmed: </span>
+                    <span className="font-semibold">{activeChat.members.join(' • ')}</span>
+                  </p>
                 )}
               </div>
-            </div>
-          );
-        })}
+            )}
+
+            {msgs.map((msg, i) => {
+              if (msg.sender === 'system') {
+                return (
+                  <div key={msg.id} className="flex justify-center my-3 w-full animate-in fade-in duration-200">
+                    <div className="bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 rounded-full px-3.5 py-1.5 text-[11px] font-semibold text-center max-w-[85%]">
+                      <span>{msg.text}</span>
+                      <span className="opacity-60 ml-1.5">{msg.time}</span>
+                    </div>
+                  </div>
+                );
+              }
+
+              const mine = msg.sender === 'me';
+              const handle = (msg as any).senderHandle as string | undefined;
+              const prev = msgs[i - 1];
+              const next = msgs[i + 1];
+              const sameAsPrev = !!prev && prev.sender === msg.sender && (prev as any).senderHandle === handle;
+              const sameAsNext = !!next && next.sender === msg.sender && (next as any).senderHandle === handle;
+              const tail = sameAsNext ? '' : mine ? 'rounded-br-md' : 'rounded-bl-md';
+              const flash = flashId !== null && String(flashId) === String(msg.id);
+
+              const replyBtn = (
+                <button
+                  type="button"
+                  onClick={() => startReply(msg)}
+                  title="Reply"
+                  aria-label="Reply"
+                  className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-[#E0533C] hover:bg-slate-100 dark:hover:bg-white/10 transition shrink-0 cursor-pointer"
+                >
+                  <Reply className="w-3.5 h-3.5" />
+                </button>
+              );
+
+              return (
+                <SwipeToReply key={msg.id} onReply={() => startReply(msg)} className={sameAsPrev ? 'mt-0.5' : 'mt-2.5'}>
+                  <div id={`msg-${msg.id}`} className={`flex flex-col group ${mine ? 'items-end' : 'items-start'}`}>
+                    {!mine && activeChat.type === 'group' && handle && !sameAsPrev && (
+                      <span className="text-[11px] font-bold text-[#E0533C] mb-0.5 px-2">{handle}</span>
+                    )}
+
+                    <div className="flex items-end gap-1 max-w-[88%]">
+                      {mine && replyBtn}
+
+                      {msg.dateInvite ? (
+                        <div className="w-72 max-w-full bg-gradient-to-br from-[#E0533C] to-[#EE8A47] text-white p-4 rounded-3xl shadow-lg shadow-[#E0533C]/25 space-y-2">
+                          <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider bg-white/20 px-2.5 py-1 rounded-full">
+                            <Calendar className="w-3 h-3" /> Date invitation
+                          </span>
+                          <h4 className="font-black text-[15px] leading-tight">{msg.dateInvite.spotTitle}</h4>
+                          <p className="text-xs text-white/85">{msg.dateInvite.address}</p>
+                          <p className="text-xs font-bold bg-white/20 px-3 py-1.5 rounded-full inline-block">
+                            {msg.dateInvite.date} at {msg.dateInvite.time}
+                          </p>
+                          <button
+                            disabled={isInviteAccepted(msg) || mine}
+                            onClick={() => handleAcceptDateInvite(msg)}
+                            className={`w-full mt-1 py-2.5 text-xs font-extrabold rounded-full shadow transition ${
+                              isInviteAccepted(msg)
+                                ? 'bg-emerald-700 text-white cursor-default'
+                                : mine
+                                ? 'bg-white/30 text-white cursor-default'
+                                : 'bg-white text-[#E0533C] active:scale-[0.98] cursor-pointer'
+                            }`}
+                          >
+                            {isInviteAccepted(msg) ? 'Date accepted' : mine ? 'Invitation sent' : 'Accept date'}
+                          </button>
+                        </div>
+                      ) : msg.videoNoteUrl ? (
+                        <VideoMessagePlayer
+                          videoUrl={msg.videoNoteUrl}
+                          isCircular={true}
+                          videoDuration={msg.videoDuration || 6}
+                          isMyMessage={mine}
+                          time={msg.time}
+                          replyTo={msg.replyTo}
+                        />
+                      ) : msg.videoUrl ? (
+                        <VideoMessagePlayer
+                          videoUrl={msg.videoUrl}
+                          isCircular={false}
+                          videoDuration={msg.videoDuration || 10}
+                          isMyMessage={mine}
+                          time={msg.time}
+                          replyTo={msg.replyTo}
+                        />
+                      ) : msg.audioUrl ? (
+                        <div className={`p-3 rounded-2xl text-xs min-w-[220px] ${mine ? chatStyles.myBubble : chatStyles.theirBubble} ${tail}`}>
+                          <AudioMessagePlayer
+                            audioUrl={msg.audioUrl}
+                            durationSeconds={msg.audioDuration || 14}
+                            isMyMessage={mine}
+                            time={msg.time}
+                            replyTo={msg.replyTo}
+                          />
+                        </div>
+                      ) : (
+                        <div
+                          className={`px-3.5 py-2 rounded-[20px] text-[14px] leading-snug transition-shadow ${
+                            mine ? chatStyles.myBubble : chatStyles.theirBubble
+                          } ${tail} ${flash ? 'ring-2 ring-[#E0533C]/70 ring-offset-2 ring-offset-white dark:ring-offset-[#121113]' : ''}`}
+                        >
+                          {msg.replyTo && (
+                            <button
+                              type="button"
+                              onClick={() => jumpToMessage(msg.replyTo?.id)}
+                              className={`block w-full text-left mb-1.5 pl-2.5 pr-2 py-1 rounded-lg border-l-[3px] text-[12px] cursor-pointer ${
+                                mine ? 'bg-black/15 border-white/70' : 'bg-black/5 dark:bg-white/[0.06] border-[#E0533C]'
+                              }`}
+                            >
+                              <span className={`font-extrabold block text-[11px] ${mine ? 'text-white' : 'text-[#E0533C]'}`}>{msg.replyTo.sender}</span>
+                              <span className="line-clamp-2 opacity-80">{msg.replyTo.text}</span>
+                            </button>
+                          )}
+                          {msg.photos && msg.photos.length > 0 && (
+                            <div className={`grid gap-1.5 mb-1.5 ${msg.photos.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                              {msg.photos.map((photoUrl, pIdx) => (
+                                <div key={pIdx} onClick={() => setViewerPhoto(photoUrl)} className="rounded-2xl overflow-hidden max-h-52 bg-black/10 cursor-pointer">
+                                  <img src={photoUrl} alt={`Attachment ${pIdx + 1}`} className="w-full h-full object-cover" />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {msg.text && <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{msg.text}</p>}
+                          <span className="text-[10px] opacity-70 block text-right mt-0.5">{msg.time}</span>
+                        </div>
+                      )}
+
+                      {!mine && replyBtn}
+                    </div>
+                  </div>
+                </SwipeToReply>
+              );
+            })}
+            <div ref={messagesEndRef} className="h-1" />
+          </div>
         </div>
 
-        {/* Swipe-to-reply Preview Banner */}
+        {/* Reply preview */}
         {replyingTo && (
-          <div className="max-w-lg mx-auto w-full px-4">
-            <div className="bg-slate-100 dark:bg-slate-800 border-l-4 border-[#E0533C] dark:border-[#D17A68] p-2 rounded-r-xl flex items-center justify-between text-xs">
-              <div className="min-w-0 pr-2">
-                <span className="font-extrabold text-[10px] text-[#E0533C] dark:text-[#D17A68]">
-                  Replying to {replyingTo.sender === 'me' ? 'Yourself' : activeChat.name}
+          <div className="max-w-lg mx-auto w-full px-3 pt-2">
+            <div className="bg-slate-100 dark:bg-white/[0.06] border-l-4 border-[#E0533C] pl-3 pr-1.5 py-2 rounded-2xl flex items-center gap-2 animate-in slide-in-from-bottom-1 duration-150">
+              <Reply className="w-4 h-4 text-[#E0533C] shrink-0" />
+              <div className="min-w-0 flex-1">
+                <span className="font-extrabold text-[11px] text-[#E0533C] block">
+                  Replying to {replyingTo.sender === 'me' ? 'yourself' : activeChat.name}
                 </span>
-                <p className="text-[11px] text-slate-600 dark:text-slate-300 truncate">{replyingTo.text}</p>
+                <p className="text-[12px] text-slate-600 dark:text-slate-300 truncate">{replyingTo.text || 'Media'}</p>
               </div>
               <button
                 onClick={() => setReplyingTo(null)}
-                className="w-5 h-5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-400 shrink-0"
+                className="w-7 h-7 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 flex items-center justify-center text-slate-400 shrink-0 cursor-pointer"
+                aria-label="Cancel reply"
               >
-                &times;
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>
         )}
 
-        {/* Expanded Rich Emoji Picker */}
+        {/* Emoji picker */}
         {showEmojiPicker && (
-          <div className="max-w-lg mx-auto w-full px-4 mb-2">
+          <div className="max-w-lg mx-auto w-full px-3 mt-2">
             <EmojiPicker
               isOpen={showEmojiPicker}
               onSelectEmoji={(emoji) => setChatInputText(prev => prev + emoji)}
@@ -916,275 +938,255 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           </div>
         )}
 
-        {/* Active Audio Recording Bar */}
+        {/* Voice note recording */}
         {isRecordingAudio && (
-          <div className="p-3 bg-red-50 dark:bg-red-950/80 border-t border-red-200 dark:border-red-900 max-w-lg mx-auto w-full flex items-center justify-between text-xs animate-in slide-in-from-bottom duration-150">
-            <div className="flex items-center gap-2.5 text-red-600 dark:text-red-400 font-bold">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse" />
-              <span>Recording Voice Note... {formatMediaDuration(recordSeconds)}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => handleStopVoiceRecording(false)}
-                className="px-3 py-1 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-300 transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => handleStopVoiceRecording(true)}
-                className="px-3.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1.5 transition cursor-pointer"
-              >
-                <Send className="w-3 h-3" />
-                <span>Send Note</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Active Circular Video Recording Viewfinder */}
-        {isRecordingVideo && (
-          <div className="p-4 bg-purple-50 dark:bg-purple-950/90 border-t border-purple-200 dark:border-purple-900 max-w-lg mx-auto w-full flex flex-col items-center gap-3 text-xs animate-in slide-in-from-bottom duration-150">
-            <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-purple-600 shadow-xl bg-black flex items-center justify-center">
-              <video
-                ref={videoPreviewRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-purple-950/30 pointer-events-none">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping mb-1" />
-                <span className="text-[10px] font-mono font-bold text-white bg-black/60 px-2 py-0.5 rounded-full">
-                  {formatMediaDuration(videoRecordSeconds)}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between w-full">
-              <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 font-bold">
-                <span className="w-2.5 h-2.5 rounded-full bg-purple-600 animate-pulse" />
-                <span>Circular Video Note ({formatMediaDuration(videoRecordSeconds)})</span>
+          <div className="max-w-lg mx-auto w-full px-3 pt-2 animate-in slide-in-from-bottom duration-150">
+            <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200/70 dark:border-red-900/40 rounded-2xl flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2.5 text-red-600 dark:text-red-400 font-bold">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse" />
+                <span>Recording · {formatMediaDuration(recordSeconds)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => handleStopVideoNoteRecording(false)}
-                  className="px-3 py-1 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-300 transition"
+                  onClick={() => handleStopVoiceRecording(false)}
+                  className="px-3.5 py-1.5 bg-white dark:bg-white/10 text-slate-700 dark:text-slate-200 rounded-full text-xs font-bold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleStopVideoNoteRecording(true)}
-                  className="px-3.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1.5 transition cursor-pointer"
+                  onClick={() => handleStopVoiceRecording(true)}
+                  className="px-3.5 py-1.5 bg-red-600 text-white rounded-full text-xs font-bold shadow flex items-center gap-1.5 cursor-pointer"
                 >
                   <Send className="w-3 h-3" />
-                  <span>Send Video</span>
+                  <span>Send</span>
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Social Attachment Previews with Thumbnail Previews, Deduplication Guard, and 'X' Removal */}
-        {attachedPhotos.length > 0 && (
-          <div className="max-w-lg mx-auto w-full px-3 py-2 bg-slate-100/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-800 backdrop-blur-md">
-            <div className="flex items-center justify-between pb-1.5 text-[10px] font-bold text-slate-500">
-              <span className="flex items-center gap-1">
-                <ImageIcon className="w-3 h-3 text-[#E0533C] dark:text-[#D17A68]" />
-                <span>Photos ({attachedPhotos.length}/5)</span>
-                {attachedPhotos.length >= 5 && (
-                  <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold">• Max limit reached</span>
-                )}
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  setAttachedPhotos([]);
-                }}
-                className="text-[10px] text-slate-400 hover:text-red-500 transition cursor-pointer"
-              >
-                Clear all
-              </button>
-            </div>
-            <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar py-0.5">
-              {attachedPhotos.map((photoUrl, pIdx) => (
-                <div
-                  key={pIdx}
-                  className="relative w-14 h-14 rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700 bg-slate-800 shrink-0 shadow-xs group"
-                >
-                  <img
-                    src={photoUrl}
-                    alt={`Attached preview ${pIdx + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                  {/* Clean individual photo removal button */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemoveAttachedPhoto(pIdx);
-                    }}
-                    className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center transition cursor-pointer shadow-xs z-10"
-                    title="Remove photo"
-                    aria-label={`Remove attached photo ${pIdx + 1}`}
-                  >
-                    <X className="w-2.5 h-2.5" />
-                  </button>
-                  <span className="absolute bottom-0.5 left-1 bg-black/60 text-white text-[8px] font-bold px-1 rounded">
-                    {pIdx + 1}
+        {/* Circular video note recording */}
+        {isRecordingVideo && (
+          <div className="max-w-lg mx-auto w-full px-3 pt-2 animate-in slide-in-from-bottom duration-150">
+            <div className="p-4 bg-purple-50 dark:bg-purple-950/40 border border-purple-200/70 dark:border-purple-900/40 rounded-3xl flex flex-col items-center gap-3 text-xs">
+              <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-purple-600 shadow-xl bg-black flex items-center justify-center">
+                <video ref={videoPreviewRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-purple-950/30 pointer-events-none">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping mb-1" />
+                  <span className="text-[10px] font-mono font-bold text-white bg-black/60 px-2 py-0.5 rounded-full">
+                    {formatMediaDuration(videoRecordSeconds)}
                   </span>
                 </div>
-              ))}
-              {attachedPhotos.length < 5 && (
-                <button
-                  type="button"
-                  onClick={() => photoFileInputRef.current?.click()}
-                  className="w-14 h-14 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-[#E0533C] dark:hover:border-[#D17A68] flex flex-col items-center justify-center text-slate-400 hover:text-[#E0533C] dark:hover:text-[#D17A68] transition shrink-0 cursor-pointer"
-                  title="Add more photos"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span className="text-[9px] font-bold mt-0.5">Add</span>
-                </button>
-              )}
+              </div>
+              <div className="flex items-center justify-between w-full gap-2">
+                <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 font-bold">
+                  <span className="w-2.5 h-2.5 rounded-full bg-purple-600 animate-pulse" />
+                  <span>Video note · {formatMediaDuration(videoRecordSeconds)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleStopVideoNoteRecording(false)}
+                    className="px-3.5 py-1.5 bg-white dark:bg-white/10 text-slate-700 dark:text-slate-200 rounded-full text-xs font-bold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleStopVideoNoteRecording(true)}
+                    className="px-3.5 py-1.5 bg-purple-600 text-white rounded-full text-xs font-bold shadow flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Send className="w-3 h-3" />
+                    <span>Send</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Input Bar */}
-        <div className="w-full overflow-hidden px-2 py-2 sm:px-3 sm:py-2.5 bg-white/95 dark:bg-[#121113]/95 border-t border-slate-200 dark:border-slate-800 max-w-lg mx-auto flex items-end gap-1.5 sm:gap-2">
-          {/* Hidden File Inputs for real attachments */}
-          <input
-            type="file"
-            ref={photoFileInputRef}
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={handlePhotoUpload}
-          />
-          <input
-            type="file"
-            ref={videoFileInputRef}
-            accept="video/*"
-            className="hidden"
-            onChange={handleVideoFileUpload}
-          />
-          <input
-            type="file"
-            ref={audioFileInputRef}
-            accept="audio/*"
-            className="hidden"
-            onChange={handleAudioFileUpload}
-          />
+        {/* Attached photo previews */}
+        {attachedPhotos.length > 0 && (
+          <div className="max-w-lg mx-auto w-full px-3 pt-2">
+            <div className="p-2.5 bg-slate-100 dark:bg-white/[0.06] rounded-2xl">
+              <div className="flex items-center justify-between pb-1.5 text-[11px] font-bold text-slate-500">
+                <span className="flex items-center gap-1.5">
+                  <ImageIcon className="w-3.5 h-3.5 text-[#E0533C]" />
+                  <span>Photos ({attachedPhotos.length}/5)</span>
+                  {attachedPhotos.length >= 5 && <span className="text-amber-600 dark:text-amber-400 font-semibold">· max reached</span>}
+                </span>
+                <button type="button" onClick={() => setAttachedPhotos([])} className="text-slate-400 hover:text-red-500 transition cursor-pointer">
+                  Clear all
+                </button>
+              </div>
+              <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar py-0.5">
+                {attachedPhotos.map((photoUrl, pIdx) => (
+                  <div key={pIdx} className="relative w-16 h-16 rounded-2xl overflow-hidden bg-slate-800 shrink-0 shadow-xs">
+                    <img src={photoUrl} alt={`Attached preview ${pIdx + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleRemoveAttachedPhoto(pIdx); }}
+                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/75 text-white flex items-center justify-center cursor-pointer z-10"
+                      title="Remove photo"
+                      aria-label={`Remove attached photo ${pIdx + 1}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+                {attachedPhotos.length < 5 && (
+                  <button
+                    type="button"
+                    onClick={() => photoFileInputRef.current?.click()}
+                    className="w-16 h-16 rounded-2xl border border-dashed border-slate-300 dark:border-white/20 hover:border-[#E0533C] flex flex-col items-center justify-center text-slate-400 hover:text-[#E0533C] transition shrink-0 cursor-pointer"
+                    title="Add more photos"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span className="text-[10px] font-bold">Add</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
-          <button
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-slate-500 hover:text-[#E0533C] dark:hover:text-[#D17A68] flex-shrink-0 transition cursor-pointer"
-            title="Emoji Panel"
-            aria-label="Emoji Panel"
-          >
-            <Smile className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
+        {/* Composer */}
+        <div
+          className="max-w-lg mx-auto w-full px-2.5 pt-2 flex items-end gap-2 border-t border-transparent"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.5rem)' }}
+        >
+          <input type="file" ref={photoFileInputRef} accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} />
+          <input type="file" ref={videoFileInputRef} accept="video/*" className="hidden" onChange={handleVideoFileUpload} />
+          <input type="file" ref={audioFileInputRef} accept="audio/*" className="hidden" onChange={handleAudioFileUpload} />
 
-          {/* Attach Photos button */}
-          <button
-            type="button"
-            onClick={() => photoFileInputRef.current?.click()}
-            className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center flex-shrink-0 transition cursor-pointer ${
-              attachedPhotos.length > 0 ? 'text-[#E0533C] dark:text-[#D17A68]' : 'text-slate-500 hover:text-[#E0533C] dark:hover:text-[#D17A68]'
-            }`}
-            title="Attach Photos (up to 5)"
-            aria-label="Attach Photos"
-          >
-            <Camera className="w-4 h-4" />
-          </button>
+          <div className="flex-1 min-w-0 flex items-end rounded-3xl bg-slate-100 dark:bg-white/[0.07] border border-slate-200/70 dark:border-white/10 pl-1 pr-1 focus-within:ring-2 focus-within:ring-[#E0533C]/30 transition">
+            <button
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              className={`w-9 h-10 flex items-center justify-center shrink-0 transition cursor-pointer ${showEmojiPicker ? 'text-[#E0533C]' : 'text-slate-500 hover:text-[#E0533C]'}`}
+              title="Emoji"
+              aria-label="Emoji"
+            >
+              <Smile className="w-5 h-5" />
+            </button>
 
-          {/* Attach Video button */}
-          <button
-            type="button"
-            onClick={() => videoFileInputRef.current?.click()}
-            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-slate-500 hover:text-[#E0533C] dark:hover:text-[#D17A68] flex-shrink-0 transition cursor-pointer"
-            title="Attach Video from Device"
-            aria-label="Attach Video"
-          >
-            <Paperclip className="w-4 h-4" />
-          </button>
+            <textarea
+              ref={chatTextareaRef}
+              rows={1}
+              value={chatInputText}
+              onChange={(e) => setChatInputText(e.target.value)}
+              onKeyDown={(e) => {
+                // Enter sends; Shift+Enter inserts a new line. Ignore Enter while an IME is composing.
+                if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+              placeholder="Message…"
+              enterKeyHint="send"
+              className="flex-1 min-w-0 bg-transparent px-1 py-2.5 text-[15px] leading-5 resize-none whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none"
+            />
 
+            <button
+              type="button"
+              onClick={() => photoFileInputRef.current?.click()}
+              className={`w-8 h-10 flex items-center justify-center shrink-0 transition cursor-pointer ${attachedPhotos.length > 0 ? 'text-[#E0533C]' : 'text-slate-500 hover:text-[#E0533C]'}`}
+              title="Attach photos (up to 5)"
+              aria-label="Attach photos"
+            >
+              <Camera className="w-[18px] h-[18px]" />
+            </button>
+            <button
+              type="button"
+              onClick={() => videoFileInputRef.current?.click()}
+              className="w-8 h-10 flex items-center justify-center text-slate-500 hover:text-[#E0533C] shrink-0 transition cursor-pointer"
+              title="Attach a video"
+              aria-label="Attach a video"
+            >
+              <Paperclip className="w-[18px] h-[18px]" />
+            </button>
+          </div>
 
-          <textarea
-            ref={chatTextareaRef}
-            rows={1}
-            value={chatInputText}
-            onChange={(e) => setChatInputText(e.target.value)}
-            onKeyDown={(e) => {
-              // Enter sends; Shift+Enter inserts a new line. Ignore Enter while an IME is composing.
-              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-                e.preventDefault();
-                handleSendMessage();
-              }
-            }}
-            placeholder="Type a message..."
-            enterKeyHint="send"
-            className="flex-1 min-w-0 px-3 py-2 sm:py-2.5 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl sm:rounded-2xl text-xs leading-[18px] resize-none whitespace-pre-wrap break-words [overflow-wrap:anywhere] focus:outline-none focus:ring-1 focus:ring-[#E0533C] dark:focus:ring-[#D17A68] text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
-          />
-
-          {/* Circular Video Note Button */}
-          <button
-            type="button"
-            onClick={() => {
-              if (isRecordingVideo) handleStopVideoNoteRecording(true);
-              else handleStartVideoNoteRecording();
-            }}
-            title={isRecordingVideo ? 'Send Circular Video Note' : 'Record Circular Video Note'}
-            aria-label="Record Circular Video Note"
-            className={`w-9 h-9 rounded-xl sm:rounded-2xl flex items-center justify-center transition flex-shrink-0 cursor-pointer ${
-              isRecordingVideo
-                ? 'bg-purple-600 text-white animate-pulse'
-                : 'bg-[#F1F1EE] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 hover:bg-[#E0533C] dark:hover:bg-[#A94F3E] hover:text-white'
-            }`}
-          >
-            <Video className="w-4 h-4" />
-          </button>
-
-          {/* Voice Note Mic Button */}
-          <button
-            type="button"
-            onClick={() => {
-              if (isRecordingAudio) handleStopVoiceRecording(true);
-              else handleStartVoiceRecording();
-            }}
-            title={isRecordingAudio ? 'Send Voice Note' : 'Record Voice Note'}
-            aria-label="Record Voice Note"
-            className={`w-9 h-9 rounded-xl sm:rounded-2xl flex items-center justify-center transition flex-shrink-0 cursor-pointer ${
-              isRecordingAudio
-                ? 'bg-red-600 text-white animate-pulse'
-                : 'bg-slate-100 dark:bg-[#14171F] text-slate-700 dark:text-slate-300 hover:bg-[#FF5733] dark:hover:bg-[#A94F3E] hover:text-white'
-            }`}
-          >
-            <Mic className="w-4 h-4" />
-          </button>
-
-          {/* Send Message Button */}
-          <button
-            type="button"
-            onClick={handleSendMessage}
-            className="w-9 h-9 rounded-xl sm:rounded-2xl bg-[#FF5733] dark:bg-[#A94F3E] text-white flex items-center justify-center shadow-md hover:bg-[#FF6B4A] dark:hover:bg-[#B85A48] transition flex-shrink-0 cursor-pointer"
-            title="Send Message"
-            aria-label="Send Message"
-          >
-            <Send className="w-4 h-4" />
-          </button>
+          {hasContent ? (
+            <button
+              type="button"
+              onClick={handleSendMessage}
+              disabled={isSending}
+              className={`w-11 h-11 rounded-full bg-gradient-to-br from-[#E0533C] to-[#EE7A4A] text-white flex items-center justify-center shadow-lg shadow-[#E0533C]/30 active:scale-95 transition shrink-0 cursor-pointer ${isSending ? 'opacity-60 animate-pulse' : ''}`}
+              title="Send"
+              aria-label="Send message"
+            >
+              <Send className="w-5 h-5" />
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => { if (isRecordingVideo) handleStopVideoNoteRecording(true); else handleStartVideoNoteRecording(); }}
+                title={isRecordingVideo ? 'Send video note' : 'Record a video note'}
+                aria-label="Record a video note"
+                className={`w-11 h-11 rounded-full flex items-center justify-center transition shrink-0 cursor-pointer active:scale-95 ${
+                  isRecordingVideo ? 'bg-purple-600 text-white animate-pulse' : 'bg-slate-100 dark:bg-white/[0.07] text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-white/10'
+                }`}
+              >
+                <Video className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => { if (isRecordingAudio) handleStopVoiceRecording(true); else handleStartVoiceRecording(); }}
+                title={isRecordingAudio ? 'Send voice note' : 'Record a voice note'}
+                aria-label="Record a voice note"
+                className={`w-11 h-11 rounded-full flex items-center justify-center transition shrink-0 cursor-pointer active:scale-95 ${
+                  isRecordingAudio ? 'bg-red-600 text-white animate-pulse' : 'bg-gradient-to-br from-[#E0533C] to-[#EE7A4A] text-white shadow-lg shadow-[#E0533C]/30'
+                }`}
+              >
+                <Mic className="w-5 h-5" />
+              </button>
+            </>
+          )}
         </div>
+
+        {viewerPhoto && (
+          <div className="fixed inset-0 z-[300] bg-black flex items-center justify-center" onClick={() => setViewerPhoto(null)} role="dialog" aria-modal="true">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setViewerPhoto(null); }}
+              className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/15 text-white flex items-center justify-center"
+              aria-label="Close photo"
+              style={{ marginTop: 'env(safe-area-inset-top, 0px)' }}
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <img loading="lazy" decoding="async" src={viewerPhoto} alt="Photo" onClick={(e) => e.stopPropagation()} className="max-w-full max-h-full object-contain" />
+          </div>
+        )}
       </div>
     );
   }
 
+  const avatarRing = 'p-[2px] bg-gradient-to-tr from-[#F43F5E] to-[#E0533C] rounded-full shrink-0';
+  const statusRow = (label: string, ok: boolean, okText: string, noText: string, warn = false) => (
+    <div className="flex items-center justify-between font-bold">
+      <span className="text-slate-500 dark:text-slate-400">{label}</span>
+      <span
+        className={`px-2.5 py-0.5 rounded-full text-[11px] font-black ${
+          ok
+            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300'
+            : warn
+            ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300'
+            : 'bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-300'
+        }`}
+      >
+        {ok ? okText : noText}
+      </span>
+    </div>
+  );
+
   return (
     <section className="px-4 py-4 space-y-4 min-[900px]:max-w-2xl min-[900px]:mx-auto">
-      {/* Socials Subtabs Navigation */}
-      <div className="grid grid-cols-4 gap-1 bg-slate-100 dark:bg-[#14171F] p-1 rounded-2xl text-center shadow-inner text-xs border border-slate-200/80 dark:border-[#222735]">
+      {/* Socials sub-tabs */}
+      <div className="flex gap-1 bg-slate-100 dark:bg-white/[0.06] p-1 rounded-full text-center text-[13px]">
         {[
           { id: 'discover', label: 'Discover' },
           { id: 'queue', label: 'Requests' },
@@ -1201,208 +1203,179 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
               }
               setSubtab(tab.id as any);
             }}
-            className={`py-2 rounded-xl transition cursor-pointer ${
+            className={`flex-1 py-2 rounded-full transition cursor-pointer inline-flex items-center justify-center gap-1 ${
               subtab === tab.id
-                ? 'font-black bg-white dark:bg-[#0A0C10] text-[#FF5733] dark:text-[#D17A68] shadow-xs'
-                : 'font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                ? 'font-extrabold bg-white dark:bg-[#1C1A1E] text-[#E0533C] shadow-sm'
+                : 'font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
-            {tab.label}
+            <span>{tab.label}</span>
+            {tab.id === 'queue' && pendingRequests.length > 0 && (
+              <span className="min-w-4 h-4 px-1 rounded-full bg-[#E0533C] text-white text-[10px] font-black inline-flex items-center justify-center">
+                {pendingRequests.length}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
-      {/* DISCOVER TAB: Explanatory Gate Screen if NOT single or NOT verified single */}
+      {/* DISCOVER: gate for people who are not verified singles */}
       {subtab === 'discover' && (!isUserSingle || !isUserVerifiedSingle) && (
-        <div className="space-y-4">
-          <div className="p-6 sm:p-7 bg-white dark:bg-[#14171F] border border-slate-200 dark:border-[#222735] rounded-3xl text-center space-y-4 shadow-sm animate-in fade-in duration-200">
-            <div className="w-16 h-16 rounded-3xl bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center justify-center mx-auto shadow-sm">
-              <ShieldCheck className="w-8 h-8" />
-            </div>
+        <div className={`p-5 ${CARD} rounded-3xl text-center space-y-4 shadow-sm animate-in fade-in duration-200`}>
+          <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto">
+            <ShieldCheck className="w-7 h-7" />
+          </div>
 
-            <div className="space-y-1.5 max-w-sm mx-auto">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-wider">
-                <Lock className="w-3 h-3" />
-                <span>Single-Only Discover Access Gate</span>
-              </div>
-              <h3 className="font-black text-base text-slate-900 dark:text-slate-100">
-                Discover is reserved for verified single profiles.
-              </h3>
-              <p className="text-xs text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
-                Discover is reserved for verified single profiles. You can still create and join Group Chats!
-              </p>
-            </div>
+          <div className="space-y-1.5 max-w-sm mx-auto">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-wider">
+              <Lock className="w-3 h-3" />
+              <span>Verified singles only</span>
+            </span>
+            <h3 className="font-black text-[15px] text-slate-900 dark:text-slate-100">Discover is reserved for verified single profiles.</h3>
+            <p className="text-[13px] text-slate-600 dark:text-slate-300 leading-relaxed">You can still create and join Group Chats!</p>
+          </div>
 
-            <div className="p-3.5 bg-slate-50 dark:bg-[#0A0C10] rounded-2xl border border-slate-200 dark:border-[#222735] text-[11px] text-left space-y-2 max-w-sm mx-auto">
-              <div className="flex items-center justify-between font-bold">
-                <span className="text-slate-500">Profile Status:</span>
-                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
-                  isUserSingle 
-                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' 
-                    : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
-                }`}>
-                  {currentUserProfile?.relationshipStatus === 'single' ? 'Single' : 'Not single'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between font-bold">
-                <span className="text-slate-500">Selfie check:</span>
-                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
-                  currentUserProfile?.isLivenessVerified 
-                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' 
-                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                }`}>
-                  {currentUserProfile?.isLivenessVerified ? 'Passed' : 'Not done yet'}
-                </span>
-              </div>
-            </div>
+          <div className="p-3.5 bg-slate-50 dark:bg-white/[0.04] rounded-2xl text-xs text-left space-y-2 max-w-sm mx-auto">
+            {statusRow('Profile status', isUserSingle, 'Single', 'Not single')}
+            {statusRow('Selfie check', !!currentUserProfile?.isLivenessVerified, 'Passed', 'Not done yet', true)}
+          </div>
 
-            <div className="pt-2 flex flex-col gap-2.5 max-w-sm mx-auto">
-              <button
-                type="button"
-                onClick={() => {
-                  if (onOpenVerificationModal) onOpenVerificationModal();
-                }}
-                className="w-full py-3.5 px-4 bg-[#FF5733] dark:bg-[#A94F3E] hover:bg-[#FF6B4A] dark:hover:bg-[#B85A48] text-white font-black rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Camera className="w-4 h-4" />
-                <span>Take the selfie check</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSubtab('chats')}
-                className="w-full py-2.5 px-4 bg-white dark:bg-[#0A0C10] hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-[#222735] text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Users className="w-4 h-4 text-[#FF5733] dark:text-[#D17A68]" />
-                <span>Explore & Join Group Chats</span>
-              </button>
-            </div>
+          <div className="pt-1 flex flex-col gap-2.5 max-w-sm mx-auto">
+            <button
+              type="button"
+              onClick={() => { if (onOpenVerificationModal) onOpenVerificationModal(); }}
+              className="w-full py-3 px-4 bg-[#E0533C] text-white font-extrabold rounded-full text-[13px] shadow-lg shadow-[#E0533C]/25 active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Camera className="w-4 h-4" />
+              <span>Take the selfie check</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSubtab('chats')}
+              className="w-full py-3 px-4 bg-white dark:bg-white/[0.06] border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 font-bold rounded-full text-[13px] active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Users className="w-4 h-4 text-[#E0533C]" />
+              <span>Explore &amp; join group chats</span>
+            </button>
           </div>
         </div>
       )}
 
-      {/* DISCOVER TAB: SWIPE CARD (Active ONLY when user is single AND liveness verified) */}
+      {/* DISCOVER: profile card (verified singles) */}
       {subtab === 'discover' && isUserSingle && isUserVerifiedSingle && (
         <div className="space-y-4">
           {currentProfile ? (
             <div
-              className={`bg-white dark:bg-[#14171F] border border-slate-200/90 dark:border-[#222735] rounded-3xl p-4 shadow-md overflow-hidden relative transition-all duration-300 ${
+              className={`${CARD} rounded-3xl overflow-hidden shadow-md relative transition-all duration-300 ${
                 swipeAnimation === 'like' ? 'translate-x-28 rotate-12 opacity-0' : swipeAnimation === 'pass' ? '-translate-x-28 -rotate-12 opacity-0' : ''
               }`}
             >
-              {/* Photo Area with Rose to Sunset Coral Ring for verified single profile */}
-              <div className="p-[3px] bg-gradient-to-tr from-[#F43F5E] to-[#FF5733] dark:to-[#A94F3E] rounded-[22px] mb-4 shadow-md">
-                <div
-                  className="h-96 rounded-[19px] bg-cover bg-center relative cursor-pointer group overflow-hidden"
-                  style={{ backgroundImage: `url('${currentProfile.img}')` }}
-                  onClick={() => onViewUserProfile({
-                    id: String(currentProfile.id),
-                    name: currentProfile.name,
-                    handle: currentProfile.handle,
-                    avatar: currentProfile.img,
-                    bio: currentProfile.bio || 'Exploring Nairobi hangouts, food, and culture.',
-                    loc: cleanLocation(currentProfile.loc),
-                    relationshipStatus: currentProfile.relationshipStatus,
-                    vibes: currentProfile.vibes
-                  })}
-                >
-                  {/* Status Badge: Single with Rose to Coral gradient */}
-                  <div className="absolute top-3 left-3">
-                    <span className="backdrop-blur-md text-white text-[11px] font-black px-3 py-1 rounded-full shadow-sm bg-gradient-to-r from-[#F43F5E] to-[#FF5733] dark:to-[#A94F3E]">
-                      Verified Single
-                    </span>
-                  </div>
+              <div
+                className="h-[26rem] bg-cover bg-center relative cursor-pointer"
+                style={{ backgroundImage: `url('${currentProfile.img}')` }}
+                onClick={() => onViewUserProfile({
+                  id: String(currentProfile.id),
+                  name: currentProfile.name,
+                  handle: currentProfile.handle,
+                  avatar: currentProfile.img,
+                  bio: currentProfile.bio || 'Exploring Nairobi hangouts, food, and culture.',
+                  loc: cleanLocation(currentProfile.loc),
+                  relationshipStatus: currentProfile.relationshipStatus,
+                  vibes: currentProfile.vibes
+                })}
+              >
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
 
-                  {/* View Bio Button */}
+                <span className="absolute top-3 left-3 inline-flex items-center gap-1 text-white text-[11px] font-black px-3 py-1 rounded-full shadow-sm bg-gradient-to-r from-[#F43F5E] to-[#E0533C]">
+                  <ShieldCheck className="w-3 h-3" />
+                  Verified single
+                </span>
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onViewUserProfile({
+                      id: String(currentProfile.id),
+                      name: currentProfile.name,
+                      handle: currentProfile.handle,
+                      avatar: currentProfile.img,
+                      bio: currentProfile.bio || 'Exploring Nairobi hangouts, food, and culture.',
+                      loc: cleanLocation(currentProfile.loc),
+                      relationshipStatus: currentProfile.relationshipStatus,
+                      vibes: currentProfile.vibes
+                    });
+                  }}
+                  className="absolute top-3 right-3 bg-black/55 backdrop-blur-md text-white text-[11px] font-extrabold px-3 py-1 rounded-full active:scale-95 transition cursor-pointer"
+                >
+                  View profile
+                </button>
+
+                <div className="absolute bottom-0 inset-x-0 p-4 space-y-1.5">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <h3 className="font-black text-xl text-white truncate">{currentProfile.name}</h3>
+                    <span className="text-xs text-white/80 font-bold shrink-0">{currentProfile.handle}</span>
+                  </div>
+                  <p className="text-xs text-white/85 flex items-center gap-1 font-semibold">
+                    <MapPin className="w-3.5 h-3.5" />
+                    <span>{cleanLocation(currentProfile.loc)}</span>
+                  </p>
+                  {currentProfile.vibes && currentProfile.vibes.length > 0 && (
+                    <div className="flex gap-1.5 flex-wrap pt-1">
+                      {currentProfile.vibes.map((v, i) => (
+                        <span key={i} className="text-[11px] bg-white/15 backdrop-blur-md text-white px-2.5 py-1 rounded-full font-bold">
+                          #{v}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-4 space-y-4">
+                {currentProfile.bio && (
+                  <p className="text-[13px] text-slate-700 dark:text-slate-300 leading-relaxed">{currentProfile.bio}</p>
+                )}
+
+                <div className="flex gap-6 justify-center">
                   <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onViewUserProfile({
-                        id: String(currentProfile.id),
-                        name: currentProfile.name,
-                        handle: currentProfile.handle,
-                        avatar: currentProfile.img,
-                        bio: currentProfile.bio || 'Exploring Nairobi hangouts, food, and culture.',
-                        loc: cleanLocation(currentProfile.loc),
-                        relationshipStatus: currentProfile.relationshipStatus,
-                        vibes: currentProfile.vibes
-                      });
-                    }}
-                    className="absolute top-3 right-3 bg-black/60 hover:bg-black/85 backdrop-blur-md text-white text-[10px] font-extrabold px-3 py-1 rounded-full transition cursor-pointer"
+                    onClick={() => handleSwipe('pass')}
+                    className="w-14 h-14 rounded-full bg-white dark:bg-white/[0.06] border border-slate-200 dark:border-white/10 text-slate-500 hover:text-red-500 hover:border-red-400 flex items-center justify-center shadow-md active:scale-95 transition cursor-pointer"
+                    title="Pass"
+                    aria-label="Pass"
                   >
-                    View Profile
+                    <X className="w-7 h-7" />
+                  </button>
+                  <button
+                    onClick={() => handleSwipe('like')}
+                    className="w-14 h-14 rounded-full bg-gradient-to-br from-[#F43F5E] to-[#E0533C] text-white flex items-center justify-center shadow-lg shadow-[#E0533C]/30 active:scale-95 transition cursor-pointer"
+                    title="Send match request"
+                    aria-label="Send match request"
+                  >
+                    <Heart className="w-7 h-7 fill-white" />
                   </button>
                 </div>
               </div>
-
-              {/* Bio & Details Area */}
-              <div className="bg-slate-50 dark:bg-[#0A0C10] p-4 rounded-2xl border border-slate-200 dark:border-[#222735] space-y-2 mb-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-black text-lg text-slate-900 dark:text-slate-100">
-                    {currentProfile.name}
-                  </h3>
-                  <span className="text-xs text-[#FF5733] dark:text-[#D17A68] font-bold">{currentProfile.handle}</span>
-                </div>
-
-                <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 font-semibold">
-                  <MapPin className="w-3.5 h-3.5 text-[#FF5733] dark:text-[#D17A68]" />
-                  <span>{cleanLocation(currentProfile.loc)}</span>
-                </p>
-
-                {currentProfile.bio && (
-                  <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed pt-1">
-                    {currentProfile.bio}
-                  </p>
-                )}
-
-                {currentProfile.vibes && currentProfile.vibes.length > 0 && (
-                  <div className="flex gap-1.5 flex-wrap pt-2">
-                    {currentProfile.vibes.map((v, i) => (
-                      <span key={i} className="text-[10px] bg-white dark:bg-[#14171F] text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-lg font-bold border border-slate-200 dark:border-[#222735]">
-                        #{v}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Swipe Action Buttons */}
-              <div className="flex gap-6 justify-center py-1">
-                <button
-                  onClick={() => handleSwipe('pass')}
-                  className="w-14 h-14 rounded-full bg-white dark:bg-[#14171F] border-2 border-slate-300 dark:border-slate-700 text-slate-500 hover:text-red-500 hover:border-red-500 flex items-center justify-center text-xl shadow-lg hover:scale-105 active:scale-95 transition cursor-pointer"
-                  title="Pass"
-                >
-                  <X className="w-7 h-7" />
-                </button>
-
-                <button
-                  onClick={() => handleSwipe('like')}
-                  className="w-14 h-14 rounded-full bg-gradient-to-r from-[#F43F5E] to-[#FF5733] dark:to-[#A94F3E] text-white flex items-center justify-center text-xl shadow-lg hover:scale-105 active:scale-95 transition cursor-pointer"
-                  title="Send Match Request"
-                >
-                  <Heart className="w-7 h-7 fill-white" />
-                </button>
-              </div>
             </div>
           ) : (
-            <div className="py-12 text-center bg-[#F1F1EE] dark:bg-[#1C1A1E] rounded-3xl p-6 border border-slate-200 dark:border-slate-800 space-y-3">
-              <Sparkles className="w-8 h-8 text-[#E0533C] dark:text-[#D17A68] mx-auto" />
-              <h4 className="font-black text-sm text-slate-900 dark:text-slate-100">
-                {candidatePool.length === 0 ? 'No match profiles right now' : "You've reached the end of the profile queue!"}
+            <div className={`py-10 text-center ${CARD} rounded-3xl p-6 space-y-3`}>
+              <div className="w-12 h-12 rounded-2xl bg-[#E0533C]/10 text-[#E0533C] flex items-center justify-center mx-auto">
+                <Sparkles className="w-6 h-6" />
+              </div>
+              <h4 className="font-black text-[15px] text-slate-900 dark:text-slate-100">
+                {candidatePool.length === 0 ? 'No match profiles right now' : "You've reached the end of the queue!"}
               </h4>
-              <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
-                {candidatePool.length === 0 
+              <p className="text-[13px] text-slate-500 dark:text-slate-400 max-w-xs mx-auto leading-relaxed">
+                {candidatePool.length === 0
                   ? "Nobody new to show yet. We're adding people as more verified singles join RADA. Check back soon, or invite a friend."
                   : 'Check back later for new people joining RADA, or invite friends to join.'}
               </p>
               {candidatePool.length > 0 && (
                 <button
                   onClick={() => setProfileIndex(0)}
-                  className="px-4 py-2 bg-[#E0533C] dark:bg-[#A94F3E] text-white rounded-xl text-xs font-bold shadow cursor-pointer"
+                  className="px-5 py-2.5 bg-[#E0533C] text-white rounded-full text-[13px] font-extrabold shadow-lg shadow-[#E0533C]/25 active:scale-95 transition cursor-pointer"
                 >
-                  Reset Queue
+                  Start over
                 </button>
               )}
             </div>
@@ -1410,41 +1383,43 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
         </div>
       )}
 
-      {/* REQUESTS QUEUE */}
+      {/* REQUESTS */}
       {subtab === 'queue' && (
-        <div className="space-y-4 text-xs">
-          <div className="space-y-3">
-            <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">
-              Pending Requests (Likes You)
-            </h3>
+        <div className="space-y-4">
+          <div className="space-y-2.5">
+            <h3 className={HEADING}>Pending requests (likes you)</h3>
             {pendingRequests.length === 0 ? (
-              <p className="text-slate-400 py-4 text-center">No pending requests right now.</p>
+              <div className={`${CARD} border-dashed rounded-3xl py-8 text-center space-y-2`}>
+                <div className="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-white/[0.06] text-slate-400 flex items-center justify-center mx-auto">
+                  <Heart className="w-5 h-5" />
+                </div>
+                <p className="text-[13px] text-slate-500 dark:text-slate-400">No pending requests right now.</p>
+              </div>
             ) : (
               pendingRequests.map((req) => (
-                <div
-                  key={req.id}
-                  className="p-3 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between gap-3 shadow-xs"
-                >
+                <div key={req.id} className={`p-3 ${CARD} rounded-2xl flex items-center justify-between gap-3 shadow-xs`}>
                   <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className="w-11 h-11 rounded-full bg-cover bg-center shrink-0 border border-slate-300 dark:border-slate-700"
-                      style={{ backgroundImage: `url('${req.fromAvatar}')` }}
-                    />
+                    <div className={avatarRing}>
+                      <div
+                        className="w-11 h-11 rounded-full bg-cover bg-center border-2 border-white dark:border-[#1C1A1E]"
+                        style={{ backgroundImage: `url('${req.fromAvatar}')` }}
+                      />
+                    </div>
                     <div className="min-w-0">
-                      <h4 className="font-extrabold text-xs truncate">{req.fromHandle}</h4>
-                      <p className="text-[10px] text-slate-400">Wants to hang out</p>
+                      <h4 className="font-extrabold text-[13px] truncate text-slate-900 dark:text-slate-100">{req.fromHandle}</h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">Wants to hang out</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       onClick={() => handleDeclinePending(req)}
-                      className="px-3 py-2 bg-white dark:bg-[#0A0C10] border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold rounded-xl text-xs transition cursor-pointer"
+                      className="px-3.5 py-2 bg-slate-100 dark:bg-white/[0.07] text-slate-600 dark:text-slate-300 font-bold rounded-full text-xs active:scale-95 transition cursor-pointer"
                     >
                       Decline
                     </button>
                     <button
                       onClick={() => handleAcceptPending(req)}
-                      className="px-4 py-2 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white font-bold rounded-xl text-xs shadow-xs transition cursor-pointer"
+                      className="px-4 py-2 bg-[#E0533C] text-white font-extrabold rounded-full text-xs shadow-md shadow-[#E0533C]/25 active:scale-95 transition cursor-pointer"
                     >
                       Accept
                     </button>
@@ -1455,25 +1430,17 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           </div>
 
           {sentRequests.length > 0 && (
-            <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-              <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">
-                Sent Hangout Requests ({sentRequests.length})
-              </h3>
+            <div className="space-y-2.5 pt-1">
+              <h3 className={HEADING}>Sent hangout requests ({sentRequests.length})</h3>
               <div className="space-y-2">
                 {sentRequests.map((req) => (
-                  <div
-                    key={req.id}
-                    className="p-2.5 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between text-xs"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div
-                        className="w-9 h-9 rounded-full bg-cover bg-center"
-                        style={{ backgroundImage: `url('${req.toAvatar}')` }}
-                      />
-                      <span className="font-bold text-xs">{req.toHandle}</span>
+                  <div key={req.id} className={`p-2.5 ${CARD} rounded-2xl flex items-center justify-between`}>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-cover bg-center shrink-0" style={{ backgroundImage: `url('${req.toAvatar}')` }} />
+                      <span className="font-bold text-[13px] truncate text-slate-900 dark:text-slate-100">{req.toHandle}</span>
                     </div>
-                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-md">
-                      Pending Response
+                    <span className="text-[11px] text-amber-700 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/50 px-2.5 py-1 rounded-full shrink-0">
+                      Pending
                     </span>
                   </div>
                 ))}
@@ -1483,66 +1450,65 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
         </div>
       )}
 
-      {/* CHATS TAB */}
+      {/* CHATS */}
       {subtab === 'chats' && (
-        <div className="space-y-4 text-xs">
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">
-              Active Conversations ({conversations.length})
-            </h3>
+            <h3 className={HEADING}>Conversations ({conversations.length})</h3>
             <button
               onClick={onOpenCreateGroupModal}
-              className="text-[#FF5733] dark:text-[#D17A68] font-bold text-xs hover:underline flex items-center gap-1 cursor-pointer"
+              className="px-3 py-1.5 rounded-full bg-[#E0533C]/10 text-[#E0533C] font-extrabold text-xs flex items-center gap-1.5 active:scale-95 transition cursor-pointer"
             >
               <Users className="w-3.5 h-3.5" />
-              <span>+ New Group</span>
+              <span>New group</span>
             </button>
           </div>
 
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             {conversations.length === 0 && (
-              <p className="text-slate-400 py-6 text-center">
-                No chats yet. Match with someone, or start a group with the + New Group button.
-              </p>
+              <div className={`${CARD} border-dashed rounded-3xl py-8 px-5 text-center space-y-2`}>
+                <div className="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-white/[0.06] text-slate-400 flex items-center justify-center mx-auto">
+                  <MessageSquare className="w-5 h-5" />
+                </div>
+                <p className="text-[13px] text-slate-500 dark:text-slate-400">
+                  No chats yet. Match with someone, or start a group with the New group button.
+                </p>
+              </div>
             )}
             {conversations.map((conv) => (
               <div
                 key={conv.id}
                 onClick={() => setActiveChat(conv)}
-                className="p-3 bg-white dark:bg-[#14171F] border border-slate-200/90 dark:border-[#222735] rounded-2xl flex items-center justify-between gap-3 shadow-xs hover:border-[#FF5733] dark:hover:border-[#D17A68] transition cursor-pointer"
+                className={`p-3 ${CARD} rounded-2xl flex items-center justify-between gap-3 shadow-xs hover:border-[#E0533C]/50 active:scale-[0.99] transition cursor-pointer`}
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="relative shrink-0">
-                    <div
-                      className="w-11 h-11 rounded-full bg-cover bg-center border border-slate-300 dark:border-slate-700"
-                      style={{ backgroundImage: `url('${conv.avatar}')` }}
-                    />
-                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#14171F]" />
+                    <div className={avatarRing}>
+                      <div
+                        className="w-12 h-12 rounded-full bg-cover bg-center border-2 border-white dark:border-[#1C1A1E]"
+                        style={{ backgroundImage: `url('${conv.avatar}')` }}
+                      />
+                    </div>
+                    <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#1C1A1E]" />
                   </div>
                   <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">
-                        {conv.name}
-                      </h4>
-                      {conv.isTemporary ? (
-                        <span className="px-1.5 py-0.2 rounded bg-orange-100 dark:bg-orange-950/80 text-[#E0533C] dark:text-[#D17A68] text-[9px] font-black uppercase tracking-wider shrink-0">
-                          Outing Group
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 truncate">{conv.name}</h4>
+                      {conv.isTemporary && (
+                        <span className="px-2 py-0.5 rounded-full bg-[#E0533C]/10 text-[#E0533C] text-[9px] font-black uppercase tracking-wider shrink-0">
+                          Outing
                         </span>
-                      ) : (
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                       )}
                     </div>
-                    <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                      {conv.lastMessage}
-                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">{conv.lastMessage}</p>
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <span className="text-[9px] text-slate-400 block">{formatChatTime((conv as any).lastMessageAt)}</span>
+                  <span className="text-[11px] text-slate-400 block">{formatChatTime((conv as any).lastMessageAt)}</span>
                   {conv.isTemporary ? (
-                    <span className="text-[9px] font-extrabold text-[#E0533C] dark:text-[#D17A68] block mt-0.5">Unlocked</span>
+                    <span className="text-[10px] font-extrabold text-[#E0533C] block mt-0.5">Unlocked</span>
                   ) : (
-                    <span className="w-2 h-2 rounded-full bg-[#FF5733] dark:bg-[#A94F3E] inline-block mt-1" />
+                    <span className="w-2 h-2 rounded-full bg-[#E0533C] inline-block mt-1.5" />
                   )}
                 </div>
               </div>
@@ -1551,21 +1517,21 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
         </div>
       )}
 
-      {/* SEARCH USERS TAB */}
+      {/* SEARCH MEMBERS */}
       {subtab === 'search' && (
-        <div className="space-y-3 text-xs">
+        <div className="space-y-3">
           <div className="relative flex items-center">
-            <Search className="w-4 h-4 absolute left-3.5 text-slate-400 pointer-events-none" />
+            <Search className="w-4 h-4 absolute left-4 text-slate-400 pointer-events-none" />
             <input
               type="text"
               value={userSearchQuery}
               onChange={(e) => setUserSearchQuery(e.target.value)}
               placeholder="Search members by @username"
-              className="w-full pl-10 pr-4 py-3 bg-[#FAFAFC] dark:bg-[#14171F] border border-slate-200 dark:border-[#222735] rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#FF5733]/40"
+              className="w-full pl-11 pr-4 py-3 bg-slate-100 dark:bg-white/[0.07] border border-slate-200/70 dark:border-white/10 rounded-full text-[14px] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#E0533C]/35"
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 text-[13px]">
             {!myUserId && <p className="text-slate-400 py-4 text-center">Log in to search for members.</p>}
             {myUserId && userSearchQuery.trim().replace(/^@/, '').length < 2 && (
               <p className="text-slate-400 py-4 text-center">Type at least 2 letters of a username.</p>
@@ -1592,19 +1558,19 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                     relationshipStatus: isSingle ? 'single' : 'not_single',
                     vibes: []
                   })}
-                  className="p-3 bg-white dark:bg-[#14171F] border border-slate-200/90 dark:border-[#222735] rounded-2xl flex items-center justify-between cursor-pointer hover:border-[#FF5733]/50 transition"
+                  className={`p-3 ${CARD} rounded-2xl flex items-center justify-between cursor-pointer hover:border-[#E0533C]/50 active:scale-[0.99] transition`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="p-[2px] bg-gradient-to-tr from-[#F43F5E] to-[#FF5733] dark:to-[#A94F3E] rounded-full shrink-0 shadow-xs">
+                    <div className={avatarRing}>
                       <div
-                        className="w-10 h-10 rounded-full bg-cover bg-center border border-white dark:border-[#14171F]"
+                        className="w-11 h-11 rounded-full bg-cover bg-center border-2 border-white dark:border-[#1C1A1E]"
                         style={{ backgroundImage: `url('${p.avatar_url || PLACEHOLDER_AVATAR}')` }}
                       />
                     </div>
-                    <h4 className="font-bold text-xs truncate text-slate-900 dark:text-slate-100">@{p.username}</h4>
+                    <h4 className="font-bold text-[13px] truncate text-slate-900 dark:text-slate-100">@{p.username}</h4>
                   </div>
                   {isSingle && p.is_liveness_verified && (
-                    <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-gradient-to-r from-[#F43F5E]/15 to-[#FF5733]/15 text-[#FF5733] dark:text-[#D17A68] flex items-center gap-1 shrink-0">
+                    <span className="text-[11px] font-black px-2.5 py-1 rounded-full bg-[#E0533C]/10 text-[#E0533C] flex items-center gap-1 shrink-0">
                       <UserCheck className="w-3 h-3" />
                       <span>Single</span>
                     </span>
@@ -1616,70 +1582,46 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
         </div>
       )}
 
-      {/* Non-Single or Unverified Explanatory Gate Modal */}
+      {/* Gate modal */}
       {showGateModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-[#1C1A1E] rounded-3xl max-w-sm w-full p-5 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center justify-center mx-auto shadow-xs">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-[#1C1A1E] rounded-3xl max-w-sm w-full p-5 border border-slate-200/80 dark:border-white/10 shadow-2xl space-y-4 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto">
               <ShieldCheck className="w-7 h-7" />
             </div>
 
             <div className="space-y-1.5">
-              <h3 className="font-black text-base text-slate-900 dark:text-slate-100">
-                Single-Only Discover
-              </h3>
-              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+              <h3 className="font-black text-[15px] text-slate-900 dark:text-slate-100">Single-only Discover</h3>
+              <p className="text-[13px] text-slate-600 dark:text-slate-300 leading-relaxed">
                 Discover is reserved for verified single profiles. You can still create and join Group Chats!
               </p>
             </div>
 
-            <div className="p-3 bg-[#F8F8F6] dark:bg-[#121113] rounded-2xl border border-slate-200 dark:border-slate-800 text-[11px] text-left space-y-1.5">
-              <div className="flex items-center justify-between font-bold">
-                <span className="text-slate-500">Your Status:</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                  isUserSingle ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
-                }`}>
-                  {currentUserProfile?.relationshipStatus === 'single' ? 'Single' : 'Not single'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between font-bold">
-                <span className="text-slate-500">Selfie check:</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                  currentUserProfile?.isLivenessVerified ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                }`}>
-                  {currentUserProfile?.isLivenessVerified ? 'Passed' : 'Not done yet'}
-                </span>
-              </div>
+            <div className="p-3 bg-slate-50 dark:bg-white/[0.04] rounded-2xl text-xs text-left space-y-2">
+              {statusRow('Your status', isUserSingle, 'Single', 'Not single')}
+              {statusRow('Selfie check', !!currentUserProfile?.isLivenessVerified, 'Passed', 'Not done yet', true)}
             </div>
 
             <div className="flex flex-col gap-2 pt-1">
               <button
                 type="button"
-                onClick={() => {
-                  setShowGateModal(false);
-                  if (onOpenVerificationModal) onOpenVerificationModal();
-                }}
-                className="w-full py-3 px-4 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+                onClick={() => { setShowGateModal(false); if (onOpenVerificationModal) onOpenVerificationModal(); }}
+                className="w-full py-3 px-4 bg-[#E0533C] text-white font-extrabold rounded-full text-[13px] shadow-lg shadow-[#E0533C]/25 active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Camera className="w-4 h-4" />
-                <span>Verify Single Profile Now</span>
+                <span>Verify my single profile</span>
               </button>
-
               <button
                 type="button"
-                onClick={() => {
-                  setShowGateModal(false);
-                  setSubtab('chats');
-                }}
-                className="w-full py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs transition cursor-pointer"
+                onClick={() => { setShowGateModal(false); setSubtab('chats'); }}
+                className="w-full py-3 px-4 bg-slate-100 dark:bg-white/[0.07] text-slate-700 dark:text-slate-200 font-bold rounded-full text-[13px] active:scale-[0.98] transition cursor-pointer"
               >
-                Go to Group Chats
+                Go to group chats
               </button>
-
               <button
                 type="button"
                 onClick={() => setShowGateModal(false)}
-                className="text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-semibold py-1 cursor-pointer"
+                className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-semibold py-1 cursor-pointer"
               >
                 Dismiss
               </button>
@@ -1693,11 +1635,11 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); setViewerPhoto(null); }}
-            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/15 text-white text-lg font-bold flex items-center justify-center"
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/15 text-white flex items-center justify-center"
             aria-label="Close photo"
             style={{ marginTop: 'env(safe-area-inset-top, 0px)' }}
           >
-            ×
+            <X className="w-5 h-5" />
           </button>
           <img loading="lazy" decoding="async" src={viewerPhoto} alt="Photo" onClick={(e) => e.stopPropagation()} className="max-w-full max-h-full object-contain" />
         </div>

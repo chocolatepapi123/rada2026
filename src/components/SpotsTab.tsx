@@ -44,6 +44,7 @@ import { getSpotCategoryAccent, accentPillStyle, accentVars } from '../lib/spotA
 import { rankSpots, useNearYou, formatKm } from '../lib/spotRanking.ts';
 import { NearYouControl } from './NearYouControl.tsx';
 import { spotMatchesSearchWithTags } from '../utils/spotTags.ts';
+import { spotSearchScore } from '../lib/searchTags.ts';
 import { AdminConfirmModal } from './AdminConfirmModal.tsx';
 import { deleteListing } from '../lib/cloudSync.ts';
 import { useActivePromotions, sortSpotsByCategoryPromotion } from '../lib/promotions.ts';
@@ -424,7 +425,8 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     if (!matchesCategory || !matchesNeigh || !matchesPrice) return false;
 
     // Use enhanced in-app tags search matching (invisible to users)
-    if (!spotMatchesSearchWithTags(s, deferredQuery)) return false;
+    // Existing tags OR the broader hidden tags (brunch, cheap date, 21+, family, sipper...)
+    if (!spotMatchesSearchWithTags(s, deferredQuery) && !(deferredQuery.trim() && spotSearchScore(s, deferredQuery, String(resolveSpotBudget(s))) > 0)) return false;
 
     return true;
   }), [displaySpots, selectedCategory, selectedNeighborhood, selectedPriceTier, selectedRating, onlySpecialOffers, deferredQuery]);
