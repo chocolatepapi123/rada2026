@@ -61,6 +61,59 @@ jobs:
             echo '<?xml version="1.0" encoding="utf-8"?><adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/rada_icon_bg"/><foreground android:drawable="@mipmap/ic_launcher_foreground"/></adaptive-icon>' > $R/mipmap-anydpi-v26/$n.xml
           done
 
+      - name: RADA launch screen (orange, logo centred)
+        run: |
+          # What shows for the first moment, before the web app paints. Same orange and same logo
+          # size/position (250dp wide, centred) as src/components/SplashScreen.tsx, so there is no jump.
+          sudo apt-get install -y -qq imagemagick > /dev/null 2>&1 || true
+          R=android-app/android/app/src/main/res
+          find $R -path '*drawable*' -name 'splash.*' -delete
+          mkdir -p $R/drawable-nodpi $R/drawable $R/values
+          convert public/rada-mark.png -resize 750x $R/drawable-nodpi/rada_splash_mark.png
+
+          echo '<?xml version="1.0" encoding="utf-8"?><resources><color name="rada_splash_bg">#E05328</color></resources>' > $R/values/rada_splash.xml
+
+          cat > $R/drawable/splash.xml <<'XML1'
+          <?xml version="1.0" encoding="utf-8"?>
+          <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+            <item android:drawable="@color/rada_splash_bg" />
+            <item android:gravity="center" android:width="250dp" android:height="116dp">
+              <bitmap android:src="@drawable/rada_splash_mark" android:gravity="fill" />
+            </item>
+          </layer-list>
+          XML1
+
+          # An empty icon: Android 12+ draws its own splash icon inside a circle, which would crop a wide
+          # logo. Blank icon = plain orange, then the web splash (with the logo) takes over.
+          cat > $R/drawable/rada_splash_blank.xml <<'XML2'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+            <path android:fillColor="#00000000" android:pathData="M0,0h1v1h-1z" />
+          </vector>
+          XML2
+
+          python3 - <<'PY'
+          import re
+          f = 'android-app/android/app/src/main/res/values/styles.xml'
+          s = open(f).read()
+          m = re.search(r'(<style name="AppTheme\.NoActionBarLaunch"[^>]*>)(.*?)(</style>)', s, re.S)
+          if not m:
+              print('WARNING: AppTheme.NoActionBarLaunch not found, launch screen theme left as is')
+          else:
+              head, body, tail = m.groups()
+              body = re.sub(r'\s*<item name="(android:)?(background|windowBackground|windowSplashScreenBackground|windowSplashScreenAnimatedIcon)">.*?</item>', '', body, flags=re.S)
+              pre = '' if 'Theme.SplashScreen' in head else 'android:'
+              add = (
+                  '\n        <item name="android:background">@drawable/splash</item>'
+                  '\n        <item name="%swindowSplashScreenBackground">@color/rada_splash_bg</item>'
+                  '\n        <item name="%swindowSplashScreenAnimatedIcon">@drawable/rada_splash_blank</item>\n    ' % (pre, pre)
+              )
+              s = s[:m.start()] + head + body.rstrip() + add + tail + s[m.end():]
+              open(f, 'w').write(s)
+          print(open(f).read())
+          PY
+
       - name: Transparent phone bars (native code)
         run: |
           D=android-app/android/app/src/main/java/com/rada/app
