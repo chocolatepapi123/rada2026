@@ -21,7 +21,7 @@ import { BusinessesProvider } from './components/BusinessBadge.tsx';
 import { Header } from './components/Header.tsx';
 import { Navigation } from './components/Navigation.tsx';
 import { HomeTab } from './components/HomeTab.tsx';
-import { SplashScreen } from './components/SplashScreen.tsx';
+import { SplashScreen, SplashFace } from './components/SplashScreen.tsx';
 import { ToastProvider, showToast as triggerToast, type ToastOptions } from './components/Toast.tsx';
 import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 import { getTimeOfDayGreeting } from './utils/greetingUtils';
@@ -2675,30 +2675,8 @@ export default function App() {
           {showSplash && <SplashScreen durationMs={1200} onDismiss={() => setShowSplash(false)} />}
 
       {authLoading ? (
-        <div 
-          className="min-h-screen flex flex-col items-center justify-center p-6 text-center select-none"
-          style={{ background: 'linear-gradient(135deg, #E05328 0%, #D94E28 100%)' }}
-        >
-          {/* Prominent RADA Logo Icon */}
-          <div className="relative group mb-6">
-            <div className="absolute -inset-4 bg-white/20 rounded-3xl blur-xl" />
-            <img loading="lazy" decoding="async"
-              src="/logo.jpg"
-              alt="RADA"
-              className="relative w-40 sm:w-48 h-auto object-contain rounded-3xl shadow-2xl"
-            />
-          </div>
-
-          <p className="text-white text-base sm:text-lg font-bold tracking-wide drop-shadow-sm mt-3">
-            {getTimeOfDayGreeting()}
-          </p>
-
-          {/* Minimal clean loading dots */}
-          <div className="mt-8 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-white/90 animate-bounce" style={{ animationDelay: '0ms' }} />
-            <span className="w-1.5 h-1.5 rounded-full bg-white/90 animate-bounce" style={{ animationDelay: '150ms' }} />
-            <span className="w-1.5 h-1.5 rounded-full bg-white/90 animate-bounce" style={{ animationDelay: '300ms' }} />
-          </div>
+        <div className="fixed inset-0 z-[9998]" style={{ background: '#E05328' }}>
+          <SplashFace progressMs={1600} />
         </div>
       ) : (
         <>
