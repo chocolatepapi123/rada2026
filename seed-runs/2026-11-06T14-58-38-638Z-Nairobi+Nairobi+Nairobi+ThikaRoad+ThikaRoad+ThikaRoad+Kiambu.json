@@ -1,0 +1,91 @@
+{
+  "ranAt": "2026-11-06T14:58:38.638Z",
+  "areas": [
+    "Nairobi|Nairobi",
+    "Westlands|Nairobi",
+    "Kilimani|Nairobi",
+    "Thika Road|Thika Road",
+    "Ruiru|Thika Road",
+    "Juja|Thika Road",
+    "Kiambu|Kiambu",
+    "Ruaka|Kiambu"
+  ],
+  "categories": [
+    "Getaways & Resorts"
+  ],
+  "target": 15,
+  "summary": [
+    {
+      "area": "Nairobi",
+      "category": "Getaways & Resorts",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Westlands -> Nairobi",
+      "category": "Getaways & Resorts",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Kilimani -> Nairobi",
+      "category": "Getaways & Resorts",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Thika Road",
+      "category": "Getaways & Resorts",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Ruiru -> Thika Road",
+      "category": "Getaways & Resorts",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Juja -> Thika Road",
+      "category": "Getaways & Resorts",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Kiambu",
+      "category": "Getaways & Resorts",
+      "qualified": 19,
+      "alreadyInDb": 19,
+      "new": 0,
+      "note": "SHORT by 2"
+    },
+    {
+      "area": "Ruaka -> Kiambu",
+      "category": "Getaways & Resorts",
+      "qualified": 29,
+      "alreadyInDb": 28,
+      "new": 1,
+      "note": "SHORT by 1"
+    }
+  ],
+  "spots": [
+    {
+      "google_place_id": "ChIJr-8-Z3wXLxgRnm536d3AbBY",
+      "name": "Ryn Airbnbs Ruaka",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Kiambu"
+    }
+  ]
+}
