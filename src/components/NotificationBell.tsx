@@ -43,29 +43,39 @@ export const NotificationBell: React.FC<Props> = ({ userId }) => {
     };
   }, [load, userId]);
 
-  useEffect(() => {
-    const h = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
+  // Closing the list always counts as "seen", however it was closed (bell, X, or tapping outside).
+  const itemsRef = useRef<AppNotification[]>([]);
+  itemsRef.current = items;
+  const openRef = useRef(false);
+  openRef.current = open;
+
+  const closeAndMarkRead = useCallback(async () => {
+    setOpen(false);
+    const ids = itemsRef.current.filter((n) => !n.read_at).map((n) => n.id);
+    if (!ids.length) return;
+    // show them as read straight away; the server catches up
+    setItems((cur) => cur.map((n) => (n.read_at ? n : { ...n, read_at: new Date().toISOString() })));
+    try { await markNotificationsRead(ids); } catch { /* shown again as unread on the next refresh */ }
   }, []);
+
+  useEffect(() => {
+    const h = (e: Event) => {
+      if (openRef.current && ref.current && !ref.current.contains(e.target as Node)) closeAndMarkRead();
+    };
+    document.addEventListener('pointerdown', h);
+    return () => document.removeEventListener('pointerdown', h);
+  }, [closeAndMarkRead]);
 
   if (!userId) return null;
 
   const unread = items.filter((n) => !n.read_at).length;
 
   const toggle = async () => {
-    const next = !open;
-    setOpen(next);
-    if (next) {
-      await load();
+    if (open) {
+      await closeAndMarkRead();
     } else {
-      const ids = items.filter((n) => !n.read_at).map((n) => n.id);
-      if (ids.length) {
-        await markNotificationsRead(ids);
-        setItems((cur) => cur.map((n) => (n.read_at ? n : { ...n, read_at: new Date().toISOString() })));
-      }
+      setOpen(true);
+      await load();
     }
   };
 
@@ -108,7 +118,7 @@ export const NotificationBell: React.FC<Props> = ({ userId }) => {
         <div className="fixed sm:absolute left-3 right-3 sm:left-auto sm:right-0 top-[64px] sm:top-full sm:mt-2 sm:w-80 max-h-[70vh] overflow-y-auto bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-50">
           <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
             <span className="text-sm font-black text-slate-900 dark:text-slate-100">Notifications</span>
-            <button type="button" onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer" aria-label="Close">
+            <button type="button" onClick={closeAndMarkRead} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer" aria-label="Close">
               <X className="w-4 h-4" />
             </button>
           </div>
