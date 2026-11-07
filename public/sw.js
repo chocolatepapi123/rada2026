@@ -1,10 +1,10 @@
 /* RADA service worker: makes repeat launches fast and gives an offline shell.
  * No build step needed. Bump VERSION to force every device to drop old caches. */
-const VERSION = 'rada-v7';
+const VERSION = 'rada-v8';
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
 const RUNTIME = `${VERSION}-runtime`;
-const RUNTIME_MAX_ENTRIES = 120;
+const RUNTIME_MAX_ENTRIES = 500;
 
 self.addEventListener('install', () => self.skipWaiting());
 
@@ -86,6 +86,7 @@ self.addEventListener('fetch', (event) => {
     host === 'unpkg.com' ||
     host.endsWith('basemaps.cartocdn.com') ||
     host === 'images.unsplash.com' ||
+    host === 'wsrv.nl' ||
     (host.endsWith('.supabase.co') && url.pathname.startsWith('/storage/v1/object/public/')) ||
     request.destination === 'image';
   if (cacheable) event.respondWith(staleWhileRevalidate(request));

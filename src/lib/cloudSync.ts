@@ -32,7 +32,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
   try {
     const img = await loadImage(dataUrl);
-    const maxSide = 1280;
+    const maxSide = 1080;
     const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
     const w = Math.max(1, Math.round(img.width * scale));
     const h = Math.max(1, Math.round(img.height * scale));
@@ -51,7 +51,7 @@ async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
     ctx.drawImage(img, 0, 0, w, h);
 
     const blob: Blob | null = await new Promise(res =>
-      canvas.toBlob(res, isPng ? 'image/png' : 'image/jpeg', 0.82)
+      canvas.toBlob(res, isPng ? 'image/png' : 'image/jpeg', 0.78)
     );
     if (blob) return blob;
   } catch {
@@ -2255,12 +2255,8 @@ export async function setUserAdminRole(
 ): Promise<string | null> {
   const guard = await requireAdmin();
   if (guard.error) return guard.error;
-  // RADA has a single admin account (hello.rada.app@gmail.com). Nobody else can be made admin.
-  if (role === 'admin') {
-    return 'RADA has one admin account only. Other accounts cannot be made admin.';
-  }
-  if (guard.uid === uid) {
-    return 'You cannot change your own admin account.';
+  if (guard.uid === uid && role !== 'admin') {
+    return 'You cannot revoke your own admin account.';
   }
 
   const now = new Date().toISOString();

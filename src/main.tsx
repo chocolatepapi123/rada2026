@@ -5,9 +5,11 @@ import App from './App.tsx';
 import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 import { initMonitoring } from './lib/monitoring.ts';
 import { logPlatformEvent } from './lib/platformAnalytics.ts';
+import { startImageOptimizer } from './lib/imageOptimizer.ts';
 import './index.css';
 
 initMonitoring();
+startImageOptimizer();
 logPlatformEvent('app_open');
 
 // Guard against transient background/wake-up network blips and ResizeObserver errors
