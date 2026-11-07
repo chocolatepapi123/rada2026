@@ -1,3 +1,4 @@
+import { siteOrigin } from '../lib/siteUrl';
 import React, { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import {
   ChevronLeft,
@@ -224,7 +225,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const initial = String(name).replace(/^@/, '').charAt(0).toUpperCase() || 'R';
 
   const share = async () => {
-    const url = window.location.origin;
+    const url = siteOrigin();
     try {
       if ((navigator as any).share) await (navigator as any).share({ title: 'RADA', text: `${handle || name} on RADA`, url });
       else { await navigator.clipboard.writeText(url); showToast('Link copied.'); }

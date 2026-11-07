@@ -74,9 +74,26 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
   const businessSpots = spots.filter(s => s.businessId === business.id);
   const businessEvents = events.filter(e => e.businessId === business.id);
 
-  const handleCopyCode = (offerId: string, code?: string) => {
+  const handleCopyCode = async (offerId: string, code?: string) => {
     if (!code) return;
-    navigator.clipboard.writeText(code);
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(code);
+      copied = true;
+    } catch {
+      // older phones / blocked clipboard: try the classic way
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = code;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        copied = document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch { /* give up quietly */ }
+    }
+    if (!copied) return;
     if (business) track('offer_redeem', 'business', business.id);
     setCopiedCodeId(offerId);
     setTimeout(() => setCopiedCodeId(null), 2500);

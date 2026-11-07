@@ -1,3 +1,4 @@
+import { siteOrigin } from '../lib/siteUrl';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { track } from '../lib/tracking';
 import { logPlatformEvent } from '../lib/platformAnalytics';
@@ -384,7 +385,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
 
   // ---- Custom deep link for hosted plans ----------------------------------
   const buildOutingLink = (plan: OutingPlan) =>
-    `${window.location.origin}/?tab=outings&outing=${encodeURIComponent(String(plan.id))}&ref=share`;
+    `${siteOrigin()}/?tab=outings&outing=${encodeURIComponent(String(plan.id))}&ref=share`;
 
   const [shareCardFor, setShareCardFor] = useState<OutingPlan | null>(null);
 
