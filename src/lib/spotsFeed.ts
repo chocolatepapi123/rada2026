@@ -294,8 +294,69 @@ const listeners = new Set<(rows: any[]) => void>();
 const PAGE = 1000;
 const MAX_ROWS = 10000;
 
+// ---- Saved copy of the last good download (IndexedDB), so the next start shows spots instantly ----
+const IDB_NAME = 'rada_cache';
+const IDB_KEY = 'spots_rows_v1';
+const SAVED_MAX_AGE_MS = 14 * 24 * 3600 * 1000;
+
+function idbOpen(): Promise<IDBDatabase | null> {
+  return new Promise((resolve) => {
+    try {
+      if (typeof indexedDB === 'undefined') return resolve(null);
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = () => { try { req.result.createObjectStore('kv'); } catch { /* exists */ } };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+      req.onblocked = () => resolve(null);
+    } catch { resolve(null); }
+  });
+}
+async function savedRowsRead(): Promise<any[] | null> {
+  const db = await idbOpen();
+  if (!db) return null;
+  return new Promise((resolve) => {
+    try {
+      const rq = db.transaction('kv', 'readonly').objectStore('kv').get(IDB_KEY);
+      rq.onsuccess = () => {
+        const v = rq.result;
+        db.close();
+        resolve(v && Array.isArray(v.rows) && v.rows.length && Date.now() - Number(v.t || 0) < SAVED_MAX_AGE_MS ? v.rows : null);
+      };
+      rq.onerror = () => { try { db.close(); } catch { /* ignore */ } resolve(null); };
+    } catch { resolve(null); }
+  });
+}
+async function savedRowsWrite(rows: any[]) {
+  const db = await idbOpen();
+  if (!db) return;
+  try {
+    const tx = db.transaction('kv', 'readwrite');
+    tx.objectStore('kv').put({ t: Date.now(), rows }, IDB_KEY);
+    tx.oncomplete = () => { try { db.close(); } catch { /* ignore */ } };
+    tx.onerror = () => { try { db.close(); } catch { /* ignore */ } };
+  } catch { try { db.close(); } catch { /* ignore */ } }
+}
+
+/** Spots for this screen: the saved copy right away when there is one (fresh data replaces it a moment later). */
 export async function loadUnclaimedSpots(force = false): Promise<any[]> {
   if (cache && !force) return cache;
+  if (inflight) return inflight;
+  if (!force) {
+    const saved = await savedRowsRead();
+    if (saved && !cache) {
+      try {
+        cache = saved.map(unclaimedRowToSpot);
+        listeners.forEach(l => l(cache!));
+        void refreshUnclaimedSpots();
+        return cache;
+      } catch { cache = null; /* unreadable copy: load normally */ }
+    }
+    if (cache) return cache;
+  }
+  return refreshUnclaimedSpots();
+}
+
+async function refreshUnclaimedSpots(): Promise<any[]> {
   if (inflight) return inflight;
   inflight = (async () => {
     const rows: any[] = [];
@@ -303,27 +364,35 @@ export async function loadUnclaimedSpots(force = false): Promise<any[]> {
     try {
       if (supabase && isSupabaseConfigured) {
         // PostgREST caps a single response (usually 1000 rows), so page through the table.
-        for (let from = 0; from < MAX_ROWS; from += PAGE) {
-          const { data, error } = await supabase
-            .from(SPOTS_FEED_VIEW)
-            .select('*')
-            .order('created_at', { ascending: false })
-            .range(from, from + PAGE - 1);
-          if (error) {
-            console.warn('spots feed fetch error:', error.message);
-            failed = true;
-            break;
+        // Pages are asked for 3 at a time (not one after another), which is much faster on a phone.
+        const getPage = (from: number) => supabase!
+          .from(SPOTS_FEED_VIEW)
+          .select('*')
+          .order('created_at', { ascending: false })
+          .range(from, from + PAGE - 1);
+        const BATCH = 3;
+        outer: for (let from = 0; from < MAX_ROWS; from += PAGE * BATCH) {
+          const starts = Array.from({ length: BATCH }, (_, i) => from + i * PAGE).filter(f => f < MAX_ROWS);
+          const results = await Promise.all(starts.map(getPage));
+          for (const { data, error } of results) {
+            if (error) {
+              console.warn('spots feed fetch error:', error.message);
+              failed = true;
+              break outer;
+            }
+            if (!data || data.length === 0) break outer;
+            rows.push(...data);
+            if (data.length < PAGE) break outer;
           }
-          if (!data || data.length === 0) break;
-          rows.push(...data);
-          if (data.length < PAGE) break;
         }
       }
 
-      // If Supabase returned rows, convert them
-      if (rows.length > 0) {
+      if (cache && (rows.length === 0 || (failed && rows.length < cache.length))) {
+        // Download failed or came back short: keep what we already show instead of swapping in less.
+      } else if (rows.length > 0) {
         cache = rows.map(unclaimedRowToSpot);
         listeners.forEach(l => l(cache!));
+        if (!failed) void savedRowsWrite(rows);
       } else {
         // Fallback: load scraped places json if available
         try {
