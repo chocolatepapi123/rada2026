@@ -5,6 +5,8 @@ import {
   Hangout,
   HangoutMedia,
   HANGOUT_LIMITS,
+  getHangoutVideoSeconds,
+  loadMyHangoutLimits,
   listHangouts,
   createHangout,
   updateHangout,
@@ -188,6 +190,8 @@ const Editor: React.FC<{ userId: string; accent: string; showToast: Props['showT
   const [removed, setRemoved] = useState<HangoutMedia[]>([]);
   const [pending, setPending] = useState<Pending[]>([]);
   const [current, setCurrent] = useState(0);
+  const [videoSecs, setVideoSecs] = useState<number>(getHangoutVideoSeconds());
+  useEffect(() => { loadMyHangoutLimits().then((l) => { if (l) setVideoSecs(l.videoSeconds); }); }, []);
   const [caption, setCaption] = useState(hangout?.caption || '');
   const [spotId, setSpotId] = useState<string | null>(hangout?.spotId ?? null);
   const [spotText, setSpotText] = useState(hangout?.spotTitle || '');
@@ -307,7 +311,7 @@ const Editor: React.FC<{ userId: string; accent: string; showToast: Props['showT
                   <Camera className="w-6 h-6" style={{ color: accent }} /> Camera
                 </button>
               </div>
-              <p className="mt-3 text-center text-[11px] text-slate-400">Up to {HANGOUT_LIMITS.maxMedia} files. Videos up to {HANGOUT_LIMITS.maxVideoSeconds} seconds.</p>
+              <p className="mt-3 text-center text-[11px] text-slate-400">Up to {HANGOUT_LIMITS.maxMedia} files. Videos up to {videoSecs} seconds.</p>
             </div>
           ) : (
             <>

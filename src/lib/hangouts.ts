@@ -45,6 +45,33 @@ export const HANGOUT_LIMITS = {
   maxCaption: 280,
 };
 
+// Limits that depend on the person's plan come from the database (table plan_limits), so changing a
+// number there changes the app with no new build. Until they load, the free-plan values are used.
+export interface MyHangoutLimits {
+  plan: string;
+  liveLimit: number | null; // null = unlimited
+  liveUsed: number;
+  videoSeconds: number;
+}
+let myVideoSeconds = 30;
+export const getHangoutVideoSeconds = () => myVideoSeconds;
+
+export async function loadMyHangoutLimits(): Promise<MyHangoutLimits | null> {
+  if (!isSupabaseConfigured || !supabase) return null;
+  try {
+    const { data, error } = await supabase.rpc('my_plan_limits');
+    if (error || !data) return null;
+    const vs = Number(data.hangout_video_seconds?.limit);
+    if (Number.isFinite(vs) && vs > 0) myVideoSeconds = Math.min(vs, HANGOUT_LIMITS.maxVideoSeconds);
+    return {
+      plan: String(data.plan || 'free'),
+      liveLimit: data.hangouts_live?.limit ?? null,
+      liveUsed: Number(data.hangouts_live?.used || 0),
+      videoSeconds: myVideoSeconds,
+    };
+  } catch { return null; }
+}
+
 const BUCKET = 'hangout-media';
 const ready = () => Boolean(isSupabaseConfigured && supabase);
 
@@ -187,7 +214,7 @@ export async function checkHangoutFile(file: File): Promise<string | null> {
   if (isVideo && mb > HANGOUT_LIMITS.maxVideoMb) return `That video is too big (max ${HANGOUT_LIMITS.maxVideoMb} MB).`;
   if (isVideo) {
     const s = await videoSeconds(file);
-    if (s > HANGOUT_LIMITS.maxVideoSeconds + 0.5) return `Videos can be up to ${HANGOUT_LIMITS.maxVideoSeconds} seconds.`;
+    if (s > myVideoSeconds + 0.5) return `Videos can be up to ${myVideoSeconds} seconds on your plan.`;
   }
   return null;
 }
