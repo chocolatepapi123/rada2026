@@ -18,27 +18,20 @@ import type * as FaceApi from '@vladmandic/face-api';
 
 const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
 
-/**
- * Lower distance = more similar. 0.6 is the library default; 0.5 is stricter.
- * Normal light uses the base value. In dim light or on a weak camera the descriptors are noisier,
- * so the limit relaxes a little (still stricter than the library default of 0.6).
- */
-export const MATCH_MAX_DISTANCE = 0.54;
-export const MATCH_MAX_DISTANCE_LOWQ = 0.58;
+/** Lower distance = more similar. 0.6 is the library default; 0.5 is stricter. */
+export const MATCH_MAX_DISTANCE = 0.55;
+/** The two live faces (before and after the turn) differ in pose, so allow a little more. */
+const SELF_MAX_DISTANCE = 0.58;
 /** Nose position across the jaw: about 0.5 facing the camera. */
 const FRONT_MIN = 0.40;
 const FRONT_MAX = 0.60;
-const TURN_LOW = 0.36;
-const TURN_HIGH = 0.64;
-const MIN_FACE_WIDTH_RATIO = 0.16; // face must fill at least 16% of the frame width
+const TURN_LOW = 0.37;
+const TURN_HIGH = 0.63;
+const MIN_FACE_WIDTH_RATIO = 0.14; // face must fill at least 14% of the frame width (low-resolution cameras)
 const SAMPLE_MS = 140;
 const TIMEOUT_MS = 45000;
-/** Average picture brightness (0 to 255) below this counts as dark. */
-const DARK_MEAN = 85;
-/** Frames in a row without a face before a streak is reset (weak cameras drop frames). */
-const MISS_TOLERANCE = 4;
-/** Longest side the picture is shrunk to before detection. Keeps old phones fast. */
-const WORK_SIZE = 640;
+const FRONT_FRAMES_1 = 4;
+const FRONT_FRAMES_2 = 3;
 
 type Api = typeof FaceApi;
 let apiPromise: Promise<Api> | null = null;
@@ -76,187 +69,6 @@ export interface FaceResult {
   distance?: number;
 }
 
-
-export type LightLevel = 'dark' | 'ok' | 'bright';
-
-interface Enhanced {
-  canvas: HTMLCanvasElement;
-  /** Average brightness of the original picture, 0 to 255. */
-  mean: number;
-  /** Spread between the dark and light parts of the picture (p98 - p2). */
-  spread: number;
-  /** True when the picture was brightened or stretched. */
-  changed: boolean;
-}
-
-/**
- * Copies the picture to a canvas and, when it is dark, washed out or flat, brightens it and
- * stretches the contrast (percentile stretch plus gamma). This is what lets the face finder work
- * in a dim room or on a cheap front camera. Used for both the live camera and the profile photo,
- * so the two stay comparable.
- */
-function enhance(source: CanvasImageSource, srcW: number, srcH: number): Enhanced | null {
-  if (!srcW || !srcH) return null;
-  const scale = Math.min(1, WORK_SIZE / Math.max(srcW, srcH));
-  const w = Math.max(64, Math.round(srcW * scale));
-  const h = Math.max(64, Math.round(srcH * scale));
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true } as any) as CanvasRenderingContext2D | null;
-  if (!ctx) return null;
-  ctx.drawImage(source, 0, 0, w, h);
-
-  let img: ImageData;
-  try {
-    img = ctx.getImageData(0, 0, w, h);
-  } catch {
-    // tainted canvas (image from another site without CORS): use it as is
-    return { canvas, mean: 128, spread: 255, changed: false };
-  }
-  const d = img.data;
-  const hist = new Uint32Array(256);
-  let sum = 0;
-  let count = 0;
-  for (let i = 0; i < d.length; i += 16) {
-    const y = (d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8;
-    hist[y]++;
-    sum += y;
-    count++;
-  }
-  const mean = count ? sum / count : 128;
-  const pct = (p: number) => {
-    const target = count * p;
-    let acc = 0;
-    for (let i = 0; i < 256; i++) {
-      acc += hist[i];
-      if (acc >= target) return i;
-    }
-    return 255;
-  };
-  const lo = pct(0.02);
-  let hi = pct(0.98);
-  const spread = hi - lo;
-  const needs = mean < 105 || mean > 195 || spread < 120;
-  if (!needs) return { canvas, mean, spread, changed: false };
-
-  if (hi - lo < 40) hi = Math.min(255, lo + 40);
-  const m = Math.min(1, Math.max(0.02, (mean - lo) / (hi - lo)));
-  // brighten dark pictures; leave bright ones at gamma 1
-  const gamma = m < 0.45 ? Math.min(1, Math.max(0.4, Math.log(0.45) / Math.log(m))) : 1;
-  const lut = new Uint8ClampedArray(256);
-  for (let i = 0; i < 256; i++) {
-    const t = Math.min(1, Math.max(0, (i - lo) / (hi - lo)));
-    lut[i] = Math.round(255 * Math.pow(t, gamma));
-  }
-  for (let i = 0; i < d.length; i += 4) {
-    d[i] = lut[d[i]];
-    d[i + 1] = lut[d[i + 1]];
-    d[i + 2] = lut[d[i + 2]];
-  }
-  ctx.putImageData(img, 0, 0);
-  return { canvas, mean, spread, changed: true };
-}
-
-export function lightLevel(mean: number): LightLevel {
-  if (mean < DARK_MEAN) return 'dark';
-  if (mean > 215) return 'bright';
-  return 'ok';
-}
-
-/**
- * Asks the camera for steadier exposure and a bit more light. Many phones ignore some of these,
- * so every step is allowed to fail quietly.
- */
-export async function tuneCamera(stream: MediaStream, dark = false): Promise<void> {
-  const track = stream.getVideoTracks()[0];
-  if (!track) return;
-  try {
-    const caps: any = (track as any).getCapabilities ? (track as any).getCapabilities() : {};
-    const advanced: any[] = [];
-    if (caps.exposureMode?.includes?.('continuous')) advanced.push({ exposureMode: 'continuous' });
-    if (caps.whiteBalanceMode?.includes?.('continuous')) advanced.push({ whiteBalanceMode: 'continuous' });
-    if (caps.focusMode?.includes?.('continuous')) advanced.push({ focusMode: 'continuous' });
-    if (caps.exposureCompensation) {
-      const { min, max } = caps.exposureCompensation;
-      const want = dark ? max : Math.min(max, Math.max(min, 0.7));
-      advanced.push({ exposureCompensation: want });
-    }
-    if (advanced.length) await track.applyConstraints({ advanced } as any);
-  } catch {
-    /* not supported, fine */
-  }
-}
-
-/** Opens the front camera. Starts with a good picture and steps down for weak cameras. */
-export async function openFrontCamera(): Promise<MediaStream> {
-  const attempts: MediaStreamConstraints[] = [
-    { video: { facingMode: 'user', width: { ideal: 960 }, height: { ideal: 720 }, frameRate: { ideal: 30 } }, audio: false },
-    { video: { facingMode: 'user' }, audio: false },
-    { video: true, audio: false },
-  ];
-  let lastErr: any;
-  for (const c of attempts) {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia(c);
-      void tuneCamera(stream, false);
-      return stream;
-    } catch (e: any) {
-      lastErr = e;
-      // permission problems will not be fixed by a simpler request
-      if (e?.name === 'NotAllowedError' || e?.name === 'PermissionDeniedError' || e?.name === 'SecurityError') throw e;
-    }
-  }
-  throw lastErr;
-}
-
-interface Detected {
-  descriptor: Float32Array;
-  yaw: number;
-  widthRatio: number;
-}
-
-/** Tries the face finder a few times, from strict to forgiving, and stops at the first hit. */
-async function detect(
-  faceapi: Api,
-  input: HTMLCanvasElement,
-  attempts: { size: number; score: number }[]
-): Promise<Detected | null> {
-  for (const a of attempts) {
-    const det = await faceapi
-      .detectSingleFace(input, new faceapi.TinyFaceDetectorOptions({ inputSize: a.size, scoreThreshold: a.score }))
-      .withFaceLandmarks()
-      .withFaceDescriptor();
-    if (!det) continue;
-    const pts = det.landmarks.positions;
-    const span = pts[16].x - pts[0].x;
-    if (span <= 0) continue;
-    return {
-      descriptor: det.descriptor,
-      yaw: (pts[30].x - pts[0].x) / span,
-      widthRatio: det.detection.box.width / (input.width || WORK_SIZE),
-    };
-  }
-  return null;
-}
-
-const LIVE_ATTEMPTS = [
-  { size: 320, score: 0.4 },
-  { size: 416, score: 0.28 },
-];
-const PROFILE_ATTEMPTS = [
-  { size: 416, score: 0.45 },
-  { size: 512, score: 0.3 },
-  { size: 608, score: 0.2 },
-];
-
-function averageDescriptor(list: Float32Array[]): Float32Array {
-  const out = new Float32Array(list[0].length);
-  for (const d of list) for (let i = 0; i < out.length; i++) out[i] += d[i];
-  for (let i = 0; i < out.length; i++) out[i] /= list.length;
-  return out;
-}
-
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -267,23 +79,127 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+/**
+ * Draws the picture to a canvas that is easier for the detector: small pictures are enlarged, and dark or
+ * flat pictures (dim rooms, cheap cameras) get brighter with auto-levels and gamma. Bright, clear pictures
+ * are passed through unchanged. Returns how bright the picture was so the screen can offer more light.
+ */
+function prepare(src: CanvasImageSource, w: number, h: number): { canvas: HTMLCanvasElement; mean: number } {
+  const MIN_W = 640;
+  const MAX_W = 800;
+  const scale = w < MIN_W ? MIN_W / w : w > MAX_W ? MAX_W / w : 1;
+  const cw = Math.max(1, Math.round(w * scale));
+  const ch = Math.max(1, Math.round(h * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = cw;
+  canvas.height = ch;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return { canvas, mean: 128 };
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(src, 0, 0, cw, ch);
+  let mean = 128;
+  try {
+    const img = ctx.getImageData(0, 0, cw, ch);
+    const d = img.data;
+    const hist = new Uint32Array(256);
+    let sum = 0;
+    let n = 0;
+    for (let i = 0; i < d.length; i += 16) { // every 4th pixel is plenty
+      const y = (d[i] * 54 + d[i + 1] * 183 + d[i + 2] * 19) >> 8;
+      hist[y]++;
+      sum += y;
+      n++;
+    }
+    mean = n ? sum / n : 128;
+    // percentile stretch (2% to 98%)
+    let lo = 0, hi = 255, acc = 0;
+    for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= n * 0.02) { lo = v; break; } }
+    acc = 0;
+    for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc >= n * 0.02) { hi = v; break; } }
+    const range = Math.max(1, hi - lo);
+    const flat = range < 150;
+    const dark = mean < 105;
+    if (flat || dark) {
+      const stretchedMean = Math.min(0.9, Math.max(0.04, (mean - lo) / range));
+      // pull the middle towards 0.5 (gamma < 1 brightens), never darken
+      const gamma = dark ? Math.min(1, Math.max(0.35, Math.log(0.5) / Math.log(stretchedMean))) : 1;
+      const lut = new Uint8ClampedArray(256);
+      for (let v = 0; v < 256; v++) {
+        const t = Math.min(1, Math.max(0, (v - lo) / range));
+        lut[v] = Math.round(Math.pow(t, gamma) * 255);
+      }
+      for (let i = 0; i < d.length; i += 4) { d[i] = lut[d[i]]; d[i + 1] = lut[d[i + 1]]; d[i + 2] = lut[d[i + 2]]; }
+      ctx.putImageData(img, 0, 0);
+    }
+  } catch { /* tainted canvas or no pixel access: use the plain picture */ }
+  return { canvas, mean };
+}
+
+/** Detector settings, from strict to forgiving. A forgiving pass is used only when a strict one finds no face. */
+const LEVELS = [
+  { inputSize: 416, scoreThreshold: 0.5 },
+  { inputSize: 512, scoreThreshold: 0.35 },
+  { inputSize: 608, scoreThreshold: 0.22 },
+];
+
+async function detectWith(faceapi: Api, input: HTMLCanvasElement, level: number) {
+  const lv = LEVELS[Math.min(level, LEVELS.length - 1)];
+  return faceapi
+    .detectSingleFace(input, new faceapi.TinyFaceDetectorOptions({ inputSize: lv.inputSize, scoreThreshold: lv.scoreThreshold }))
+    .withFaceLandmarks()
+    .withFaceDescriptor();
+}
+
 /** Face descriptor of the profile photo, or null if no clear face. Throws if the image cannot be read. */
 export async function profileDescriptor(src: string): Promise<Float32Array | null> {
   const faceapi = await loadFaceApi();
   const img = await loadImage(src);
-  const w = img.naturalWidth || img.width;
-  const h = img.naturalHeight || img.height;
-  const enhanced = enhance(img, w, h);
-  if (!enhanced) return null;
-  const found = await detect(faceapi, enhanced.canvas, PROFILE_ATTEMPTS);
-  return found ? found.descriptor : null;
+  const { canvas } = prepare(img, img.naturalWidth || img.width, img.naturalHeight || img.height);
+  for (let level = 0; level < LEVELS.length; level++) {
+    const det = await detectWith(faceapi, canvas, level);
+    if (det) return det.descriptor;
+  }
+  return null;
+}
+
+interface Sample {
+  yaw: number;
+  widthRatio: number;
+  descriptor: Float32Array;
+  mean: number;
+}
+
+async function sample(faceapi: Api, video: HTMLVideoElement, level: number): Promise<Sample | { mean: number } | null> {
+  const vw = video.videoWidth || 640;
+  const vh = video.videoHeight || 480;
+  const { canvas, mean } = prepare(video, vw, vh);
+  const det = await detectWith(faceapi, canvas, level);
+  if (!det) return { mean };
+  const pts = det.landmarks.positions;
+  const left = pts[0].x;
+  const right = pts[16].x;
+  const nose = pts[30].x;
+  const span = right - left;
+  if (span <= 0) return { mean };
+  return {
+    yaw: (nose - left) / span,
+    widthRatio: det.detection.box.width / canvas.width,
+    descriptor: det.descriptor,
+    mean,
+  };
+}
+
+/** Average several descriptors: one noisy frame matters much less. */
+function average(list: Float32Array[]): Float32Array {
+  const out = new Float32Array(list[0].length);
+  for (const d of list) for (let i = 0; i < out.length; i++) out[i] += d[i] / list.length;
+  return out;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
- * Runs the check on a live <video>. Calls onPrompt with short instructions to show the person,
- * and onLight with how bright the camera picture is so the screen can offer a fill light.
+ * Runs the check on a live <video>. Calls onPrompt with short instructions to show the person.
  * Pass an AbortSignal so closing the screen stops the loop.
  */
 export async function runSelfieCheck(
@@ -291,7 +207,8 @@ export async function runSelfieCheck(
   profile: Float32Array,
   onPrompt: (text: string) => void,
   signal?: AbortSignal,
-  onLight?: (level: LightLevel) => void
+  /** Called when the room looks dark, so the screen can show a bright frame to light the face. */
+  onLowLight?: (low: boolean) => void
 ): Promise<FaceResult> {
   let faceapi: Api;
   try {
@@ -303,13 +220,10 @@ export async function runSelfieCheck(
   const started = Date.now();
   let phase: 'front1' | 'turn' | 'front2' = 'front1';
   let frontStreak = 0;
-  let turnStreak = 0;
-  let misses = 0;
-  let lastLevel: LightLevel | null = null;
-  let darkFrames = 0;
-  let lowQuality = (video.videoWidth || 640) < 480;
-  const firstSet: Float32Array[] = [];
-  const secondSet: Float32Array[] = [];
+  let misses = 0; // frames in a row with no face: widens the detector
+  let firstList: Float32Array[] = [];
+  let secondList: Float32Array[] = [];
+  let lowReported = false;
 
   onPrompt('Look straight at the camera');
 
@@ -317,79 +231,59 @@ export async function runSelfieCheck(
     if (signal?.aborted) return { ok: false, reason: 'cancelled' };
     await sleep(SAMPLE_MS);
     if (video.readyState < 2) continue;
-
-    const enhanced = enhance(video, video.videoWidth, video.videoHeight);
-    if (!enhanced) continue;
-
-    const level = lightLevel(enhanced.mean);
-    if (level !== lastLevel) {
-      lastLevel = level;
-      onLight?.(level);
-    }
-    if (level === 'dark') {
-      darkFrames++;
-      lowQuality = true;
-      if (darkFrames === 6) {
-        const stream = video.srcObject as MediaStream | null;
-        if (stream) void tuneCamera(stream, true);
-      }
-    }
-
-    let s: Detected | null = null;
+    let r: Awaited<ReturnType<typeof sample>> = null;
     try {
-      s = await detect(faceapi, enhanced.canvas, LIVE_ATTEMPTS);
+      r = await sample(faceapi, video, misses >= 6 ? 2 : misses >= 2 ? 1 : 0);
     } catch {
       continue;
     }
+    const mean = r ? r.mean : 128;
+    const low = mean < 70;
+    if (low !== lowReported) { lowReported = low; onLowLight?.(low); }
+    const s = r && 'descriptor' in r ? r : null;
 
-    if (!s || s.widthRatio < MIN_FACE_WIDTH_RATIO) {
+    if (!s) {
       misses++;
-      if (misses > MISS_TOLERANCE) {
-        frontStreak = 0;
-        turnStreak = 0;
-        if (s) onPrompt('Move a little closer');
-        else if (level === 'dark') onPrompt('It is dark. Face a light or use the screen light');
-        else onPrompt('Show your face in the frame');
-      }
+      frontStreak = 0;
+      onPrompt(low ? 'It is dark. Face a light, or raise your screen brightness' : 'Show your face in the frame');
       continue;
     }
     misses = 0;
+    if (s.widthRatio < MIN_FACE_WIDTH_RATIO) {
+      frontStreak = 0;
+      onPrompt('Move a little closer');
+      continue;
+    }
     const front = s.yaw >= FRONT_MIN && s.yaw <= FRONT_MAX;
 
     if (phase === 'front1') {
-      frontStreak = front ? frontStreak + 1 : 0;
-      if (front) firstSet.push(s.descriptor);
-      if (frontStreak >= 4) {
+      if (front) { frontStreak++; firstList.push(s.descriptor); } else { frontStreak = 0; firstList = []; }
+      if (frontStreak >= FRONT_FRAMES_1) {
         phase = 'turn';
         onPrompt('Now slowly turn your head to one side');
       } else if (!front) onPrompt('Look straight at the camera');
     } else if (phase === 'turn') {
-      // two samples in a row, so one noisy frame from a weak camera cannot count as a turn
-      turnStreak = s.yaw <= TURN_LOW || s.yaw >= TURN_HIGH ? turnStreak + 1 : 0;
-      if (turnStreak >= 2) {
+      if (s.yaw <= TURN_LOW || s.yaw >= TURN_HIGH) {
         phase = 'front2';
         frontStreak = 0;
         onPrompt('Good. Now look straight again');
       }
     } else {
-      frontStreak = front ? frontStreak + 1 : 0;
-      if (front) secondSet.push(s.descriptor);
-      if (frontStreak >= 3) break;
+      if (front) { frontStreak++; secondList.push(s.descriptor); } else { frontStreak = 0; secondList = []; }
+      if (frontStreak >= FRONT_FRAMES_2) break;
     }
   }
 
-  if (firstSet.length < 3 || secondSet.length < 3) return { ok: false, reason: 'timeout' };
+  if (!firstList.length || !secondList.length || phase !== 'front2') return { ok: false, reason: 'timeout' };
 
-  // Averaging several frames cancels most of the noise of a dim or low quality picture.
-  const first = averageDescriptor(firstSet.slice(-6));
-  const second = averageDescriptor(secondSet.slice(-6));
+  const first = average(firstList);
+  const second = average(secondList);
   const d1 = faceapi.euclideanDistance(first, profile);
   const d2 = faceapi.euclideanDistance(second, profile);
   const same = faceapi.euclideanDistance(first, second);
-  const limit = lowQuality ? MATCH_MAX_DISTANCE_LOWQ : MATCH_MAX_DISTANCE;
-  const distance = (d1 + d2) / 2;
-  // Both live faces must match the profile photo and each other (same person throughout).
-  if (distance > limit || Math.max(d1, d2) > limit + 0.04 || same > limit + 0.04) {
+  const distance = Math.max(d1, d2);
+  // Both live faces must match the profile photo, and match each other (same person throughout).
+  if (distance > MATCH_MAX_DISTANCE || same > SELF_MAX_DISTANCE) {
     return { ok: false, reason: 'mismatch', distance };
   }
   return { ok: true, distance };
@@ -400,13 +294,13 @@ export function failureMessage(reason?: FaceFailure): string {
     case 'models':
       return 'Could not load the face check. Check your internet and try again.';
     case 'no_profile_face':
-      return 'We could not find a clear face in your profile photo. Change it to a photo of just you, facing the camera, with your face easy to see.';
+      return 'We could not find a clear face in your profile photo. Change it to a well-lit photo of just you, facing the camera.';
     case 'profile_image':
       return 'We could not read your profile photo. Choose a new one and try again.';
     case 'timeout':
-      return 'The check did not finish. Face a window or lamp, or switch on the screen light. Keep your face in the frame and turn your head slowly to one side and back.';
+      return 'The check did not finish. Face a light or a window, keep your face in the frame, and turn your head slowly to one side and back.';
     case 'mismatch':
-      return 'The face on the camera did not match your profile photo. Try again facing a light, or change your profile photo to a clear one of you looking straight at the camera.';
+      return 'The face on the camera did not match your profile photo. Try again in good light, or change your profile photo to a clear one of you.';
     case 'cancelled':
       return '';
     default:

@@ -1,7 +1,7 @@
 /** Platform owner. UI gate only: real enforcement must live in Supabase RLS / RPCs (see admin_migration.sql). */
 export const ADMIN_EMAIL = 'hello.rada.app@gmail.com';
 export const OFFICIAL_ADMIN_EMAIL = 'hello.rada.app@gmail.com';
-/** The only admin account. UI gate only; the database enforces the same rule (see 20261107_single_admin.sql). */
+/** The only admin account. UI gate only; the database enforces the same rule (account_grants + triggers). */
 export const ADMIN_EMAILS: string[] = ['hello.rada.app@gmail.com'];
 
 export type UserRole = 'user' | 'merchant' | 'admin';
@@ -46,10 +46,10 @@ export const SUPER_ADMIN_PERMISSIONS: AdminPermissions = {
   maxDailyApprovals: 9999,
 };
 
-/** True only for the platform owner account. A stored 'admin' role on any other account is ignored. */
+/** True when the account is the platform owner or carries the admin role. */
 export function isPlatformAdmin(user?: { email?: string | null; role?: string | null } | null): boolean {
   if (!user) return false;
-  return isOfficialAdmin(user);
+  return isOfficialAdmin(user) || user.role === 'admin';
 }
 
 export type BusinessCategory = 'hospitality' | 'event_organizer';

@@ -5,8 +5,8 @@ import { THEMES } from './profileLook';
 
 export const APP_COLOR_KEY = 'rada_app_color';
 
-// Default (nothing chosen yet) = Sage. 'none' is stored on purpose when someone picks Off.
-export const DEFAULT_APP_COLOR = 'sage';
+// Default (nothing chosen yet) = Terracotta, the warm peach look. 'none' is stored on purpose when someone picks Off.
+export const DEFAULT_APP_COLOR = 'terracotta';
 
 export const getStoredAppColor = (): string => {
   try {

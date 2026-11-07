@@ -12,14 +12,13 @@ import {
   ArrowRight, 
   Lock, 
   UserCheck,
-  Smile,
-  Sun
+  Smile
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import * as cloud from '../lib/cloudSync';
 import type { ToastOptions } from './Toast.tsx';
-import { loadFaceApi, profileDescriptor, runSelfieCheck, failureMessage, openFrontCamera, tuneCamera, type LightLevel } from '../lib/faceCheck';
+import { loadFaceApi, profileDescriptor, runSelfieCheck, failureMessage } from '../lib/faceCheck';
 
 export interface LivenessVerificationModalProps {
   isOpen: boolean;
@@ -56,10 +55,9 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
   const [checkPrompt, setCheckPrompt] = useState('');
   const [checkError, setCheckError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const [screenLight, setScreenLight] = useState(false);
-  const [light, setLight] = useState<LightLevel>('ok');
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [lowLight, setLowLight] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
   const autoCloseTimerRef = useRef<any>(null);
@@ -80,8 +78,6 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
       setChecking(false);
       setCheckPrompt('');
       setCameraError(null);
-      setScreenLight(false);
-      setLight('ok');
       setVerificationProgress(0);
       setAutoCloseCountdown(null);
 
@@ -127,8 +123,29 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
         throw new Error('Camera access is not supported by your browser or environment.');
       }
 
-      // Starts with a good picture and steps down for weak cameras; also asks for steadier exposure.
-      const stream = await openFrontCamera();
+      // Ask for a good picture, but accept whatever the camera can give: cheap or old cameras still work.
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 24, min: 8 } },
+          audio: false,
+        });
+      } catch (firstErr: any) {
+        if (firstErr?.name === 'NotAllowedError' || firstErr?.name === 'PermissionDeniedError') throw firstErr;
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      }
+      // Best effort: let the camera brighten itself in dim rooms (ignored where unsupported).
+      try {
+        const track = stream.getVideoTracks()[0];
+        const caps: any = (track as any).getCapabilities?.() || {};
+        const adv: any[] = [];
+        if (caps.exposureMode?.includes?.('continuous')) adv.push({ exposureMode: 'continuous' });
+        if (caps.whiteBalanceMode?.includes?.('continuous')) adv.push({ whiteBalanceMode: 'continuous' });
+        if (caps.exposureCompensation && typeof caps.exposureCompensation.max === 'number') {
+          adv.push({ exposureCompensation: Math.min(caps.exposureCompensation.max, (caps.exposureCompensation.min + caps.exposureCompensation.max) / 2 + (caps.exposureCompensation.max - caps.exposureCompensation.min) * 0.25) });
+        }
+        if (adv.length) await track.applyConstraints({ advanced: adv } as any);
+      } catch { /* not supported */ }
 
       streamRef.current = stream;
       if (videoRef.current) {
@@ -237,11 +254,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
         setCheckError(failureMessage('no_profile_face'));
         return;
       }
-      const result = await runSelfieCheck(video, profile, setCheckPrompt, ctrl.signal, (lvl) => {
-        setLight(lvl);
-        // dim room: light up the screen so it works as a fill light
-        if (lvl === 'dark') setScreenLight(true);
-      });
+      const result = await runSelfieCheck(video, profile, setCheckPrompt, ctrl.signal, setLowLight);
       if (!result.ok) {
         if (result.reason !== 'cancelled') setCheckError(failureMessage(result.reason));
         return;
@@ -253,6 +266,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
     } finally {
       setChecking(false);
       setCheckPrompt('');
+      setLowLight(false);
     }
   };
 
@@ -325,7 +339,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
   if (!isOpen) return null;
 
   return (
-    <div className={`fixed inset-0 z-50 ${screenLight ? 'bg-white' : 'bg-black/80 backdrop-blur-sm'} flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200`}>
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
       <div 
         className="bg-white dark:bg-[#14171F] text-[#0F172A] dark:text-[#F8FAFC] rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200/90 dark:border-[#222735] flex flex-col max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
@@ -444,7 +458,8 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
                 </p>
               </div>
 
-              {/* Sleek Oval Face-Frame Overlay */}
+              {/* Sleek Oval Face-Frame Overlay. In a dark room the oval gets a bright white frame that lights the face. */}
+              <div className={`mx-auto w-fit transition-all duration-300 ${lowLight ? 'bg-white rounded-[2.5rem] p-5 shadow-[0_0_60px_18px_rgba(255,255,255,0.85)]' : ''}`}>
               <div className="relative w-56 h-72 sm:w-64 sm:h-80 mx-auto rounded-[50%/58%] overflow-hidden bg-black border-4 border-[#FF5733] dark:border-[#D17A68] shadow-2xl flex items-center justify-center group ring-4 ring-[#FF5733]/25 dark:ring-[#D17A68]/25">
                 <video
                   ref={videoRef}
@@ -452,7 +467,6 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
                   playsInline
                   muted
                   className="w-full h-full object-cover scale-x-[-1]"
-                  style={light === 'dark' ? { filter: 'brightness(1.5) contrast(1.1)' } : undefined}
                 />
 
                 {/* Biometric Oval Guide Overlay */}
@@ -476,6 +490,7 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
                     <p className="text-xs font-bold">Starting camera…</p>
                   </div>
                 )}
+              </div>
               </div>
 
               {/* Graceful Camera Error Handling */}
@@ -518,20 +533,6 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
                     <span>Turn camera on</span>
                   </button>
                 )}
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = !screenLight;
-                    setScreenLight(next);
-                    const stream = streamRef.current;
-                    if (next && stream) void tuneCamera(stream, true);
-                  }}
-                  className="text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:text-[#FF5733] transition py-0.5 cursor-pointer flex items-center justify-center gap-1.5"
-                >
-                  <Sun className="w-3.5 h-3.5" />
-                  <span>{screenLight ? 'Screen light is on (tap to turn off)' : 'Dark where you are? Turn on screen light'}</span>
-                </button>
 
                 {selectedAvatar && (
                   <button

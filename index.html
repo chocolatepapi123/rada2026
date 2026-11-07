@@ -26,6 +26,13 @@
  <link rel="manifest" href="/manifest.json" />
 <!-- Phone bars are never themed: they copy the colour of the screen at that edge (src/lib/systemBars.ts).
      This initial value is only for the instant before the app starts: set it to the splash screen colour. -->
+<style>
+  /* Boot splash: painted the instant the page arrives, before any script runs.
+     Same orange and logo size as the app splash and the Android launch screen, so nothing flashes. */
+  #rada-boot { position: fixed; inset: 0; z-index: 99999; background: #E05328; display: flex; align-items: center; justify-content: center; }
+  #rada-boot img { width: 250px; max-width: 70vw; height: auto; display: block; }
+</style>
+<link rel="preload" as="image" href="/rada-mark.png" />
 <meta name="theme-color" content="#E05328" />
 <meta name="color-scheme" content="light" />
 <script>
@@ -52,7 +59,7 @@
 
   </head>
   <body class="text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-200 antialiased overflow-x-hidden">
-    <div id="root"></div>
+    <div id="root"><div id="rada-boot"><img src="/rada-mark.png" alt="RADA" /></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
