@@ -70,19 +70,43 @@ function process(img: HTMLImageElement) {
   img.dataset.radaDone = next;
   img.setAttribute('src', next);
   if (img.hasAttribute('srcset')) img.removeAttribute('srcset');
+  watchSlow(img);
+}
+
+// If a resized picture is still not there 5 seconds after it came into view (slow resizer), show the original instead.
+let io: IntersectionObserver | null = null;
+function watchSlow(img: HTMLImageElement) {
+  if (typeof IntersectionObserver === 'undefined') return;
+  if (!io) {
+    io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        const el = e.target as HTMLImageElement;
+        io!.unobserve(el);
+        setTimeout(() => {
+          if (el.dataset.radaFellBack || !el.dataset.radaOrig) return;
+          if (!el.complete || el.naturalWidth === 0) fallBack(el);
+        }, 5000);
+      }
+    }, { rootMargin: '200px' });
+  }
+  io.observe(img);
+}
+
+function fallBack(img: HTMLImageElement) {
+  const orig = original(img);
+  if (!orig || img.dataset.radaFellBack) return;
+  failures++;
+  img.dataset.radaFellBack = '1';
+  img.dataset.raw = '1';
+  img.setAttribute('src', orig);
 }
 
 let failures = 0;
 
 function onError(e: Event) {
   const img = e.target as HTMLElement;
-  if (!(img instanceof HTMLImageElement)) return;
-  const orig = original(img);
-  if (!orig || img.dataset.radaFellBack) return;
-  failures++;
-  img.dataset.radaFellBack = '1';
-  img.dataset.raw = '1';
-  img.setAttribute('src', orig); // one retry with the original picture
+  if (img instanceof HTMLImageElement) fallBack(img); // one retry with the original picture
 }
 
 export function startImageOptimizer() {
