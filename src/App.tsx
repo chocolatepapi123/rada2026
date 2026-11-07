@@ -379,18 +379,14 @@ export default function App() {
     if (isSupabaseConfigured && supabase && supabase.auth) {
       supabase.auth.getSession().then(async ({ data: { session } }) => {
         if (mounted) {
-          if (session?.user?.id) {
-            const isSuspended = await checkSuspensionState(session.user.id);
-            if (isSuspended) {
-              setAuthLoading(false);
-              return;
-            }
-          }
+          // Show the app right away; the suspension check runs next and signs a suspended account out.
           setSession(session);
           if (session) rememberSession(session);
           setAuthLoading(false);
           if (!session) {
             setIsAuthModalOpen(true);
+          } else if (session.user?.id) {
+            checkSuspensionState(session.user.id).catch(() => false);
           }
         }
       }).catch(() => {
