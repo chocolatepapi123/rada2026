@@ -595,11 +595,14 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
         // every word must appear somewhere in the venue, host, description or tags (null-safe)
         const hay = [
           plan.spotTitle, plan.spotAddress, spot?.title, spot?.neighborhood,
-          plan.hostName, plan.hostHandle, plan.description,
+          plan.hostName, plan.hostHandle, plan.description, spot?.category,
           ...(Array.isArray(plan.tags) ? plan.tags : []),
         ].map((v) => String(v ?? '').toLowerCase()).join(' | ');
         const words = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
-        if (!words.every((w) => hay.includes(w.replace(/^@/, '')))) return false;
+        if (!words.every((w) => {
+          const t = w.replace(/^@/, '');
+          return hay.includes(t) || (t.length > 3 && t.endsWith('s') && hay.includes(t.slice(0, -1)));
+        })) return false;
       }
 
       return true;

@@ -151,7 +151,8 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
   const dayEvents = useMemo(() => {
     return events
       .filter(e => {
-        const matchesDay = selectedDay === null || eventOnDay(e, selectedYear, selectedMonth, selectedDay);
+        // while searching, look at every day (a picked day would hide matches on other days)
+        const matchesDay = searchQuery.trim() !== '' || selectedDay === null || eventOnDay(e, selectedYear, selectedMonth, selectedDay);
         return matchesDay && eventMatchesCategory(e, selectedCategory) && eventMatchesSearch(e, searchQuery);
       })
       .sort((a, b) => (a.startAt || '').localeCompare(b.startAt || ''));
@@ -159,9 +160,10 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
 
   // Clean formatted date header
   const dateHeader = useMemo(() => {
+    if (searchQuery.trim()) return 'Search results';
     if (selectedDay === null) return 'All Upcoming Events';
     return getCleanDateHeader(selectedYear, selectedMonth, selectedDay, isSelectedDayToday);
-  }, [selectedYear, selectedMonth, selectedDay, isSelectedDayToday]);
+  }, [selectedYear, selectedMonth, selectedDay, isSelectedDayToday, searchQuery]);
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',

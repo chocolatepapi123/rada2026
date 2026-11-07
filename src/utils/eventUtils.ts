@@ -398,7 +398,12 @@ export function eventMatchesSearch(e: EventItem, query: string): boolean {
     ...(e.tiers || []).map(t => t.name),
     ...(e.artists || []).map(a => a.name)
   ].filter(Boolean).join(' ').toLowerCase();
-  return q.split(/\s+/).every(word => hay.includes(word));
+  // "concerts" finds "concert" and the other way round; every word must still match
+  return q.split(/\s+/).every(word => {
+    if (hay.includes(word)) return true;
+    const base = word.length > 3 && word.endsWith('s') && !word.endsWith('ss') ? word.slice(0, -1) : word;
+    return hay.includes(base);
+  });
 }
 
 export interface EventFilterState {
