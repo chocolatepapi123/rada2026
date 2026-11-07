@@ -592,18 +592,14 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
 
       // Real-time venue/host/vibe search query
       if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchesSpot = 
-          plan.spotTitle.toLowerCase().includes(q) || 
-          (plan.spotAddress && plan.spotAddress.toLowerCase().includes(q)) ||
-          (spot?.title && spot.title.toLowerCase().includes(q)) ||
-          (spot?.neighborhood && spot.neighborhood.toLowerCase().includes(q));
-        const matchesHost = 
-          plan.hostName.toLowerCase().includes(q) || 
-          (plan.hostHandle && plan.hostHandle.toLowerCase().includes(q));
-        const matchesDesc = plan.description.toLowerCase().includes(q);
-        const matchesTags = plan.tags?.some(t => t.toLowerCase().includes(q));
-        if (!matchesSpot && !matchesHost && !matchesDesc && !matchesTags) return false;
+        // every word must appear somewhere in the venue, host, description or tags (null-safe)
+        const hay = [
+          plan.spotTitle, plan.spotAddress, spot?.title, spot?.neighborhood,
+          plan.hostName, plan.hostHandle, plan.description,
+          ...(Array.isArray(plan.tags) ? plan.tags : []),
+        ].map((v) => String(v ?? '').toLowerCase()).join(' | ');
+        const words = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
+        if (!words.every((w) => hay.includes(w.replace(/^@/, '')))) return false;
       }
 
       return true;
@@ -619,12 +615,11 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   const filteredSpotsForHosting = useMemo(() => {
     if (!spotSearchQuery.trim()) return sortTrending(spots).slice(0, 10);
     const q = spotSearchQuery.toLowerCase();
-    return spots.filter(s => 
-      (s.title || '').toLowerCase().includes(q) || 
-      (s.neighborhood || '').toLowerCase().includes(q) || 
-      (s.address || '').toLowerCase().includes(q) || 
-      (s.category || '').toLowerCase().includes(q)
-    ).slice(0, 10);
+    const words = q.split(/\s+/).filter(Boolean);
+    return spots.filter(s => {
+      const hay = `${s.title || ''} ${s.neighborhood || ''} ${s.address || ''} ${s.category || ''}`.toLowerCase();
+      return words.every((w) => hay.includes(w));
+    }).slice(0, 10);
   }, [spots, spotSearchQuery]);
 
   const selectedSpot = useMemo(() => {

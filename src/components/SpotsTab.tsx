@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useProgressiveCount } from '../lib/useProgressive.ts';
 import { Check as CheckMark } from 'lucide-react';
 import {
@@ -49,6 +49,7 @@ import { AdminConfirmModal } from './AdminConfirmModal.tsx';
 import { deleteListing } from '../lib/cloudSync.ts';
 import { useActivePromotions, sortSpotsByCategoryPromotion } from '../lib/promotions.ts';
 import { logPlatformEvent } from '../lib/platformAnalytics';
+import { recordInterest, categoriesForQuery } from '../lib/interests.ts';
 
 interface SpotsTabProps {
   spots: SpotItem[];
@@ -430,6 +431,24 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
 
     return true;
   }), [displaySpots, selectedCategory, selectedNeighborhood, selectedPriceTier, selectedRating, onlySpecialOffers, deferredQuery]);
+
+  // Learn what this person likes (kept on this phone): a search they settle on, or a category they pick here.
+  const filteredSpotsRef = useRef<any[]>([]);
+  filteredSpotsRef.current = filteredSpots;
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 3) return;
+    const timer = setTimeout(() => {
+      try { recordInterest(categoriesForQuery(q, filteredSpotsRef.current), 'search'); } catch { /* never block Spots */ }
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+  const firstCategoryRun = useRef(true);
+  useEffect(() => {
+    // skip the restored filter on first mount: only a pick made now counts
+    if (firstCategoryRun.current) { firstCategoryRun.current = false; return; }
+    if (selectedCategory !== 'all') { try { recordInterest([selectedCategory], 'filter'); } catch { /* ignore */ } }
+  }, [selectedCategory]);
 
   // One list per category; a spot with extra_categories appears in every category it belongs to.
   // Spots tab category slots (paid packs): promoted spots first in admin order, the rest keep their order.

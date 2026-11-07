@@ -636,8 +636,14 @@ export async function insertReview(spotId: number | string, review: any, userId:
   // 'rada_reviews' is the single source of truth. Rules (one review per user per spot,
   // 1-5 rating, hourly limit, no reviewing your own listing) are enforced in the database.
   try {
+    // One review per person per spot: posting again edits the earlier review instead of adding a second one.
+    let reviewId = String(clean.id);
+    try {
+      const { data: prev } = await supabase.from('rada_reviews').select('id').eq('user_id', userId).eq('spot_id', sId).limit(1);
+      if (prev && prev[0]?.id) { reviewId = String(prev[0].id); clean.id = reviewId; }
+    } catch { /* fall back to the new id */ }
     const radaRow = {
-      id: String(clean.id),
+      id: reviewId,
       spot_id: sId,
       user_id: userId,
       rating: ratingNum,
