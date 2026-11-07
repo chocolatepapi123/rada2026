@@ -31,6 +31,7 @@ jobs:
             "appId": "com.rada.app",
             "appName": "RADA",
             "webDir": "www",
+            "backgroundColor": "#E05328",
             "server": {
               "url": "https://rada2026-omega.vercel.app/",
               "androidScheme": "https"
@@ -111,6 +112,21 @@ jobs:
               )
               s = s[:m.start()] + head + body.rstrip() + add + tail + s[m.end():]
               open(f, 'w').write(s)
+          # After the launch theme, the app theme runs while the web page is still loading: keep it orange
+          # (it used to fall back to black for about a second).
+          s = open(f).read()
+          m2 = re.search(r'(<style name="AppTheme\.NoActionBar"[^>]*>)(.*?)(</style>)', s, re.S)
+          if m2:
+              head2, body2, tail2 = m2.groups()
+              body2 = re.sub(r'\s*<item name="(android:)?(background|windowBackground)">.*?</item>', '', body2, flags=re.S)
+              add2 = (
+                  '\n        <item name="android:background">@drawable/splash</item>'
+                  '\n        <item name="android:windowBackground">@drawable/splash</item>\n    '
+              )
+              s = s[:m2.start()] + head2 + body2.rstrip() + add2 + tail2 + s[m2.end():]
+              open(f, 'w').write(s)
+          else:
+              print('WARNING: AppTheme.NoActionBar not found')
           print(open(f).read())
           PY
 
