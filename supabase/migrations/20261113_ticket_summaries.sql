@@ -1,0 +1,1 @@
+-- ticket_summaries(p_kind, p_sources[]) -> jsonb {source_id: {min_price, left}}; applied live. grant to anon, authenticated.

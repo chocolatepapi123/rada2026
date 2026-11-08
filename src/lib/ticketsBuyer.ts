@@ -120,3 +120,12 @@ export async function checkInTicket(code: string): Promise<CheckInResult> {
   if (error) throw new Error(clean(error.message));
   return data as CheckInResult;
 }
+
+export interface TicketSummary { min_price: number; left: number }
+
+/** Cheapest price and tickets left per outing/event, for cards. Missing key = nothing on sale. */
+export async function fetchTicketSummaries(kind: TicketSource, ids: string[]): Promise<Record<string, TicketSummary>> {
+  if (!isSupabaseConfigured || !ids.length) return {};
+  const { data, error } = await supabase.rpc('ticket_summaries', { p_kind: kind, p_sources: ids });
+  return error || !data ? {} : (data as Record<string, TicketSummary>);
+}

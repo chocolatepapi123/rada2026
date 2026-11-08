@@ -38,6 +38,9 @@ import { OutingPlan, OutingAttendee, SpotItem, UserProfile } from '../types.ts';
 import { shareContent } from '../utils/shareUtils.ts';
 import OutingShareCard from './OutingShareCard';
 import HostTicketsPanel from './HostTicketsPanel';
+import TicketBuySheet from './TicketBuySheet';
+import MyTicketsSheet from './MyTicketsSheet';
+import { fetchTicketSummaries, type TicketSummary } from '../lib/ticketsBuyer';
 import { WaitlistButton, TemplatePicker } from './OutingExtras';
 import { uploadCoverImage } from '../lib/cloudSync.ts';
 import { useUnclaimedSpots, mergeSpots, sortTrending } from '../lib/spotsFeed.ts';
@@ -385,8 +388,13 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   }, [activeManagingOuting?.id, currentUserId]);
 
   // ---- Custom deep link for hosted plans ----------------------------------
+  const [ticketInfo, setTicketInfo] = useState<Record<string, TicketSummary>>({});
+  const [buyFor, setBuyFor] = useState<OutingPlan | null>(null);
+  const [myTicketsOpen, setMyTicketsOpen] = useState(false);
+
+  // Links for outings that sell tickets open the buy sheet straight away
   const buildOutingLink = (plan: OutingPlan) =>
-    `${siteOrigin()}/?tab=outings&outing=${encodeURIComponent(String(plan.id))}&ref=share`;
+    `${siteOrigin()}/?tab=outings&outing=${encodeURIComponent(String(plan.id))}&ref=share${ticketInfo[String(plan.id)] ? '&tickets=1' : ''}`;
 
   const [shareCardFor, setShareCardFor] = useState<OutingPlan | null>(null);
   const [ticketsFor, setTicketsFor] = useState<OutingPlan | null>(null);
@@ -664,6 +672,19 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   };
 
   // Handle Join Request
+  const ticketIdsKey = filteredOutings.map((p) => String(p.id)).join(',');
+  useEffect(() => {
+    let off = false;
+    const ids = ticketIdsKey ? ticketIdsKey.split(',') : [];
+    fetchTicketSummaries('outing', ids).then((m) => { if (!off) setTicketInfo(m); });
+    return () => { off = true; };
+  }, [ticketIdsKey]);
+
+  const openBuy = (e: React.MouseEvent, plan: OutingPlan) => {
+    e.stopPropagation();
+    setBuyFor(plan);
+  };
+
   const handleJoinClick = async (e: React.MouseEvent, plan: OutingPlan) => {
     e.stopPropagation();
     if (!isUserSignedIn && !currentUserId) {
@@ -1073,6 +1094,16 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                 onClick={() => setSelectedOutingDetail(plan)}
                 className="bg-white dark:bg-[#1C1A1E] border border-slate-200/90 dark:border-slate-800 rounded-3xl p-4 shadow-sm hover:border-[#E0533C]/50 transition-all cursor-pointer group space-y-3.5 text-slate-900 dark:text-slate-100"
               >
+                {ticketInfo[String(plan.id)] && (
+                  <button
+                    type="button"
+                    onClick={(e) => openBuy(e, plan)}
+                    className="w-full flex items-center justify-between gap-2 rounded-2xl bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 px-3 py-2 text-xs font-extrabold"
+                  >
+                    <span>🎟️ Tickets {ticketInfo[String(plan.id)].min_price > 0 ? `from KES ${ticketInfo[String(plan.id)].min_price.toLocaleString('en-KE')}` : 'free'}</span>
+                    <span>{ticketInfo[String(plan.id)].left <= 0 ? 'Sold out' : ticketInfo[String(plan.id)].left <= 10 ? `${ticketInfo[String(plan.id)].left} left` : 'Get tickets'}</span>
+                  </button>
+                )}
                 {/* Host Profile Header */}
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -1988,6 +2019,15 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                   );
                 })()}
 
+                {ticketInfo[String((activeSelectedOutingDetail || selectedOutingDetail)!.id)] && (
+                  <button
+                    type="button"
+                    onClick={(e) => openBuy(e, (activeSelectedOutingDetail || selectedOutingDetail)!)}
+                    className="px-4 py-3 rounded-2xl bg-purple-600 text-white text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <span>🎟️ Get tickets</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => handleShareOutingLink((activeSelectedOutingDetail || selectedOutingDetail)!)}
@@ -2311,6 +2351,17 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
           showToast={showToast}
         />
       )}
+      {buyFor && (
+        <TicketBuySheet
+          kind="outing"
+          source={String(buyFor.id)}
+          signedIn={isUserSignedIn || !!currentUserId}
+          onNeedSignIn={() => { setBuyFor(null); showToast('Please sign in to buy tickets'); onOpenAuth(); }}
+          onClose={() => setBuyFor(null)}
+          onOpenMyTickets={() => setMyTicketsOpen(true)}
+        />
+      )}
+      {myTicketsOpen && <MyTicketsSheet onClose={() => setMyTicketsOpen(false)} />}
       {ticketsFor && (
         <HostTicketsPanel
           kind="outing"
