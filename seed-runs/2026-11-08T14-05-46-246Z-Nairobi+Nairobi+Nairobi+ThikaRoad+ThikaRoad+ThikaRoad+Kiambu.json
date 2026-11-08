@@ -1,0 +1,91 @@
+{
+  "ranAt": "2026-11-08T14:05:46.247Z",
+  "areas": [
+    "Nairobi|Nairobi",
+    "Westlands|Nairobi",
+    "Kilimani|Nairobi",
+    "Thika Road|Thika Road",
+    "Ruiru|Thika Road",
+    "Juja|Thika Road",
+    "Kiambu|Kiambu",
+    "Ruaka|Kiambu"
+  ],
+  "categories": [
+    "Getaways & Resorts"
+  ],
+  "target": 15,
+  "summary": [
+    {
+      "area": "Nairobi",
+      "category": "Getaways & Resorts",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Westlands -> Nairobi",
+      "category": "Getaways & Resorts",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Kilimani -> Nairobi",
+      "category": "Getaways & Resorts",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Thika Road",
+      "category": "Getaways & Resorts",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Ruiru -> Thika Road",
+      "category": "Getaways & Resorts",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Juja -> Thika Road",
+      "category": "Getaways & Resorts",
+      "qualified": 0,
+      "alreadyInDb": 0,
+      "new": 0,
+      "note": "target reached"
+    },
+    {
+      "area": "Kiambu",
+      "category": "Getaways & Resorts",
+      "qualified": 18,
+      "alreadyInDb": 16,
+      "new": 1,
+      "note": ""
+    },
+    {
+      "area": "Ruaka -> Kiambu",
+      "category": "Getaways & Resorts",
+      "qualified": 30,
+      "alreadyInDb": 30,
+      "new": 0,
+      "note": "SHORT by 1"
+    }
+  ],
+  "spots": [
+    {
+      "google_place_id": "ChIJRafshCY9LxgR3kIWD5TCJ8A",
+      "name": "Glee Nairobi",
+      "category": "Getaways & Resorts",
+      "neighborhood": "Kiambu"
+    }
+  ]
+}
