@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { CheckCircle2, Copy, Loader2, Pause, Pencil, Play, Plus, Share2, Smartphone, Ticket, X } from 'lucide-react';
 import {
-  canSellTickets, createTicketType, fetchHostView, getMyPayoutPhone, savePayoutPhone,
+  canSellTickets, createTicketType, getOutingTicketRule, setOutingTicketRule, type OutingTicketRule, fetchHostView, getMyPayoutPhone, savePayoutPhone,
   ticketShareUrl, updateTicketType, type HostTicketType, type HostTicketView, type TicketSource,
 } from '../lib/tickets';
 import { shareContent } from '../utils/shareUtils';
@@ -30,6 +30,7 @@ export const HostTicketsPanel: React.FC<Props> = ({ kind, source, title, onClose
   const [err, setErr] = useState('');
   const [adding, setAdding] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [rule, setRule] = useState<OutingTicketRule>({ require_ticket: false, pay_window_minutes: 1440 });
   const [editing, setEditing] = useState<HostTicketType | null>(null);
   const [f, setF] = useState({ name: '', price: '', qty: '', desc: '' });
 
@@ -43,6 +44,7 @@ export const HostTicketsPanel: React.FC<Props> = ({ kind, source, title, onClose
       setAllowed(ok);
       setPayout(await getMyPayoutPhone());
       if (ok) setView(await fetchHostView(kind, source));
+      if (ok && kind === 'outing') setRule(await getOutingTicketRule(source));
     } catch (e: any) {
       setErr(e?.message || 'We could not load your tickets.');
     } finally {
@@ -143,6 +145,33 @@ export const HostTicketsPanel: React.FC<Props> = ({ kind, source, title, onClose
                 <div className="rounded-xl bg-slate-50 dark:bg-white/5 p-2"><p className="text-[10px] text-slate-500">Sold</p><p className="font-extrabold">{totals.sold}</p></div>
                 <div className="rounded-xl bg-slate-50 dark:bg-white/5 p-2"><p className="text-[10px] text-slate-500">You earn</p><p className="font-extrabold">{kes(totals.net)}</p></div>
                 <div className="rounded-xl bg-slate-50 dark:bg-white/5 p-2"><p className="text-[10px] text-slate-500">Checked in</p><p className="font-extrabold">{totals.in}</p></div>
+              </div>
+            )}
+
+            {kind === 'outing' && (
+              <div className="rounded-2xl border border-slate-200 dark:border-white/10 p-3 space-y-2">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input type="checkbox" className="mt-1 w-4 h-4 accent-purple-600" checked={rule.require_ticket}
+                    onChange={(e) => run(async () => { await setOutingTicketRule(source, e.target.checked, rule.pay_window_minutes); }, e.target.checked ? 'Guests must now pay after approval' : 'Ticket no longer required')} />
+                  <span className="text-sm">
+                    <span className="font-bold block">Approved guests must buy a ticket</span>
+                    <span className="text-[11px] text-slate-500">Guests ask to join as usual. After you approve them, they pay to keep their spot.</span>
+                  </span>
+                </label>
+                {rule.require_ticket && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-slate-600 dark:text-slate-300 shrink-0">Pay within</span>
+                    <select value={rule.pay_window_minutes} disabled={busy}
+                      onChange={(e) => run(async () => { await setOutingTicketRule(source, true, Number(e.target.value)); })}
+                      className="flex-1 rounded-xl border border-slate-200 dark:border-white/10 bg-transparent px-2 py-1.5 text-sm">
+                      {[[30, '30 minutes'], [60, '1 hour'], [180, '3 hours'], [720, '12 hours'], [1440, '24 hours'], [2880, '2 days'], [10080, '7 days']].map(([m, l]) => (
+                        <option key={m} value={m}>{l}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {rule.require_ticket && <p className="text-[11px] text-slate-500">If a guest does not pay in time, their approval is cancelled and they are told. You will see who is still waiting in Manage.</p>}
+                {rule.require_ticket && !(view?.types || []).length && <p className="text-[11px] text-amber-700">Add a ticket below first. Until one is on sale, approvals go through without payment.</p>}
               </div>
             )}
 

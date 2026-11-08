@@ -657,7 +657,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   };
 
   // Check user attendee status for a plan
-  const getAttendeeStatus = (plan: OutingPlan): 'host' | 'joined' | 'pending' | 'none' => {
+  const getAttendeeStatus = (plan: OutingPlan): 'host' | 'joined' | 'pending' | 'awaiting' | 'none' => {
     const effectiveUserId = currentUserId || currentUserProfile.handle || 'current-user';
     if (plan.hostId === effectiveUserId || plan.hostName === currentUserProfile.name) {
       return 'host';
@@ -668,7 +668,23 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       (currentUserProfile.handle && a.userHandle === currentUserProfile.handle)
     );
     if (!myAttendee || myAttendee.status === 'declined') return 'none';
+    if (myAttendee.status === 'awaiting_payment') return 'awaiting';
     return (myAttendee.status === 'joined' || myAttendee.status === 'approved') ? 'joined' : 'pending';
+  };
+
+  // Approved guests who still have to pay: how long they have left
+  const myPayBy = (plan: OutingPlan): string | null => {
+    const me = plan.attendees?.find(a => a.status === 'awaiting_payment' && (a.userId === currentUserId || (currentUserProfile.handle && a.userHandle === currentUserProfile.handle)));
+    return me?.payBy || null;
+  };
+  const timeLeft = (iso?: string | null): string => {
+    if (!iso) return '';
+    const ms = new Date(iso).getTime() - Date.now();
+    if (ms <= 0) return 'time is up';
+    const m = Math.ceil(ms / 60000);
+    if (m < 60) return `${m} min left`;
+    const h = Math.floor(m / 60);
+    return h < 48 ? `${h}h ${m % 60}m left` : `${Math.floor(h / 24)} days left`;
   };
 
   // Handle Join Request
@@ -1265,6 +1281,16 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                         <Clock className="w-3.5 h-3.5 text-amber-600 animate-spin" />
                         <span>Pending Host Approval</span>
                       </span>
+                    )}
+
+                    {attendeeStatus === 'awaiting' && (
+                      <button
+                        type="button"
+                        onClick={(e) => openBuy(e, plan)}
+                        className="px-3 py-1.5 rounded-xl text-xs font-black bg-purple-600 text-white flex items-center gap-1 shadow-sm active:scale-95"
+                      >
+                        <span>✅ Approved · Pay for your ticket ({timeLeft(myPayBy(plan))})</span>
+                      </button>
                     )}
 
                     {attendeeStatus === 'joined' && (
@@ -1997,6 +2023,17 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                       </div>
                     );
                   }
+                  if (status === 'awaiting') {
+                    return (
+                      <button
+                        type="button"
+                        onClick={(e) => openBuy(e, targetPlan)}
+                        className="flex-1 py-3 px-3 text-center rounded-2xl bg-purple-600 text-white font-extrabold text-xs shadow-md"
+                      >
+                        Approved! Pay for your ticket to keep your spot ({timeLeft(myPayBy(targetPlan))})
+                      </button>
+                    );
+                  }
                   if (status === 'pending') {
                     return (
                       <div className="flex-1 py-3 text-center rounded-2xl bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-200 font-extrabold text-xs">
@@ -2241,6 +2278,26 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
               })()}
 
               {/* 2. Confirmed Attendees & Host */}
+              {(() => {
+                const waiting = (activeManagingOuting.attendees || []).filter(a => a.status === 'awaiting_payment');
+                if (!waiting.length) return null;
+                return (
+                  <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-purple-500" />
+                      <span>Approved, waiting for payment ({waiting.length})</span>
+                    </h4>
+                    {waiting.map(a => (
+                      <div key={a.id} className="flex items-center justify-between gap-2 rounded-xl bg-purple-50 dark:bg-purple-950/30 px-3 py-2 text-xs">
+                        <span className="font-bold truncate">{a.userHandle || a.userName}</span>
+                        <span className="text-purple-700 dark:text-purple-300 font-bold shrink-0">{timeLeft(a.payBy)}</span>
+                      </div>
+                    ))}
+                    <p className="text-[10px] text-slate-500">If they do not pay in time, their approval is cancelled automatically.</p>
+                  </div>
+                );
+              })()}
+
               {(() => {
                 const confirmedList = (activeManagingOuting.attendees || []).filter(a => a.status === 'joined' || a.status === 'approved');
 

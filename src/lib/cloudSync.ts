@@ -1789,6 +1789,7 @@ export async function fetchOutings(): Promise<OutingPlan[] | null> {
             userAvatar: att.user_avatar || att.userAvatar || '',
             userHandle: toHandle(att.user_handle || att.userHandle),
             status: att.status || 'pending',
+            payBy: att.pay_by || null,
             requestedAt: att.created_at || att.requestedAt || new Date().toISOString()
           });
         });
@@ -1973,7 +1974,7 @@ export async function requestJoinOuting(
 export async function updateOutingAttendeeStatus(
   attendeeId: string,
   status: 'pending' | 'joined' | 'approved' | 'declined'
-): Promise<{ error: string | null }> {
+): Promise<{ error: string | null; status?: string; payBy?: string | null }> {
   // Update local storage cache
   try {
     const cached = localStorage.getItem(OUTINGS_LOCAL_KEY);
@@ -1996,12 +1997,13 @@ export async function updateOutingAttendeeStatus(
 
   if (!isSupabaseConfigured) return { error: null };
   try {
-    const { error } = await supabase.from('outing_attendees').update({ status }).eq('id', attendeeId);
+    // The database may turn "approved" into "awaiting_payment" when the host asked guests to buy a ticket
+    const { data, error } = await supabase.from('outing_attendees').update({ status }).eq('id', attendeeId).select('status,pay_by').maybeSingle();
     if (error) {
       console.warn('updateOutingAttendeeStatus Supabase error:', error.message);
       return { error: error.message };
     }
-    return { error: null };
+    return { error: null, status: (data as any)?.status, payBy: (data as any)?.pay_by ?? null };
   } catch (err: any) {
     return { error: err?.message || String(err) };
   }

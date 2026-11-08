@@ -588,7 +588,9 @@ export interface OutingAttendee {
   userName: string;
   userAvatar: string;
   userHandle?: string;
-  status: 'pending' | 'joined' | 'approved' | 'declined';
+  /** awaiting_payment: approved by the host, ticket must be paid before payBy or the approval is cancelled */
+  status: 'pending' | 'joined' | 'approved' | 'declined' | 'awaiting_payment';
+  payBy?: string | null;
   isVerified?: boolean;
   requestedAt: string;
 }

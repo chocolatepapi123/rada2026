@@ -1,0 +1,7 @@
+-- Applied live. Summary:
+-- outing_attendees.pay_by; outing_ticket_rules(outing_id, require_ticket, pay_window_minutes);
+-- outing_set_ticket_rule(); trigger trg_attendee_require_ticket (pending -> approved becomes awaiting_payment with a deadline);
+-- trigger trg_ticket_confirms_guest (a ticket confirms the guest); outing_expire_unpaid() run every minute by cron
+--   (rada-expire-unpaid-guests) cancels approvals that were not paid in time; friendlier trg_notify_attendee messages;
+-- ticket_buy refuses guests who were not approved when the outing needs a ticket (hint approval_needed);
+-- ticket_orders.refund_status/refund_ref/refunded_at; admin_ticket_overview(); admin_mark_refunded().

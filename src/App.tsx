@@ -1206,6 +1206,17 @@ export default function App() {
       return;
     }
 
+    // The host asked for a paid ticket: the guest is approved but waits for payment before they count as in
+    if (status === 'approved' && upd.status === 'awaiting_payment') {
+      setOutings(prev => prev.map(o => {
+        if (o.id !== outingId) return o;
+        const atts = (o.attendees || []).map(a => a.id === attendeeId ? { ...a, status: 'awaiting_payment' as const, payBy: upd.payBy ?? null } : a);
+        return { ...o, attendees: atts, currentAttendeesCount: atts.filter(a => a.status === 'joined' || a.status === 'approved').length + 1 };
+      }));
+      showToast('Approved. They have to pay for their ticket in time to keep the spot.');
+      return;
+    }
+
     // If approved, automatically create / link temporary Group Chat and add host + confirmed members
     if (status === 'approved') {
       const res = await socials.openOutingChat(outingId);

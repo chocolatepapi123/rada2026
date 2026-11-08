@@ -116,3 +116,45 @@ export function ticketShareUrl(kind: TicketSource, source: string): string {
   const key = kind === 'event' ? 'event' : 'outing';
   return `${siteOrigin()}/?${key}=${encodeURIComponent(source)}&tickets=1`;
 }
+
+export interface OutingTicketRule { require_ticket: boolean; pay_window_minutes: number }
+
+export async function getOutingTicketRule(outingId: string): Promise<OutingTicketRule> {
+  const { data } = await supabase.from('outing_ticket_rules').select('require_ticket,pay_window_minutes').eq('outing_id', outingId).maybeSingle();
+  return (data as OutingTicketRule) || { require_ticket: false, pay_window_minutes: 1440 };
+}
+
+/** "Guests must pay within X after I approve them, or the approval is cancelled." */
+export async function setOutingTicketRule(outingId: string, require: boolean, minutes: number): Promise<void> {
+  const { error } = await supabase.rpc('outing_set_ticket_rule', { p_outing: outingId, p_require: require, p_minutes: minutes });
+  if (error) fail(error, 'We could not save that setting.');
+}
+
+export interface AdminTicketOverview {
+  paid_enabled: boolean;
+  payouts_due: { owner_id: string; email: string; name: string; orders: number; gross_kes: number; commission_kes: number; net_due_kes: number }[];
+  payouts_failed: { order_id: string; net_kes: number; phone: string | null; error: string | null; attempts: number }[];
+  refunds: { order_id: string; amount_kes: number; phone: string | null; buyer: string; email: string | null; reason: string | null; created_at: string }[];
+}
+
+export async function adminTicketOverview(): Promise<AdminTicketOverview> {
+  const { data, error } = await supabase.rpc('admin_ticket_overview');
+  if (error) fail(error, 'We could not load ticket money.');
+  return data as AdminTicketOverview;
+}
+export async function adminSetPaidTickets(on: boolean): Promise<void> {
+  const { error } = await supabase.rpc('admin_set_paid_tickets', { p_on: on });
+  if (error) fail(error, 'We could not change that.');
+}
+export async function adminMarkRefunded(orderId: string, ref: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_mark_refunded', { p_order: orderId, p_ref: ref });
+  if (error) fail(error, 'We could not mark that refund.');
+}
+export async function adminRetryPayout(orderId: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_retry_ticket_payout', { p_order: orderId });
+  if (error) fail(error, 'We could not retry that payout.');
+}
+export async function adminMarkPayoutsPaid(ownerId: string, ref: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_mark_ticket_payouts', { p_owner: ownerId, p_ref: ref });
+  if (error) fail(error, 'We could not mark that payout.');
+}
