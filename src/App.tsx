@@ -166,6 +166,8 @@ const Overlays = lazyNamed(() => import('./components/Overlays.tsx'), 'Overlays'
 const LocationMapModal = lazyNamed(() => import('./components/LocationMapModal.tsx'), 'LocationMapModal');
 const UserProfileModal = lazyNamed(() => import('./components/UserProfileModal.tsx'), 'UserProfileModal');
 const AccountSettingsModal = lazyNamed(() => import('./components/AccountSettingsModal.tsx'), 'AccountSettingsModal');
+const TicketBuySheet = lazyNamed(() => import('./components/TicketBuySheet.tsx'), 'TicketBuySheet');
+const MyTicketsSheet = lazyNamed(() => import('./components/MyTicketsSheet.tsx'), 'MyTicketsSheet');
 const SavedPlacesModal = lazyNamed(() => import('./components/SavedPlacesModal.tsx'), 'SavedPlacesModal');
 const LivenessVerificationModal = lazyNamed(() => import('./components/LivenessVerificationModal.tsx'), 'LivenessVerificationModal');
 const SuggestSpotModal = lazyNamed(() => import('./components/SuggestSpotModal.tsx'), 'SuggestSpotModal');
@@ -1303,6 +1305,27 @@ export default function App() {
 
   // Modals state for Account Settings and Saved Items
   const [isSavedModalOpen, setIsSavedModalOpen] = useState(false);
+  const [isMyTicketsOpen, setIsMyTicketsOpen] = useState(false);
+  // Share links like /?event=ID&tickets=1 or /?outing=ID&tickets=1 open the ticket sheet
+  const [ticketLink, setTicketLink] = useState<{ kind: 'event' | 'outing'; source: string } | null>(() => {
+    try {
+      const q = new URLSearchParams(window.location.search);
+      if (q.get('tickets') !== '1') return null;
+      const ev = q.get('event'); const out = q.get('outing');
+      if (ev) return { kind: 'event', source: ev };
+      if (out) return { kind: 'outing', source: out };
+    } catch (_) {}
+    return null;
+  });
+  const closeTicketLink = () => {
+    setTicketLink(null);
+    try {
+      const q = new URLSearchParams(window.location.search);
+      ['tickets', 'event'].forEach(k => q.delete(k));
+      const qs = q.toString();
+      window.history.replaceState(window.history.state, '', window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash);
+    } catch (_) {}
+  };
   const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
   const [isProfilePageOpen, setIsProfilePageOpen] = useState(false);
   // Profile page is loaded into state (not React.lazy) so it always appears the moment its code arrives.
@@ -2736,6 +2759,7 @@ export default function App() {
             userId={session?.user?.id}
             onLogout={handleSignOut}
             onOpenSaved={() => setIsSavedModalOpen(true)}
+            onOpenMyTickets={() => requireAuth('see your tickets', () => setIsMyTicketsOpen(true))}
             savedCount={savedItems.length}
             onOpenProfile={() => setIsProfilePageOpen(true)}
             avatar={currentUserProfile?.avatar}
@@ -3195,6 +3219,20 @@ export default function App() {
               myBusinesses={session?.user?.id ? businesses.filter(b => b.ownerId === session.user.id && !isDemoId(b.id)) : []}
             />
           )}
+
+          {ticketLink && (
+            <div className={isAuthModalOpen ? 'hidden' : ''}>
+            <TicketBuySheet
+              kind={ticketLink.kind}
+              source={ticketLink.source}
+              signedIn={!!session && !isGuestMode}
+              onNeedSignIn={() => { setAuthModalMessage('Please log in or create an account to buy tickets.'); setIsAuthModalOpen(true); }}
+              onClose={closeTicketLink}
+              onOpenMyTickets={() => setIsMyTicketsOpen(true)}
+            />
+            </div>
+          )}
+          {isMyTicketsOpen && <MyTicketsSheet onClose={() => setIsMyTicketsOpen(false)} />}
 
           {isSavedModalOpen && (
             <SavedPlacesModal

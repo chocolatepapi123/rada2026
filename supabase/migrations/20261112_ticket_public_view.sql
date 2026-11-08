@@ -1,0 +1,4 @@
+-- Public ticket view for the share link (works signed out). Applied live; recorded here.
+-- See function public.ticket_public_view(p_kind text, p_source text) returning jsonb:
+-- event details (title, date, time, place, image, host, paid_enabled) + tickets on sale.
+-- grant execute to anon, authenticated.

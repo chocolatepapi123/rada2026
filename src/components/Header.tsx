@@ -15,7 +15,8 @@ import {
   Sparkles,
   ShieldCheck,
   ChevronRight,
-  ArrowLeft
+  ArrowLeft,
+  Ticket
 } from 'lucide-react';
 import { isPlatformAdmin } from '../types';
 import type { ToastOptions } from './Toast.tsx';
@@ -58,6 +59,7 @@ interface HeaderProps {
   userId?: string | null;
   onLogout?: () => void;
   onOpenSaved?: () => void;
+  onOpenMyTickets?: () => void;
   savedCount?: number;
   /** @deprecated Account settings now live inside the 3-dot menu. Accepted so existing callers still compile. */
   onOpenAccountSettings?: () => void;
@@ -92,6 +94,7 @@ export const Header: React.FC<HeaderProps> = ({
   userId,
   onLogout,
   onOpenSaved,
+  onOpenMyTickets,
   savedCount,
   onOpenSuggestSpot,
   avatar,
@@ -305,6 +308,21 @@ export const Header: React.FC<HeaderProps> = ({
                         </span>
                       )}
                     </button>
+
+                    {onOpenMyTickets && (
+                      <button
+                        type="button"
+                        onClick={() => { setMenuOpen(false); onOpenMyTickets(); }}
+                        className={MENU_ROW}
+                      >
+                        <span className={`${MENU_TILE} bg-purple-500/10 text-purple-600`}>
+                          <Ticket className="w-4 h-4" />
+                        </span>
+                        <span className="flex-1 min-w-0">
+                          <span className={MENU_TITLE}>My Tickets</span>
+                        </span>
+                      </button>
+                    )}
 
                     <button
                       type="button"

@@ -5,6 +5,7 @@ import {
   ticketShareUrl, updateTicketType, type HostTicketType, type HostTicketView, type TicketSource,
 } from '../lib/tickets';
 import { shareContent } from '../utils/shareUtils';
+import TicketScanner from './TicketScanner';
 
 interface Props {
   kind: TicketSource;
@@ -28,6 +29,7 @@ export const HostTicketsPanel: React.FC<Props> = ({ kind, source, title, onClose
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [adding, setAdding] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [editing, setEditing] = useState<HostTicketType | null>(null);
   const [f, setF] = useState({ name: '', price: '', qty: '', desc: '' });
 
@@ -196,12 +198,14 @@ export const HostTicketsPanel: React.FC<Props> = ({ kind, source, title, onClose
               <button onClick={async () => { try { await navigator.clipboard.writeText(link); toast('Link copied'); } catch { toast('Copy failed', 'error'); } }}
                 className="rounded-xl border border-slate-200 dark:border-white/10 py-2.5 text-sm font-bold flex items-center justify-center gap-1.5"><Copy className="w-4 h-4" /> Copy link</button>
             </div>
+            {totals.sold > 0 && <button onClick={() => setScanning(true)} className="w-full rounded-xl bg-emerald-600 text-white py-2.5 text-sm font-bold">Check in guests</button>}
             {onEditPoster && <button onClick={onEditPoster} className="w-full rounded-xl border border-slate-200 dark:border-white/10 py-2.5 text-sm font-bold">Edit poster</button>}
           </>
         )}
 
         {err && <p role="alert" className="text-sm text-red-600">{err}</p>}
       </div>
+      {scanning && <TicketScanner onClose={() => { setScanning(false); load(); }} />}
     </div>
   );
 };
