@@ -1,0 +1,6 @@
+-- Applied live. Summary:
+-- _outing_seats(outing, exclude_user): tickets left minus tickets held for guests awaiting payment.
+-- trg_attendee_require_ticket: approval needs a free ticket to hold (hint no_seats).
+-- ticket_buy: cannot eat into tickets held for other approved guests (hint held).
+-- ticket_reminders table; _ticket_event_start(); ticket_send_reminders() ("tomorrow" and "starts soon");
+-- outing_remind_unpaid() nudges guests close to their pay-by time; cron rada-ticket-reminders every 10 minutes.

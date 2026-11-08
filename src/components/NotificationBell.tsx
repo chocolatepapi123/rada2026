@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Bell, X, Megaphone, BellOff, Users } from 'lucide-react';
+import { Bell, X, Megaphone, BellOff, Users, Ticket } from 'lucide-react';
 import {
   fetchNotifications,
   markNotificationsRead,
@@ -130,7 +130,7 @@ export const NotificationBell: React.FC<Props> = ({ userId }) => {
                 <li key={n.id} className={`px-4 py-3 ${n.read_at ? '' : 'bg-orange-50/60 dark:bg-orange-950/20'}`}>
                   <div className="flex items-start gap-2.5">
                     <div className="w-7 h-7 rounded-lg bg-[#E0533C]/10 text-[#E0533C] flex items-center justify-center shrink-0 mt-0.5">
-                      {n.type === 'hangout_join' ? <Users className="w-3.5 h-3.5" /> : <Megaphone className="w-3.5 h-3.5" />}
+                      {n.type === 'hangout_join' ? <Users className="w-3.5 h-3.5" /> : /^(ticket_|payment_)/.test(n.type) ? <Ticket className="w-3.5 h-3.5" /> : <Megaphone className="w-3.5 h-3.5" />}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">

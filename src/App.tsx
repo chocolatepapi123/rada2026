@@ -1202,7 +1202,7 @@ export default function App() {
       setOutings(prev => prev.map(o => o.id === outingId
         ? { ...o, attendees: (o.attendees || []).map(a => a.id === attendeeId ? { ...a, status: 'pending' as const } : a) }
         : o));
-      showToast("That request couldn't be updated. Please try again.", { type: 'error' });
+      showToast(/tickets left to hold/i.test(upd.error) ? upd.error : "That request couldn't be updated. Please try again.", { type: 'error' });
       return;
     }
 
