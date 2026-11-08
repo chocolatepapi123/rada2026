@@ -92,7 +92,8 @@ import {
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { DynamicLocationSelector } from './DynamicLocationSelector.tsx';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { toValidUuid, fetchUnclaimedSpots, claimUnclaimedSpot, submitSpotClaim, fetchBusinesses } from '../lib/cloudSync.ts';
+import HostTicketsPanel from './HostTicketsPanel';
+import { toValidUuid, listingUuid, fetchUnclaimedSpots, claimUnclaimedSpot, submitSpotClaim, fetchBusinesses } from '../lib/cloudSync.ts';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 import type { ToastOptions } from './Toast.tsx';
 import { toBudget, BUDGET_OPTIONS } from '../lib/budget.ts';
@@ -2182,6 +2183,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   };
 
   const myEvents = events.filter(e => e.businessId === currentBiz?.id);
+  const [ticketsEvent, setTicketsEvent] = useState<EventItem | null>(null);
 
   // ----------------------------------------------------
   // DECOUPLED OFFERS & PROMOTIONS MANAGEMENT
@@ -3929,13 +3931,19 @@ isSpotFormOpen && (
                               <Edit3 className="w-3 h-3" />
                               <span>Edit</span>
                             </button>
+                            <button
+                              onClick={() => setTicketsEvent(evt)}
+                              className="px-2.5 py-1.5 rounded-xl bg-purple-600 text-white text-xs font-bold flex items-center gap-1"
+                            >
+                              <span>Sell tickets</span>
+                            </button>
                             <a
                               href={evt.url}
                               target="_blank"
                               rel="noreferrer"
                               className="px-2.5 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/30 text-purple-600 text-xs font-bold flex items-center gap-1"
                             >
-                              <span>Tickets</span>
+                              <span>External link</span>
                               <ExternalLink className="w-3 h-3" />
                             </a>
                             <button
@@ -4388,6 +4396,16 @@ isSpotFormOpen && (
       {/* =========================================================================
           VIEW 2: DEDICATED FULL-SCREEN VIEW: CREATE / EDIT EVENT
           ========================================================================= */}
+      {ticketsEvent && (
+        <HostTicketsPanel
+          kind="event"
+          source={listingUuid('event', ticketsEvent.id)}
+          title={ticketsEvent.title}
+          onClose={() => setTicketsEvent(null)}
+          onEditPoster={() => { const ev = ticketsEvent; setTicketsEvent(null); openEditEventModal(ev); }}
+          onToast={(m, t) => showToast(m, { type: t === 'error' ? 'error' : 'success' })}
+        />
+      )}
       {isEventFormOpen && (
         <div className="fixed inset-0 z-50 bg-[#FBFBF9] dark:bg-[#121113] overflow-y-auto flex flex-col animate-in fade-in duration-200">
           {/* Top Sticky Header */}

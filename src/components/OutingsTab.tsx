@@ -37,6 +37,7 @@ import {
 import { OutingPlan, OutingAttendee, SpotItem, UserProfile } from '../types.ts';
 import { shareContent } from '../utils/shareUtils.ts';
 import OutingShareCard from './OutingShareCard';
+import HostTicketsPanel from './HostTicketsPanel';
 import { WaitlistButton, TemplatePicker } from './OutingExtras';
 import { uploadCoverImage } from '../lib/cloudSync.ts';
 import { useUnclaimedSpots, mergeSpots, sortTrending } from '../lib/spotsFeed.ts';
@@ -388,6 +389,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
     `${siteOrigin()}/?tab=outings&outing=${encodeURIComponent(String(plan.id))}&ref=share`;
 
   const [shareCardFor, setShareCardFor] = useState<OutingPlan | null>(null);
+  const [ticketsFor, setTicketsFor] = useState<OutingPlan | null>(null);
 
   const handleShareOutingLink = (plan: OutingPlan) => {
     // Pro and Elite get a share card; Free keeps the plain link share
@@ -2004,6 +2006,15 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                 >
                   <Link2 className="w-4 h-4 text-[#E0533C]" />
                 </button>
+                {currentUserId && (activeSelectedOutingDetail || selectedOutingDetail)?.hostId === currentUserId && (
+                  <button
+                    type="button"
+                    onClick={() => setTicketsFor((activeSelectedOutingDetail || selectedOutingDetail)!)}
+                    className="px-4 py-3 rounded-2xl bg-[#E0533C] text-white text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <span>Sell tickets</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -2298,6 +2309,16 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
           onClose={() => setShareCardFor(null)}
           onShared={() => track('share', 'outing', shareCardFor.id)}
           showToast={showToast}
+        />
+      )}
+      {ticketsFor && (
+        <HostTicketsPanel
+          kind="outing"
+          source={String(ticketsFor.id)}
+          title={ticketsFor.spotTitle}
+          onClose={() => setTicketsFor(null)}
+          onEditPoster={() => { const p = ticketsFor; setTicketsFor(null); handleShareOutingLink(p); }}
+          onToast={(m, t) => showToast(m, { type: t === 'error' ? 'error' : 'success' })}
         />
       )}
 
