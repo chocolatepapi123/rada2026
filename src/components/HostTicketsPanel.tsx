@@ -101,7 +101,7 @@ export const HostTicketsPanel: React.FC<Props> = ({ kind, source, title, onClose
 
   return (
     <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/50" role="dialog" aria-modal="true">
-      <div className="w-full sm:max-w-md max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white dark:bg-[#1C1A1E] p-5 space-y-4 shadow-xl">
+      <div className="w-full sm:max-w-md max-h-[92vh] overflow-y-auto rounded-t-[2rem] sm:rounded-[2rem] bg-white dark:bg-[#1C1A1E] p-5 space-y-4 shadow-xl">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1"><Ticket className="w-3.5 h-3.5" /> Tickets</p>
@@ -126,14 +126,14 @@ export const HostTicketsPanel: React.FC<Props> = ({ kind, source, title, onClose
               {payout ? (
                 <p className="text-sm text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-500" /> M-Pesa +{payout}
-                  <button className="ml-auto text-xs font-bold text-purple-600" onClick={() => setPayout(null)}>Change</button>
+                  <button className="ml-auto text-xs font-bold text-[#E0533C]" onClick={() => setPayout(null)}>Change</button>
                 </p>
               ) : (
                 <div className="flex gap-2">
                   <input value={payoutInput} onChange={(e) => setPayoutInput(e.target.value)} inputMode="tel" placeholder="0712 345 678"
                     className="flex-1 min-w-0 rounded-xl border border-slate-200 dark:border-white/10 bg-transparent px-3 py-2 text-sm" />
                   <button disabled={busy} onClick={() => run(async () => { setPayout(await savePayoutPhone(payoutInput)); }, 'Payout number saved')}
-                    className="px-4 rounded-xl bg-purple-600 text-white text-sm font-bold disabled:opacity-50">Save</button>
+                    className="px-4 rounded-xl bg-gradient-to-br from-[#E0533C] to-[#EE8A47] text-white text-sm font-bold disabled:opacity-50">Save</button>
                 </div>
               )}
               <p className="text-[11px] text-slate-500">Paid tickets need this. Your share is sent within minutes of each sale.</p>
@@ -151,7 +151,7 @@ export const HostTicketsPanel: React.FC<Props> = ({ kind, source, title, onClose
             {kind === 'outing' && (
               <div className="rounded-2xl border border-slate-200 dark:border-white/10 p-3 space-y-2">
                 <label className="flex items-start gap-2.5 cursor-pointer">
-                  <input type="checkbox" className="mt-1 w-4 h-4 accent-purple-600" checked={rule.require_ticket}
+                  <input type="checkbox" className="mt-1 w-4 h-4 accent-[#E0533C]" checked={rule.require_ticket}
                     onChange={(e) => run(async () => { await setOutingTicketRule(source, e.target.checked, rule.pay_window_minutes); }, e.target.checked ? 'Guests must now pay after approval' : 'Ticket no longer required')} />
                   <span className="text-sm">
                     <span className="font-bold block">Approved guests must buy a ticket</span>
@@ -211,7 +211,7 @@ export const HostTicketsPanel: React.FC<Props> = ({ kind, source, title, onClose
                 {editing && editing.sold > 0 && <p className="text-[11px] text-slate-500">The price is locked once sales start. To change it, pause this ticket and add a new one.</p>}
                 {!editing && Number(f.price) > 0 && pct != null && <p className="text-[11px] text-slate-500">RADA keeps {pct}% of each sale. You receive about {kes(Number(f.price) * (1 - pct / 100))} per ticket.</p>}
                 <div className="flex gap-2">
-                  <button disabled={busy} onClick={submitType} className="flex-1 rounded-xl bg-purple-600 text-white py-2 text-sm font-bold disabled:opacity-50">{busy ? 'Saving…' : 'Save'}</button>
+                  <button disabled={busy} onClick={submitType} className="flex-1 rounded-xl bg-gradient-to-br from-[#E0533C] to-[#EE8A47] text-white py-2 text-sm font-bold disabled:opacity-50">{busy ? 'Saving…' : 'Save'}</button>
                   <button onClick={() => setAdding(false)} className="px-4 rounded-xl text-sm font-bold">Cancel</button>
                 </div>
               </div>

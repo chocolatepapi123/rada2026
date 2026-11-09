@@ -63,7 +63,7 @@ export const TicketBuySheet: React.FC<Props> = ({ kind, source, signedIn, onNeed
 
   return (
     <div className="fixed inset-0 z-[210] flex items-end sm:items-center justify-center bg-black/50" role="dialog" aria-modal="true">
-      <div className="w-full sm:max-w-md max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white dark:bg-[#1C1A1E] shadow-xl">
+      <div className="w-full sm:max-w-md max-h-[92vh] overflow-y-auto rounded-t-[2rem] sm:rounded-[2rem] bg-white dark:bg-[#1C1A1E] shadow-xl">
         <div className="relative">
           {view?.image && <img src={view.image} alt="" className="w-full h-40 object-cover rounded-t-3xl" />}
           <button onClick={onClose} aria-label="Close" className="absolute top-3 right-3 p-2 rounded-full bg-black/50 text-white"><X className="w-5 h-5" /></button>
@@ -87,7 +87,7 @@ export const TicketBuySheet: React.FC<Props> = ({ kind, source, signedIn, onNeed
                   const on = sel?.id === t.id;
                   return (
                     <button key={t.id} disabled={off} onClick={() => pick(t)}
-                      className={`w-full text-left rounded-2xl border p-3 transition ${on ? 'border-purple-600 bg-purple-50 dark:bg-purple-950/30' : 'border-slate-200 dark:border-white/10'} ${off ? 'opacity-50' : ''}`}>
+                      className={`w-full text-left rounded-2xl border p-3 transition ${on ? 'border-[#E0533C] bg-[#E0533C]/[0.06]' : 'border-slate-200 dark:border-white/10'} ${off ? 'opacity-50' : ''}`}>
                       <div className="flex items-center gap-2">
                         <div className="min-w-0 flex-1">
                           <p className="font-bold text-sm">{t.name}</p>
@@ -117,7 +117,7 @@ export const TicketBuySheet: React.FC<Props> = ({ kind, source, signedIn, onNeed
                     <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="M-Pesa number, e.g. 0712 345 678"
                       className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-transparent px-3 py-2 text-sm" />
                   )}
-                  <button onClick={pay} className="w-full rounded-2xl bg-purple-600 text-white py-3 font-extrabold">
+                  <button onClick={pay} className="w-full rounded-2xl bg-gradient-to-br from-[#E0533C] to-[#EE8A47] text-white py-3 font-extrabold">
                     {!signedIn ? 'Sign in to continue' : total > 0 ? `Pay ${kes(total)} with M-Pesa` : 'Get free ticket'}
                   </button>
                 </div>
@@ -128,7 +128,7 @@ export const TicketBuySheet: React.FC<Props> = ({ kind, source, signedIn, onNeed
 
           {phase === 'waiting' && (
             <div className="py-10 text-center space-y-3">
-              <Loader2 className="w-8 h-8 animate-spin mx-auto text-purple-600" />
+              <Loader2 className="w-8 h-8 animate-spin mx-auto text-[#E0533C]" />
               <p className="font-bold">Check your phone</p>
               <p className="text-sm text-slate-500">Enter your M-Pesa PIN to pay {kes(total)}. Your tickets appear here as soon as it goes through.</p>
             </div>
@@ -139,7 +139,7 @@ export const TicketBuySheet: React.FC<Props> = ({ kind, source, signedIn, onNeed
               <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-500" />
               <p className="font-extrabold text-lg">You are in!</p>
               <p className="text-sm text-slate-500">Your {qty > 1 ? 'tickets are' : 'ticket is'} ready. Show the QR code at the door.</p>
-              <button onClick={() => { onClose(); onOpenMyTickets(); }} className="w-full rounded-2xl bg-purple-600 text-white py-3 font-extrabold">View my tickets</button>
+              <button onClick={() => { onClose(); onOpenMyTickets(); }} className="w-full rounded-2xl bg-gradient-to-br from-[#E0533C] to-[#EE8A47] text-white py-3 font-extrabold">View my tickets</button>
             </div>
           )}
 
@@ -149,7 +149,7 @@ export const TicketBuySheet: React.FC<Props> = ({ kind, source, signedIn, onNeed
               <p className="text-sm text-slate-600 dark:text-slate-300">{msg}</p>
               <div className="flex gap-2">
                 <button onClick={() => { setPhase('pick'); setMsg(''); }} className="flex-1 rounded-2xl border border-slate-300 dark:border-white/15 py-3 font-bold">Try again</button>
-                <button onClick={() => { onClose(); onOpenMyTickets(); }} className="flex-1 rounded-2xl bg-purple-600 text-white py-3 font-bold">My tickets</button>
+                <button onClick={() => { onClose(); onOpenMyTickets(); }} className="flex-1 rounded-2xl bg-gradient-to-br from-[#E0533C] to-[#EE8A47] text-white py-3 font-bold">My tickets</button>
               </div>
             </div>
           )}

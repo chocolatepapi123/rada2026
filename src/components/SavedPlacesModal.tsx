@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { fetchMySavedOutingIds, toggleOutingSave } from '../lib/outingSaves';
 import { CategoryIcon, FOLDER_ICON_KEYS } from './CategoryIcon';
 import { 
   X, 
@@ -24,13 +25,14 @@ import {
 } from 'lucide-react';
 import { 
   SavedItem, 
+  OutingPlan,
   SpotItem, 
   EventItem, 
   BusinessOffer,
   CollectionFolder
 } from '../types.ts';
 
-export type SavedCategoryFilter = 'all' | 'places' | 'experiences' | 'events' | 'deals';
+export type SavedCategoryFilter = 'all' | 'places' | 'experiences' | 'events' | 'outings' | 'deals';
 
 interface SavedPlacesModalProps {
   isOpen: boolean;
@@ -40,6 +42,8 @@ interface SavedPlacesModalProps {
   spots: SpotItem[];
   events: EventItem[];
   offers?: BusinessOffer[];
+  outings?: OutingPlan[];
+  onOpenOuting?: (outing: OutingPlan) => void;
   onToggleSave: (item: any, kind: 'spot' | 'event' | 'offer' | 'thrift') => void;
   onOpenSpot: (spot: SpotItem) => void;
   onOpenEvent: (event: EventItem) => void;
@@ -60,6 +64,8 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
   spots,
   events,
   offers = [],
+  outings = [],
+  onOpenOuting,
   onToggleSave,
   onOpenSpot,
   onOpenEvent,
@@ -72,6 +78,14 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
   const [activeTab, setActiveTab] = useState<SavedCategoryFilter>('all');
   const [selectedFolderId, setSelectedFolderId] = useState<string | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Outings you bookmarked live in their own list on the server
+  const [savedOutingIds, setSavedOutingIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    let off = false;
+    fetchMySavedOutingIds().then((ids) => { if (!off) setSavedOutingIds(ids); }).catch(() => {});
+    return () => { off = true; };
+  }, []);
   
   // New Folder Creation UI State
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
@@ -147,8 +161,26 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
     return result;
   }, [hydratedItems, activeTab, selectedFolderId, searchQuery]);
 
+  // Saved things we can no longer find (removed or not loaded). Shown so the count never feels wrong.
+  const missingItems = useMemo(() => savedItems.filter(saved => !hydratedItems.some(h => h.id === saved.id && h.kind === saved.kind)), [savedItems, hydratedItems]);
+
+  const savedOutings = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return outings
+      .filter(o => savedOutingIds.has(String(o.id)))
+      .filter(o => !q || `${o.spotTitle} ${o.spotAddress || ''}`.toLowerCase().includes(q));
+  }, [outings, savedOutingIds, searchQuery]);
+  const showOutings = (activeTab === 'all' || activeTab === 'outings') && selectedFolderId === 'all';
+  const showMissing = activeTab === 'all' && selectedFolderId === 'all' && !searchQuery.trim();
+
+  const unsaveOuting = async (id: string) => {
+    setSavedOutingIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+    try { await toggleOutingSave(id); } catch { showToast('Could not remove that outing. Try again.'); fetchMySavedOutingIds().then(setSavedOutingIds).catch(() => {}); }
+  };
+
   const counts = {
-    all: hydratedItems.length,
+    all: hydratedItems.length + savedOutings.length,
+    outings: savedOutings.length,
     places: hydratedItems.filter(i => i.calculatedCategory === 'places').length,
     experiences: hydratedItems.filter(i => i.calculatedCategory === 'experiences').length,
     events: hydratedItems.filter(i => i.calculatedCategory === 'events').length,
@@ -244,6 +276,7 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
               { id: 'places', label: 'Places', count: counts.places },
               { id: 'experiences', label: 'Experiences', count: counts.experiences },
               { id: 'events', label: 'Events', count: counts.events },
+              { id: 'outings', label: 'Outings', count: counts.outings },
               { id: 'deals', label: 'Deals', count: counts.deals },
             ].map(tab => (
               <button
@@ -361,7 +394,22 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
 
         {/* Items List */}
         <div className="p-4 overflow-y-auto space-y-3 flex-1">
-          {filteredItems.length === 0 ? (
+          {showOutings && savedOutings.map(o => (
+            <div key={`outing-${o.id}`} className="flex gap-3 p-3 rounded-3xl bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800">
+              <button type="button" onClick={() => { onOpenOuting?.(o); onClose(); }} className="flex gap-3 flex-1 min-w-0 text-left cursor-pointer">
+                {o.spotImage ? <img src={o.spotImage} alt="" className="w-16 h-16 rounded-2xl object-cover shrink-0" /> : <div className="w-16 h-16 rounded-2xl bg-orange-500/10 shrink-0" />}
+                <div className="min-w-0 flex-1">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#E0533C]">Outing</span>
+                  <p className="font-black text-sm truncate">{o.spotTitle}</p>
+                  <p className="text-[11px] text-slate-500 truncate">{[o.date, o.time].filter(Boolean).join(' · ')}{o.spotAddress ? ` · ${o.spotAddress}` : ''}</p>
+                </div>
+              </button>
+              <button type="button" onClick={() => unsaveOuting(String(o.id))} aria-label="Remove from saved" className="self-start p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-[#E0533C] cursor-pointer">
+                <Bookmark className="w-4 h-4 fill-[#E0533C]" />
+              </button>
+            </div>
+          ))}
+          {filteredItems.length === 0 && !(showOutings && savedOutings.length > 0) && !(showMissing && missingItems.length > 0) ? (
             <div className="text-center py-12 px-4 space-y-3">
               <div className="w-14 h-14 rounded-full bg-orange-500/10 text-[#E0533C] flex items-center justify-center mx-auto">
                 <Bookmark className="w-7 h-7" />
@@ -537,6 +585,17 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
                 </div>
               );
             })
+          )}
+          {showMissing && missingItems.length > 0 && (
+            <div className="space-y-2 pt-2">
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">No longer available ({missingItems.length})</p>
+              {missingItems.map(m => (
+                <div key={`${m.kind}-${m.id}`} className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-dashed border-slate-300 dark:border-slate-700">
+                  <p className="text-xs text-slate-500">This {m.kind === 'spot' ? 'place' : m.kind} could not be loaded. It may have been removed.</p>
+                  <button type="button" onClick={() => onToggleSave({ id: m.id }, m.kind)} className="text-[11px] font-black text-[#E0533C] shrink-0 cursor-pointer">Remove</button>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>

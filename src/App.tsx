@@ -3257,6 +3257,12 @@ export default function App() {
               spots={allMergedSpots}
               events={allEvents}
               offers={offers}
+              outings={allOutings}
+              onOpenOuting={(o: any) => {
+                try { window.history.replaceState({}, '', `${window.location.pathname}?tab=outings&outing=${encodeURIComponent(String(o.id))}`); } catch (_) {}
+                window.dispatchEvent(new CustomEvent('rada:open-outing', { detail: { id: String(o.id) } }));
+                setActiveTab('outings');
+              }}
               onToggleSave={handleToggleSave}
               onOpenSpot={(spot) => setSelectedSpotModal(spot)}
               onOpenEvent={(evt) => setSelectedEventModal(evt)}

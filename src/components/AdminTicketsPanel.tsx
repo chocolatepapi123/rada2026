@@ -47,7 +47,7 @@ export const AdminTicketsPanel: React.FC<{ toast: (m: string, o?: ToastOptions) 
           <span className="font-bold text-sm block">Paid tickets</span>
           <span className="text-[11px] text-slate-500">Turn on only after the M-Pesa keys are added and a KES 50 test works.</span>
         </span>
-        <input type="checkbox" className="w-5 h-5 accent-purple-600" checked={data.paid_enabled} disabled={busy === 'paid'}
+        <input type="checkbox" className="w-5 h-5 accent-[#E0533C]" checked={data.paid_enabled} disabled={busy === 'paid'}
           onChange={(e) => act('paid', () => adminSetPaidTickets(e.target.checked), e.target.checked ? 'Paid tickets are on' : 'Paid tickets are off')} />
       </label>
 

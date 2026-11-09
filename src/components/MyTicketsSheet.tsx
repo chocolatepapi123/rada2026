@@ -32,7 +32,7 @@ export const MyTicketsSheet: React.FC<{ onClose: () => void }> = ({ onClose }) =
 
   return (
     <div className="fixed inset-0 z-[210] flex items-end sm:items-center justify-center bg-black/50" role="dialog" aria-modal="true">
-      <div className="w-full sm:max-w-md max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white dark:bg-[#1C1A1E] p-5 space-y-3 shadow-xl">
+      <div className="w-full sm:max-w-md max-h-[92vh] overflow-y-auto rounded-t-[2rem] sm:rounded-[2rem] bg-white dark:bg-[#1C1A1E] p-5 space-y-3 shadow-xl">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-extrabold flex items-center gap-2"><Ticket className="w-5 h-5" /> My tickets</h3>
           <button onClick={onClose} aria-label="Close" className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-white/10"><X className="w-5 h-5" /></button>

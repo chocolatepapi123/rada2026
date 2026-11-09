@@ -18,6 +18,7 @@ import {
   X, 
   Check, 
   ChevronRight, 
+  Ticket,
   Share2, 
   Link2, 
   Compass, 
@@ -308,6 +309,12 @@ interface OutingsTabProps {
   showToast: (msg: string) => void;
 }
 
+// Outings card + sheet styling, kept in one place so everything on this tab matches
+const OUTING_BTN_PRIMARY = 'min-h-[44px] rounded-2xl px-3 bg-gradient-to-br from-[#E0533C] to-[#EE8A47] text-white text-[13px] font-extrabold shadow-lg shadow-[#E0533C]/25 active:scale-[0.98] transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50';
+const OUTING_BTN_SOFT = 'min-h-[44px] rounded-2xl px-3 bg-slate-100 dark:bg-white/[0.07] text-slate-800 dark:text-slate-100 text-[13px] font-bold active:scale-[0.98] transition flex items-center justify-center gap-1.5 cursor-pointer';
+const OUTING_BTN_STATUS = 'min-h-[44px] rounded-2xl px-3 text-[13px] font-extrabold flex items-center justify-center gap-1.5';
+const OUTING_TICKET_STRIP = 'w-full flex items-center justify-between gap-3 rounded-2xl px-3 py-2.5 bg-[#E0533C]/[0.06] border border-[#E0533C]/15 active:scale-[0.99] transition cursor-pointer';
+
 export const OutingsTab: React.FC<OutingsTabProps> = ({
   outings,
   spots: spotsProp,
@@ -447,6 +454,17 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       const qs = params.toString();
       window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
     }
+  }, [outings]);
+
+  // Opened from Saved Items while this tab is already on screen
+  useEffect(() => {
+    const open = (e: Event) => {
+      const id = String((e as CustomEvent).detail?.id || '');
+      const match = outings.find(o => String(o.id) === id);
+      if (match) setSelectedOutingDetail(match);
+    };
+    window.addEventListener('rada:open-outing', open);
+    return () => window.removeEventListener('rada:open-outing', open);
   }, [outings]);
 
   const activeSelectedOutingDetail = useMemo(() => {
@@ -1110,16 +1128,6 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                 onClick={() => setSelectedOutingDetail(plan)}
                 className="bg-white dark:bg-[#1C1A1E] border border-slate-200/90 dark:border-slate-800 rounded-3xl p-4 shadow-sm hover:border-[#E0533C]/50 transition-all cursor-pointer group space-y-3.5 text-slate-900 dark:text-slate-100"
               >
-                {ticketInfo[String(plan.id)] && (
-                  <button
-                    type="button"
-                    onClick={(e) => openBuy(e, plan)}
-                    className="w-full flex items-center justify-between gap-2 rounded-2xl bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 px-3 py-2 text-xs font-extrabold"
-                  >
-                    <span>🎟️ Tickets {ticketInfo[String(plan.id)].min_price > 0 ? `from KES ${ticketInfo[String(plan.id)].min_price.toLocaleString('en-KE')}` : 'free'}</span>
-                    <span>{ticketInfo[String(plan.id)].left <= 0 ? 'Sold out' : ticketInfo[String(plan.id)].left <= 10 ? `${ticketInfo[String(plan.id)].left} left` : 'Get tickets'}</span>
-                  </button>
-                )}
                 {/* Host Profile Header */}
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -1200,138 +1208,106 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                   {plan.description}
                 </p>
 
-                {/* Slots & Attendees Row */}
-                <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800/80 text-xs gap-2 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    {/* Available Slots Badge */}
-                    <span className={`px-2.5 py-1 rounded-xl text-[11px] font-black flex items-center gap-1.5 ${
-                      isFull 
-                        ? 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300' 
-                        : remainingSlots <= 2 
-                        ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700' 
-                        : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                    }`}>
-                      <Users className="w-3 h-3" />
-                      <span>{isFull ? 'Plan Full' : `${remainingSlots} spots left`}</span>
-                      <span className="text-[9px] font-normal opacity-75">
-                        ({totalOccupied}/{plan.maxAttendees})
+                {/* Spots + people */}
+                <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-white/10">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {joinedAttendees.length > 0 && (
+                        <div className="flex items-center -space-x-2 shrink-0">
+                          {joinedAttendees.slice(0, 3).map((att) => (
+                            <img loading="lazy" decoding="async" key={att.id} src={att.userAvatar} alt={att.userName} title={att.userName}
+                              className="w-6 h-6 rounded-full object-cover border-2 border-white dark:border-[#1C1A1E]" />
+                          ))}
+                          {joinedAttendees.length > 3 && (
+                            <span className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-[9px] font-extrabold flex items-center justify-center border-2 border-white dark:border-[#1C1A1E]">+{joinedAttendees.length - 3}</span>
+                          )}
+                        </div>
+                      )}
+                      <span className={`text-[12px] font-extrabold ${isFull ? 'text-slate-500' : remainingSlots <= 2 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-800 dark:text-slate-100'}`}>
+                        {isFull ? 'Plan full' : `${remainingSlots} ${remainingSlots === 1 ? 'spot' : 'spots'} left`}
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-semibold text-slate-400">{totalOccupied} of {plan.maxAttendees} going</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden">
+                    <div className="h-full rounded-full bg-gradient-to-r from-[#E0533C] to-[#EE8A47] transition-all" style={{ width: `${Math.min(100, Math.round((totalOccupied / Math.max(1, plan.maxAttendees)) * 100))}%` }} />
+                  </div>
+                </div>
+
+                {/* Tickets for guests */}
+                {attendeeStatus !== 'host' && ticketInfo[String(plan.id)] && (
+                  <button type="button" onClick={(e) => openBuy(e, plan)} className={OUTING_TICKET_STRIP}>
+                    <span className="flex items-center gap-2 min-w-0">
+                      <span className="w-8 h-8 rounded-xl bg-[#E0533C]/10 text-[#E0533C] flex items-center justify-center shrink-0"><Ticket className="w-4 h-4" /></span>
+                      <span className="min-w-0 text-left">
+                        <span className="block text-[13px] font-extrabold leading-tight">{ticketInfo[String(plan.id)].min_price > 0 ? `Tickets from KES ${ticketInfo[String(plan.id)].min_price.toLocaleString('en-KE')}` : 'Free tickets'}</span>
+                        <span className="block text-[11px] text-slate-500 dark:text-slate-400">{ticketInfo[String(plan.id)].left <= 0 ? 'Sold out' : ticketInfo[String(plan.id)].left <= 10 ? `Only ${ticketInfo[String(plan.id)].left} left` : 'Tap to get yours'}</span>
                       </span>
                     </span>
+                    <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                  </button>
+                )}
 
-                    {/* Attendees Avatar Stack */}
-                    {joinedAttendees.length > 0 && (
-                      <div className="flex items-center -space-x-1.5">
-                        {joinedAttendees.slice(0, 3).map((att) => (
-                          <img loading="lazy" decoding="async"
-                            key={att.id}
-                            src={att.userAvatar}
-                            alt={att.userName}
-                            title={att.userName}
-                            className="w-5 h-5 rounded-full object-cover border border-white dark:border-slate-800 shadow-2xs"
-                          />
-                        ))}
-                        {joinedAttendees.length > 3 && (
-                          <span className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 text-[8px] font-bold flex items-center justify-center text-slate-700 dark:text-slate-200 border border-white dark:border-slate-800">
-                            +{joinedAttendees.length - 3}
-                          </span>
+                {/* Actions */}
+                <div className="flex items-stretch gap-2" onClick={(e) => e.stopPropagation()}>
+                  {attendeeStatus === 'host' && (
+                    <>
+                      <button type="button" onClick={() => setManagingOuting(plan)} className={`${OUTING_BTN_SOFT} flex-1 relative`}>
+                        <UserCheck className="w-4 h-4 text-[#E0533C]" />
+                        <span>Manage</span>
+                        {pendingAttendees.length > 0 && (
+                          <span className="min-w-5 h-5 px-1.5 rounded-full bg-[#E0533C] text-white text-[11px] font-black flex items-center justify-center">{pendingAttendees.length}</span>
                         )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Join Request Button / Host Actions / Chat Shortcut */}
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {attendeeStatus === 'host' && (
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setManagingOuting(plan);
-                          }}
-                          className="px-3 py-1.5 rounded-xl text-xs font-black bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/70 dark:hover:bg-amber-900/70 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700 transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
-                          title="Manage join requests and attendees"
-                        >
-                          <UserCheck className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                          <span>Manage Attendees</span>
-                          {pendingAttendees.length > 0 && (
-                            <span className="px-1.5 py-0.2 rounded-full bg-[#E0533C] text-white text-[9px] font-black animate-pulse">
-                              {pendingAttendees.length}
-                            </span>
-                          )}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onOpenOutingChat?.(plan);
-                          }}
-                          className="px-3 py-1.5 rounded-xl text-xs font-black bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 shadow-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95"
-                          title="Open Outing Group Chat"
-                        >
-                          <MessageSquare className="w-3.5 h-3.5 text-[#E0533C]" />
-                          <span>Group Chat</span>
-                        </button>
-                      </div>
-                    )}
-
-                    {attendeeStatus === 'pending' && (
-                      <span className="px-3 py-1.5 rounded-xl text-xs font-black bg-amber-100 dark:bg-amber-950/80 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700 flex items-center gap-1 shadow-2xs">
-                        <Clock className="w-3.5 h-3.5 text-amber-600 animate-spin" />
-                        <span>Pending Host Approval</span>
-                      </span>
-                    )}
-
-                    {attendeeStatus === 'awaiting' && (
-                      <button
-                        type="button"
-                        onClick={(e) => openBuy(e, plan)}
-                        className="px-3 py-1.5 rounded-xl text-xs font-black bg-purple-600 text-white flex items-center gap-1 shadow-sm active:scale-95"
-                      >
-                        <span>✅ Approved · Pay for your ticket ({timeLeft(myPayBy(plan))})</span>
                       </button>
-                    )}
-
-                    {attendeeStatus === 'joined' && (
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="px-2.5 py-1.5 rounded-xl text-xs font-black bg-emerald-100 dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1 shadow-2xs">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
-                          <span>Joined</span>
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onOpenOutingChat?.(plan);
-                          }}
-                          className="px-3 py-1.5 rounded-xl text-xs font-black bg-[#E0533C] hover:bg-orange-700 text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95"
-                          title="Open Outing Group Chat"
-                        >
-                          <MessageSquare className="w-3.5 h-3.5" />
-                          <span>Open Group Chat</span>
-                        </button>
-                      </div>
-                    )}
-
-                    {attendeeStatus === 'none' && (
-                      <button
-                        type="button"
-                        disabled={isFull}
-                        onClick={(e) => handleJoinClick(e, plan)}
-                        className={`px-3.5 py-1.5 rounded-xl text-xs font-black shadow-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95 ${
-                          isFull
-                            ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
-                            : 'bg-[#E0533C] hover:bg-orange-700 text-white shadow-sm'
-                        }`}
-                      >
-                        <Users className="w-3.5 h-3.5" />
-                        <span>Request to Join</span>
+                      <button type="button" onClick={() => onOpenOutingChat?.(plan)} className={`${OUTING_BTN_SOFT} flex-1`}>
+                        <MessageSquare className="w-4 h-4 text-[#E0533C]" />
+                        <span>Chat</span>
                       </button>
-                    )}
-                    {attendeeStatus === 'none' && isFull && <WaitlistButton outingId={String(plan.id)} />}
-                  </div>
+                      <button type="button" onClick={() => setTicketsFor(plan)} className={`${OUTING_BTN_PRIMARY} flex-1`}>
+                        <Ticket className="w-4 h-4" />
+                        <span>Tickets</span>
+                      </button>
+                    </>
+                  )}
+
+                  {attendeeStatus === 'pending' && (
+                    <div className={`${OUTING_BTN_STATUS} flex-1 bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-300`}>
+                      <Clock className="w-4 h-4" />
+                      <span>Waiting for host approval</span>
+                    </div>
+                  )}
+
+                  {attendeeStatus === 'awaiting' && (
+                    <button type="button" onClick={(e) => openBuy(e, plan)} className={`${OUTING_BTN_PRIMARY} flex-1`}>
+                      <Ticket className="w-4 h-4" />
+                      <span>You're approved. Pay to confirm</span>
+                      <span className="text-[11px] font-bold opacity-90">· {timeLeft(myPayBy(plan))}</span>
+                    </button>
+                  )}
+
+                  {attendeeStatus === 'joined' && (
+                    <>
+                      <div className={`${OUTING_BTN_STATUS} bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300`}>
+                        <Check className="w-4 h-4 stroke-[3]" />
+                        <span>You're in</span>
+                      </div>
+                      <button type="button" onClick={() => onOpenOutingChat?.(plan)} className={`${OUTING_BTN_PRIMARY} flex-1`}>
+                        <MessageSquare className="w-4 h-4" />
+                        <span>Group chat</span>
+                      </button>
+                    </>
+                  )}
+
+                  {attendeeStatus === 'none' && (
+                    isFull ? (
+                      <div className="flex-1"><WaitlistButton outingId={String(plan.id)} /></div>
+                    ) : (
+                      <button type="button" onClick={(e) => handleJoinClick(e, plan)} className={`${OUTING_BTN_PRIMARY} flex-1`}>
+                        <Users className="w-4 h-4" />
+                        <span>Request to join</span>
+                      </button>
+                    )
+                  )}
                 </div>
               </div>
             );
@@ -1833,288 +1809,197 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       {/* =========================================================================
           OUTING DETAIL / ATTENDEES MODAL
           ========================================================================= */}
-      {selectedOutingDetail && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#1C1A1E] text-slate-900 dark:text-slate-100 rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh]">
-            {/* Spot Cover Banner */}
+      {selectedOutingDetail && (() => {
+        const plan = activeSelectedOutingDetail || selectedOutingDetail;
+        const status = getAttendeeStatus(plan);
+        const joined = (plan.attendees || []).filter(a => a.status === 'joined' || a.status === 'approved');
+        const pendingCount = (plan.attendees || []).filter(a => a.status === 'pending').length;
+        const spotsLeft = Math.max(0, plan.maxAttendees - (joined.length + 1));
+        const tInfo = ticketInfo[String(plan.id)];
+        const saved = savedIds.has(plan.id);
+        const close = () => setSelectedOutingDetail(null);
+        return (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center animate-in fade-in duration-200" onClick={close}>
             <div
-              className="h-44 bg-cover bg-center relative p-3 flex flex-col justify-between"
-              style={{ backgroundImage: `url('${selectedOutingDetail.spotImage}')` }}
+              className="relative w-full sm:max-w-md max-h-[94vh] bg-white dark:bg-[#1C1A1E] text-slate-900 dark:text-slate-100 rounded-t-[2rem] sm:rounded-[2rem] overflow-hidden shadow-2xl flex flex-col animate-in slide-in-from-bottom-6 duration-300"
+              onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between">
-                <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-black/75 backdrop-blur-md text-white uppercase">
-                  {selectedOutingDetail.accessType === 'singles_only' ? 'Singles Only' : 'Open Outing'}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedOutingDetail(null)}
-                  className="w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="bg-black/70 backdrop-blur-md p-2.5 rounded-2xl text-white">
-                <h3 className="font-black text-sm truncate">
-                  {selectedOutingDetail.spotTitle}
-                </h3>
-                <p className="text-[11px] text-slate-300 flex items-center gap-1 truncate">
-                  <MapPin className="w-3 h-3 text-[#E0533C]" />
-                  <span>{selectedOutingDetail.spotAddress}</span>
-                </p>
-              </div>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-4 overflow-y-auto space-y-4 text-xs">
-              {/* Host Bar */}
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">
-                <div className="flex items-center gap-2.5">
-                  <div
-                    className="w-10 h-10 rounded-full bg-cover bg-center border"
-                    style={{ backgroundImage: `url('${selectedOutingDetail.hostAvatar}')` }}
-                  />
-                  <div>
-                    <div className="flex items-center gap-1">
-                      <span className="font-extrabold text-xs">{selectedOutingDetail.hostName}</span>
-                      <HostBadge hostId={selectedOutingDetail.hostId} verified={!!selectedOutingDetail.isHostVerified} size="sm" />
-                    </div>
-                    <span className="text-[10px] text-slate-400">Host • {selectedOutingDetail.hostHandle}</span>
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <button
-                    type="button"
-                    onClick={(e) => handleToggleSave(selectedOutingDetail, e)}
-                    className={`mb-1 ml-auto px-2.5 py-1 rounded-full text-[10px] font-black inline-flex items-center gap-1 border cursor-pointer transition ${
-                      savedIds.has(selectedOutingDetail.id)
-                        ? 'bg-[#E0533C]/10 text-[#E0533C] border-[#E0533C]/40'
-                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                    }`}
-                  >
-                    <Bookmark className={`w-3 h-3 ${savedIds.has(selectedOutingDetail.id) ? 'fill-[#E0533C]' : ''}`} />
-                    {savedIds.has(selectedOutingDetail.id) ? 'Saved' : 'Save'}
+              {/* Hero */}
+              <div className="relative h-56 shrink-0 bg-cover bg-center" style={{ backgroundImage: `url('${plan.spotImage}')` }}>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/10" />
+                <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
+                  <span className="px-3 py-1.5 rounded-full text-[11px] font-extrabold bg-white/20 backdrop-blur-md text-white flex items-center gap-1.5">
+                    {plan.accessType === 'singles_only' ? <Heart className="w-3 h-3 fill-white" /> : <Users className="w-3 h-3" />}
+                    {plan.accessType === 'singles_only' ? 'Singles only' : 'Open plan'}
+                  </span>
+                  <button type="button" onClick={close} aria-label="Close" className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-md text-white flex items-center justify-center active:scale-95 transition cursor-pointer">
+                    <X className="w-4 h-4" />
                   </button>
-                  <span className="text-[10px] text-[#E0533C] font-black block">
-                    {formatOutingDate(selectedOutingDetail.date, selectedOutingDetail.time)}
-                  </span>
-                  <span className="text-[10px] text-slate-500 font-bold">
-                    Capacity: {selectedOutingDetail.maxAttendees} people
-                  </span>
+                </div>
+                <div className="absolute bottom-4 left-5 right-5 text-white">
+                  <h3 className="text-[22px] font-black leading-tight tracking-tight">{plan.spotTitle}</h3>
+                  <p className="text-[13px] text-white/80 flex items-center gap-1.5 mt-1">
+                    <MapPin className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">{plan.spotAddress || 'Nairobi'}</span>
+                  </p>
                 </div>
               </div>
 
-              {/* Vibe Description */}
-              <div className="space-y-1">
-                <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">
-                  About this Hangout
-                </h4>
-                <p className="text-slate-700 dark:text-slate-300 leading-relaxed bg-slate-50/50 dark:bg-black/20 p-3 rounded-2xl border border-slate-200/60 dark:border-slate-800">
-                  {selectedOutingDetail.description}
-                </p>
-              </div>
-
-              {/* Attendees List */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                    <Users className="w-3.5 h-3.5 text-[#E0533C]" />
-                    <span>Joined Attendees ({selectedOutingDetail.attendees?.filter(a => a.status === 'joined' || a.status === 'approved').length || 0})</span>
-                  </h4>
-                  <span className="text-[10px] font-bold text-slate-400">
-                    Host: {selectedOutingDetail.hostName}
-                  </span>
-                </div>
-
-                <div className="space-y-1.5">
-                  {/* Host line */}
-                  <div className="p-2 rounded-xl bg-orange-50/60 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/40 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <img loading="lazy" decoding="async" src={selectedOutingDetail.hostAvatar} alt="Host" className="w-7 h-7 rounded-full object-cover" />
-                      <div>
-                        <span className="font-bold text-xs">{selectedOutingDetail.hostName}</span>
-                        <HostBadge hostId={selectedOutingDetail.hostId} verified={!!selectedOutingDetail.isHostVerified} size="xs" className="ml-1" />
-                        <span className="text-[9px] text-[#E0533C] font-black ml-1.5 uppercase">Host</span>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">Confirmed</span>
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-5">
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-2xl bg-slate-50 dark:bg-white/[0.05] p-3">
+                    <Calendar className="w-4 h-4 text-[#E0533C]" />
+                    <p className="text-[12px] font-extrabold mt-1.5 leading-tight">{formatOutingDate(plan.date, plan.time)}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">When</p>
                   </div>
+                  <div className="rounded-2xl bg-slate-50 dark:bg-white/[0.05] p-3">
+                    <Users className="w-4 h-4 text-[#E0533C]" />
+                    <p className="text-[12px] font-extrabold mt-1.5 leading-tight">{spotsLeft === 0 ? 'Full' : `${spotsLeft} left`}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">of {plan.maxAttendees} spots</p>
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 dark:bg-white/[0.05] p-3">
+                    <Ticket className="w-4 h-4 text-[#E0533C]" />
+                    <p className="text-[12px] font-extrabold mt-1.5 leading-tight">{tInfo ? (tInfo.min_price > 0 ? `KES ${tInfo.min_price.toLocaleString('en-KE')}` : 'Free') : 'No ticket'}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{tInfo ? (tInfo.left <= 0 ? 'sold out' : 'per ticket') : 'needed'}</p>
+                  </div>
+                </div>
 
-                  {/* Joined / Approved attendees */}
-                  {selectedOutingDetail.attendees?.map((att) => (
-                    <div key={att.id} className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <img loading="lazy" decoding="async" src={att.userAvatar} alt={att.userName} className="w-7 h-7 rounded-full object-cover" />
-                        <div>
-                          <span className="font-bold text-xs">{att.userName}</span>
-                          <span className="text-[10px] text-slate-400 ml-1">{att.userHandle}</span>
-                        </div>
-                      </div>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                        att.status === 'joined' || att.status === 'approved'
-                          ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300'
-                          : 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300'
-                      }`}>
-                        {att.status === 'joined' || att.status === 'approved' ? 'Approved' : 'Pending'}
+                {status !== 'host' && tInfo && (
+                  <button type="button" onClick={(e) => openBuy(e, plan)} className={OUTING_TICKET_STRIP}>
+                    <span className="flex items-center gap-2 min-w-0">
+                      <span className="w-8 h-8 rounded-xl bg-[#E0533C]/10 text-[#E0533C] flex items-center justify-center shrink-0"><Ticket className="w-4 h-4" /></span>
+                      <span className="min-w-0 text-left">
+                        <span className="block text-[13px] font-extrabold leading-tight">{status === 'awaiting' ? `Pay to confirm your spot (${timeLeft(myPayBy(plan))})` : 'Get your ticket'}</span>
+                        <span className="block text-[11px] text-slate-500 dark:text-slate-400">{tInfo.left <= 10 && tInfo.left > 0 ? `Only ${tInfo.left} left` : 'Secure it with M-Pesa'}</span>
                       </span>
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                  </button>
+                )}
+
+                {/* Host */}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-11 h-11 rounded-full bg-cover bg-center border-2 border-white dark:border-[#1C1A1E] shadow-sm shrink-0" style={{ backgroundImage: `url('${plan.hostAvatar}')` }} />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-extrabold text-[14px] truncate">{plan.hostName}</span>
+                        <HostBadge hostId={plan.hostId} verified={!!plan.isHostVerified} size="sm" />
+                      </div>
+                      <span className="text-[12px] text-slate-500 dark:text-slate-400 truncate block">Host {plan.hostHandle ? `· ${plan.hostHandle}` : ''}</span>
                     </div>
-                  ))}
+                  </div>
+                  <button type="button" onClick={(e) => handleToggleSave(plan, e)} aria-pressed={saved}
+                    className={`shrink-0 h-9 px-3.5 rounded-full text-[12px] font-extrabold inline-flex items-center gap-1.5 transition active:scale-95 cursor-pointer ${saved ? 'bg-[#E0533C]/10 text-[#E0533C]' : 'bg-slate-100 dark:bg-white/[0.07] text-slate-700 dark:text-slate-200'}`}>
+                    <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-[#E0533C]' : ''}`} />
+                    {saved ? 'Saved' : 'Save'}
+                  </button>
+                </div>
+
+                {/* About */}
+                {plan.description && (
+                  <div>
+                    <p className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mb-1.5">About this plan</p>
+                    <p className="text-[14px] leading-relaxed text-slate-700 dark:text-slate-300">{plan.description}</p>
+                  </div>
+                )}
+
+                {/* Who is going */}
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mb-2">Going ({joined.length + 1})</p>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="inline-flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-[#E0533C]/10 text-[12px] font-bold">
+                      <img loading="lazy" decoding="async" src={plan.hostAvatar} alt="" className="w-6 h-6 rounded-full object-cover" />
+                      <span className="truncate max-w-[110px]">{plan.hostName}</span>
+                      <span className="text-[9px] font-black text-[#E0533C] uppercase">Host</span>
+                    </span>
+                    {joined.map((att) => (
+                      <span key={att.id} className="inline-flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-slate-100 dark:bg-white/[0.07] text-[12px] font-bold">
+                        <img loading="lazy" decoding="async" src={att.userAvatar} alt="" className="w-6 h-6 rounded-full object-cover" />
+                        <span className="truncate max-w-[110px]">{att.userName}</span>
+                      </span>
+                    ))}
+                  </div>
+                  {joined.length === 0 && <p className="text-[12px] text-slate-400 mt-2">Be the first to join.</p>}
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="pt-2 flex items-center gap-2">
-                {(() => {
-                  const targetPlan = activeSelectedOutingDetail || selectedOutingDetail;
-                  const status = getAttendeeStatus(targetPlan);
-                  if (status === 'host') {
-                    const pendingCount = (targetPlan.attendees || []).filter(a => a.status === 'pending').length;
-                    return (
-                      <div className="flex items-center gap-2 flex-1 flex-wrap">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setManagingOuting(targetPlan);
-                          }}
-                          className="flex-1 py-3 px-3 rounded-2xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/70 dark:hover:bg-amber-900/70 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700 font-extrabold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
-                        >
-                          <UserCheck className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                          <span>Manage Attendees</span>
-                          {pendingCount > 0 && (
-                            <span className="px-1.5 py-0.2 rounded-full bg-[#E0533C] text-white text-[9px] font-black animate-pulse">
-                              {pendingCount}
-                            </span>
-                          )}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onOpenOutingChat?.(targetPlan);
-                            setSelectedOutingDetail(null);
-                          }}
-                          className="flex-1 py-3 px-3 rounded-2xl bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 font-black text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
-                        >
-                          <MessageSquare className="w-4 h-4 text-[#E0533C]" />
-                          <span>Open Group Chat</span>
-                        </button>
-                      </div>
-                    );
-                  }
-                  if (status === 'joined') {
-                    return (
-                      <div className="flex items-center gap-2 flex-1 flex-wrap">
-                        <div className="px-3.5 py-3 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 font-extrabold text-xs flex items-center justify-center gap-1">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
-                          <span>Joined</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onOpenOutingChat?.(targetPlan);
-                            setSelectedOutingDetail(null);
-                          }}
-                          className="flex-1 py-3 px-3 rounded-2xl bg-[#E0533C] hover:bg-orange-700 text-white font-black text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-95"
-                        >
-                          <MessageSquare className="w-4 h-4" />
-                          <span>Open Group Chat</span>
-                        </button>
-                      </div>
-                    );
-                  }
-                  if (status === 'awaiting') {
-                    return (
-                      <button
-                        type="button"
-                        onClick={(e) => openBuy(e, targetPlan)}
-                        className="flex-1 py-3 px-3 text-center rounded-2xl bg-purple-600 text-white font-extrabold text-xs shadow-md"
-                      >
-                        Approved! Pay for your ticket to keep your spot ({timeLeft(myPayBy(targetPlan))})
+              {/* Actions */}
+              <div className="shrink-0 p-4 pt-3 border-t border-slate-100 dark:border-white/10 space-y-2 bg-white/95 dark:bg-[#1C1A1E]/95 backdrop-blur" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+                <div className="flex items-stretch gap-2">
+                  {status === 'host' && (
+                    <>
+                      <button type="button" onClick={() => setManagingOuting(plan)} className={`${OUTING_BTN_SOFT} flex-1`}>
+                        <UserCheck className="w-4 h-4 text-[#E0533C]" />
+                        <span>Manage</span>
+                        {pendingCount > 0 && <span className="min-w-5 h-5 px-1.5 rounded-full bg-[#E0533C] text-white text-[11px] font-black flex items-center justify-center">{pendingCount}</span>}
                       </button>
-                    );
-                  }
-                  if (status === 'pending') {
-                    return (
-                      <div className="flex-1 py-3 text-center rounded-2xl bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-200 font-extrabold text-xs">
-                        Join request pending host approval
+                      <button type="button" onClick={() => { onOpenOutingChat?.(plan); close(); }} className={`${OUTING_BTN_SOFT} flex-1`}>
+                        <MessageSquare className="w-4 h-4 text-[#E0533C]" />
+                        <span>Chat</span>
+                      </button>
+                      <button type="button" onClick={() => setTicketsFor(plan)} className={`${OUTING_BTN_PRIMARY} flex-1`}>
+                        <Ticket className="w-4 h-4" />
+                        <span>Tickets</span>
+                      </button>
+                    </>
+                  )}
+                  {status === 'joined' && (
+                    <>
+                      <div className={`${OUTING_BTN_STATUS} bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300`}>
+                        <Check className="w-4 h-4 stroke-[3]" /><span>You're in</span>
                       </div>
-                    );
-                  }
-                  return (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        handleJoinClick(e, targetPlan);
-                        setSelectedOutingDetail(null);
-                      }}
-                      className="flex-1 py-3 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-2xl shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <Users className="w-4 h-4" />
-                      <span>Request to Join Outing</span>
+                      <button type="button" onClick={() => { onOpenOutingChat?.(plan); close(); }} className={`${OUTING_BTN_PRIMARY} flex-1`}>
+                        <MessageSquare className="w-4 h-4" /><span>Group chat</span>
+                      </button>
+                    </>
+                  )}
+                  {status === 'awaiting' && (
+                    <button type="button" onClick={(e) => openBuy(e, plan)} className={`${OUTING_BTN_PRIMARY} flex-1`}>
+                      <Ticket className="w-4 h-4" /><span>Pay to confirm</span><span className="text-[11px] opacity-90">· {timeLeft(myPayBy(plan))}</span>
                     </button>
-                  );
-                })()}
-
-                {ticketInfo[String((activeSelectedOutingDetail || selectedOutingDetail)!.id)] && (
-                  <button
-                    type="button"
-                    onClick={(e) => openBuy(e, (activeSelectedOutingDetail || selectedOutingDetail)!)}
-                    className="px-4 py-3 rounded-2xl bg-purple-600 text-white text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5"
-                  >
-                    <span>🎟️ Get tickets</span>
+                  )}
+                  {status === 'pending' && (
+                    <div className={`${OUTING_BTN_STATUS} flex-1 bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-300`}>
+                      <Clock className="w-4 h-4" /><span>Waiting for host approval</span>
+                    </div>
+                  )}
+                  {status === 'none' && (
+                    <button type="button" disabled={spotsLeft === 0} onClick={(e) => { handleJoinClick(e, plan); close(); }} className={`${OUTING_BTN_PRIMARY} flex-1`}>
+                      <Users className="w-4 h-4" /><span>{spotsLeft === 0 ? 'Plan full' : 'Request to join'}</span>
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-stretch gap-2">
+                  <button type="button" onClick={() => handleShareOutingLink(plan)} className={`${OUTING_BTN_SOFT} flex-1`}>
+                    <Share2 className="w-4 h-4 text-[#E0533C]" /><span>Share plan</span>
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => handleShareOutingLink((activeSelectedOutingDetail || selectedOutingDetail)!)}
-                  className="px-4 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5"
-                  title="Share Outing Link"
-                >
-                  <Share2 className="w-4 h-4 text-[#E0533C]" />
-                  <span>Share Outing Link</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleCopyOutingLink((activeSelectedOutingDetail || selectedOutingDetail)!)}
-                  className="p-3 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition cursor-pointer"
-                  title="Copy outing link"
-                  aria-label="Copy outing link"
-                >
-                  <Link2 className="w-4 h-4 text-[#E0533C]" />
-                </button>
-                {currentUserId && (activeSelectedOutingDetail || selectedOutingDetail)?.hostId === currentUserId && (
-                  <button
-                    type="button"
-                    onClick={() => setTicketsFor((activeSelectedOutingDetail || selectedOutingDetail)!)}
-                    className="px-4 py-3 rounded-2xl bg-[#E0533C] text-white text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5"
-                  >
-                    <span>Sell tickets</span>
+                  <button type="button" onClick={() => handleCopyOutingLink(plan)} aria-label="Copy link" className={`${OUTING_BTN_SOFT} w-12 px-0`}>
+                    <Link2 className="w-4 h-4 text-[#E0533C]" />
                   </button>
-                )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* =========================================================================
           HOST ATTENDEE MANAGEMENT MODAL
           ========================================================================= */}
       {activeManagingOuting && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#1C1A1E] text-slate-900 dark:text-slate-100 rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[92vh]">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#1C1A1E] text-slate-900 dark:text-slate-100 rounded-t-[2rem] sm:rounded-[2rem] max-w-md w-full overflow-hidden shadow-2xl animate-in slide-in-from-bottom-6 duration-300 flex flex-col max-h-[92vh]">
             {/* Modal Header */}
-            <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-black/20">
+            <div className="px-5 pt-5 pb-3 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-orange-100 dark:bg-orange-950/80 text-[#E0533C] flex items-center justify-center font-bold shadow-2xs">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#E0533C] to-[#EE8A47] text-white flex items-center justify-center shadow-lg shadow-[#E0533C]/25">
                   <UserCheck className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-                    Manage Outing Attendees
-                  </h3>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[220px]">
+                  <h3 className="text-[16px] font-black tracking-tight text-slate-900 dark:text-slate-100">Manage guests</h3>
+                  <p className="text-[12px] text-slate-500 dark:text-slate-400 truncate max-w-[230px]">
                     {activeManagingOuting.spotTitle} • {formatOutingDate(activeManagingOuting.date, activeManagingOuting.time)}
                   </p>
                 </div>
@@ -2123,25 +2008,25 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
               <button
                 type="button"
                 onClick={() => setManagingOuting(null)}
-                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center transition cursor-pointer"
+                className="w-9 h-9 rounded-full bg-slate-100 dark:bg-white/[0.07] text-slate-600 dark:text-slate-300 flex items-center justify-center active:scale-95 transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Modal Content */}
-            <div className="p-4 sm:p-5 overflow-y-auto space-y-4 text-xs">
+            <div className="px-5 pb-6 pt-1 overflow-y-auto space-y-5 text-[13px]">
               {/* Capacity & Outing Summary Card */}
-              <div className="p-3 bg-slate-50 dark:bg-black/30 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 space-y-2">
+              <div className="p-3.5 bg-slate-50 dark:bg-white/[0.05] rounded-3xl space-y-2.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 min-w-0">
                     <img loading="lazy" decoding="async"
                       src={activeManagingOuting.spotImage}
                       alt={activeManagingOuting.spotTitle}
-                      className="w-9 h-9 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shrink-0"
+                      className="w-11 h-11 rounded-2xl object-cover shrink-0"
                     />
                     <div className="min-w-0">
-                      <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">
+                      <h4 className="font-extrabold text-[14px] text-slate-900 dark:text-slate-100 truncate">
                         {activeManagingOuting.spotTitle}
                       </h4>
                       <p className="text-[10px] text-slate-400 truncate">
@@ -2172,9 +2057,9 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                           {isFull ? 'Outing Full' : `${remaining} slots left`}
                         </span>
                       </div>
-                      <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                      <div className="w-full h-1.5 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-gradient-to-r from-orange-500 to-[#E0533C] rounded-full transition-all duration-300"
+                          className="h-full bg-gradient-to-r from-[#E0533C] to-[#EE8A47] rounded-full transition-all duration-300"
                           style={{ width: `${pct}%` }}
                         />
                       </div>
@@ -2192,7 +2077,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                 return (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                      <h4 className="font-extrabold text-[14px] text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
                         <Clock className="w-3.5 h-3.5 text-amber-500" />
                         <span>Pending Join Requests ({pendingList.length})</span>
                       </h4>
@@ -2217,18 +2102,18 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                         {pendingList.map((applicant) => (
                           <div
                             key={applicant.id}
-                            className="p-3 bg-white dark:bg-[#121113] border border-amber-200 dark:border-amber-900/60 rounded-2xl shadow-xs space-y-2.5"
+                            className="p-3.5 bg-slate-50 dark:bg-white/[0.05] rounded-3xl space-y-3"
                           >
                             <div className="flex items-center justify-between gap-3">
                               <div className="flex items-center gap-2.5 min-w-0">
                                 <img loading="lazy" decoding="async"
                                   src={applicant.userAvatar}
                                   alt={applicant.userName}
-                                  className="w-10 h-10 rounded-full object-cover border-2 border-amber-300 dark:border-amber-700 shrink-0"
+                                  className="w-11 h-11 rounded-full object-cover shrink-0"
                                 />
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap">
-                                    <h5 className="font-black text-xs text-slate-900 dark:text-slate-100 truncate">
+                                    <h5 className="font-black text-[14px] text-slate-900 dark:text-slate-100 truncate">
                                       {applicant.userName}
                                     </h5>
                                     <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
@@ -2248,22 +2133,22 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                             </div>
 
                             {/* Action buttons: Approve and Decline */}
-                            <div className="flex items-center gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+                            <div className="flex items-center gap-2 pt-1 border-0">
                               <button
                                 type="button"
                                 disabled={isProcessingAction === applicant.id || isFull}
                                 onClick={() => handleApproveApplicant(activeManagingOuting.id, applicant.id)}
-                                className="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-95"
+                                className={`${OUTING_BTN_PRIMARY} flex-1`}
                               >
                                 <Check className="w-3.5 h-3.5 stroke-[3]" />
-                                <span>{isProcessingAction === applicant.id ? 'Approving...' : isFull ? 'Outing Full' : 'Approve & Unlock Chat'}</span>
+                                <span>{isProcessingAction === applicant.id ? 'Approving…' : isFull ? 'Plan full' : 'Approve'}</span>
                               </button>
 
                               <button
                                 type="button"
                                 disabled={isProcessingAction === applicant.id}
                                 onClick={() => handleDeclineApplicant(activeManagingOuting.id, applicant.id)}
-                                className="py-2 px-3 bg-slate-100 hover:bg-rose-50 dark:bg-slate-800 dark:hover:bg-rose-950/50 text-slate-700 hover:text-rose-600 dark:text-slate-300 dark:hover:text-rose-300 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
+                                className={`${OUTING_BTN_SOFT} px-4`}
                               >
                                 <X className="w-3.5 h-3.5" />
                                 <span>Decline</span>
@@ -2283,14 +2168,14 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                 if (!waiting.length) return null;
                 return (
                   <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-purple-500" />
+                    <h4 className="font-extrabold text-[14px] text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-[#E0533C]" />
                       <span>Approved, waiting for payment ({waiting.length})</span>
                     </h4>
                     {waiting.map(a => (
-                      <div key={a.id} className="flex items-center justify-between gap-2 rounded-xl bg-purple-50 dark:bg-purple-950/30 px-3 py-2 text-xs">
+                      <div key={a.id} className="flex items-center justify-between gap-2 rounded-xl bg-[#E0533C]/[0.06] px-3 py-2 text-xs">
                         <span className="font-bold truncate">{a.userHandle || a.userName}</span>
-                        <span className="text-purple-700 dark:text-purple-300 font-bold shrink-0">{timeLeft(a.payBy)}</span>
+                        <span className="text-[#E0533C] font-bold shrink-0">{timeLeft(a.payBy)}</span>
                       </div>
                     ))}
                     <p className="text-[10px] text-slate-500">If they do not pay in time, their approval is cancelled automatically.</p>
