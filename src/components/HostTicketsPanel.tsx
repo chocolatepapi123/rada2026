@@ -227,7 +227,7 @@ export const HostTicketsPanel: React.FC<Props> = ({ kind, source, title, onClose
               <button onClick={async () => { try { await navigator.clipboard.writeText(link); toast('Link copied'); } catch { toast('Copy failed', 'error'); } }}
                 className="rounded-xl border border-slate-200 dark:border-white/10 py-2.5 text-sm font-bold flex items-center justify-center gap-1.5"><Copy className="w-4 h-4" /> Copy link</button>
             </div>
-            {totals.sold > 0 && <button onClick={() => setScanning(true)} className="w-full rounded-xl bg-emerald-600 text-white py-2.5 text-sm font-bold">Check in guests</button>}
+            {<button onClick={() => setScanning(true)} className="w-full min-h-[44px] rounded-2xl bg-slate-100 dark:bg-white/[0.07] text-slate-800 dark:text-slate-100 text-sm font-bold">Check in guests (scan QR)</button>}
             {onEditPoster && <button onClick={onEditPoster} className="w-full rounded-xl border border-slate-200 dark:border-white/10 py-2.5 text-sm font-bold">Edit poster</button>}
           </>
         )}

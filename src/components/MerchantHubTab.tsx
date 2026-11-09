@@ -93,6 +93,7 @@ import { BusinessBadge } from './BusinessBadge.tsx';
 import { DynamicLocationSelector } from './DynamicLocationSelector.tsx';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import HostTicketsPanel from './HostTicketsPanel';
+import MerchantTicketsSection from './MerchantTicketsSection';
 import { toValidUuid, listingUuid, fetchUnclaimedSpots, claimUnclaimedSpot, submitSpotClaim, fetchBusinesses } from '../lib/cloudSync.ts';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 import type { ToastOptions } from './Toast.tsx';
@@ -1261,7 +1262,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
   const [onboardingStep, setOnboardingStep] = useState<1 | 2>(1);
 
   // Active sub-tab inside the vertical dashboard
-  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'manage' | 'claim' | 'offers' | 'profile' | 'analytics' | 'plan' | 'boost'>('overview');
+  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'manage' | 'claim' | 'offers' | 'profile' | 'analytics' | 'plan' | 'boost' | 'tickets'>('overview');
   const [boostFor, setBoostFor] = useState<{ offerId?: string; subject?: string } | null>(null);
   const [boostPrompt, setBoostPrompt] = useState<{ id: string; title: string } | null>(null);
 
@@ -3306,6 +3307,18 @@ isSpotFormOpen && (
             </button>
 
             <button
+              onClick={() => setActiveSubTab('tickets')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
+                activeSubTab === 'tickets'
+                  ? 'bg-[#E0533C] text-white shadow-xs'
+                  : 'text-[#E0533C] bg-[#E0533C]/10 hover:bg-[#E0533C]/15'
+              }`}
+            >
+              <Ticket className="w-3.5 h-3.5" />
+              <span>Tickets</span>
+            </button>
+
+            <button
               onClick={() => setActiveSubTab('analytics')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
                 activeSubTab === 'analytics'
@@ -3435,6 +3448,16 @@ isSpotFormOpen && (
         {/* =========================================================================
             SUB-TAB: OVERVIEW
             ========================================================================= */}
+        {activeSubTab === 'tickets' && (
+          <MerchantTicketsSection
+            events={myEvents}
+            onPublishEvent={openCreateEventModal}
+            onManageEvent={(evt) => setTicketsEvent(evt)}
+            onGoToPlan={() => setActiveSubTab('plan')}
+            onToast={(m, t) => showToast(m, { type: t === 'error' ? 'error' : 'success' })}
+          />
+        )}
+
         {activeSubTab === 'overview' && (
           <div 
  className="space-y-6 animate-in fade-in duration-150">
