@@ -1,0 +1,505 @@
+{
+  "ranAt": "2026-11-10T17:31:25.992Z",
+  "areas": [
+    "Nairobi|Nairobi",
+    "Westlands|Nairobi",
+    "Kilimani|Nairobi",
+    "Thika Road|Thika Road",
+    "Ruiru|Thika Road",
+    "Juja|Thika Road",
+    "Kiambu|Kiambu",
+    "Ruaka|Kiambu"
+  ],
+  "categories": [
+    "Arts & Culture"
+  ],
+  "target": 15,
+  "summary": [
+    {
+      "area": "Nairobi",
+      "category": "Arts & Culture",
+      "qualified": 34,
+      "alreadyInDb": 13,
+      "new": 15,
+      "note": ""
+    },
+    {
+      "area": "Westlands -> Nairobi",
+      "category": "Arts & Culture",
+      "qualified": 28,
+      "alreadyInDb": 13,
+      "new": 10,
+      "note": "SHORT by 5"
+    },
+    {
+      "area": "Kilimani -> Nairobi",
+      "category": "Arts & Culture",
+      "qualified": 46,
+      "alreadyInDb": 16,
+      "new": 15,
+      "note": ""
+    },
+    {
+      "area": "Thika Road",
+      "category": "Arts & Culture",
+      "qualified": 42,
+      "alreadyInDb": 18,
+      "new": 9,
+      "note": "SHORT by 6"
+    },
+    {
+      "area": "Ruiru -> Thika Road",
+      "category": "Arts & Culture",
+      "qualified": 30,
+      "alreadyInDb": 12,
+      "new": 10,
+      "note": "SHORT by 5"
+    },
+    {
+      "area": "Juja -> Thika Road",
+      "category": "Arts & Culture",
+      "qualified": 36,
+      "alreadyInDb": 14,
+      "new": 4,
+      "note": "SHORT by 11"
+    },
+    {
+      "area": "Kiambu",
+      "category": "Arts & Culture",
+      "qualified": 20,
+      "alreadyInDb": 10,
+      "new": 3,
+      "note": "SHORT by 12"
+    },
+    {
+      "area": "Ruaka -> Kiambu",
+      "category": "Arts & Culture",
+      "qualified": 28,
+      "alreadyInDb": 13,
+      "new": 4,
+      "note": "SHORT by 11"
+    }
+  ],
+  "spots": [
+    {
+      "google_place_id": "ChIJmVQZC7gXLxgRxouvqSygOxA",
+      "name": "Museum of Illusions Nairobi",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJcbTKHjAXLxgR3HY6BDMj39I",
+      "name": "Museum Hill",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJfxo6_t4QLxgRvReAMQpgmiQ",
+      "name": "Kenya Railway Museum",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJNzNwMW-SKRgRFK4xTNQqCas",
+      "name": "Hyrax Hill Museum",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJlaWOtqQnghcR8YHTP94zBVs",
+      "name": "Kitale Museum",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ__8TcZtgKBgRfhRzcZgNXro",
+      "name": "Nyeri Museum",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ4yoRtYQXLxgR8vrJbDQ1NHA",
+      "name": "Egware Museum",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJA0CAy7EaLxgR1TOgUyIJ6Bs",
+      "name": "Bomas Of Kenya",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJCTOYFC0XLxgRBufyXSs89BU",
+      "name": "Kenya Cultural Centre",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ93BVgBMXLxgRjCXxFaUnqGk",
+      "name": "Visa Oshwal Community Centre",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJDRiFTdIQLxgRMBLAp4oeb-0",
+      "name": "German Cultural Centre (Goethe-Institut Nairobi)",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJSR8LoWMXLxgRBBI4aMe6C1U",
+      "name": "Michael Joseph Centre",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJJ4udXGwRLxgRmTXQqb1QylM",
+      "name": "GoDown Arts Centre - Construction Site",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJh3X-8FQbLxgRB0eyGbz9TPk",
+      "name": "Circle Art Agency",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJJ58mKBYjLxgRUD3zTami3rI",
+      "name": "Banana Hill Art Gallery",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ-x1v14EaLxgRsGiVYnsJxP0",
+      "name": "Uweza Art Gallery",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJdZCVxskbLxgR0nlHS1ni_6w",
+      "name": "Photizo Art Gallery",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJe76Vfq4XLxgRQHAuB9Jmkns",
+      "name": "WALL ART'S PAINTINGS ON CANVAS, WOODEN FRAMED",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ_fMoOIcXLxgRugtfBhhyy-s",
+      "name": "Paa Ya Paa Arts Centre",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ-ZKDlQQRLxgR7FYlCq9fhs4",
+      "name": "yegonizer",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ5dWbbmsXLxgRD_zYEUjNj80",
+      "name": "The Sarit Expo Centre",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJv8pPlJIXLxgRXy_kDAhpZnU",
+      "name": "Chandaria Center for Performing Arts",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJb5zE9IYRLxgROg81D-VTRok",
+      "name": "Uhuru Gardens National Monument & Museum",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJeQKnmEUaLxgRGyba4SmAr2Y",
+      "name": "Kamene Art Residency",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJK5r6iZwRLxgRnFwfGIzeTtc",
+      "name": "Kairos Futura",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJMzQ7Ul4XLxgRNdeDB8jfdws",
+      "name": "National Archives Moi Avenue",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJyyfdw9UWLxgRsGWALvldm7w",
+      "name": "Louis Leakey Memorial Institute",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJv5AAkqwXLxgRMTbr24uiRdY",
+      "name": "Louis Leakey Auditorium",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJhy8GJNgQLxgRJdo0s5XFZk4",
+      "name": "The Judiciary Museum",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJkRyGMS4XLxgR2c39IEAkIM0",
+      "name": "Nairobi national museum parking",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ67vZW74RLxgR7Kt1veYPxwM",
+      "name": "Memorial Peace Museum",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJxXAFHwAXLxgRTHND93_fyHw",
+      "name": "Hall of Kenya",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJpfqjAmobLxgRNX9uCsR44-k",
+      "name": "Bonzo Art Gallery",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJAdHae08RLxgR7FlC4C8PPiI",
+      "name": "Brushmasters - Seasoned artist with over 12 years of experience rendering high quality work.",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ7fURQqcRLxgRjGmQfDlN-dU",
+      "name": "HOF Gallery Kibera",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJQdp5p7YWLxgROm6fIath4uo",
+      "name": "awjama cultural centre",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJv7u5JzAXLxgRv39E6cM13J0",
+      "name": "Directorate Regional Museums",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJnVV9F1QRLxgRWAjcg4pH27w",
+      "name": "Kilimani Mall",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJPy0vGM8QLxgRthm50kdZqWI",
+      "name": "Pawa254",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJIUbiH9sWLxgRn__b1b9VVKs",
+      "name": "Goan Institute",
+      "category": "Arts & Culture",
+      "neighborhood": "Nairobi"
+    },
+    {
+      "google_place_id": "ChIJ62AMLMAXLxgRbPtWbAUV6as",
+      "name": "Village Market",
+      "category": "Arts & Culture",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJVwmpGT8XLxgRZ_kIkWxuXvU",
+      "name": "Tazama Gallery & Framing Retail Shop",
+      "category": "Arts & Culture",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJPztcBqUXLxgRdv9XtzL0nJs",
+      "name": "Artz Gallery-The Village Market",
+      "category": "Arts & Culture",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJ1VnwFtxOLxgRr76hE_rovSw",
+      "name": "VINCENTIAN RETREAT CENTRE, THIKA.",
+      "category": "Arts & Culture",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJW-OcsPQVLxgRQorCc8n7DEQ",
+      "name": "Text Book Centre - Thika Road Mall",
+      "category": "Arts & Culture",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJTVY0ypE-LxgRo1fGlZ4ayTU",
+      "name": "Aramati Thingira",
+      "category": "Arts & Culture",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJL5kWcMoVLxgRheK1D2SJf0s",
+      "name": "Bega Kwa Bega",
+      "category": "Arts & Culture",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJg5RWQLEVLxgRNYnX7BV5bgc",
+      "name": "The Sanatorium Studio",
+      "category": "Arts & Culture",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJQ6uppVEVLxgR9IuI_SgqaUQ",
+      "name": "Text Book Centre - Garden City Mall",
+      "category": "Arts & Culture",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJeyJThkZBLxgRy-FC4JugFSw",
+      "name": "THIKA ROAD BYPASS KIHUNGURO PHOTOGRAPHY STUDIO, Livesound Audio-Visual Studio",
+      "category": "Arts & Culture",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJlTnnPbBPLxgRLmKYah8PaNc",
+      "name": "Canvas Guy Limited",
+      "category": "Arts & Culture",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJdYD4VL2kKhgR3Cb1nuRceFE",
+      "name": "Kisumu Museum",
+      "category": "Arts & Culture",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJIfKovy5ILxgR3KHe37JP0Dc",
+      "name": "Karunguru Coffee Estate",
+      "category": "Arts & Culture",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJZ4pnVck_LxgR6m3h2GSsLLQ",
+      "name": "Spur Mall",
+      "category": "Arts & Culture",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJFfMfo01HLxgRo21soKHVqfo",
+      "name": "Kenyatta University, Ruiru Campus",
+      "category": "Arts & Culture",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJJYcnDOJHLxgRHyp9UcJX0GI",
+      "name": "Ballerz Sports Park",
+      "category": "Arts & Culture",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJeQrXRPxJLxgRabowJd07kPs",
+      "name": "Eugenia Park (Arts & Recreation Centre)",
+      "category": "Arts & Culture",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJOewXBqhHLxgRhp0Q_2S7GFc",
+      "name": "Kings Fitness & Recreational Centre",
+      "category": "Arts & Culture",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJR6AAA5Y7LxgR_1OPP1PjCEE",
+      "name": "Riuki Cultural Centre",
+      "category": "Arts & Culture",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJe-U-GVpGLxgRIIOtiQ8TSoE",
+      "name": "Juja City Mall",
+      "category": "Arts & Culture",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJKx2XxecXLxgRHWd8nHC5hQA",
+      "name": "Cheche Gallery",
+      "category": "Arts & Culture",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJKZ7pLHw9LxgRCI0XXMtAyjs",
+      "name": "Runda Mosque and Community Centre",
+      "category": "Arts & Culture",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJ-_ljBiNGLxgRCKrHl90OFaA",
+      "name": "JKUAT MAIN Library",
+      "category": "Arts & Culture",
+      "neighborhood": "Thika Road"
+    },
+    {
+      "google_place_id": "ChIJCd3Bv2hHQBgReuLBI2VxGBY",
+      "name": "Almasi Art Agency",
+      "category": "Arts & Culture",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJ-WzloyMlLxgR1Rvq9bX0-jI",
+      "name": "Agikuyu Cultural Paradise",
+      "category": "Arts & Culture",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJNW1fd2khLxgR9F3gW-jKFqg",
+      "name": "Gikuyu Museum of Art(Mahinga)",
+      "category": "Arts & Culture",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJL1U8iTE9LxgR4ApyHrwN7v0",
+      "name": "Bambaa Team Building",
+      "category": "Arts & Culture",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJIQWMAysXLxgRdBsJUz8M6mM",
+      "name": "Gemark International Kenya Limted",
+      "category": "Arts & Culture",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJY0hm4rAjLxgRYtEnWX9D8ZA",
+      "name": "Casha's Beauty Studio",
+      "category": "Arts & Culture",
+      "neighborhood": "Kiambu"
+    },
+    {
+      "google_place_id": "ChIJya-tx4YZLxgRgbPjqkR6UYo",
+      "name": "Provisions Kenya",
+      "category": "Arts & Culture",
+      "neighborhood": "Kiambu"
+    }
+  ]
+}
