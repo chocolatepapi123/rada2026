@@ -35,8 +35,12 @@ jobs:
         with:
           node-version: '22'
 
+      # Installed on its own inside scripts/ so the app's other packages (and their version conflicts) are not involved
       - name: Install image library
-        run: npm install --no-save sharp@0.34
+        run: |
+          cd scripts
+          npm init -y > /dev/null
+          npm install sharp@0.34 --no-audit --no-fund
 
       - name: Remember which photos are already done
         uses: actions/cache@v4
