@@ -1,0 +1,4 @@
+-- Applied live after an end-to-end test of the paid path (rolled back).
+-- 1. ticket_orders.refund_amount_kes. A wrong-amount M-Pesa payment now fails the order (stock released) and is flagged
+--    for refund with the exact amount paid; admin_ticket_overview / admin_mark_refunded use that amount.
+-- 2. ticket_payout_claim: a payout that M-Pesa clearly rejected is retried with a growing wait (2, 4, 6, 8 minutes), max 5 tries.

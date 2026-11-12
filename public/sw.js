@@ -1,10 +1,10 @@
 /* RADA service worker: makes repeat launches fast and gives an offline shell.
  * No build step needed. Bump VERSION to force every device to drop old caches. */
-const VERSION = 'rada-v8';
+const VERSION = 'rada-v9';
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
 const RUNTIME = `${VERSION}-runtime`;
-const RUNTIME_MAX_ENTRIES = 500;
+const RUNTIME_MAX_ENTRIES = 1500;
 
 self.addEventListener('install', () => self.skipWaiting());
 
@@ -37,6 +37,20 @@ async function staleWhileRevalidate(request) {
     })
     .catch(() => hit);
   return hit || refresh;
+}
+
+// Our stored photos and their resized copies never change under the same address, so once a copy is on the phone
+// it is used as is. (Refreshing it in the background re-downloaded every photo on every view and burned the
+// Supabase download quota.)
+async function cacheFirst(request) {
+  const cache = await caches.open(RUNTIME);
+  const hit = await cache.match(request);
+  if (hit) return hit;
+  const res = await fetch(request);
+  if (res.ok || res.type === 'opaque') {
+    cache.put(request, res.clone()).then(() => trim(RUNTIME, RUNTIME_MAX_ENTRIES));
+  }
+  return res;
 }
 
 // Page loads: always try the network (so new deploys show up), fall back to the cached shell offline.
@@ -79,6 +93,10 @@ self.addEventListener('fetch', (event) => {
   }
 
   const host = url.hostname;
+  if (host === 'wsrv.nl' || (host.endsWith('.supabase.co') && url.pathname.startsWith('/storage/v1/object/public/'))) {
+    event.respondWith(cacheFirst(request));
+    return;
+  }
   const cacheable =
     host === 'fonts.googleapis.com' ||
     host === 'fonts.gstatic.com' ||

@@ -42,6 +42,7 @@ import HostTicketsPanel from './HostTicketsPanel';
 import TicketBuySheet from './TicketBuySheet';
 import MyTicketsSheet from './MyTicketsSheet';
 import { fetchTicketSummaries, type TicketSummary } from '../lib/ticketsBuyer';
+import { optimizedUrl } from '../lib/imageOptimizer';
 import { WaitlistButton, TemplatePicker } from './OutingExtras';
 import { uploadCoverImage } from '../lib/cloudSync.ts';
 import { useUnclaimedSpots, mergeSpots, sortTrending } from '../lib/spotsFeed.ts';
@@ -1133,7 +1134,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div
                       className="w-10 h-10 rounded-full bg-cover bg-center shrink-0 border-2 border-slate-200 dark:border-slate-700 shadow-2xs"
-                      style={{ backgroundImage: `url('${plan.hostAvatar}')` }}
+                      style={{ backgroundImage: `url('${optimizedUrl(plan.hostAvatar || '', 96)}')` }}
                     />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1">
@@ -1180,7 +1181,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                 <div className="flex gap-3 bg-slate-50 dark:bg-black/30 p-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80">
                   <div
                     className="w-20 h-20 rounded-xl bg-cover bg-center shrink-0 border border-slate-200 dark:border-slate-700 relative overflow-hidden"
-                    style={{ backgroundImage: `url('${plan.spotImage}')` }}
+                    style={{ backgroundImage: `url('${optimizedUrl(plan.spotImage || '', 240)}')` }}
                   />
                   <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
                     <div>
@@ -1463,7 +1464,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                           >
                             <div
                               className="h-16 rounded-xl bg-cover bg-center mb-1.5 relative overflow-hidden"
-                              style={{ backgroundImage: `url('${spot.img}')` }}
+                              style={{ backgroundImage: `url('${optimizedUrl(spot.img || '', 240)}')` }}
                             >
                               {isSelected && (
                                 <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#E0533C] text-white flex items-center justify-center">
@@ -1825,7 +1826,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
               onClick={(e) => e.stopPropagation()}
             >
               {/* Hero */}
-              <div className="relative h-56 shrink-0 bg-cover bg-center" style={{ backgroundImage: `url('${plan.spotImage}')` }}>
+              <div className="relative h-56 shrink-0 bg-cover bg-center" style={{ backgroundImage: `url('${optimizedUrl(plan.spotImage || '', 640)}')` }}>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/10" />
                 <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
                   <span className="px-3 py-1.5 rounded-full text-[11px] font-extrabold bg-white/20 backdrop-blur-md text-white flex items-center gap-1.5">
@@ -1881,7 +1882,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                 {/* Host */}
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-11 h-11 rounded-full bg-cover bg-center border-2 border-white dark:border-[#1C1A1E] shadow-sm shrink-0" style={{ backgroundImage: `url('${plan.hostAvatar}')` }} />
+                    <div className="w-11 h-11 rounded-full bg-cover bg-center border-2 border-white dark:border-[#1C1A1E] shadow-sm shrink-0" style={{ backgroundImage: `url('${optimizedUrl(plan.hostAvatar || '', 96)}')` }} />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="font-extrabold text-[14px] truncate">{plan.hostName}</span>
