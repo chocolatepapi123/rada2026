@@ -6,3 +6,6 @@ dist
 *.local
 .DS_Store
 *.log
+
+photo-backup/
+shrink-photos-done.json
