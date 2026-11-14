@@ -1,0 +1,52 @@
+name: Delete surplus spot photos (migration step)
+
+# Frees Supabase storage by deleting every photo marked 'to_delete' in the photo_manifest table
+# (all non-thumbnail spot photos). The manifest keeps each spot's place ID, so phase 14
+# ("Restore spot photos to R2") can fetch them again later.
+#
+# 1. Run once with dry_run ON (default) and read the summary.
+# 2. Run again with dry_run OFF and confirm = DELETE.
+# TIP: turn OFF the "Seed spots" workflow while migrating, or it will add photos again.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run: only print what would be deleted'
+        type: boolean
+        default: true
+      confirm:
+        description: 'Type DELETE to allow a real delete'
+        type: string
+        default: ''
+      limit:
+        description: 'Optional: delete only this many files (blank = all)'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: delete-surplus-photos
+  cancel-in-progress: false
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Delete surplus photos
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          CONFIRM: ${{ inputs.confirm }}
+          LIMIT: ${{ inputs.limit }}
+        run: node scripts/migrate/delete-surplus-photos.mjs

@@ -1,0 +1,88 @@
+name: Restore spot photos to R2 (migration step)
+
+# Phase 14. Brings back the photos deleted by "Delete surplus spot photos". For every spot in the
+# photo_manifest table it searches Google Maps with the free gosom scraper (no Apify), downloads the
+# photos and uploads them to Cloudflare R2, then adds them to that spot's gallery.
+#
+# It works in batches and chains itself: each run restores up to max_spots, then starts the next run
+# until nobody is waiting, a run makes no progress, or chain_length runs have happened.
+# Safe to re-run: spots already restored are skipped. Try dry_run first (no uploads, no database changes).
+#
+# Needs these Repository secrets: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, R2_ACCOUNT_ID,
+# R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET, R2_PUBLIC_URL
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run: search only, no uploads, no database changes'
+        type: boolean
+        default: false
+      max_spots:
+        description: 'Spots to restore in this run'
+        type: string
+        default: '100'
+      chain_step:
+        description: 'CHAIN. Leave blank.'
+        type: string
+        default: ''
+      chain_length:
+        description: 'CHAIN. Max runs in a row (blank = 20)'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: restore-photos
+  cancel-in-progress: false
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install the R2 uploader
+        run: npm install --no-save --no-audit --no-fund @aws-sdk/client-s3
+
+      - name: Restore photos
+        id: restore
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          MAX_SPOTS: ${{ inputs.max_spots }}
+        run: node scripts/migrate/restore-photos.mjs
+
+      - name: Start the next run
+        if: ${{ success() && inputs.dry_run != true && steps.restore.outputs.remaining != '0' && steps.restore.outputs.restored != '0' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IN_STEP: ${{ inputs.chain_step }}
+          IN_LENGTH: ${{ inputs.chain_length }}
+          MAX_SPOTS_IN: ${{ inputs.max_spots }}
+        run: |
+          set -euo pipefail
+          step="${IN_STEP//[[:space:]]/}"; length="${IN_LENGTH//[[:space:]]/}"
+          if [ -z "$step" ]; then step=0; fi
+          if [ -z "$length" ]; then length=20; fi
+          next=$(( step + 1 ))
+          if [ "$next" -ge "$length" ]; then
+            echo "::notice title=Chain stopped::Reached chain_length $length. Run it again to continue."
+            exit 0
+          fi
+          echo "Starting run $next of $length"
+          gh workflow run restore-photos.yml --ref main -f max_spots="$MAX_SPOTS_IN" -f chain_step="$next" -f chain_length="$length"
