@@ -39,7 +39,7 @@ import { fetchSeededCinema } from './lib/cinemaDb.ts';
 import { isShowcase, buildShowcaseMovies, buildShowcaseEvents, buildShowcaseOutings } from './lib/showcase.ts';
 import { readJSON, writeJSON, writeJSONDebounced, purgeSeedData } from './lib/storage.ts';
 import { useSocialsCloud } from './lib/useSocialsCloud.ts';
-import { isDemoMode, isDemoId, setDemoAccountEmail, getDemoPersona, demoAwareUserId } from './lib/demoMode.ts';
+import { isDemoMode, isDemoId, setDemoAccountEmail, getDemoPersona, demoAwareUserId, setDemoGuest } from './lib/demoMode.ts';
 import { demoMerchantBusinesses, demoMerchantOffers, demoPastOutings, demoPersonaStatuses } from './lib/demoPersonas.ts';
 import { buildDemoOutings } from './data/demoData.ts';
 import { useUnclaimedSpots, mergeSpots, evictUnclaimedSpot } from './lib/spotsFeed.ts';
@@ -325,6 +325,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isGuestMode, setIsGuestMode] = useState<boolean>(false);
+  setDemoGuest(!session?.user?.id || isGuestMode); // guests get the pitch demo (see demoMode.ts)
   const [claimPromptDismissed, setClaimPromptDismissed] = useState<boolean>(false);
   const [authModalMessage, setAuthModalMessage] = useState<string>('');
   const [showSplash, setShowSplash] = useState<boolean>(true);
@@ -868,7 +869,7 @@ export default function App() {
     () => (isDemoMode()
       ? [...demoOutings, ...outings.filter(o => !isDemoId(o.id))]
       : (showcaseOutings.length ? [...outings, ...showcaseOutings] : outings)),
-    [demoOutings, outings, showcaseOutings, session?.user?.email]
+    [demoOutings, outings, showcaseOutings, session?.user?.email, isGuestMode]
   );
 
   // Spot Ownership Claims & Verification Requests

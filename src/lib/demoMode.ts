@@ -42,7 +42,16 @@ export function setDemoAccountEmail(email?: string | null) {
 /** Which sample person the signed-in demo account plays; null for everyone else. */
 export const getDemoPersona = (): 'merchant' | 'host' | 'user' | null => personaForEmail;
 
-export const isDemoMode = (): boolean => DEMO_ON || personaForEmail !== null;
+/**
+ * INVESTOR PITCH: guests (not signed in) see the full demo (chats, requests, Discover, outings)
+ * with no face-verification gate. Set to false after the pitch so real guests see real data.
+ */
+const GUEST_DEMO = true;
+let guestDemoActive = false;
+/** App calls this on every render with "is nobody signed in". */
+export const setDemoGuest = (isGuest: boolean) => { guestDemoActive = GUEST_DEMO && isGuest; };
+
+export const isDemoMode = (): boolean => DEMO_ON || personaForEmail !== null || guestDemoActive;
 
 /** Stand-in identity for a guest in Demo Mode, so chats, match requests and Discover work without signing in. */
 export const DEMO_GUEST_ID = 'demo-guest-me';
