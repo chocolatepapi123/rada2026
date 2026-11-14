@@ -16,6 +16,7 @@ const SHOWCASE_DEFAULT_ON = true;
 import type { CinemaMovie, CinemaShowtime, CinemaVenueLink, EventItem, OutingPlan, OutingAttendee } from '../types.ts';
 import { mapExternalRow, type ExternalEventRow } from '../utils/eventUtils.ts';
 import { VENUE_LABELS } from './cinemaProviders.ts';
+import { isDemoMode } from './demoMode.ts';
 import type { MyTicket, PublicTicketType, PublicTicketView, TicketSummary } from './ticketsBuyer.ts';
 
 const KEY = 'rada_showcase';
@@ -33,7 +34,8 @@ function readFlag(): boolean {
   }
 }
 const ON = readFlag();
-export const isShowcase = (): boolean => ON;
+/** Demo Mode always shows the sample movies, events, tickets and outings too. */
+export const isShowcase = (): boolean => ON || isDemoMode();
 
 // ───────────────────────── dates ─────────────────────────
 const pad = (n: number) => String(n).padStart(2, '0');

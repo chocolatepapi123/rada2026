@@ -39,7 +39,7 @@ import { fetchSeededCinema } from './lib/cinemaDb.ts';
 import { isShowcase, buildShowcaseMovies, buildShowcaseEvents, buildShowcaseOutings } from './lib/showcase.ts';
 import { readJSON, writeJSON, writeJSONDebounced, purgeSeedData } from './lib/storage.ts';
 import { useSocialsCloud } from './lib/useSocialsCloud.ts';
-import { isDemoMode, isDemoId, setDemoAccountEmail, getDemoPersona } from './lib/demoMode.ts';
+import { isDemoMode, isDemoId, setDemoAccountEmail, getDemoPersona, demoAwareUserId } from './lib/demoMode.ts';
 import { demoMerchantBusinesses, demoMerchantOffers, demoPastOutings, demoPersonaStatuses } from './lib/demoPersonas.ts';
 import { buildDemoOutings } from './data/demoData.ts';
 import { useUnclaimedSpots, mergeSpots, evictUnclaimedSpot } from './lib/spotsFeed.ts';
@@ -538,7 +538,7 @@ export default function App() {
   };
 
   const requireAuth = (actionName: string, actionCallback: () => void) => {
-    if (!session || isGuestMode) {
+    if ((!session || isGuestMode) && !isDemoMode()) {
       setAuthModalMessage(`Please log in or create an account to ${actionName}.`);
       setIsAuthModalOpen(true);
       return;
@@ -614,7 +614,11 @@ export default function App() {
       // Seeded multi-provider data (Anga, Century, Unseen...) first; old feed as fallback.
       let list = await fetchSeededCinema();
       if (!list.length) list = await fetchCinemaShowings();
-      if (!list.length && isShowcase()) list = buildShowcaseMovies();
+      if (isDemoMode()) {
+        // Demo Mode: sample films always show, next to whatever is live
+        const have = new Set(list.map(m => String(m.id)));
+        list = [...list, ...buildShowcaseMovies().filter(m => !have.has(String(m.id)))];
+      } else if (!list.length && isShowcase()) list = buildShowcaseMovies();
       if (!cancelled) setCinemaMovies(list);
     };
     load();
@@ -781,7 +785,9 @@ export default function App() {
   const loadExternalEvents = useCallback(async (force = false) => {
     if (!force && Date.now() - externalLoadedAtRef.current < 5 * 60 * 1000) return;
     const fetched = await fetchExternalEvents();
-    const rows = (!fetched || !fetched.length) && isShowcase() ? buildShowcaseEvents() : fetched;
+    const rows = isDemoMode()
+      ? [...(fetched || []), ...buildShowcaseEvents().filter(s => !(fetched || []).some(f => String(f.id) === String(s.id)))]
+      : (!fetched || !fetched.length) && isShowcase() ? buildShowcaseEvents() : fetched;
     if (rows) {
       externalLoadedAtRef.current = Date.now();
       setExternalEvents(rows);
@@ -1425,13 +1431,13 @@ export default function App() {
     try { localStorage.removeItem('rada_conversations'); localStorage.removeItem('rada_pending_requests'); localStorage.removeItem('rada_sent_requests'); } catch {}
   }, []);
   const socials = useSocialsCloud(
-    session?.user?.id && !isGuestMode ? session.user.id : undefined,
+    demoAwareUserId(session?.user?.id && !isGuestMode ? session.user.id : undefined),
     currentUserProfile?.handle || ''
   );
   const conversations = socials.conversations;
 
   // Demo Mode: seed mock hostings once signed in (re-seeds only if your profile changes; anything you create is kept)
-  const demoUid = session?.user?.id && !isGuestMode ? session.user.id : undefined;
+  const demoUid = demoAwareUserId(session?.user?.id && !isGuestMode ? session.user.id : undefined);
   useEffect(() => {
     if (!isDemoMode() || !demoUid) return;
     const seed = buildDemoOutings(demoUid, {
@@ -1443,7 +1449,9 @@ export default function App() {
     const past = persona
       ? demoPastOutings(persona, { id: demoUid, name: currentUserProfile?.name || 'You', handle: currentUserProfile?.handle || '@you', avatar: currentUserProfile?.avatar || '' })
       : [];
-    setDemoOutings(prev => [...seed, ...past, ...prev.filter(o => !/^demo-out-\d+$/.test(String(o.id)) && !String(o.id).startsWith('demo-past-'))]);
+    // Sample hostings from the showcase set (with tickets) sit alongside the demo ones
+    const sample = buildShowcaseOutings();
+    setDemoOutings(prev => [...seed, ...past, ...sample, ...prev.filter(o => !/^demo-out-\d+$/.test(String(o.id)) && !String(o.id).startsWith('demo-past-') && !String(o.id).startsWith('showcase-out-'))]);
   }, [demoUid, session?.user?.email, currentUserProfile?.handle, currentUserProfile?.name, currentUserProfile?.avatar]);
 
   // Demo accounts: sample businesses, offers and posts (re-added if a refresh from Supabase replaces them).
@@ -2875,8 +2883,8 @@ export default function App() {
                 outings={allOutings}
                 spots={spots}
                 currentUserProfile={currentUserProfile}
-                currentUserId={session?.user?.id}
-                isUserSignedIn={Boolean(session?.user?.id)}
+                currentUserId={demoAwareUserId(session?.user?.id)}
+                isUserSignedIn={Boolean(session?.user?.id) || isDemoMode()}
                 onOpenAuth={() => setIsAuthModalOpen(true)}
                 onCreateOuting={handleCreateOuting}
                 onOpenPlans={() => setIsProfilePageOpen(true)}
@@ -2900,7 +2908,7 @@ export default function App() {
                 discoveryProfiles={discoveryProfiles}
                 conversations={conversations}
                 currentUserProfile={currentUserProfile}
-                myUserId={session?.user?.id && !isGuestMode ? session.user.id : undefined}
+                myUserId={demoAwareUserId(session?.user?.id && !isGuestMode ? session.user.id : undefined)}
                 requests={socials.requests}
                 onSendMatchRequest={socials.sendRequest}
                 onRespondRequest={socials.respondRequest}

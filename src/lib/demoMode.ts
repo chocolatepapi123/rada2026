@@ -44,5 +44,11 @@ export const getDemoPersona = (): 'merchant' | 'host' | 'user' | null => persona
 
 export const isDemoMode = (): boolean => DEMO_ON || personaForEmail !== null;
 
+/** Stand-in identity for a guest in Demo Mode, so chats, match requests and Discover work without signing in. */
+export const DEMO_GUEST_ID = 'demo-guest-me';
+/** The real user id when signed in; in Demo Mode a guest gets DEMO_GUEST_ID; otherwise undefined. */
+export const demoAwareUserId = (realId?: string | null): string | undefined =>
+  realId ? realId : (isDemoMode() ? DEMO_GUEST_ID : undefined);
+
 /** Every mock id starts with "demo-" so real code paths can skip the network for them. */
-export const isDemoId = (id: unknown): boolean => String(id ?? '').startsWith('demo-');
+export const isDemoId = (id: unknown): boolean => { const s = String(id ?? ''); return s.startsWith('demo-') || s.startsWith('showcase-out-'); };
