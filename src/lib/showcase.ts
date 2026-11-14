@@ -2,13 +2,17 @@
  * Showcase mode: fills Movies, Events/Tickets, Outings and My Tickets with sample data so the app
  * looks alive in a demo or investor pitch when Supabase is unavailable (e.g. usage limit hit).
  *
- *   Turn on : open the app with  ?showcase=1   (remembered on that device)
- *   Turn off: open the app with  ?showcase=0
+ * It is ON by default (SHOWCASE_DEFAULT_ON below), for every visitor, guests included.
+ *   Turn off on a device: open the app with  ?showcase=0
+ *   Turn back on         : open the app with  ?showcase=1
+ *   Turn off for everyone: set SHOWCASE_DEFAULT_ON = false and redeploy (do this after the pitch!)
  *
- * It works in production builds too, but only on devices where you switched it on, so real
- * customers never see sample data. Nothing is written to Supabase. Real data always wins:
- * the samples are only used when the live fetch returns nothing.
+ * Nothing is written to Supabase. Real data always wins for movies and events (samples only fill in
+ * when the live fetch is empty); sample outings are added after the real ones.
  */
+/** Flip to false after the pitch so real customers never see sample data. */
+const SHOWCASE_DEFAULT_ON = true;
+
 import type { CinemaMovie, CinemaShowtime, CinemaVenueLink, EventItem, OutingPlan, OutingAttendee } from '../types.ts';
 import { mapExternalRow, type ExternalEventRow } from '../utils/eventUtils.ts';
 import { VENUE_LABELS } from './cinemaProviders.ts';
@@ -21,10 +25,11 @@ function readFlag(): boolean {
     if (typeof window === 'undefined') return false;
     const p = new URLSearchParams(window.location.search).get('showcase');
     if (p === '1') localStorage.setItem(KEY, '1');
-    if (p === '0') localStorage.removeItem(KEY);
-    return localStorage.getItem(KEY) === '1';
+    if (p === '0') localStorage.setItem(KEY, 'off');
+    const v = localStorage.getItem(KEY);
+    return v === 'off' ? false : v === '1' || SHOWCASE_DEFAULT_ON;
   } catch {
-    return false;
+    return SHOWCASE_DEFAULT_ON;
   }
 }
 const ON = readFlag();
