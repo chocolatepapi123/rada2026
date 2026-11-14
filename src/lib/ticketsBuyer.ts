@@ -2,7 +2,7 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 import { normalizeKenyanPhone } from './payments';
 import type { TicketSource } from './tickets';
-import { isShowcase, buildShowcaseMyTickets } from './showcase';
+import { isShowcase, buildShowcaseMyTickets, showcaseBoughtTickets, showcaseBuy, showcasePublicTickets, showcaseTicketSummaries } from './showcase';
 
 export interface PublicTicketType {
   id: string;
@@ -60,6 +60,7 @@ export type CheckInResult = {
 const clean = (m: string) => String(m || 'Something went wrong.').trim();
 
 export async function fetchPublicTickets(kind: TicketSource, source: string): Promise<PublicTicketView | null> {
+  if (isShowcase() && source.startsWith('showcase-out-')) return showcasePublicTickets(source);
   if (!isSupabaseConfigured) return null;
   const { data, error } = await supabase.rpc('ticket_public_view', { p_kind: kind, p_source: source });
   if (error || !data) return null;
@@ -72,6 +73,11 @@ export async function buyTicket(
   qty: number,
   phone: string
 ): Promise<{ orderId: string; free: boolean }> {
+  if (isShowcase() && type.id.startsWith('showcase-tt-')) {
+    await new Promise((r) => setTimeout(r, 1200));
+    showcaseBuy(type, qty);
+    return { orderId: 'showcase-order', free: type.price_kes === 0 };
+  }
   if (type.price_kes === 0) {
     const { data, error } = await supabase.rpc('ticket_buy', { p_type: type.id, p_qty: qty, p_phone: null });
     if (error) throw new Error(clean(error.message));
@@ -96,6 +102,10 @@ export async function waitForOrder(
   opts: { intervalMs?: number; timeoutMs?: number; signal?: AbortSignal } = {}
 ): Promise<OrderRow | null> {
   const { intervalMs = 2500, timeoutMs = 120000, signal } = opts;
+  if (id === 'showcase-order') {
+    await new Promise((r) => setTimeout(r, 2500)); // pretend the M-Pesa prompt was approved
+    return { id, status: 'paid', failure_reason: null, gross_kes: 0, qty: 1 };
+  }
   const end = Date.now() + timeoutMs;
   let last: OrderRow | null = null;
   while (Date.now() < end && !signal?.aborted) {
@@ -112,9 +122,9 @@ export async function fetchMyTickets(): Promise<MyTicket[]> {
     const { data, error } = await supabase.rpc('ticket_my_tickets');
     if (error) throw new Error(clean(error.message));
     const list = (data as MyTicket[]) || [];
-    return !list.length && isShowcase() ? buildShowcaseMyTickets() : list;
+    return isShowcase() ? [...showcaseBoughtTickets(), ...(list.length ? list : buildShowcaseMyTickets())] : list;
   } catch (e) {
-    if (isShowcase()) return buildShowcaseMyTickets(); // Supabase down or over its limit: show sample tickets
+    if (isShowcase()) return [...showcaseBoughtTickets(), ...buildShowcaseMyTickets()]; // Supabase down or over its limit: show sample tickets
     throw e;
   }
 }
@@ -132,7 +142,9 @@ export interface TicketSummary { min_price: number; left: number }
 
 /** Cheapest price and tickets left per outing/event, for cards. Missing key = nothing on sale. */
 export async function fetchTicketSummaries(kind: TicketSource, ids: string[]): Promise<Record<string, TicketSummary>> {
-  if (!isSupabaseConfigured || !ids.length) return {};
+  if (!ids.length) return {};
+  const mock = isShowcase() ? showcaseTicketSummaries(ids) : {};
+  if (!isSupabaseConfigured) return mock;
   const { data, error } = await supabase.rpc('ticket_summaries', { p_kind: kind, p_sources: ids });
-  return error || !data ? {} : (data as Record<string, TicketSummary>);
+  return error || !data ? mock : { ...mock, ...(data as Record<string, TicketSummary>) };
 }

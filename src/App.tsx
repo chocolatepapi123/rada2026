@@ -36,7 +36,7 @@ import {
 
 import { fetchCinemaShowings, CINEMA_UPDATED_EVENT } from './lib/cinema.ts';
 import { fetchSeededCinema } from './lib/cinemaDb.ts';
-import { isShowcase, buildShowcaseMovies, buildShowcaseEvents } from './lib/showcase.ts';
+import { isShowcase, buildShowcaseMovies, buildShowcaseEvents, buildShowcaseOutings } from './lib/showcase.ts';
 import { readJSON, writeJSON, writeJSONDebounced, purgeSeedData } from './lib/storage.ts';
 import { useSocialsCloud } from './lib/useSocialsCloud.ts';
 import { isDemoMode, isDemoId, setDemoAccountEmail, getDemoPersona } from './lib/demoMode.ts';
@@ -856,9 +856,13 @@ export default function App() {
   });
   // Demo Mode only: mock hostings + anything created while recording. Never saved to Supabase or the cache.
   const [demoOutings, setDemoOutings] = useState<OutingPlan[]>([]);
+  // Showcase mode (?showcase=1): sample outings are added after the real ones.
+  const showcaseOutings = useMemo(() => (isShowcase() ? buildShowcaseOutings() : []), []);
   const allOutings = useMemo(
-    () => (isDemoMode() ? [...demoOutings, ...outings.filter(o => !isDemoId(o.id))] : outings),
-    [demoOutings, outings, session?.user?.email]
+    () => (isDemoMode()
+      ? [...demoOutings, ...outings.filter(o => !isDemoId(o.id))]
+      : (showcaseOutings.length ? [...outings, ...showcaseOutings] : outings)),
+    [demoOutings, outings, showcaseOutings, session?.user?.email]
   );
 
   // Spot Ownership Claims & Verification Requests

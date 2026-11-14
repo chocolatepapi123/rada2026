@@ -1,5 +1,5 @@
 /**
- * Showcase mode: fills Movies, Events/Tickets and My Tickets with sample data so the app
+ * Showcase mode: fills Movies, Events/Tickets, Outings and My Tickets with sample data so the app
  * looks alive in a demo or investor pitch when Supabase is unavailable (e.g. usage limit hit).
  *
  *   Turn on : open the app with  ?showcase=1   (remembered on that device)
@@ -9,10 +9,10 @@
  * customers never see sample data. Nothing is written to Supabase. Real data always wins:
  * the samples are only used when the live fetch returns nothing.
  */
-import type { CinemaMovie, CinemaShowtime, CinemaVenueLink, EventItem } from '../types.ts';
+import type { CinemaMovie, CinemaShowtime, CinemaVenueLink, EventItem, OutingPlan, OutingAttendee } from '../types.ts';
 import { mapExternalRow, type ExternalEventRow } from '../utils/eventUtils.ts';
 import { VENUE_LABELS } from './cinemaProviders.ts';
-import type { MyTicket } from './ticketsBuyer.ts';
+import type { MyTicket, PublicTicketType, PublicTicketView, TicketSummary } from './ticketsBuyer.ts';
 
 const KEY = 'rada_showcase';
 
@@ -374,3 +374,116 @@ export function buildShowcaseMyTickets(): MyTicket[] {
     mk(4, EVENTS[7], 'Late Entry', 1500, 'used'),
   ];
 }
+
+// ───────────────────────── outings (hangouts) with tickets ─────────────────────────
+interface OutSpec {
+  n: number; title: string; address: string; cat: string; day: number; time: string; max: number;
+  desc: string; tag: string; colors: [string, string, string]; host: string; tags: string[];
+  going: string[];
+  tickets: { name: string; price: number; left: number; desc?: string }[];
+}
+
+const OUTINGS: OutSpec[] = [
+  {
+    n: 1, title: 'Karura Forest Sunrise Walk', address: 'Karura Forest, Gate B (Limuru Road)', cat: 'nature_trails', day: 3, time: '06:45', max: 12,
+    desc: 'An easy 5km loop through the forest, then chai and mandazi at the cafe. All fitness levels welcome.', tag: 'Outdoors',
+    colors: ['#0F3D2E', '#2D6A4F', '#B7E4C7'], host: 'amani_k', tags: ['All Plans', 'Group Hangouts', 'Outdoors'],
+    going: ['brian_o', 'chebet_r', 'otieno_j'], tickets: [{ name: 'RSVP (free)', price: 0, left: 6, desc: 'Entry fee to the forest not included' }],
+  },
+  {
+    n: 2, title: 'Rooftop Sundowner', address: 'Skyline Rooftop, Westlands', cat: 'nightlife', day: 2, time: '17:30', max: 20,
+    desc: 'Sunset drinks, a good playlist and great company. Dress smart-casual.', tag: 'Nightlife',
+    colors: ['#3B1C5A', '#E0533C', '#FFC857'], host: 'wanjiru_m', tags: ['All Plans', 'Group Hangouts', 'Nightlife'],
+    going: ['kevo_254', 'zawadi_n', 'faith_a', 'achieng_l'],
+    tickets: [{ name: 'Early Bird', price: 600, left: 8 }, { name: 'Regular', price: 900, left: 24 }],
+  },
+  {
+    n: 3, title: 'Street Food Crawl: Kilimani', address: 'Kilimani, Nairobi', cat: 'food_dining', day: 4, time: '13:00', max: 10,
+    desc: 'Five stops, five bites each. Come hungry, we split nothing but the fun.', tag: 'Food',
+    colors: ['#5C2A0B', '#E0733C', '#FFD166'], host: 'nyambura_w', tags: ['All Plans', 'Group Hangouts', 'Food'],
+    going: ['nyambura_w', 'kevo_254', 'otieno_j'], tickets: [{ name: 'Crawl Pass', price: 1500, left: 4, desc: 'Includes all five tastings' }],
+  },
+  {
+    n: 4, title: 'Sunset at Ngong Hills', address: 'Ngong Hills, Kajiado', cat: 'nature_trails', day: 5, time: '15:30', max: 15,
+    desc: 'Golden hour hike and photos along the ridge. Bring a jacket and water.', tag: 'Outdoors',
+    colors: ['#1B3A5C', '#E08A3C', '#FFE0A3'], host: 'mwas_d', tags: ['All Plans', 'Group Hangouts', 'Outdoors'],
+    going: ['mwas_d', 'faith_a', 'brian_o', 'chebet_r', 'zawadi_n'], tickets: [{ name: 'Hike + Guide', price: 500, left: 14 }],
+  },
+  {
+    n: 5, title: 'Afrobeats Night Out', address: 'Westlands, Nairobi', cat: 'nightlife', day: 6, time: '21:00', max: 40,
+    desc: 'Dance floor, good music and good company. Meet at the entrance at 9.', tag: 'Nightlife',
+    colors: ['#14142B', '#E0533C', '#FF9F1C'], host: 'kevo_254', tags: ['All Plans', 'Group Hangouts', 'Nightlife'],
+    going: ['kevo_254', 'achieng_l', 'wanjiru_m', 'amani_k', 'nyambura_w'], tickets: [{ name: 'Entry', price: 1000, left: 3 }],
+  },
+  {
+    n: 6, title: 'Board Games & Coffee', address: 'Kileleshwa, Nairobi', cat: 'food_dining', day: 1, time: '15:00', max: 8,
+    desc: 'Relaxed afternoon of board games and good coffee. Beginners welcome.', tag: 'Social',
+    colors: ['#3A2A1B', '#8A5A2B', '#F4D9A6'], host: 'zawadi_n', tags: ['All Plans', 'Group Hangouts'],
+    going: ['zawadi_n', 'chebet_r'], tickets: [{ name: 'RSVP (free)', price: 0, left: 5 }],
+  },
+];
+
+const AVATAR_COLORS = ['#E0533C', '#2D6A4F', '#1B6CA8', '#8E44AD', '#D6453D', '#0FA3A3', '#B5446E'];
+const avatar = (handle: string) => {
+  const c = AVATAR_COLORS[handle.split('').reduce((a, ch) => a + ch.charCodeAt(0), 0) % AVATAR_COLORS.length];
+  return svgUri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="${c}"/><text x="50" y="66" text-anchor="middle" font-family="Arial,sans-serif" font-size="46" font-weight="700" fill="#fff">${esc(handle[0].toUpperCase())}</text></svg>`);
+};
+
+export const isShowcaseOuting = (id: unknown) => String(id ?? '').startsWith('showcase-out-');
+
+export function buildShowcaseOutings(): OutingPlan[] {
+  return OUTINGS.map(o => {
+    const id = `showcase-out-${o.n}`;
+    const attendees: OutingAttendee[] = o.going.map((h, i) => ({
+      id: `showcase-att-${o.n}-${i}`, outingId: id, userId: `showcase-u-${h}`, userName: `@${h}`, userHandle: `@${h}`,
+      userAvatar: avatar(h), status: 'approved', isVerified: true, requestedAt: new Date(Date.now() - (i + 1) * 36e5).toISOString(),
+    }));
+    return {
+      id, hostId: `showcase-u-${o.host}`, hostName: `@${o.host}`, hostHandle: `@${o.host}`, hostAvatar: avatar(o.host),
+      isHostVerified: true, spotTitle: o.title, spotAddress: o.address,
+      spotImage: banner(o.title, o.tag, o.colors[0], o.colors[1], o.colors[2]), spotCategory: o.cat,
+      date: isoDay(o.day), time: o.time, maxAttendees: o.max, currentAttendeesCount: attendees.length + 1,
+      description: o.desc, accessType: 'open', tags: o.tags, status: 'active', createdAt: new Date(Date.now() - 864e5).toISOString(), attendees,
+    } as OutingPlan;
+  });
+}
+
+export function showcaseTicketSummaries(ids: string[]): Record<string, TicketSummary> {
+  const out: Record<string, TicketSummary> = {};
+  for (const id of ids) {
+    const o = OUTINGS.find(x => `showcase-out-${x.n}` === id);
+    if (!o) continue;
+    out[id] = { min_price: Math.min(...o.tickets.map(t => t.price)), left: o.tickets.reduce((a, t) => a + t.left, 0) };
+  }
+  return out;
+}
+
+export function showcasePublicTickets(source: string): PublicTicketView | null {
+  const o = OUTINGS.find(x => `showcase-out-${x.n}` === source);
+  if (!o) return null;
+  return {
+    title: o.title, date: isoDay(o.day), time: o.time, place: o.address,
+    image: banner(o.title, o.tag, o.colors[0], o.colors[1], o.colors[2]), host: `@${o.host}`, paid_enabled: true,
+    types: o.tickets.map((t, i) => ({
+      id: `showcase-tt-${o.n}-${i}`, name: t.name, description: t.desc ?? null, price_kes: t.price, left: t.left,
+      max_per_order: 4, sales_end: null, closed: false,
+    })),
+  };
+}
+
+// Tickets "bought" during the demo. In memory only, so they vanish on refresh.
+const bought: MyTicket[] = [];
+export function showcaseBuy(type: PublicTicketType, qty: number): void {
+  const n = Number(type.id.split('-')[2]);
+  const o = OUTINGS.find(x => x.n === n);
+  for (let i = 0; i < qty; i++) {
+    bought.unshift({
+      id: `showcase-bought-${Date.now()}-${i}`, code: `RADA${Date.now().toString().slice(-6)}BUY${i}`, status: 'valid',
+      created_at: new Date().toISOString(), checked_in_at: null, type_name: type.name, price_kes: type.price_kes,
+      source_kind: 'outing', source_id: `showcase-out-${n}`, title: o?.title ?? 'Outing',
+      event_date: o ? new Date(`${isoDay(o.day)}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : null,
+      event_time: o?.time ?? null, place: o?.address ?? null,
+    });
+  }
+}
+export const showcaseBoughtTickets = (): MyTicket[] => [...bought];
