@@ -23,7 +23,7 @@ const R2_PUBLIC = env('R2_PUBLIC_URL').replace(/\/$/, '');
 const DRY_RUN = env('DRY_RUN', 'false') === 'true';
 const MAX_SPOTS = Math.max(1, parseInt(env('MAX_SPOTS', '100'), 10) || 100);
 const BATCH_SIZE = Math.max(1, parseInt(env('BATCH_SIZE', '20'), 10) || 20);
-const MAX_PER_SPOT = Math.max(1, parseInt(env('MAX_PER_SPOT', '4'), 10) || 4);
+const MAX_PER_SPOT = Math.max(1, parseInt(env('MAX_PER_SPOT', '5'), 10) || 5);
 const WIDTH = Math.max(200, parseInt(env('PHOTO_WIDTH', '1000'), 10) || 1000);
 const IMAGE = env('GOSOM_IMAGE', 'gosom/google-maps-scraper');
 
@@ -114,8 +114,8 @@ async function main() {
   const rows = await fetchAll('photo_manifest?select=spot_id,google_place_id,name,address,gallery_pos,path&status=eq.deleted&restored_at=is.null&order=spot_id');
   const bySpot = new Map();
   for (const r of rows) {
-    if (!bySpot.has(r.spot_id)) bySpot.set(r.spot_id, { id: r.spot_id, placeId: r.google_place_id, name: r.name, address: r.address, deleted: 0, minPos: 99 });
-    const s = bySpot.get(r.spot_id); s.deleted++; s.minPos = Math.min(s.minPos, r.gallery_pos ?? 99);
+    if (!bySpot.has(r.spot_id)) bySpot.set(r.spot_id, { id: r.spot_id, placeId: r.google_place_id, name: r.name, address: r.address, deleted: 0, minPos: 99, paths: new Set() });
+    const s = bySpot.get(r.spot_id); s.deleted++; s.paths.add(r.path); s.minPos = Math.min(s.minPos, r.gallery_pos ?? 99);
   }
   const all = [...bySpot.values()];
   const todo = all.slice(0, MAX_SPOTS);
@@ -162,8 +162,11 @@ async function main() {
       }
       if (!newUrls.length) { notFound++; console.log(`  ✖ photos would not download: ${s.name}`); continue; }
 
-      const gallery = [...(galleries.get(s.id) || []), ...newUrls];
-      const u1 = await sb(`unclaimedspots?id=eq.${s.id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ gallery }) });
+      // Drop gallery entries that point at deleted files, keep the rest (and any photo that survived), then add the new ones.
+      const base = (galleries.get(s.id) || []).filter(u => !String(u).includes('/rada-media/spots/')); // the whole Supabase spots/ folder was deleted, so those links are dead
+      const body = { gallery: [...base, ...newUrls] };
+      if (!base.length) body.thumbnail = newUrls[0]; // every old photo was deleted, so the first new one becomes the thumbnail
+      const u1 = await sb(`unclaimedspots?id=eq.${s.id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(body) });
       if (!u1.ok) { console.warn(`  ✖ gallery update failed for ${s.name}: ${u1.status}`); continue; }
       await sb('photo_manifest', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(newRows) });
       await sb(`photo_manifest?spot_id=eq.${s.id}&status=eq.deleted`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'restored', restored_at: new Date().toISOString() }) });
