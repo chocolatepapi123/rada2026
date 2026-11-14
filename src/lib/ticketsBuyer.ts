@@ -2,6 +2,7 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 import { normalizeKenyanPhone } from './payments';
 import type { TicketSource } from './tickets';
+import { isShowcase, buildShowcaseMyTickets } from './showcase';
 
 export interface PublicTicketType {
   id: string;
@@ -107,9 +108,15 @@ export async function waitForOrder(
 }
 
 export async function fetchMyTickets(): Promise<MyTicket[]> {
-  const { data, error } = await supabase.rpc('ticket_my_tickets');
-  if (error) throw new Error(clean(error.message));
-  return (data as MyTicket[]) || [];
+  try {
+    const { data, error } = await supabase.rpc('ticket_my_tickets');
+    if (error) throw new Error(clean(error.message));
+    const list = (data as MyTicket[]) || [];
+    return !list.length && isShowcase() ? buildShowcaseMyTickets() : list;
+  } catch (e) {
+    if (isShowcase()) return buildShowcaseMyTickets(); // Supabase down or over its limit: show sample tickets
+    throw e;
+  }
 }
 
 /** What a ticket's QR code contains. The scanner and the database both accept the bare code too. */

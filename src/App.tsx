@@ -36,6 +36,7 @@ import {
 
 import { fetchCinemaShowings, CINEMA_UPDATED_EVENT } from './lib/cinema.ts';
 import { fetchSeededCinema } from './lib/cinemaDb.ts';
+import { isShowcase, buildShowcaseMovies, buildShowcaseEvents } from './lib/showcase.ts';
 import { readJSON, writeJSON, writeJSONDebounced, purgeSeedData } from './lib/storage.ts';
 import { useSocialsCloud } from './lib/useSocialsCloud.ts';
 import { isDemoMode, isDemoId, setDemoAccountEmail, getDemoPersona } from './lib/demoMode.ts';
@@ -613,6 +614,7 @@ export default function App() {
       // Seeded multi-provider data (Anga, Century, Unseen...) first; old feed as fallback.
       let list = await fetchSeededCinema();
       if (!list.length) list = await fetchCinemaShowings();
+      if (!list.length && isShowcase()) list = buildShowcaseMovies();
       if (!cancelled) setCinemaMovies(list);
     };
     load();
@@ -778,7 +780,8 @@ export default function App() {
   const externalLoadedAtRef = useRef(0);
   const loadExternalEvents = useCallback(async (force = false) => {
     if (!force && Date.now() - externalLoadedAtRef.current < 5 * 60 * 1000) return;
-    const rows = await fetchExternalEvents();
+    const fetched = await fetchExternalEvents();
+    const rows = (!fetched || !fetched.length) && isShowcase() ? buildShowcaseEvents() : fetched;
     if (rows) {
       externalLoadedAtRef.current = Date.now();
       setExternalEvents(rows);
