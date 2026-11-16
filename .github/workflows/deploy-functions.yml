@@ -51,7 +51,7 @@ jobs:
             echo "▶ $s"
             if [ ! -f "supabase/functions/$s/index.ts" ]; then echo "  ✖ supabase/functions/$s/index.ts is missing"; failed=1; continue; fi
             flag=""; [ "${JWT[$s]}" = "no" ] && flag="--no-verify-jwt"
-            if supabase functions deploy "$s" --project-ref "$NEW_REF" --use-api $flag; then echo "  ✔ deployed"; else echo "  ✖ deploy failed"; failed=1; fi
+            if supabase functions deploy "$s" --project-ref "$NEW_REF" --use-api --yes $flag; then echo "  ✔ deployed"; else echo "  ✖ deploy failed"; failed=1; fi
           done
           echo
           echo "Functions now on the new project:"
