@@ -1,6 +1,6 @@
 name: Copy edge functions to the new Supabase project
 
-# Phase 17. Downloads the 8 edge functions from the OLD project and deploys them to the NEW one,
+# Phase 17. Downloads the 7 edge functions (all except mirror-spot-photos, which still writes to Supabase storage) from the OLD project and deploys them to the NEW one,
 # keeping each function's "verify JWT" setting. It then lists the secret names the functions read,
 # so you know which ones to set on the new project (secret VALUES cannot be copied).
 #
@@ -42,7 +42,7 @@ jobs:
           if [ "$OLD_REF" = "$NEW_REF" ]; then echo "::error::Old and new ref are the same."; exit 1; fi
           mkdir work && cd work && supabase init --force >/dev/null
           declare -A JWT=( [mpesa-stk-push]=yes [mpesa-callback]=no [seed-cinemas]=no [sync-events]=no \
-                           [spot-details-extract]=no [mirror-spot-photos]=no [ticket-payout-result]=no [ticket-payout]=no )
+                           [spot-details-extract]=no [ticket-payout-result]=no [ticket-payout]=no )  # mirror-spot-photos is left out on purpose: it writes photos to Supabase storage
           failed=0
           for s in "${!JWT[@]}"; do
             echo "▶ $s"
