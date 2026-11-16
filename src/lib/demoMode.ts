@@ -27,11 +27,8 @@ function readDemoFlag(): boolean {
 const DEMO_ON = readDemoFlag();
 
 /** Demo accounts (see demoPersonas.ts) open in Demo Mode on their own. Set from the signed-in email. */
-const DEMO_ACCOUNT_EMAILS: Record<string, 'merchant' | 'host' | 'user'> = {
-  'waynrewaweru@gmail.com': 'merchant',
-  'waynewaweruwaititu@gmail.com': 'host',
-  'prodbywayne@gmail.com': 'user',
-};
+// Personal demo emails removed before public launch. Add them back locally if you need a promo recording.
+const DEMO_ACCOUNT_EMAILS: Record<string, 'merchant' | 'host' | 'user'> = {};
 let personaForEmail: 'merchant' | 'host' | 'user' | null = null;
 /** Production builds never switch a demo account into demo mode unless VITE_ENABLE_DEMO=true. */
 const DEMO_ALLOWED = !import.meta.env.PROD || import.meta.env.VITE_ENABLE_DEMO === 'true';
@@ -46,7 +43,7 @@ export const getDemoPersona = (): 'merchant' | 'host' | 'user' | null => persona
  * INVESTOR PITCH: guests (not signed in) see the full demo (chats, requests, Discover, outings)
  * with no face-verification gate. Set to false after the pitch so real guests see real data.
  */
-const GUEST_DEMO = true;
+const GUEST_DEMO = false;
 let guestDemoActive = false;
 /** App calls this on every render with "is nobody signed in". */
 export const setDemoGuest = (isGuest: boolean) => { guestDemoActive = GUEST_DEMO && isGuest; };

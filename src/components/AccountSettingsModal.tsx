@@ -16,6 +16,7 @@ import {
   Check,
   Briefcase,
   UserCog,
+  Trash2,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { UserProfile, OutingPlan, BusinessAccount } from '../types';
@@ -383,6 +384,25 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
                 />
               </div>
               </Section>
+
+              {isLoggedIn && (
+                <Section title="Your data" description="Ask us to delete your account and the data linked to it. We will confirm by email.">
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                    <Row
+                      icon={<Trash2 className="w-4 h-4" />}
+                      label="Request account deletion"
+                      value="Opens an email to RADA support"
+                      onClick={() => {
+                        const subject = encodeURIComponent('Delete my RADA account');
+                        const body = encodeURIComponent(
+                          `Please delete my RADA account and the data linked to it.\n\nAccount email: ${email || ''}\n`
+                        );
+                        window.location.href = `mailto:hello.rada.app@gmail.com?subject=${subject}&body=${body}`;
+                      }}
+                    />
+                  </div>
+                </Section>
+              )}
 
               {isLoggedIn && onOpenAuth && (
                 <AccountSwitcher

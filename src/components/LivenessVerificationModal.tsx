@@ -458,6 +458,10 @@ export const LivenessVerificationModal: React.FC<LivenessVerificationModalProps>
                 </p>
               </div>
 
+              <p className="text-[11px] leading-snug text-slate-500 dark:text-slate-400 px-2">
+                The selfie check compares your camera with your profile photo on your phone. Nothing from the camera is uploaded or kept; we only store that you passed. By tapping Start you agree to this check.
+              </p>
+
               {/* Sleek Oval Face-Frame Overlay. In a dark room the oval gets a bright white frame that lights the face. */}
               <div className={`mx-auto w-fit transition-all duration-300 ${lowLight ? 'bg-white rounded-[2.5rem] p-5 shadow-[0_0_60px_18px_rgba(255,255,255,0.85)]' : ''}`}>
               <div className="relative w-56 h-72 sm:w-64 sm:h-80 mx-auto rounded-[50%/58%] overflow-hidden bg-black border-4 border-[#FF5733] dark:border-[#D17A68] shadow-2xl flex items-center justify-center group ring-4 ring-[#FF5733]/25 dark:ring-[#D17A68]/25">
