@@ -57,6 +57,10 @@ jobs:
 
           if ! printf '%s' "$R2_ACCOUNT_ID" | grep -Eq '^[0-9a-f]{32}$'; then
             echo "::error title=R2_ACCOUNT_ID::It should be 32 letters and digits (the code right after dash.cloudflare.com/ in the address bar)."; bad=1; fi
+          if [ "${#R2_ACCESS_KEY_ID}" != 32 ]; then
+            echo "::error title=R2_ACCESS_KEY_ID::The Access Key ID is 32 characters long, but this one is ${#R2_ACCESS_KEY_ID}. The 64-character one is the Secret Access Key. They may be swapped."; bad=1; fi
+          if [ "${#R2_SECRET_ACCESS_KEY}" != 64 ]; then
+            echo "::error title=R2_SECRET_ACCESS_KEY::The Secret Access Key is 64 characters long, but this one is ${#R2_SECRET_ACCESS_KEY}. The 32-character one is the Access Key ID. They may be swapped."; bad=1; fi
           case "$R2_PUBLIC_URL" in https://*) ;; *) echo "::error title=R2_PUBLIC_URL::It must start with https://"; bad=1;; esac
           case "$R2_PUBLIC_URL" in */) echo "::error title=R2_PUBLIC_URL::Remove the / at the end."; bad=1;; esac
           if [ "$R2_BUCKET" != "rada-media" ]; then echo "::warning title=R2_BUCKET::Expected rada-media but found a different name."; fi
