@@ -1,15 +1,12 @@
 name: Copy edge functions to the new Supabase project
 
-# Phase 17. Downloads the 7 edge functions from the OLD project and deploys them to the NEW one,
-# keeping each function's "verify JWT" setting. It then lists the secret names the functions read,
-# so you know which ones to set on the new project (secret VALUES cannot be copied).
+# Deploys the 7 edge functions saved in this repo (supabase/functions/*) to the NEW project.
+# Their code was copied out of the old project, so this needs NO access to the old project.
+# mirror-spot-photos is deliberately NOT included (it would refill Supabase storage; photos live in R2).
 #
-# Repository secrets needed (supabase.com/dashboard/account/tokens):
-#   SUPABASE_ACCESS_TOKEN      token from the account that owns the NEW project (used to deploy)
-#   SUPABASE_ACCESS_TOKEN_OLD  token from the account that owns the OLD project (used to download).
-#                              Leave it out only if ONE account owns both projects.
-# mirror-spot-photos is deliberately NOT copied (it would refill Supabase storage; photos live in R2).
-# Run it AFTER the database copy.
+# Repository secret needed: SUPABASE_ACCESS_TOKEN
+#   (supabase.com/dashboard/account/tokens, made while logged into the account that owns the NEW project)
+# Run it AFTER the database copy. Secret VALUES cannot be copied; the log lists the names to set.
 
 on:
   workflow_dispatch:
@@ -17,11 +14,7 @@ on:
       new_ref:
         description: 'NEW project ref (the part before .supabase.co)'
         type: string
-        required: true
-      old_ref:
-        description: 'OLD project ref'
-        type: string
-        default: 'yobauhydhkptiuwvrntm'
+        default: 'pvgfazctvxwlapalugdr'
 
 permissions:
   contents: read
@@ -31,38 +24,38 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - uses: actions/checkout@v4
+
       - uses: supabase/setup-cli@v1
         with:
           version: latest
 
-      - name: Download from old, deploy to new
+      - name: Deploy the functions from the repo to the new project
         env:
-          NEW_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          OLD_TOKEN_SECRET: ${{ secrets.SUPABASE_ACCESS_TOKEN_OLD }}
-          OLD_REF: ${{ inputs.old_ref }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           NEW_REF: ${{ inputs.new_ref }}
         run: |
           set -uo pipefail
-          if [ -z "$NEW_TOKEN" ]; then echo "::error::Add the SUPABASE_ACCESS_TOKEN secret first."; exit 1; fi
-          OLD_TOKEN="${OLD_TOKEN_SECRET:-$NEW_TOKEN}"
-          [ -z "$OLD_TOKEN_SECRET" ] && echo "No SUPABASE_ACCESS_TOKEN_OLD set, using one token for both projects." 
-          if [ "$OLD_REF" = "$NEW_REF" ]; then echo "::error::Old and new ref are the same."; exit 1; fi
-          mkdir work && cd work && supabase init --force >/dev/null
+          if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then echo "::error::Add the SUPABASE_ACCESS_TOKEN secret first."; exit 1; fi
+          if [ "$NEW_REF" = "yobauhydhkptiuwvrntm" ]; then echo "::error::That is the OLD project ref. Use the new one."; exit 1; fi
+          if ! supabase functions list --project-ref "$NEW_REF" >/dev/null 2>&1; then
+            echo "::error title=Cannot reach the NEW project::The token cannot see project $NEW_REF. Create it while logged into the account that owns the new project, and check new_ref."; exit 1
+          fi
+          [ -d supabase/functions ] || { echo "::error::supabase/functions is missing from the repo. Upload the functions zip first."; exit 1; }
+          [ -f supabase/config.toml ] || printf 'project_id = "rada"\n' > supabase/config.toml
+
           declare -A JWT=( [mpesa-stk-push]=yes [mpesa-callback]=no [seed-cinemas]=no [sync-events]=no \
                            [spot-details-extract]=no [ticket-payout-result]=no [ticket-payout]=no )
-          if ! SUPABASE_ACCESS_TOKEN="$OLD_TOKEN" supabase functions list --project-ref "$OLD_REF" >/dev/null 2>&1; then
-            echo "::error title=Cannot read the OLD project::The old-project token cannot see $OLD_REF. Create SUPABASE_ACCESS_TOKEN_OLD while logged into the account that owns the OLD project."; exit 1
-          fi
-          if ! SUPABASE_ACCESS_TOKEN="$NEW_TOKEN" supabase functions list --project-ref "$NEW_REF" >/dev/null 2>&1; then
-            echo "::error title=Cannot reach the NEW project::SUPABASE_ACCESS_TOKEN cannot see $NEW_REF. Create it while logged into the account that owns the NEW project."; exit 1
-          fi
           failed=0
           for s in "${!JWT[@]}"; do
             echo "▶ $s"
-            if ! SUPABASE_ACCESS_TOKEN="$OLD_TOKEN" supabase functions download "$s" --project-ref "$OLD_REF" --use-api; then echo "  ✖ download failed"; failed=1; continue; fi
+            if [ ! -f "supabase/functions/$s/index.ts" ]; then echo "  ✖ supabase/functions/$s/index.ts is missing"; failed=1; continue; fi
             flag=""; [ "${JWT[$s]}" = "no" ] && flag="--no-verify-jwt"
-            if SUPABASE_ACCESS_TOKEN="$NEW_TOKEN" supabase functions deploy "$s" --project-ref "$NEW_REF" --use-api $flag; then echo "  ✔ deployed"; else echo "  ✖ deploy failed"; failed=1; fi
+            if supabase functions deploy "$s" --project-ref "$NEW_REF" --use-api $flag; then echo "  ✔ deployed"; else echo "  ✖ deploy failed"; failed=1; fi
           done
+          echo
+          echo "Functions now on the new project:"
+          supabase functions list --project-ref "$NEW_REF" || true
           echo
           echo "Secrets these functions read (set the values on the new project; SUPABASE_* ones are automatic):"
           grep -rhoE 'Deno\.env\.get\(["'"'"'][A-Z0-9_]+["'"'"']\)' supabase/functions | sed -E 's/.*\(["'"'"']([A-Z0-9_]+)["'"'"']\)/\1/' | sort -u | grep -v '^SUPABASE_' | sed 's/^/  - /'
