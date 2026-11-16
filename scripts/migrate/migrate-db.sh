@@ -88,11 +88,11 @@ else
 fi
 
 # ── 3. the whole public schema: tables, data, functions, policies, triggers, views ──
-echo "▶ Dumping the public schema (structure + data)"
-pg_dump "$OLD_DB_URL" --schema=public --no-owner --no-publications --no-subscriptions -f "$WORK/public.sql"
+echo "▶ Dumping the public and archive schemas (structure + data)"
+pg_dump "$OLD_DB_URL" --schema=public --schema=archive --no-owner --no-publications --no-subscriptions -f "$WORK/public.sql"
 sed -i '/^CREATE SCHEMA public;$/d' "$WORK/public.sql"   # the new project already has this schema
 echo "  dump size: $(du -h "$WORK/public.sql" | cut -f1)"
-apply "$WORK/public.sql" "public schema"
+apply "$WORK/public.sql" "public + archive schemas"
 
 # ── 4. extras that pg_dump of public does not carry ─────────────────────────
 echo "▶ Collecting extras from the old project"
@@ -130,7 +130,7 @@ done
 echo "▶ Verifying row counts"
 counts() {
   local url="$1" q
-  q="$(psql "$url" -X -At -c "select string_agg(format('select %L as t, count(*) as n from public.%I', table_name, table_name), ' union all ' order by table_name) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'")"
+  q="$(psql "$url" -X -At -c "select string_agg(format('select %L as t, count(*) as n from %I.%I', table_schema||'.'||table_name, table_schema, table_name), ' union all ' order by table_schema, table_name) from information_schema.tables where table_schema in ('public','archive') and table_type='BASE TABLE'")"
   psql "$url" -X -At -F' | ' -c "select * from ($q) x order by t"
 }
 counts "$OLD_DB_URL" >"$WORK/old.counts"; counts "$NEW_DB_URL" >"$WORK/new.counts"
@@ -139,5 +139,5 @@ echo "  accounts: old $OLD_USERS, new $NEW_USERS"
 if diff "$WORK/old.counts" "$WORK/new.counts" >"$WORK/diff.txt"; then
   echo "✔ All $(wc -l <"$WORK/old.counts") tables match. Accounts: $NEW_USERS/$OLD_USERS."
 else
-  echo "⚠ Some tables differ (a table written to during the copy is normal):"; cat "$WORK/diff.txt"; exit 1
+  echo "⚠ Some tables differ. A busy table (the old project's cron jobs keep writing) can be off by a few rows, a big gap is not normal:"; cat "$WORK/diff.txt"; exit 1
 fi
