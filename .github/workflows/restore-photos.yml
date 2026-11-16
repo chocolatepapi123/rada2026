@@ -113,6 +113,41 @@ jobs:
           ln -s "$RUNNER_TEMP/r2tools/node_modules" node_modules
           node --input-type=module -e "import '@aws-sdk/client-s3'; console.log('✔ uploader installed')"
 
+      - name: Test R2 access before copying anything
+        if: ${{ inputs.dry_run != true }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'JS'
+          import { S3Client, HeadBucketCommand, ListObjectsV2Command, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+          const B = process.env.R2_BUCKET;
+          const c = new S3Client({
+            region: 'auto',
+            endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+            credentials: { accessKeyId: process.env.R2_ACCESS_KEY_ID, secretAccessKey: process.env.R2_SECRET_ACCESS_KEY },
+          });
+          const key = `_write-test/${Date.now()}.txt`;
+          const tests = [
+            ['find the bucket', () => c.send(new HeadBucketCommand({ Bucket: B }))],
+            ['list files', () => c.send(new ListObjectsV2Command({ Bucket: B, MaxKeys: 1 }))],
+            ['write a file', () => c.send(new PutObjectCommand({ Bucket: B, Key: key, Body: 'ok', ContentType: 'text/plain' }))],
+            ['delete the test file', () => c.send(new DeleteObjectCommand({ Bucket: B, Key: key }))],
+          ];
+          const ok = {};
+          for (const [name, fn] of tests) {
+            try { await fn(); ok[name] = true; console.log('  ✔ can ' + name); }
+            catch (e) { ok[name] = false; console.log('  ✖ cannot ' + name + ': ' + (e.name || '') + ' ' + (e.message || '')); }
+          }
+          if (!ok['write a file']) {
+            if (ok['list files']) {
+              console.log('::error title=R2 token is read-only::The token can read the bucket but not write. Create a token with Object Read & Write.');
+            } else {
+              console.log('::error title=R2 refused the key::Cloudflare rejected the key completely. Check, in order: (1) R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY come from the SAME token, (2) that token is set to Object Read & Write for the bucket rada-media, (3) R2_ACCOUNT_ID is the account that owns rada-media, (4) R2_BUCKET is exactly rada-media.');
+            }
+            process.exit(1);
+          }
+          console.log('✔ R2 accepts uploads.');
+          JS
+
       - name: Restore photos
         run: |
           set -euo pipefail
