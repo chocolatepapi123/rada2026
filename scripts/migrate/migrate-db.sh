@@ -75,13 +75,22 @@ psql "$NEW_DB_URL" -X -q -c "create extension if not exists pg_cron with schema 
 psql "$NEW_DB_URL" -X -q -c "create extension if not exists pg_net with schema extensions;" || true
 
 # ── 2. accounts (auth.users + identities) so logins keep working ───────────
-echo "▶ Dumping accounts"
-pg_dump "$OLD_DB_URL" --data-only --no-owner --no-privileges -t auth.users -t auth.identities -f "$WORK/auth.sql"
-apply "$WORK/auth.sql" "accounts (auth.users, auth.identities)"
+OLD_USERS_N="$(qold -c 'select count(*) from auth.users')"
+NEW_USERS_N="$(qnew -c 'select count(*) from auth.users')"
+if [ "$NEW_USERS_N" = "0" ]; then
+  echo "▶ Dumping accounts"
+  pg_dump "$OLD_DB_URL" --data-only --no-owner --no-privileges -t auth.users -t auth.identities -f "$WORK/auth.sql"
+  apply "$WORK/auth.sql" "accounts (auth.users, auth.identities)"
+elif [ "$NEW_USERS_N" = "$OLD_USERS_N" ]; then
+  echo "▶ Accounts already copied ($NEW_USERS_N of $OLD_USERS_N), skipping"
+else
+  echo "✖ The new project has $NEW_USERS_N accounts but the old one has $OLD_USERS_N. Delete the new project's accounts (Authentication > Users) and re-run."; exit 1
+fi
 
 # ── 3. the whole public schema: tables, data, functions, policies, triggers, views ──
 echo "▶ Dumping the public schema (structure + data)"
 pg_dump "$OLD_DB_URL" --schema=public --no-owner --no-publications --no-subscriptions -f "$WORK/public.sql"
+sed -i '/^CREATE SCHEMA public;$/d' "$WORK/public.sql"   # the new project already has this schema
 echo "  dump size: $(du -h "$WORK/public.sql" | cut -f1)"
 apply "$WORK/public.sql" "public schema"
 
