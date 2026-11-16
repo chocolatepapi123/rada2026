@@ -41,6 +41,7 @@ import { VideoMessagePlayer } from './VideoMessagePlayer.tsx';
 import { generatePlayableWavDataUrl, generateFallbackVideoBlobUrl, formatMediaDuration, deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 import type { ToastOptions } from './Toast.tsx';
 import { isDemoMode } from '../lib/demoMode.ts';
+import { parseUnlockMessage } from '../lib/systemMessage';
 import {
   CloudRequest,
   OutgoingMessage,
@@ -809,6 +810,20 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
 
             {msgs.map((msg, i) => {
               if (msg.sender === 'system') {
+                const unlock = parseUnlockMessage(String(msg.text || ''));
+                if (unlock) {
+                  return (
+                    <div key={msg.id} className="flex justify-center my-3 w-full animate-in fade-in duration-200">
+                      <div className="max-w-[85%] rounded-2xl bg-white/70 dark:bg-white/5 border border-slate-200/70 dark:border-white/10 px-4 py-3 text-center">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-[#E0533C]">Group chat open</p>
+                        <p className="text-[13px] font-bold leading-snug text-slate-800 dark:text-slate-100 mt-0.5">{unlock.title}</p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          {unlock.when ? `${unlock.when} · ` : ''}Hosted by {unlock.host}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
                 return (
                   <div key={msg.id} className="flex justify-center my-3 w-full animate-in fade-in duration-200">
                     <div className="bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 rounded-full px-3.5 py-1.5 text-[11px] font-semibold text-center max-w-[85%]">

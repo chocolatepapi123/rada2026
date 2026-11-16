@@ -1408,23 +1408,26 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 <h2 className="text-xl font-black text-slate-900 dark:text-slate-100">
                   {selectedEvent.title}
                 </h2>
-                <BusinessBadge businessId={selectedEvent.businessId} category="event_organizer" size="xs" unclaimedVerified />
               </div>
               
-              {/* Clickable Event Date Tag -> Navigates directly to Calendar with date pre-selected and highlighted */}
+              {/* When: same look as the place row below. Tap to see the date in the calendar. */}
               <button
                 type="button"
                 onClick={() => {
                   onCloseEventModal();
                   onNavigateToCalendar?.(selectedEvent.date, selectedEvent.id);
                 }}
-                className="text-xs text-[#E0533C] hover:text-orange-700 font-bold flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/60 transition group cursor-pointer w-fit shadow-2xs mt-1"
-                title="View on Calendar (Pre-selects this date)"
+                className="w-full flex items-start gap-1 pt-1 text-left cursor-pointer group"
+                title="See this date in the calendar"
               >
-                <Calendar className="w-3.5 h-3.5 text-[#E0533C] group-hover:scale-110 transition-transform" />
-                <span>{selectedEvent.date} {selectedEvent.time ? `• ${selectedEvent.time}` : ''}</span>
-                <span className="text-[9px] font-black uppercase tracking-wider bg-[#E0533C] text-white px-1.5 py-0.5 rounded ml-1.5 group-hover:bg-orange-700 transition">
-                  View on Calendar ↗
+                <Calendar className="w-3.5 h-3.5 mt-0.5 shrink-0 text-slate-500" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-semibold text-slate-700 dark:text-slate-300">{selectedEvent.date}</span>
+                  {selectedEvent.time && <span className="block text-[11px] text-slate-400">{selectedEvent.time}</span>}
+                </span>
+                <span className="shrink-0 self-center flex items-center text-[11px] font-bold text-[#E0533C] group-hover:text-orange-700">
+                  Calendar
+                  <ChevronRight className="w-3.5 h-3.5" />
                 </span>
               </button>
 
@@ -1450,10 +1453,13 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 )}
               </div>
               {(selectedEvent.host || selectedEvent.source) && (
-                <p className="text-[11px] text-slate-400 pt-1">
-                  {selectedEvent.host ? `Hosted by ${selectedEvent.host}` : ''}
-                  {selectedEvent.host && selectedEvent.source ? ' · ' : ''}
-                  {selectedEvent.source ? `Tickets via ${getSourceLabel(selectedEvent.source)}` : ''}
+                <p className="text-[11px] text-slate-400 pt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                  <span>
+                    {selectedEvent.host ? `Hosted by ${selectedEvent.host}` : ''}
+                    {selectedEvent.host && selectedEvent.source ? ' · ' : ''}
+                    {selectedEvent.source ? `Tickets via ${getSourceLabel(selectedEvent.source)}` : ''}
+                  </span>
+                  <BusinessBadge businessId={selectedEvent.businessId} category="event_organizer" size="xs" unclaimedVerified />
                 </p>
               )}
               {selectedEvent.description && (

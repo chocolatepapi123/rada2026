@@ -5,6 +5,7 @@ import { STATUS_TTL_MS } from '../utils/statusLifecycle';
 import { loadUnclaimedSpots } from './spotsFeed';
 import { generateNewUserName, isLegacyWayneName, sanitizeDisplayName, sanitizeUsername } from '../utils/userUtils';
 import { logPlatformEvent } from './platformAnalytics';
+import { unlockMessageText } from './systemMessage';
 
 
 export type ListingKind = 'spot' | 'event' | 'offer';
@@ -2077,7 +2078,7 @@ export function createOrUnlockOutingGroupChat(
       {
         id: `msg-welcome-${Date.now()}`,
         sender: 'system' as const,
-        text: `Temporary Group Chat unlocked for "${outing.spotTitle}" on ${outing.date} at ${outing.time}! Hosted by ${outing.hostName}.`,
+        text: unlockMessageText(outing.spotTitle, outing.date, outing.time, outing.hostName),
         time: timeStr
       }
     ];

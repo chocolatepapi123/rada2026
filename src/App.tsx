@@ -12,6 +12,8 @@ import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspens
 import { getStoredAppColor, storeAppColor, applyAppColor } from './lib/appTheme';
 import { useTabSwipe } from './lib/useTabSwipe';
 import { ClaimUsernamePrompt, hasAutoUsername } from './components/ClaimUsernamePrompt';
+import { IntentPrompt } from './components/IntentPrompt';
+import { useIntents } from './lib/userIntent';
 
 // Claim-username popup is switched off for now. Flip to true to bring it back.
 const SHOW_CLAIM_USERNAME_PROMPT = false;
@@ -327,6 +329,10 @@ export default function App() {
   const [isGuestMode, setIsGuestMode] = useState<boolean>(false);
   setDemoGuest(!session?.user?.id || isGuestMode); // guests get the pitch demo (see demoMode.ts)
   const [claimPromptDismissed, setClaimPromptDismissed] = useState<boolean>(false);
+  const { intents: userIntents, loaded: intentsLoaded } = useIntents(session?.user?.id);
+  const [intentPromptSkipped, setIntentPromptSkipped] = useState<boolean>(() => {
+    try { return sessionStorage.getItem('rada_intent_prompt_skipped') === '1'; } catch { return false; }
+  });
   const [authModalMessage, setAuthModalMessage] = useState<string>('');
   const [showSplash, setShowSplash] = useState<boolean>(true);
   const [userRole, setUserRole] = useState<'user' | 'merchant' | 'admin'>('user');
@@ -589,7 +595,15 @@ export default function App() {
     if (!m) { m = document.createElement('meta'); m.setAttribute('name', 'theme-color'); document.head.appendChild(m); }
     m.setAttribute('content', color);
     // Android app (Capacitor wrapper): tell the native side so the phone bars show the same colour.
-    try { (window as any).Capacitor?.Plugins?.RadaBars?.setColor({ color }); } catch {}
+    // Top = colour at the top of the screen; bottom = colour at the bottom (where the floating nav fades into).
+    let bottom = color;
+    if (!(showSplash || authLoading)) {
+      const rgb = document.documentElement.style.getPropertyValue('--rada-fade-rgb').split(',').map((n) => parseInt(n, 10));
+      bottom = rgb.length === 3 && rgb.every((n) => !Number.isNaN(n))
+        ? '#' + rgb.map((n) => n.toString(16).padStart(2, '0')).join('').toUpperCase()
+        : (isDarkMode ? '#121113' : '#FFFFFF');
+    }
+    try { (window as any).Capacitor?.Plugins?.RadaBars?.setColor({ color, bottom }); } catch {}
     document.documentElement.style.colorScheme = isDarkMode ? 'dark' : 'light';
   }, [isDarkMode, showSplash, authLoading, appColor]);
 
@@ -3328,6 +3342,17 @@ export default function App() {
                 setCurrentUserProfile(prev => ({ ...prev, username, handle: `@${username}` }));
                 setClaimPromptDismissed(true);
                 showToast(`You are now @${username}`);
+              }}
+            />
+          )}
+
+          {session?.user?.id && !isGuestMode && !isAuthModalOpen && intentsLoaded && !userIntents && !intentPromptSkipped && !showSplash && (
+            <IntentPrompt
+              uid={session.user.id}
+              onDone={() => { /* saved by the prompt; the menu updates on its own */ }}
+              onSkip={() => {
+                try { sessionStorage.setItem('rada_intent_prompt_skipped', '1'); } catch { /* ignore */ }
+                setIntentPromptSkipped(true);
               }}
             />
           )}

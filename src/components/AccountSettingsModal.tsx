@@ -26,6 +26,8 @@ import { ProProfileCard, ProProfilePage } from './ProProfile';
 import { CreatorHubTab } from './CreatorHubTab';
 import { LegalModal, LEGAL_VERSION, type LegalDoc } from './LegalModal';
 import { AccountSwitcher } from './AccountSwitcher';
+import { IntentPrompt } from './IntentPrompt';
+import { useIntents, INTENT_OPTIONS } from '../lib/userIntent';
 import {
   AvatarHero,
   IdentityFields,
@@ -115,6 +117,8 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
 
   const user = session?.user;
   const isLoggedIn = !!user;
+  const { intents: myIntents } = useIntents(user?.id);
+  const [intentOpen, setIntentOpen] = useState(false);
 
   const requireLogin = () => {
     showToast('Please sign in first.', { type: 'error' });
@@ -359,6 +363,18 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
                   }
                 />
                 <Row icon={<Globe className="w-4 h-4" />} label="Sign-in method" value={authProviderName} />
+                {isLoggedIn && (
+                  <Row
+                    icon={<UserCog className="w-4 h-4" />}
+                    label="What you use RADA for"
+                    value={
+                      myIntents && myIntents.length
+                        ? myIntents.map((i) => INTENT_OPTIONS.find((o) => o.id === i)?.title).filter(Boolean).join(', ')
+                        : 'Tell us, so your menu fits you'
+                    }
+                    onClick={() => setIntentOpen(true)}
+                  />
+                )}
               </div>
               </Section>
 
@@ -597,6 +613,15 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
           </div>
         )}
       </div>
+      {intentOpen && user?.id && (
+        <IntentPrompt
+          uid={user.id}
+          mode="edit"
+          initial={myIntents}
+          onDone={() => setIntentOpen(false)}
+          onSkip={() => setIntentOpen(false)}
+        />
+      )}
       <LegalModal doc={legalDoc} onClose={() => setLegalDoc(null)} />
     </div>
   );

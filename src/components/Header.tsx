@@ -19,6 +19,7 @@ import {
   Ticket
 } from 'lucide-react';
 import { isPlatformAdmin } from '../types';
+import { useIntents } from '../lib/userIntent';
 import type { ToastOptions } from './Toast.tsx';
 
 // Account & security settings live inside the 3-dot menu; loaded only when the menu is first opened.
@@ -104,6 +105,13 @@ export const Header: React.FC<HeaderProps> = ({
   isHome = false,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  // Keep the menu relevant: rows that don't fit what this person said they use RADA for are hidden.
+  // Nothing is hidden until they have answered (or for guests / people who already run a business).
+  const { intents } = useIntents(userId);
+  const intentsKnown = Array.isArray(intents) && intents.length > 0;
+  const isProAccount = hasBusinessAccount || userRole === 'merchant' || userRole === 'admin';
+  const showBusinessHub = Boolean(isGuestMode) || isProAccount || !intentsKnown || intents!.includes('business');
+  const showSuggestSpot = !intentsKnown || intents!.some((i) => i !== 'business');
   // The menu has two pages: the main list, and "Account & security" (its own page inside the menu).
   const [menuView, setMenuView] = useState<'main' | 'account'>('main');
   useEffect(() => { if (!menuOpen) setMenuView('main'); }, [menuOpen]);
@@ -265,6 +273,7 @@ export const Header: React.FC<HeaderProps> = ({
                   )}
 
                   {/* Business & Merchant Hub (hero card) */}
+                  {showBusinessHub && (
                   <button
                     type="button"
                     onClick={() => handleMenuClick('businessHub')}
@@ -284,6 +293,7 @@ export const Header: React.FC<HeaderProps> = ({
                     </span>
                     <span className="relative text-[9px] font-black uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full shrink-0">Merchant</span>
                   </button>
+                  )}
 
                   {/* Everyday actions */}
                   <div className={MENU_GROUP}>
@@ -324,6 +334,7 @@ export const Header: React.FC<HeaderProps> = ({
                       </button>
                     )}
 
+                    {showSuggestSpot && (
                     <button
                       type="button"
                       onClick={() => {
@@ -343,6 +354,7 @@ export const Header: React.FC<HeaderProps> = ({
                         + Add
                       </span>
                     </button>
+                    )}
 
                     <button type="button" onClick={() => handleMenuClick('settingsOverlay')} className={MENU_ROW}>
                       <span className={`${MENU_TILE} bg-[#2D6A4F]/10 text-[#2D6A4F] dark:text-emerald-400`}>
