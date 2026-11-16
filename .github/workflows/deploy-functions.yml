@@ -1,0 +1,56 @@
+name: Copy edge functions to the new Supabase project
+
+# Phase 17. Downloads the 8 edge functions from the OLD project and deploys them to the NEW one,
+# keeping each function's "verify JWT" setting. It then lists the secret names the functions read,
+# so you know which ones to set on the new project (secret VALUES cannot be copied).
+#
+# Repository secret needed: SUPABASE_ACCESS_TOKEN  (supabase.com/dashboard/account/tokens)
+# Run it AFTER the database copy.
+
+on:
+  workflow_dispatch:
+    inputs:
+      new_ref:
+        description: 'NEW project ref (the part before .supabase.co)'
+        type: string
+        required: true
+      old_ref:
+        description: 'OLD project ref'
+        type: string
+        default: 'yobauhydhkptiuwvrntm'
+
+permissions:
+  contents: read
+
+jobs:
+  copy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Download from old, deploy to new
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          OLD_REF: ${{ inputs.old_ref }}
+          NEW_REF: ${{ inputs.new_ref }}
+        run: |
+          set -uo pipefail
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then echo "::error::Add the SUPABASE_ACCESS_TOKEN secret first."; exit 1; fi
+          if [ "$OLD_REF" = "$NEW_REF" ]; then echo "::error::Old and new ref are the same."; exit 1; fi
+          mkdir work && cd work && supabase init --force >/dev/null
+          declare -A JWT=( [mpesa-stk-push]=yes [mpesa-callback]=no [seed-cinemas]=no [sync-events]=no \
+                           [spot-details-extract]=no [mirror-spot-photos]=no [ticket-payout-result]=no [ticket-payout]=no )
+          failed=0
+          for s in "${!JWT[@]}"; do
+            echo "▶ $s"
+            if ! supabase functions download "$s" --project-ref "$OLD_REF" --use-api; then echo "  ✖ download failed"; failed=1; continue; fi
+            flag=""; [ "${JWT[$s]}" = "no" ] && flag="--no-verify-jwt"
+            if supabase functions deploy "$s" --project-ref "$NEW_REF" --use-api $flag; then echo "  ✔ deployed"; else echo "  ✖ deploy failed"; failed=1; fi
+          done
+          echo
+          echo "Secrets these functions read (set the values on the new project; SUPABASE_* ones are automatic):"
+          grep -rhoE 'Deno\.env\.get\(["'"'"'][A-Z0-9_]+["'"'"']\)' supabase/functions | sed -E 's/.*\(["'"'"']([A-Z0-9_]+)["'"'"']\)/\1/' | sort -u | grep -v '^SUPABASE_' | sed 's/^/  - /'
+          exit $failed
