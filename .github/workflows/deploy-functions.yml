@@ -1,10 +1,11 @@
 name: Copy edge functions to the new Supabase project
 
-# Phase 17. Downloads the 7 edge functions (all except mirror-spot-photos, which still writes to Supabase storage) from the OLD project and deploys them to the NEW one,
+# Phase 17. Downloads the 7 edge functions from the OLD project and deploys them to the NEW one,
 # keeping each function's "verify JWT" setting. It then lists the secret names the functions read,
 # so you know which ones to set on the new project (secret VALUES cannot be copied).
 #
 # Repository secret needed: SUPABASE_ACCESS_TOKEN  (supabase.com/dashboard/account/tokens)
+# mirror-spot-photos is deliberately NOT copied (it would refill Supabase storage; photos live in R2).
 # Run it AFTER the database copy.
 
 on:
@@ -42,7 +43,12 @@ jobs:
           if [ "$OLD_REF" = "$NEW_REF" ]; then echo "::error::Old and new ref are the same."; exit 1; fi
           mkdir work && cd work && supabase init --force >/dev/null
           declare -A JWT=( [mpesa-stk-push]=yes [mpesa-callback]=no [seed-cinemas]=no [sync-events]=no \
-                           [spot-details-extract]=no [ticket-payout-result]=no [ticket-payout]=no )  # mirror-spot-photos is left out on purpose: it writes photos to Supabase storage
+                           [spot-details-extract]=no [ticket-payout-result]=no [ticket-payout]=no )
+          for r in "$OLD_REF" "$NEW_REF"; do
+            if ! supabase functions list --project-ref "$r" >/dev/null 2>&1; then
+              echo "::error title=Token cannot access $r::This token cannot see project $r. Create it (supabase.com/dashboard/account/tokens) while logged into the account that owns BOTH projects."; exit 1
+            fi
+          done
           failed=0
           for s in "${!JWT[@]}"; do
             echo "▶ $s"

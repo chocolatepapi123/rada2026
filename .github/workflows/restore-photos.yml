@@ -1,39 +1,22 @@
-name: Restore spot photos to R2 (migration step)
+name: Restore spot photos to R2
 
-# Phase 14. Brings back the photos deleted by "Delete surplus spot photos". For every spot in the
-# photo_manifest table it searches Google Maps with the free gosom scraper (no Apify), downloads the
-# photos and uploads them to Cloudflare R2, then adds them to that spot's gallery.
+# Copies every spot photo into the Cloudflare R2 bucket and points the new Supabase project at it.
+# Run with dry run ON first, check the log, then run again with dry run OFF.
 #
-# It works in batches and chains itself: each run restores up to max_spots, then starts the next run
-# until nobody is waiting, a run makes no progress, or chain_length runs have happened.
-# Safe to re-run: spots already restored are skipped. Try dry_run first (no uploads, no database changes).
-#
-# Needs these Repository secrets: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, R2_ACCOUNT_ID,
-# R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET, R2_PUBLIC_URL
+# Repository secrets needed:
+#   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET, R2_PUBLIC_URL
+#   SUPABASE_URL (NEW project), SUPABASE_SERVICE_ROLE_KEY (NEW project)
 
 on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Dry run: search only, no uploads, no database changes'
+        description: 'Dry run: list what would be copied, change nothing'
         type: boolean
-        default: false
-      max_spots:
-        description: 'Spots to restore in this run'
-        type: string
-        default: '100'
-      chain_step:
-        description: 'CHAIN. Leave blank.'
-        type: string
-        default: ''
-      chain_length:
-        description: 'CHAIN. Max runs in a row (blank = 20)'
-        type: string
-        default: ''
+        default: true
 
 permissions:
   contents: read
-  actions: write
 
 concurrency:
   group: restore-photos
@@ -42,47 +25,93 @@ concurrency:
 jobs:
   restore:
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 340
+    env:
+      NEW_REF: pvgfazctvxwlapalugdr
+      OLD_REF: yobauhydhkptiuwvrntm
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DRY_RUN: ${{ inputs.dry_run }}
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: 22
+
+      - name: Check secrets and files before doing anything
+        run: |
+          set -uo pipefail
+          bad=0
+          for v in R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET R2_PUBLIC_URL SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY; do
+            val="${!v-}"
+            if [ -z "$val" ]; then echo "::error title=Missing secret::$v is empty or not saved. Check the name is spelled exactly like this."; bad=1; continue; fi
+            if [ "$val" != "$(printf '%s' "$val" | tr -d '[:space:]')" ]; then echo "::error title=Stray space::$v has a space or line break in it. Save it again."; bad=1; fi
+          done
+          [ "$bad" = 1 ] && exit 1
+
+          if ! printf '%s' "$R2_ACCOUNT_ID" | grep -Eq '^[0-9a-f]{32}$'; then
+            echo "::error title=R2_ACCOUNT_ID::It should be 32 letters and digits (the code right after dash.cloudflare.com/ in the address bar)."; bad=1; fi
+          case "$R2_PUBLIC_URL" in https://*) ;; *) echo "::error title=R2_PUBLIC_URL::It must start with https://"; bad=1;; esac
+          case "$R2_PUBLIC_URL" in */) echo "::error title=R2_PUBLIC_URL::Remove the / at the end."; bad=1;; esac
+          if [ "$R2_BUCKET" != "rada-media" ]; then echo "::warning title=R2_BUCKET::Expected rada-media but found a different name."; fi
+          case "$SUPABASE_URL" in *"$OLD_REF"*) echo "::error title=SUPABASE_URL::This points at the OLD project. It must be https://$NEW_REF.supabase.co"; bad=1;; esac
+          if [ "$SUPABASE_URL" != "https://$NEW_REF.supabase.co" ]; then
+            echo "::error title=SUPABASE_URL::It must be exactly https://$NEW_REF.supabase.co (no slash at the end)."; bad=1; fi
+
+          if printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" | grep -q '^eyJ'; then
+            ref=$(python3 - <<'PY'
+          import os, base64, json
+          try:
+              p = os.environ["SUPABASE_SERVICE_ROLE_KEY"].split(".")[1]
+              p += "=" * (-len(p) % 4)
+              d = json.loads(base64.urlsafe_b64decode(p))
+              print(d.get("ref", "") + "|" + d.get("role", ""))
+          except Exception:
+              print("|")
+          PY
+            )
+            kref="${ref%%|*}"; krole="${ref##*|}"
+            if [ -n "$kref" ] && [ "$kref" != "$NEW_REF" ]; then echo "::error title=SUPABASE_SERVICE_ROLE_KEY::This key belongs to a different project ($kref). Copy the key from the NEW project."; bad=1; fi
+            if [ -n "$krole" ] && [ "$krole" != "service_role" ]; then echo "::error title=SUPABASE_SERVICE_ROLE_KEY::This is the $krole key. Use the service_role key."; bad=1; fi
+          fi
+
+          if [ ! -f scripts/migrate/restore-photos.mjs ]; then
+            echo "::error title=Script missing::scripts/migrate/restore-photos.mjs is not in the repo. Upload phase15.zip first."; bad=1
+          elif ! grep -q "/rada-media/spots/" scripts/migrate/restore-photos.mjs; then
+            echo "::warning title=Old script?::restore-photos.mjs does not contain /rada-media/spots/. It may be an older version."
+          fi
+          [ "$bad" = 1 ] && exit 1
+
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            "$SUPABASE_URL/rest/v1/photo_manifest?select=status&limit=1")
+          if [ "$code" != "200" ]; then
+            echo "::error title=New project not reachable::photo_manifest check returned HTTP $code. 401/403 = wrong key, 404 = table missing, 000 = wrong URL."; exit 1
+          fi
+          echo "✔ Secrets look right and the new project answers."
 
       - name: Install the R2 uploader
-        run: npm install --no-save --no-audit --no-fund @aws-sdk/client-s3
-
-      - name: Restore photos
-        id: restore
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
-          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
-          DRY_RUN: ${{ inputs.dry_run }}
-          MAX_SPOTS: ${{ inputs.max_spots }}
-        run: node scripts/migrate/restore-photos.mjs
-
-      - name: Start the next run
-        if: ${{ success() && inputs.dry_run != true && steps.restore.outputs.remaining != '0' && steps.restore.outputs.restored != '0' }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          IN_STEP: ${{ inputs.chain_step }}
-          IN_LENGTH: ${{ inputs.chain_length }}
-          MAX_SPOTS_IN: ${{ inputs.max_spots }}
         run: |
           set -euo pipefail
-          step="${IN_STEP//[[:space:]]/}"; length="${IN_LENGTH//[[:space:]]/}"
-          if [ -z "$step" ]; then step=0; fi
-          if [ -z "$length" ]; then length=20; fi
-          next=$(( step + 1 ))
-          if [ "$next" -ge "$length" ]; then
-            echo "::notice title=Chain stopped::Reached chain_length $length. Run it again to continue."
-            exit 0
-          fi
-          echo "Starting run $next of $length"
-          gh workflow run restore-photos.yml --ref main -f max_spots="$MAX_SPOTS_IN" -f chain_step="$next" -f chain_length="$length"
+          # Installed in its own folder so the app's Vite/esbuild versions can never block it.
+          mkdir -p "$RUNNER_TEMP/r2tools"
+          cd "$RUNNER_TEMP/r2tools"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund --ignore-scripts @aws-sdk/client-s3
+          cd "$GITHUB_WORKSPACE"
+          rm -rf node_modules
+          ln -s "$RUNNER_TEMP/r2tools/node_modules" node_modules
+          node --input-type=module -e "import '@aws-sdk/client-s3'; console.log('✔ uploader installed')"
+
+      - name: Restore photos
+        run: |
+          set -euo pipefail
+          args=""
+          if [ "$DRY_RUN" = "true" ]; then args="--dry-run"; fi
+          node scripts/migrate/restore-photos.mjs $args
