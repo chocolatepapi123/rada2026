@@ -113,34 +113,7 @@ jobs:
           fi
           echo "✔ Secrets look right and the new project answers."
 
-      - name: Count spots still waiting
-        id: count
-        env:
-          AUTO_REPEAT: ${{ inputs.auto_repeat }}
-          PREV_WAITING: ${{ inputs.prev_waiting }}
-        run: |
-          set -uo pipefail
-          hdr=$(curl -s -D - -o /dev/null --max-time 30 \
-            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-            -H "Prefer: count=exact" -H "Range-Unit: items" -H "Range: 0-0" \
-            "$SUPABASE_URL/rest/v1/photo_manifest?status=eq.deleted&select=status" | tr -d '\r')
-          waiting=$(printf '%s' "$hdr" | grep -i '^content-range:' | sed -E 's#.*/##')
-          case "$waiting" in ''|*[!0-9]*) waiting="";; esac
-          stop=false
-          if [ -z "$waiting" ]; then
-            echo "::warning title=Cannot count::Could not count waiting spots, so auto-repeat is off for this run."
-          else
-            echo "Spots waiting (database count): $waiting"
-            if [ "$waiting" = "0" ]; then stop=true; echo "✔ Nothing left to restore. All done."; fi
-            if [ "$AUTO_REPEAT" = "true" ] && [ -n "$PREV_WAITING" ] && [ "$waiting" -ge "$PREV_WAITING" ]; then
-              stop=true; echo "::warning title=No progress::The last run did not reduce the waiting count ($PREV_WAITING before, $waiting now). Stopping so it does not loop. Send me the log of the last run."
-            fi
-          fi
-          echo "waiting=$waiting" >> "$GITHUB_OUTPUT"
-          echo "stop=$stop" >> "$GITHUB_OUTPUT"
-
       - name: Install the R2 uploader
-        if: ${{ steps.count.outputs.stop != 'true' }}
         run: |
           set -euo pipefail
           # Installed in its own folder so the app's Vite/esbuild versions can never block it.
@@ -154,7 +127,7 @@ jobs:
           node --input-type=module -e "import '@aws-sdk/client-s3'; console.log('✔ uploader installed')"
 
       - name: Test R2 access before copying anything
-        if: ${{ inputs.dry_run != true && steps.count.outputs.stop != 'true' }}
+        if: ${{ inputs.dry_run != true }}
         run: |
           set -euo pipefail
           node --input-type=module <<'JS'
@@ -189,24 +162,32 @@ jobs:
           JS
 
       - name: Restore photos
-        if: ${{ steps.count.outputs.stop != 'true' }}
+        id: restore
         run: |
           set -euo pipefail
           args=""
           if [ "$DRY_RUN" = "true" ]; then args="--dry-run"; fi
-          node scripts/migrate/restore-photos.mjs $args
+          node scripts/migrate/restore-photos.mjs $args 2>&1 | tee "$RUNNER_TEMP/restore.log"
+          left=$(grep -oE 'spots still waiting [0-9]+' "$RUNNER_TEMP/restore.log" | tail -1 | grep -oE '[0-9]+$' || true)
+          echo "Spots still waiting after this run: ${left:-unknown}"
+          echo "left=$left" >> "$GITHUB_OUTPUT"
 
       - name: Start the next run if spots are still waiting
-        if: ${{ inputs.dry_run != true && inputs.auto_repeat && steps.count.outputs.stop != 'true' && steps.count.outputs.waiting != '' }}
+        if: ${{ inputs.dry_run != true && inputs.auto_repeat && steps.restore.outputs.left != '' }}
         env:
           GH_TOKEN: ${{ github.token }}
-          WAITING: ${{ steps.count.outputs.waiting }}
+          LEFT: ${{ steps.restore.outputs.left }}
+          PREV: ${{ inputs.prev_waiting }}
           RUNS_LEFT: ${{ inputs.runs_left }}
         run: |
           set -euo pipefail
+          if [ "$LEFT" = "0" ]; then echo "✔ All spots are restored. Done."; exit 0; fi
+          if [ -n "$PREV" ] && [ "$LEFT" -ge "$PREV" ]; then
+            echo "::warning title=No progress::This run did not reduce the waiting count ($PREV before, $LEFT now). Stopping so it does not loop. Send me the log."; exit 0
+          fi
           case "$RUNS_LEFT" in ''|*[!0-9]*) RUNS_LEFT=0;; esac
           if [ "$RUNS_LEFT" -le 0 ]; then echo "Safety limit reached. Run the workflow again to continue."; exit 0; fi
           wf=$(basename "${GITHUB_WORKFLOW_REF%%@*}")
           gh workflow run "$wf" --ref "$GITHUB_REF_NAME" -f dry_run=false -f auto_repeat=true \
-            -f prev_waiting="$WAITING" -f runs_left="$((RUNS_LEFT - 1))"
-          echo "▶ Next run started by itself ($((RUNS_LEFT - 1)) more allowed)."
+            -f prev_waiting="$LEFT" -f runs_left="$((RUNS_LEFT - 1))"
+          echo "▶ Next run started by itself ($LEFT spots still waiting, $((RUNS_LEFT - 1)) more runs allowed)."
