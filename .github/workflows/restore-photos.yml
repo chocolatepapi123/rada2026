@@ -14,9 +14,22 @@ on:
         description: 'Dry run: list what would be copied, change nothing'
         type: boolean
         default: true
+      auto_repeat:
+        description: 'Keep starting new runs by itself until every spot is done (real runs only)'
+        type: boolean
+        default: true
+      runs_left:
+        description: 'Safety limit: how many more runs it may start by itself'
+        type: string
+        default: '40'
+      prev_waiting:
+        description: 'Leave empty. Used by the auto-repeat to spot a run that made no progress'
+        type: string
+        default: ''
 
 permissions:
   contents: read
+  actions: write
 
 concurrency:
   group: restore-photos
@@ -100,7 +113,34 @@ jobs:
           fi
           echo "✔ Secrets look right and the new project answers."
 
+      - name: Count spots still waiting
+        id: count
+        env:
+          AUTO_REPEAT: ${{ inputs.auto_repeat }}
+          PREV_WAITING: ${{ inputs.prev_waiting }}
+        run: |
+          set -uo pipefail
+          hdr=$(curl -s -D - -o /dev/null --max-time 30 \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Prefer: count=exact" -H "Range-Unit: items" -H "Range: 0-0" \
+            "$SUPABASE_URL/rest/v1/photo_manifest?status=eq.deleted&select=status" | tr -d '\r')
+          waiting=$(printf '%s' "$hdr" | grep -i '^content-range:' | sed -E 's#.*/##')
+          case "$waiting" in ''|*[!0-9]*) waiting="";; esac
+          stop=false
+          if [ -z "$waiting" ]; then
+            echo "::warning title=Cannot count::Could not count waiting spots, so auto-repeat is off for this run."
+          else
+            echo "Spots waiting (database count): $waiting"
+            if [ "$waiting" = "0" ]; then stop=true; echo "✔ Nothing left to restore. All done."; fi
+            if [ "$AUTO_REPEAT" = "true" ] && [ -n "$PREV_WAITING" ] && [ "$waiting" -ge "$PREV_WAITING" ]; then
+              stop=true; echo "::warning title=No progress::The last run did not reduce the waiting count ($PREV_WAITING before, $waiting now). Stopping so it does not loop. Send me the log of the last run."
+            fi
+          fi
+          echo "waiting=$waiting" >> "$GITHUB_OUTPUT"
+          echo "stop=$stop" >> "$GITHUB_OUTPUT"
+
       - name: Install the R2 uploader
+        if: ${{ steps.count.outputs.stop != 'true' }}
         run: |
           set -euo pipefail
           # Installed in its own folder so the app's Vite/esbuild versions can never block it.
@@ -114,7 +154,7 @@ jobs:
           node --input-type=module -e "import '@aws-sdk/client-s3'; console.log('✔ uploader installed')"
 
       - name: Test R2 access before copying anything
-        if: ${{ inputs.dry_run != true }}
+        if: ${{ inputs.dry_run != true && steps.count.outputs.stop != 'true' }}
         run: |
           set -euo pipefail
           node --input-type=module <<'JS'
@@ -149,8 +189,24 @@ jobs:
           JS
 
       - name: Restore photos
+        if: ${{ steps.count.outputs.stop != 'true' }}
         run: |
           set -euo pipefail
           args=""
           if [ "$DRY_RUN" = "true" ]; then args="--dry-run"; fi
           node scripts/migrate/restore-photos.mjs $args
+
+      - name: Start the next run if spots are still waiting
+        if: ${{ inputs.dry_run != true && inputs.auto_repeat && steps.count.outputs.stop != 'true' && steps.count.outputs.waiting != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WAITING: ${{ steps.count.outputs.waiting }}
+          RUNS_LEFT: ${{ inputs.runs_left }}
+        run: |
+          set -euo pipefail
+          case "$RUNS_LEFT" in ''|*[!0-9]*) RUNS_LEFT=0;; esac
+          if [ "$RUNS_LEFT" -le 0 ]; then echo "Safety limit reached. Run the workflow again to continue."; exit 0; fi
+          wf=$(basename "${GITHUB_WORKFLOW_REF%%@*}")
+          gh workflow run "$wf" --ref "$GITHUB_REF_NAME" -f dry_run=false -f auto_repeat=true \
+            -f prev_waiting="$WAITING" -f runs_left="$((RUNS_LEFT - 1))"
+          echo "▶ Next run started by itself ($((RUNS_LEFT - 1)) more allowed)."
