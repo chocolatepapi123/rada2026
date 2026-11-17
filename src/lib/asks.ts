@@ -2,6 +2,8 @@
 import { supabase } from './supabase';
 import { isCloudReady } from './socialsCloud';
 import { readVideoSeconds } from './hostVideos';
+import { isDemoMode } from './demoMode';
+import { demoAcceptReply, demoCloseAsk, demoCreateAsk, demoDeclineReply, demoFetchAsks, demoFetchReplies, demoPassAsk, demoReplyToAsk, demoSearchPlans } from '../data/demoAsks';
 
 export interface Ask {
   id: string; body: string; area: string;
@@ -36,6 +38,7 @@ async function shrinkImage(file: File): Promise<Blob> {
 
 /** Uploads a photo or short video for an ask. Throws a readable message. */
 export async function uploadAskMedia(file: File): Promise<{ url: string; type: 'image' | 'video' }> {
+  if (isDemoMode()) return { url: URL.createObjectURL(file), type: file.type.startsWith('video/') ? 'video' : 'image' }; // Demo Mode: stays on this device
   const { data: u } = await supabase.auth.getUser();
   const uid = u.user?.id; if (!uid) throw new Error('Sign in first.');
   const isVideo = file.type.startsWith('video/'); const isImage = file.type.startsWith('image/');
@@ -56,6 +59,7 @@ export async function uploadAskMedia(file: File): Promise<{ url: string; type: '
 
 /** Returns null when the request was cancelled or failed, so callers can keep what is already on screen. */
 export async function fetchAsks(area: string, signal?: AbortSignal): Promise<Ask[] | null> {
+  if (isDemoMode()) return demoFetchAsks(area);
   if (!isCloudReady()) return [];
   let q = supabase.rpc('asks_feed', { p_area: area || null });
   if (signal) q = q.abortSignal(signal);
@@ -67,6 +71,7 @@ export async function createAsk(body: string, area: string, expiresAt: Date, med
   if (body.trim().length < 5) return 'Say a little more, at least a few words.';
   if (area.trim().length < 2) return 'Type where this is happening.';
   if (expiresAt.getTime() < Date.now() + 5 * 60000) return 'Pick an expiry at least 5 minutes from now.';
+  if (isDemoMode()) { await demoCreateAsk(body, area, expiresAt, media, plan); return null; }
   const { error } = await supabase.rpc('create_ask', { p_body: body, p_area: area.trim(), p_expires_at: expiresAt.toISOString(), p_media_url: media?.url ?? null, p_media_type: media?.type ?? null, p_plan_kind: plan?.kind ?? null, p_plan_ref: plan?.ref ?? null, p_plan_title: plan?.title ?? null, p_client_key: clientKey ?? null });
   return error ? clean(error.message) : null;
 }
@@ -74,36 +79,44 @@ export async function createAsk(body: string, area: string, expiresAt: Date, med
 export async function searchPlans(q: string): Promise<PlanHit[]> {
   const term = q.trim();
   if (term.length < 2) return [];
+  if (isDemoMode()) return demoSearchPlans(term);
   const { data, error } = await supabase.rpc('ask_plan_search', { p_q: term });
   return error ? [] : ((data as PlanHit[]) || []);
 }
-export async function passAsk(id: string): Promise<void> { await supabase.rpc('pass_ask', { p_ask: id }); }
+export async function passAsk(id: string): Promise<void> { if (isDemoMode()) return demoPassAsk(id); await supabase.rpc('pass_ask', { p_ask: id }); }
 export async function closeAsk(id: string): Promise<string | null> {
+  if (isDemoMode()) { await demoCloseAsk(id); return null; }
   const { error } = await supabase.rpc('close_ask', { p_ask: id });
   return error ? clean(error.message) : null;
 }
 export async function replyToAsk(id: string, message: string): Promise<string | null> {
+  if (isDemoMode()) { await demoReplyToAsk(id); return null; }
   const { error } = await supabase.rpc('reply_to_ask', { p_ask: id, p_message: message });
   return error ? clean(error.message) : null;
 }
 export async function fetchReplies(id: string): Promise<AskReply[]> {
+  if (isDemoMode()) return demoFetchReplies(id);
   const { data } = await supabase.rpc('ask_replies_for', { p_ask: id });
   return (data as AskReply[]) || [];
 }
 export async function acceptReply(replyId: string): Promise<{ chatId: string | null; error: string | null }> {
+  if (isDemoMode()) return demoAcceptReply(replyId);
   const { data, error } = await supabase.rpc('accept_ask_reply', { p_reply: replyId });
   return error ? { chatId: null, error: clean(error.message) } : { chatId: data as string, error: null };
 }
 export async function declineReply(replyId: string): Promise<string | null> {
+  if (isDemoMode()) { await demoDeclineReply(replyId); return null; }
   const { error } = await supabase.rpc('decline_ask_reply', { p_reply: replyId });
   return error ? clean(error.message) : null;
 }
 export async function blockUser(userId: string): Promise<string | null> {
+  if (isDemoMode()) return null;
   const { data: u } = await supabase.auth.getUser(); if (!u.user) return 'Sign in first.';
   const { error } = await supabase.from('user_blocks').insert({ blocker_id: u.user.id, blocked_id: userId });
   return error && !/duplicate/i.test(error.message) ? clean(error.message) : null;
 }
 export async function reportAsk(ask: Ask, reason: string): Promise<string | null> {
+  if (isDemoMode()) return null;
   const { data: u } = await supabase.auth.getUser(); if (!u.user) return 'Sign in first.';
   const { error } = await supabase.from('user_reports').insert({ reporter_id: u.user.id, reported_id: ask.user_id, context: 'other', context_id: `ask:${ask.id}`, reason, details: ask.body.slice(0, 300) });
   return error ? clean(error.message) : null;

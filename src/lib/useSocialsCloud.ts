@@ -29,6 +29,7 @@ import {
   demoReplyFor,
   getDemoPerson,
 } from '../data/demoData';
+import { onDemoAskChat } from '../data/demoAsks';
 
 const previewOf = (m: OutgoingMessage): string => {
   switch (m.kind) {
@@ -194,6 +195,12 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
     setRequests(buildDemoRequests(userId, myHandle));
     setLoaded(true);
   }, [userId, myHandle]);
+
+  // Demo Mode: accepting a reply on the Rada feed opens a private chat
+  useEffect(() => {
+    if (!demo) return;
+    return onDemoAskChat(conv => setConversations(prev => [conv, ...prev.filter(c => c.id !== conv.id)]));
+  }, []);
 
   /** Full history when a chat is opened (the list only carries the most recent messages). */
   const loadHistory = useCallback(async (conversationId: string) => {

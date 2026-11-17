@@ -1,10 +1,11 @@
 /**
  * Sample data for the demo accounts. Shown only in Demo Mode (see demoMode.ts); never written to Supabase.
  * Every business, person, review and number here is fictional. All ids start with "demo-".
- * Faces come from /public/demo/avatars (only photos that exist there are used).
+ * Avatars are initial-letter images (no photo files).
  */
 import type { BusinessAccount, BusinessOffer, Review, StatusPost, OutingPlan, OutingAttendee } from '../types.ts';
 import type { MyAnalytics } from './tracking';
+import { initialAvatar } from '../data/demoData.ts';
 import type { MilestoneData } from './milestones';
 
 export type DemoPersona = 'merchant' | 'host' | 'user';
@@ -16,7 +17,7 @@ export const DEMO_ACCOUNTS: Record<string, DemoPersona> = {
   'prodbywayne@gmail.com': 'user',
 };
 
-const face = (k: string) => `/demo/avatars/${k}.jpg`;
+const face = (k: string) => initialAvatar(k);
 const U = (id: string) => `https://images.unsplash.com/photo-${id}?w=900&auto=format&fit=crop`;
 const IMG = {
   rooftop: U('1517248135467-4c7edcad34c4'), cocktail: U('1551024709-8f23befc6f87'), restaurant: U('1555396273-367ea4eb4db5'),

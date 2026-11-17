@@ -44,6 +44,7 @@ import { useSocialsCloud } from './lib/useSocialsCloud.ts';
 import { isDemoMode, isDemoId, setDemoAccountEmail, getDemoPersona, demoAwareUserId, setDemoGuest } from './lib/demoMode.ts';
 import { demoMerchantBusinesses, demoMerchantOffers, demoPastOutings, demoPersonaStatuses } from './lib/demoPersonas.ts';
 import { buildDemoOutings } from './data/demoData.ts';
+import { buildDemoVaultTickets } from './data/demoVault.ts';
 import { useUnclaimedSpots, mergeSpots, evictUnclaimedSpot } from './lib/spotsFeed.ts';
 import { resolveNearestNeighborhood } from './lib/geo.ts';
 
@@ -1437,7 +1438,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    writeJSONDebounced('rada_tickets', tickets);
+    writeJSONDebounced('rada_tickets', tickets.filter(t => !String(t.id).startsWith('demo-')));
   }, [tickets]);
 
   // Chats, match requests and group chats now live in Supabase (shared between people and devices).
@@ -1468,6 +1469,12 @@ export default function App() {
     const sample = buildShowcaseOutings();
     setDemoOutings(prev => [...seed, ...past, ...sample, ...prev.filter(o => !/^demo-out-\d+$/.test(String(o.id)) && !String(o.id).startsWith('demo-past-') && !String(o.id).startsWith('showcase-out-'))]);
   }, [demoUid, session?.user?.email, currentUserProfile?.handle, currentUserProfile?.name, currentUserProfile?.avatar]);
+
+  // Demo Mode: saved plans and tickets in the Vault (never saved to the device)
+  useEffect(() => {
+    if (!isDemoMode() || !demoUid) return;
+    setTickets(prev => [...buildDemoVaultTickets(), ...prev.filter(t => !String(t.id).startsWith('demo-vault-'))]);
+  }, [demoUid]);
 
   // Demo accounts: sample businesses, offers and posts (re-added if a refresh from Supabase replaces them).
   useEffect(() => {

@@ -1543,7 +1543,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
 
       {/* CHATS */}
       {subtab === 'asks' && (
-        <AsksSection signedIn={Boolean(myUserId)} showToast={showToast} onChatOpened={() => { void onRefreshSocials(); setSubtab('chats'); }} />
+        <AsksSection signedIn={Boolean(myUserId)} showToast={showToast} onChatOpened={(chatId) => { void onRefreshSocials(); setSubtab('chats'); if (isDemoMode() && chatId) setActiveChatId(chatId); }} />
       )}
       {subtab === 'groups' && (
         <GroupsSection signedIn={Boolean(myUserId)} showToast={showToast} />

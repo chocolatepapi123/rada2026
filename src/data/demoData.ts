@@ -35,8 +35,15 @@ const IMG = {
   burger: U('1568901346375-23c9450c58cd'),
 };
 
-// Profile photos live in public/demo/avatars/<key>.jpg (see the README.txt in that folder).
-const avatarFor = (key: string) => `/demo/avatars/${key}.jpg`;
+// Demo people get initial-letter avatars (no photo files needed).
+const AV_COLORS = ['#FD550A', '#005C47', '#111111', '#E0533C', '#2D6A4F'];
+/** Initial-letter avatar drawn as an image, so no photo files are needed. */
+export const initialAvatar = (key: string): string => {
+  const c = AV_COLORS[key.split('').reduce((a, ch) => a + ch.charCodeAt(0), 0) % AV_COLORS.length];
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="${c}"/><text x="50" y="67" text-anchor="middle" font-family="Arial,sans-serif" font-size="48" font-weight="700" fill="#fff">${key.charAt(0).toUpperCase()}</text></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+};
+const avatarFor = (key: string) => initialAvatar(key);
 const DEFAULT_ME_AVATAR = '';
 
 // ---------------------------------------------------------------------------
