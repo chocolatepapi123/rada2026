@@ -88,7 +88,7 @@ export const DEMO_PEOPLE: DemoPerson[] = [
   P('otis', 'otis_ke', 'Otieno Ouma', '', 'DJ on weekends, accountant on weekdays 🎧'),
   P('shiko', 'shiko_n', 'Shiko Njoroge', '', 'Hiking, photography and strong coffee 📸'),
   P('dan', 'dan_kamau', 'Daniel Kamau', '', 'Trail runner. Karura is my office 🏃🏾'),
-  // discover deck (swipe candidates)
+  // Rada feed posters + people who reply to my asks
   P('nina', 'nina_w', 'Nina Wanjiku', '', 'Pottery on Saturdays, Java on Sundays. Looking for someone to explore new spots with ☕', true),
   P('dennis', 'dennis_m', 'Dennis Maina', '', 'Sports bar regular and part-time chef. I make a mean pilau 🍛'),
   P('caro', 'caro_a', 'Caroline Atieno', '', 'Live music, rooftops and long drives to Naivasha 🚗'),

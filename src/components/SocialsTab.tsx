@@ -1279,19 +1279,13 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
         {[
           { id: 'asks', label: 'Rada' },
           { id: 'queue', label: 'Requests' },
-          { id: 'discover', label: 'Discover' },
           { id: 'chats', label: 'Chats' },
           { id: 'groups', label: 'Groups' },
           { id: 'search', label: 'Search' }
-        ].filter((tab) => DISCOVER_VISIBLE || tab.id !== 'discover').map((tab) => (
+        ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => {
-              if (tab.id === 'discover' && (!isUserSingle || !isUserVerifiedSingle)) {
-                setShowGateModal(true);
-                setSubtab('discover');
-                return;
-              }
               setSubtab(tab.id as any);
             }}
             className={`flex-1 py-2 rounded-full transition cursor-pointer inline-flex items-center justify-center gap-1 ${
@@ -1309,170 +1303,6 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           </button>
         ))}
       </div>
-
-      {/* DISCOVER: gate for people who are not verified singles */}
-      {DISCOVER_VISIBLE && subtab === 'discover' && (!isUserSingle || !isUserVerifiedSingle) && (
-        <div className={`p-5 ${CARD} rounded-3xl text-center space-y-4 shadow-sm animate-in fade-in duration-200`}>
-          <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto">
-            <ShieldCheck className="w-7 h-7" />
-          </div>
-
-          <div className="space-y-1.5 max-w-sm mx-auto">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-wider">
-              <Lock className="w-3 h-3" />
-              <span>Verified singles only</span>
-            </span>
-            <h3 className="font-black text-[15px] text-slate-900 dark:text-slate-100">Discover is reserved for verified single profiles.</h3>
-            <p className="text-[13px] text-slate-600 dark:text-slate-300 leading-relaxed">You can still create and join Group Chats!</p>
-          </div>
-
-          <div className="p-3.5 bg-slate-50 dark:bg-white/[0.04] rounded-2xl text-xs text-left space-y-2 max-w-sm mx-auto">
-            {statusRow('Profile status', isUserSingle, 'Single', 'Not single')}
-            {statusRow('Selfie check', !!currentUserProfile?.isLivenessVerified, 'Passed', 'Not done yet', true)}
-          </div>
-
-          <div className="pt-1 flex flex-col gap-2.5 max-w-sm mx-auto">
-            <button
-              type="button"
-              onClick={() => { if (onOpenVerificationModal) onOpenVerificationModal(); }}
-              className="w-full py-3 px-4 bg-[#E0533C] text-white font-extrabold rounded-full text-[13px] shadow-lg shadow-[#E0533C]/25 active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Camera className="w-4 h-4" />
-              <span>Take the selfie check</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setSubtab('chats')}
-              className="w-full py-3 px-4 bg-white dark:bg-white/[0.06] border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 font-bold rounded-full text-[13px] active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Users className="w-4 h-4 text-[#E0533C]" />
-              <span>Explore &amp; join group chats</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* DISCOVER: profile card (verified singles) */}
-      {DISCOVER_VISIBLE && subtab === 'discover' && isUserSingle && isUserVerifiedSingle && (
-        <div className="space-y-4">
-          {currentProfile ? (
-            <div
-              className={`${CARD} rounded-3xl overflow-hidden shadow-md relative transition-all duration-300 ${
-                swipeAnimation === 'like' ? 'translate-x-28 rotate-12 opacity-0' : swipeAnimation === 'pass' ? '-translate-x-28 -rotate-12 opacity-0' : ''
-              }`}
-            >
-              <div
-                className="h-[26rem] bg-cover bg-center relative cursor-pointer"
-                style={{ backgroundImage: `url('${currentProfile.img}')` }}
-                onClick={() => onViewUserProfile({
-                  id: String(currentProfile.id),
-                  name: currentProfile.name,
-                  handle: currentProfile.handle,
-                  avatar: currentProfile.img,
-                  bio: currentProfile.bio || 'Exploring Nairobi hangouts, food, and culture.',
-                  loc: cleanLocation(currentProfile.loc),
-                  relationshipStatus: currentProfile.relationshipStatus,
-                  vibes: currentProfile.vibes
-                })}
-              >
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-
-                <span className="absolute top-3 left-3 inline-flex items-center gap-1 text-white text-[11px] font-black px-3 py-1 rounded-full shadow-sm bg-gradient-to-r from-[#F43F5E] to-[#E0533C]">
-                  <ShieldCheck className="w-3 h-3" />
-                  Verified single
-                </span>
-
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onViewUserProfile({
-                      id: String(currentProfile.id),
-                      name: currentProfile.name,
-                      handle: currentProfile.handle,
-                      avatar: currentProfile.img,
-                      bio: currentProfile.bio || 'Exploring Nairobi hangouts, food, and culture.',
-                      loc: cleanLocation(currentProfile.loc),
-                      relationshipStatus: currentProfile.relationshipStatus,
-                      vibes: currentProfile.vibes
-                    });
-                  }}
-                  className="absolute top-3 right-3 bg-black/55 backdrop-blur-md text-white text-[11px] font-extrabold px-3 py-1 rounded-full active:scale-95 transition cursor-pointer"
-                >
-                  View profile
-                </button>
-
-                <div className="absolute bottom-0 inset-x-0 p-4 space-y-1.5">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <h3 className="font-black text-xl text-white truncate">{currentProfile.name}</h3>
-                    <span className="text-xs text-white/80 font-bold shrink-0">{currentProfile.handle}</span>
-                  </div>
-                  <p className="text-xs text-white/85 flex items-center gap-1 font-semibold">
-                    <MapPin className="w-3.5 h-3.5" />
-                    <span>{cleanLocation(currentProfile.loc)}</span>
-                  </p>
-                  {currentProfile.vibes && currentProfile.vibes.length > 0 && (
-                    <div className="flex gap-1.5 flex-wrap pt-1">
-                      {currentProfile.vibes.map((v, i) => (
-                        <span key={i} className="text-[11px] bg-white/15 backdrop-blur-md text-white px-2.5 py-1 rounded-full font-bold">
-                          #{v}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="p-4 space-y-4">
-                {currentProfile.bio && (
-                  <p className="text-[13px] text-slate-700 dark:text-slate-300 leading-relaxed">{currentProfile.bio}</p>
-                )}
-
-                <div className="flex gap-6 justify-center">
-                  <button
-                    onClick={() => handleSwipe('pass')}
-                    className="w-14 h-14 rounded-full bg-white dark:bg-white/[0.06] border border-slate-200 dark:border-white/10 text-slate-500 hover:text-red-500 hover:border-red-400 flex items-center justify-center shadow-md active:scale-95 transition cursor-pointer"
-                    title="Pass"
-                    aria-label="Pass"
-                  >
-                    <X className="w-7 h-7" />
-                  </button>
-                  <button
-                    onClick={() => handleSwipe('like')}
-                    className="w-14 h-14 rounded-full bg-gradient-to-br from-[#F43F5E] to-[#E0533C] text-white flex items-center justify-center shadow-lg shadow-[#E0533C]/30 active:scale-95 transition cursor-pointer"
-                    title="Send match request"
-                    aria-label="Send match request"
-                  >
-                    <Heart className="w-7 h-7 fill-white" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className={`py-10 text-center ${CARD} rounded-3xl p-6 space-y-3`}>
-              <div className="w-12 h-12 rounded-2xl bg-[#E0533C]/10 text-[#E0533C] flex items-center justify-center mx-auto">
-                <Sparkles className="w-6 h-6" />
-              </div>
-              <h4 className="font-black text-[15px] text-slate-900 dark:text-slate-100">
-                {candidatePool.length === 0 ? 'No match profiles right now' : "You've reached the end of the queue!"}
-              </h4>
-              <p className="text-[13px] text-slate-500 dark:text-slate-400 max-w-xs mx-auto leading-relaxed">
-                {candidatePool.length === 0
-                  ? "Nobody new to show yet. We're adding people as more verified singles join RADA. Check back soon, or invite a friend."
-                  : 'Check back later for new people joining RADA, or invite friends to join.'}
-              </p>
-              {candidatePool.length > 0 && (
-                <button
-                  onClick={() => setProfileIndex(0)}
-                  className="px-5 py-2.5 bg-[#E0533C] text-white rounded-full text-[13px] font-extrabold shadow-lg shadow-[#E0533C]/25 active:scale-95 transition cursor-pointer"
-                >
-                  Start over
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* REQUESTS */}
       {subtab === 'queue' && (
