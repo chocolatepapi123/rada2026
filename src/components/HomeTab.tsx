@@ -7,6 +7,7 @@ import { getSpotCategoryAccent, accentPillStyle, accentVars } from '../lib/spotA
 import { rankSpots, useNearYou } from '../lib/spotRanking.ts';
 import { useProgressiveCount } from '../lib/useProgressive.ts';
 import { NearYouControl } from './NearYouControl.tsx';
+import { TonightSection } from './TonightSection.tsx';
 import { pickTrendingSpots, isHomeSpot } from '../lib/trendingSpots.ts';
 import { CinemaMovieSheet } from './CinemaExplorer.tsx';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
@@ -66,7 +67,7 @@ import {
   Loader2,
   RotateCcw
 } from 'lucide-react';
-import { EventItem, CinemaMovie, StatusPost, UserProfile, BusinessOffer, OfferCategory, SpotItem, SavedItem, BusinessAccount, isOfficialAdmin } from '../types.ts';
+import { EventItem, OutingPlan, CinemaMovie, StatusPost, UserProfile, BusinessOffer, OfferCategory, SpotItem, SavedItem, BusinessAccount, isOfficialAdmin } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { EmojiPicker } from './EmojiPicker.tsx';
 import { WeatherChip } from './WeatherChip.tsx';
@@ -95,6 +96,9 @@ import {
 
 interface HomeTabProps {
   events: EventItem[];
+  /** For the Tonight row. */
+  outings?: OutingPlan[];
+  onGoToOutings?: () => void;
   cinemaMovies: CinemaMovie[];
   statuses: StatusPost[];
   offers?: BusinessOffer[];
@@ -135,6 +139,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   onRefreshFeed,
   onOpenSpotDetails,
   onOpenEventDetails,
+  outings = [],
+  onGoToOutings,
   onBookCinema,
   onPostStatus,
   onReplyStatus,
@@ -1351,6 +1357,15 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             <span>Create Event "{searchQuery || 'New Showcase'}"</span>
           </button>
         </div>
+      )}
+
+      {selectedHomeSection === 'all' && !searchQuery.trim() && (
+        <TonightSection
+          events={events}
+          outings={outings}
+          onOpenEvent={(e) => onOpenEventDetails?.(e)}
+          onOpenOutings={() => onGoToOutings?.()}
+        />
       )}
 
       {/* ========================================================

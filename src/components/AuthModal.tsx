@@ -290,15 +290,16 @@ export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, custo
             <form onSubmit={handleSubmit} className="space-y-3.5">
               {isSignUp && (
                 <div>
-                  <label className={labelCls}>Display Name (Optional, only you see this)</label>
+                  <label className={labelCls}>Your name (only you see this)</label>
                   <div className="relative">
                     <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
                     <input
                       type="text"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Your name, or leave blank"
+                      placeholder="Your name"
                       autoComplete="name"
+                      required
                       className={inputCls}
                     />
                   </div>

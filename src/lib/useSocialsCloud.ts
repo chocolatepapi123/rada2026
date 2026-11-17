@@ -233,6 +233,7 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
       ...(msg.kind === 'video' ? { videoUrl: mediaUrl, videoDuration: msg.media?.duration } : {}),
       ...(msg.kind === 'photo' ? { photos: msg.media?.photos || [] } : {}),
       ...(msg.kind === 'date_invite' ? { dateInvite: msg.media?.dateInvite } : {}),
+      ...(msg.media?.billSplitId ? { billSplitId: msg.media.billSplitId as string } : {}),
     };
     if (demo) {
       const sent: ChatMessage = { ...optimistic, id: `demo-msg-${clientId}` };

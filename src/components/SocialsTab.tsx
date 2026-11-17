@@ -31,7 +31,8 @@ import {
   Image as ImageIcon,
   ShieldCheck,
   Lock,
-  UserCheck
+  UserCheck,
+  Receipt
 } from 'lucide-react';
 import { DatingProfile, ChatConversation, ChatMessage, ChatTheme, UserProfile } from '../types.ts';
 import { EmojiPicker } from './EmojiPicker.tsx';
@@ -42,7 +43,10 @@ import { generatePlayableWavDataUrl, generateFallbackVideoBlobUrl, formatMediaDu
 import type { ToastOptions } from './Toast.tsx';
 import { isDemoMode } from '../lib/demoMode.ts';
 import { DISCOVER_VISIBLE } from '../lib/featureFlags.ts';
+import AsksSection from './AsksSection.tsx';
+import GroupsSection from './GroupsSection.tsx';
 import { parseUnlockMessage } from '../lib/systemMessage';
+import { BillSplitCard, StartBillSheet } from './BillSplitCard.tsx';
 import {
   CloudRequest,
   OutgoingMessage,
@@ -96,8 +100,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
 }) => {
   const isUserSingle = isDemoMode() || currentUserProfile?.relationshipStatus === 'single' || currentUserProfile?.relationship_status?.toLowerCase() === 'single';
   const isUserVerifiedSingle = isDemoMode() || (isUserSingle && Boolean(currentUserProfile?.isLivenessVerified || currentUserProfile?.is_liveness_verified));
-  const [subtab, setSubtab] = useState<'discover' | 'queue' | 'chats' | 'search'>(DISCOVER_VISIBLE ? 'discover' : 'chats');
+  const [subtab, setSubtab] = useState<'discover' | 'queue' | 'chats' | 'groups' | 'asks' | 'search'>(DISCOVER_VISIBLE ? 'discover' : 'asks');
   const [showGateModal, setShowGateModal] = useState(false);
+  const [showBillSheet, setShowBillSheet] = useState(false);
   const [profileIndex, setProfileIndex] = useState(0);
   const [swipeAnimation, setSwipeAnimation] = useState<'like' | 'pass' | null>(null);
 
@@ -775,6 +780,16 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           </div>
           </div>
 
+          {activeChat.type === 'group' && !isDemoMode() && (
+            <button
+              onClick={() => setShowBillSheet(true)}
+              className="h-9 px-3 bg-slate-100 dark:bg-white/10 text-slate-800 dark:text-slate-100 rounded-full text-xs font-extrabold flex items-center gap-1.5 active:scale-95 transition cursor-pointer shrink-0"
+              aria-label="Split the bill"
+            >
+              <Receipt className="w-4 h-4 text-[#E0533C]" />
+              <span className="hidden min-[400px]:inline">Split</span>
+            </button>
+          )}
           <button
             onClick={() => onOpenPlanDateModal(activeChat.id)}
             className="h-9 px-3 bg-[#E0533C] text-white rounded-full text-xs font-extrabold flex items-center gap-1.5 shadow-md shadow-[#E0533C]/25 active:scale-95 transition cursor-pointer shrink-0"
@@ -866,7 +881,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                     <div className="flex items-end gap-1 max-w-[88%]">
                       {mine && replyBtn}
 
-                      {msg.dateInvite ? (
+                      {msg.billSplitId ? (
+                        <BillSplitCard splitId={msg.billSplitId} myUserId={myUserId} showToast={showToast} />
+                      ) : msg.dateInvite ? (
                         <div className="w-72 max-w-full bg-gradient-to-br from-[#E0533C] to-[#EE8A47] text-white p-4 rounded-3xl shadow-lg shadow-[#E0533C]/25 space-y-2">
                           <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider bg-white/20 px-2.5 py-1 rounded-full">
                             <Calendar className="w-3 h-3" /> Date invitation
@@ -1216,6 +1233,23 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             <img loading="lazy" decoding="async" src={viewerPhoto} alt="Photo" onClick={(e) => e.stopPropagation()} className="max-w-full max-h-full object-contain" />
           </div>
         )}
+        {showBillSheet && (
+          <StartBillSheet
+            conversationId={activeChat.id}
+            memberCount={activeChat.members?.length || 2}
+            showToast={showToast}
+            onClose={() => setShowBillSheet(false)}
+            onCreated={async (splitId, title, total) => {
+              setShowBillSheet(false);
+              const err = await onSendMessage(activeChat.id, {
+                kind: 'text',
+                content: `Bill split: ${title}, KES ${total.toLocaleString('en-KE')}`,
+                media: { billSplitId: splitId },
+              });
+              if (err) showToast(friendlySendError(err), { type: 'error' });
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -1245,7 +1279,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
         {[
           { id: 'discover', label: 'Discover' },
           { id: 'queue', label: 'Requests' },
+          { id: 'asks', label: 'Asks' },
           { id: 'chats', label: 'Chats' },
+          { id: 'groups', label: 'Groups' },
           { id: 'search', label: 'Search' }
         ].filter((tab) => DISCOVER_VISIBLE || tab.id !== 'discover').map((tab) => (
           <button
@@ -1506,6 +1542,13 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
       )}
 
       {/* CHATS */}
+      {subtab === 'asks' && (
+        <AsksSection signedIn={Boolean(myUserId)} showToast={showToast} onChatOpened={() => { void onRefreshSocials(); setSubtab('chats'); }} />
+      )}
+      {subtab === 'groups' && (
+        <GroupsSection signedIn={Boolean(myUserId)} showToast={showToast} />
+      )}
+
       {subtab === 'chats' && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">

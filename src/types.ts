@@ -528,6 +528,8 @@ export interface ChatMessage {
     accepted?: boolean;
   };
   photos?: string[];
+  /** A bill split card (see lib/billSplit.ts). */
+  billSplitId?: string;
 }
 
 export type ChatTheme = 'terracotta' | 'midnight' | 'emerald' | 'sunset' | 'cyberpunk';

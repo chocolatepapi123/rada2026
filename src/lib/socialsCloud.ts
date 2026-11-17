@@ -89,6 +89,8 @@ export function rowToMessage(row: any, myId: string): ChatMessage {
     msg.photos = Array.isArray(media.photos) ? media.photos : [];
   } else if (kind === 'date_invite') {
     msg.dateInvite = media.dateInvite;
+  } else if (typeof media.billSplitId === 'string') {
+    msg.billSplitId = media.billSplitId;
   }
   return msg;
 }

@@ -2674,6 +2674,36 @@ export default function App() {
     setActiveTab('socials');
   };
 
+  // "Go with someone" on an event: group chat + opening message + a Vault entry (+ bill split prompt)
+  const handlePlanWithFriends = async (
+    event: EventItem,
+    opts: { handles: string[]; meetTime: string; splitBill: boolean }
+  ): Promise<string | null> => {
+    const res = await socials.createGroup(`${event.title} crew`.slice(0, 40), opts.handles);
+    if (res.error || !res.id) return res.error || 'Could not start the plan.';
+    if (res.missing.length > 0) showToast('Not found: ' + res.missing.map(h => '@' + h).join(', '), { type: 'error' });
+    const when = [event.date, event.time].filter(Boolean).join(' · ');
+    const lines = [
+      `Going to ${event.title}`,
+      `${when}${event.location ? ` · ${event.location}` : ''}`,
+      opts.meetTime ? `Meet at ${opts.meetTime}` : '',
+      opts.splitBill ? 'Tap Split at the top when the bill comes.' : '',
+    ].filter(Boolean);
+    const err = await socials.sendMessage(res.id, { kind: 'text', content: lines.join('\n') });
+    if (err) showToast(err, { type: 'error' });
+    setTickets(prev => [{
+      id: `plan-${Date.now()}`,
+      title: `${event.title} with friends`,
+      dateStr: `${event.date}${opts.meetTime ? ` (meet ${opts.meetTime})` : event.time ? ` (${event.time})` : ''}`,
+      locationStr: event.location || '',
+      type: 'Vault Synced Outing',
+    }, ...prev]);
+    handleCloseEventModal();
+    setTargetChatId(res.id);
+    setActiveTab('socials');
+    return null;
+  };
+
   const handleOpenOverlay = (overlayId: string) => {
     if (overlayId === 'businessHub') {
       requireAuth('access the Merchant Hub', () => {
@@ -2822,6 +2852,8 @@ export default function App() {
                 {!readyTabs.has('home') ? <TabFallback /> : (
               <HomeTab
                 events={allEvents}
+                outings={outings}
+                onGoToOutings={() => setActiveTab('outings')}
                 cinemaMovies={cinemaMovies}
                 statuses={statuses}
                 offers={offers}
@@ -3107,6 +3139,8 @@ export default function App() {
             onToggleGoing={handleToggleGoing}
             goingEventIds={goingEventIds}
             onBuyEventTicket={handleBuyEventTicket}
+            planFriends={Array.from(new Set(socials.conversations.filter(c => c.type === 'direct' && c.name && c.name.startsWith('@')).map(c => c.name))).map(handle => ({ handle }))}
+            onPlanWithFriends={(evt, opts) => handlePlanWithFriends(evt, opts)}
             onOpenEventMap={(evt) => setSelectedLocationMapEvent(evt)}
             currentUserProfile={currentUserProfile}
             onUpdateCurrentUserProfile={handleUpdateCurrentUserProfile}

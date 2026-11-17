@@ -2,6 +2,7 @@
 import { DISCOVER_VISIBLE } from '../lib/featureFlags.ts';
 import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending, formatOpeningHours } from '../lib/spotsFeed.ts';
 import React, { useState, useEffect, useRef } from 'react';
+import { PlanFromEventSheet } from './PlanFromEventSheet.tsx';
 import { track } from '../lib/tracking';
 import { WeatherChip } from './WeatherChip';
 import { THEMES } from '../lib/profileLook';
@@ -122,6 +123,9 @@ interface OverlaysProps {
   onToggleGoing: (event: EventItem) => void;
   goingEventIds: Array<number | string>;
   onBuyEventTicket: (event: EventItem) => void;
+  /** People I chat with, for "Go with someone". */
+  planFriends?: { handle: string }[];
+  onPlanWithFriends?: (event: EventItem, opts: { handles: string[]; meetTime: string; splitBill: boolean }) => Promise<string | null>;
 
   // Current User Profile
   currentUserProfile: UserProfile;
@@ -206,6 +210,8 @@ export const Overlays: React.FC<OverlaysProps> = ({
   onToggleGoing,
   goingEventIds,
   onBuyEventTicket,
+  planFriends = [],
+  onPlanWithFriends,
   currentUserProfile,
   onUpdateCurrentUserProfile,
   onOpenVerificationModal,
@@ -241,6 +247,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
 }) => {
   // Admin Spot Deletion state
   const [spotToDelete, setSpotToDelete] = useState<SpotItem | null>(null);
+  const [planEvent, setPlanEvent] = useState<EventItem | null>(null);
 
   // Spot Active Photo Index
   const [activeSpotImgIndex, setActiveSpotImgIndex] = useState(0);
@@ -1583,9 +1590,30 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   <ExternalLink className="w-3.5 h-3.5" />
                 </button>
               </div>
+              {onPlanWithFriends && (
+                <button
+                  onClick={() => setPlanEvent(selectedEvent)}
+                  className="w-full py-3 font-black rounded-2xl flex items-center justify-center gap-1.5 text-xs bg-[#E0533C]/10 text-[#E0533C] dark:text-[#D17A68] border border-[#E0533C]/25 transition"
+                >
+                  <Users className="w-4 h-4" />
+                  <span>Go with someone</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
+      )}
+      {planEvent && onPlanWithFriends && (
+        <PlanFromEventSheet
+          event={planEvent}
+          friends={planFriends}
+          onClose={() => setPlanEvent(null)}
+          onCreate={async (opts) => {
+            const err = await onPlanWithFriends(planEvent, opts);
+            if (!err) setPlanEvent(null);
+            return err;
+          }}
+        />
       )}
 
       {/* 4. PLAN A DATE MODAL (View All Spots style explorer) */}
