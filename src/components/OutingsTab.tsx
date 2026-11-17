@@ -342,6 +342,16 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   // Saved outings (private to the person) and, for hosts, how many people saved each of their outings.
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [savedOnly, setSavedOnly] = useState(false);
+  const [catOpen, setCatOpen] = useState(false);
+  const catRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!catOpen) return;
+    const close = (e: Event) => { if (catRef.current && !catRef.current.contains(e.target as Node)) setCatOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setCatOpen(false); };
+    document.addEventListener('pointerdown', close);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', esc); };
+  }, [catOpen]);
   const [saveCounts, setSaveCounts] = useState<Record<string, number>>({});
   useEffect(() => {
     let off = false;
@@ -989,94 +999,45 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
           </div>
 
           {/* Category Filter Dropdown (10 RADA Categories) */}
-          <div className="relative">
+          <div className="relative" ref={catRef}>
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
               <Filter className="w-3.5 h-3.5 text-[#E0533C]" />
             </div>
-            <select
+            <button
+              type="button"
               aria-label="Filter by RADA Category"
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full pl-9 pr-8 py-2.5 bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#E0533C] appearance-none cursor-pointer"
+              aria-haspopup="listbox"
+              aria-expanded={catOpen}
+              onClick={() => setCatOpen((v) => !v)}
+              className={`w-full pl-9 pr-9 py-2.5 bg-slate-50 dark:bg-black/40 border rounded-2xl text-xs font-bold text-left text-slate-900 dark:text-slate-100 focus:outline-none cursor-pointer transition ${catOpen ? 'border-[#E0533C] ring-2 ring-[#E0533C]/20' : 'border-slate-200 dark:border-slate-800'}`}
             >
-              {RADA_10_CATEGORIES.map((cat) => (
-                <option key={cat.id} value={cat.id} className="bg-white dark:bg-[#1C1A1E] text-slate-900 dark:text-slate-100">
-                  {cat.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <span className="block truncate">{RADA_10_CATEGORIES.find((c) => c.id === selectedCategory)?.label ?? 'All Categories'}</span>
+            </button>
+            <ChevronDown className={`w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none transition-transform ${catOpen ? 'rotate-180' : ''}`} />
+            {catOpen && (
+              <ul
+                role="listbox"
+                aria-label="RADA categories"
+                className="absolute left-0 right-0 top-full mt-1.5 z-30 max-h-72 overflow-y-auto p-1.5 bg-white dark:bg-[#1C1A1E] border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-lg shadow-black/10"
+              >
+                {RADA_10_CATEGORIES.map((cat) => {
+                  const active = cat.id === selectedCategory;
+                  return (
+                    <li key={cat.id} role="option" aria-selected={active}>
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedCategory(cat.id); setCatOpen(false); }}
+                        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs text-left cursor-pointer transition ${active ? 'bg-[#E0533C]/10 text-[#E0533C] font-extrabold' : 'font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.06]'}`}
+                      >
+                        <span className="truncate">{cat.label}</span>
+                        {active && <Check className="w-3.5 h-3.5 shrink-0" />}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
-        </div>
-
-        {/* Dynamic Quick Area Chips for 1-tap filtering */}
-        <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pt-0.5">
-          <span className="text-[10px] font-black uppercase text-slate-400 shrink-0">
-            Areas:
-          </span>
-          {popularLocationChips.map((chip) => {
-            const isChipActive = chip === 'All'
-              ? (!selectedLocation || selectedLocation === 'All Locations')
-              : selectedLocation.trim().toLowerCase() === chip.toLowerCase();
-            return (
-              <button
-                key={chip}
-                type="button"
-                onClick={() => setSelectedLocation(chip === 'All' ? '' : chip)}
-                className={`px-2.5 py-1 rounded-xl text-[10px] font-bold transition shrink-0 cursor-pointer ${
-                  isChipActive
-                    ? 'bg-[#E0533C] text-white shadow-2xs'
-                    : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'
-                }`}
-              >
-                {chip}
-              </button>
-            );
-          })}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setSavedOnly((v) => !v)}
-          className={`self-start px-3 py-1.5 rounded-xl text-xs font-black inline-flex items-center gap-1.5 transition cursor-pointer border ${
-            savedOnly
-              ? 'bg-[#E0533C] text-white border-[#E0533C]'
-              : 'bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-          }`}
-          aria-pressed={savedOnly}
-        >
-          <Bookmark className={`w-3.5 h-3.5 ${savedOnly ? 'fill-white' : ''}`} />
-          <span>Saved{savedIds.size ? ` (${savedIds.size})` : ''}</span>
-        </button>
-
-        {/* Access Type Toggle: "All Plans", "Open Plans", "Singles Only" */}
-        <div className="flex items-center gap-1.5 p-1 bg-slate-100/90 dark:bg-black/40 rounded-2xl border border-slate-200/80 dark:border-slate-800/80">
-          {(['All Plans', 'Open Plans', 'Singles Only'] as const).map((type) => {
-            const isActive = accessTypeFilter === type;
-            return (
-              <button
-                key={type}
-                type="button"
-                onClick={() => setAccessTypeFilter(type)}
-                className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                  isActive
-                    ? 'bg-white dark:bg-[#1C1A1E] text-slate-900 dark:text-slate-100 shadow-xs border border-slate-200/80 dark:border-slate-700'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                }`}
-              >
-                {type === 'Singles Only' && (
-                  <Heart className={`w-3 h-3 ${isActive ? 'fill-rose-500 text-rose-500' : 'text-rose-500'}`} />
-                )}
-                {type === 'Open Plans' && (
-                  <Users className={`w-3 h-3 ${isActive ? 'text-indigo-500' : 'text-slate-400'}`} />
-                )}
-                {type === 'All Plans' && (
-                  <Compass className={`w-3 h-3 ${isActive ? 'text-[#E0533C]' : 'text-slate-400'}`} />
-                )}
-                <span className="truncate">{type}</span>
-              </button>
-            );
-          })}
         </div>
       </div>
 
