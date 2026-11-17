@@ -46,7 +46,7 @@ import { optimizedUrl } from '../lib/imageOptimizer';
 import { WaitlistButton, TemplatePicker } from './OutingExtras';
 import { uploadCoverImage } from '../lib/cloudSync.ts';
 import { useUnclaimedSpots, mergeSpots, sortTrending } from '../lib/spotsFeed.ts';
-import { HostBadge } from './VerifiedBadge.tsx';
+import { HostBadge, VerifiedBadge } from './VerifiedBadge.tsx';
 import { fetchMySavedOutingIds, toggleOutingSave, fetchOutingSaveCounts } from '../lib/outingSaves';
 import {
   PLAN_META,
@@ -313,6 +313,8 @@ interface OutingsTabProps {
 // Outings card + sheet styling, kept in one place so everything on this tab matches
 const OUTING_BTN_PRIMARY = 'min-h-[44px] rounded-2xl px-3 bg-gradient-to-br from-[#E0533C] to-[#EE8A47] text-white text-[13px] font-extrabold shadow-lg shadow-[#E0533C]/25 active:scale-[0.98] transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50';
 const OUTING_BTN_SOFT = 'min-h-[44px] rounded-2xl px-3 bg-slate-100 dark:bg-white/[0.07] text-slate-800 dark:text-slate-100 text-[13px] font-bold active:scale-[0.98] transition flex items-center justify-center gap-1.5 cursor-pointer';
+const OUTING_BTN_SMALL_PRIMARY = 'h-9 rounded-full px-4 bg-[#E0533C] text-white text-[12px] font-extrabold active:scale-[0.97] transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50';
+const OUTING_BTN_SMALL_SOFT = 'h-9 rounded-full px-4 bg-slate-100 dark:bg-white/[0.07] text-slate-700 dark:text-slate-200 text-[12px] font-bold active:scale-[0.97] transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50';
 const OUTING_BTN_STATUS = 'min-h-[44px] rounded-2xl px-3 text-[13px] font-extrabold flex items-center justify-center gap-1.5';
 const OUTING_TICKET_STRIP = 'w-full flex items-center justify-between gap-3 rounded-2xl px-3 py-2.5 bg-[#E0533C]/[0.06] border border-[#E0533C]/15 active:scale-[0.99] transition cursor-pointer';
 
@@ -2040,12 +2042,12 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <h4 className="font-extrabold text-[14px] text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-amber-500" />
+                        <Clock className="w-3.5 h-3.5 text-[#E0533C]" />
                         <span>Pending Join Requests ({pendingList.length})</span>
                       </h4>
                       {pendingList.length > 0 && (
-                        <span className="text-[10px] text-amber-700 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/80 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">
-                          Requires Action
+                        <span className="inline-flex items-center h-6 px-2.5 rounded-full bg-[#E0533C]/10 text-[#E0533C] text-[10px] font-extrabold tracking-wide">
+                          Needs action
                         </span>
                       )}
                     </div>
@@ -2078,10 +2080,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                                     <h5 className="font-black text-[14px] text-slate-900 dark:text-slate-100 truncate">
                                       {applicant.userName}
                                     </h5>
-                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
-                                      <ShieldCheck className="w-2.5 h-2.5" />
-                                      <span>Verified</span>
-                                    </span>
+                                    <VerifiedBadge status="verified" size="xs" />
                                   </div>
                                   <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
                                     {applicant.userHandle || '@explorer'} • Nairobi Hangouts
@@ -2089,7 +2088,8 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                                 </div>
                               </div>
 
-                              <span className="text-[9px] text-amber-700 dark:text-amber-400 font-bold shrink-0 bg-amber-50 dark:bg-amber-950/80 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">
+                              <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full bg-slate-100 dark:bg-white/[0.07] text-slate-600 dark:text-slate-300 text-[10px] font-extrabold tracking-wide shrink-0">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#E0533C] animate-pulse" />
                                 Pending
                               </span>
                             </div>
@@ -2100,7 +2100,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                                 type="button"
                                 disabled={isProcessingAction === applicant.id || isFull}
                                 onClick={() => handleApproveApplicant(activeManagingOuting.id, applicant.id)}
-                                className={`${OUTING_BTN_PRIMARY} flex-1`}
+                                className={`${OUTING_BTN_SMALL_PRIMARY} flex-1`}
                               >
                                 <Check className="w-3.5 h-3.5 stroke-[3]" />
                                 <span>{isProcessingAction === applicant.id ? 'Approving…' : isFull ? 'Plan full' : 'Approve'}</span>
@@ -2110,7 +2110,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                                 type="button"
                                 disabled={isProcessingAction === applicant.id}
                                 onClick={() => handleDeclineApplicant(activeManagingOuting.id, applicant.id)}
-                                className={`${OUTING_BTN_SOFT} px-4`}
+                                className={`${OUTING_BTN_SMALL_SOFT} px-4`}
                               >
                                 <X className="w-3.5 h-3.5" />
                                 <span>Decline</span>
@@ -2183,7 +2183,8 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                             <span className="text-[9px] text-[#E0533C] font-black uppercase">Host & Organizer</span>
                           </div>
                         </div>
-                        <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-md">
+                        <span className="inline-flex items-center gap-1 h-6 px-2.5 rounded-full bg-[#E0533C]/10 text-[#E0533C] text-[10px] font-extrabold tracking-wide shrink-0">
+                          <Check className="w-3 h-3 stroke-[3]" />
                           Confirmed
                         </span>
                       </div>
@@ -2203,14 +2204,14 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                             <div>
                               <div className="flex items-center gap-1">
                                 <span className="font-bold text-xs">{att.userName}</span>
-                                <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                                <VerifiedBadge status="verified" size="xs" />
                               </div>
                               <span className="text-[10px] text-slate-400">{att.userHandle || '@explorer'}</span>
                             </div>
                           </div>
-                          <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 rounded-md flex items-center gap-1">
+                          <span className="inline-flex items-center gap-1 h-6 px-2.5 rounded-full bg-[#E0533C]/10 text-[#E0533C] text-[10px] font-extrabold tracking-wide shrink-0">
                             <Check className="w-3 h-3 stroke-[3]" />
-                            <span>Approved</span>
+                            Approved
                           </span>
                         </div>
                       ))}
