@@ -100,7 +100,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
 }) => {
   const isUserSingle = isDemoMode() || currentUserProfile?.relationshipStatus === 'single' || currentUserProfile?.relationship_status?.toLowerCase() === 'single';
   const isUserVerifiedSingle = isDemoMode() || (isUserSingle && Boolean(currentUserProfile?.isLivenessVerified || currentUserProfile?.is_liveness_verified));
-  const [subtab, setSubtab] = useState<'discover' | 'queue' | 'chats' | 'groups' | 'asks' | 'search'>(DISCOVER_VISIBLE ? 'discover' : 'asks');
+  const [subtab, setSubtab] = useState<'discover' | 'queue' | 'chats' | 'groups' | 'asks' | 'search'>('asks');
   const [showGateModal, setShowGateModal] = useState(false);
   const [showBillSheet, setShowBillSheet] = useState(false);
   const [profileIndex, setProfileIndex] = useState(0);
@@ -1277,9 +1277,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
       {/* Socials sub-tabs */}
       <div className="flex gap-1 bg-slate-100 dark:bg-white/[0.06] p-1 rounded-full text-center text-[13px]">
         {[
-          { id: 'discover', label: 'Discover' },
+          { id: 'asks', label: 'Rada' },
           { id: 'queue', label: 'Requests' },
-          { id: 'asks', label: 'Asks' },
+          { id: 'discover', label: 'Discover' },
           { id: 'chats', label: 'Chats' },
           { id: 'groups', label: 'Groups' },
           { id: 'search', label: 'Search' }

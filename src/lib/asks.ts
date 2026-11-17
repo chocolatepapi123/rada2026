@@ -4,7 +4,7 @@ import { isCloudReady } from './socialsCloud';
 import { readVideoSeconds } from './hostVideos';
 
 export interface Ask {
-  id: string; body: string; scope: 'area' | 'anywhere'; area: string | null;
+  id: string; body: string; area: string;
   media_url: string | null; media_type: 'image' | 'video' | null;
   created_at: string; expires_at: string; user_id: string; handle: string | null; avatar: string | null;
   verified: boolean; trusted: boolean; mine: boolean; replies: number; replied: boolean;
@@ -56,12 +56,14 @@ export async function fetchAsks(area: string): Promise<Ask[]> {
   const { data, error } = await supabase.rpc('asks_feed', { p_area: area || null });
   return error ? [] : ((data as Ask[]) || []);
 }
-export async function createAsk(body: string, scope: 'area' | 'anywhere', area: string, hours: number, media?: { url: string; type: 'image' | 'video' } | null): Promise<string | null> {
+export async function createAsk(body: string, area: string, expiresAt: Date, media?: { url: string; type: 'image' | 'video' } | null): Promise<string | null> {
   if (body.trim().length < 5) return 'Say a little more, at least a few words.';
-  if (scope === 'area' && !area.trim()) return 'Pick the area for this ask.';
-  const { error } = await supabase.rpc('create_ask', { p_body: body, p_scope: scope, p_area: scope === 'area' ? area : null, p_hours: hours, p_media_url: media?.url ?? null, p_media_type: media?.type ?? null });
+  if (area.trim().length < 2) return 'Type where this is happening.';
+  if (expiresAt.getTime() < Date.now() + 5 * 60000) return 'Pick an expiry at least 5 minutes from now.';
+  const { error } = await supabase.rpc('create_ask', { p_body: body, p_area: area.trim(), p_expires_at: expiresAt.toISOString(), p_media_url: media?.url ?? null, p_media_type: media?.type ?? null });
   return error ? clean(error.message) : null;
 }
+export async function passAsk(id: string): Promise<void> { await supabase.rpc('pass_ask', { p_ask: id }); }
 export async function closeAsk(id: string): Promise<string | null> {
   const { error } = await supabase.rpc('close_ask', { p_ask: id });
   return error ? clean(error.message) : null;
@@ -93,6 +95,10 @@ export async function reportAsk(ask: Ask, reason: string): Promise<string | null
   return error ? clean(error.message) : null;
 }
 export const timeLeft = (iso: string) => {
-  const h = Math.max(0, Math.round((new Date(iso).getTime() - Date.now()) / 3.6e6));
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return 'Expired';
+  const m = Math.round(ms / 60000);
+  if (m < 60) return `${m}m left`;
+  const h = Math.round(m / 60);
   return h >= 24 ? `${Math.round(h / 24)}d left` : `${h}h left`;
 };
