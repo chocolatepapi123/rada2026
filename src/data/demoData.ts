@@ -130,18 +130,9 @@ export function buildDemoRequests(myId: string, myHandle: string, myAvatar: stri
     const p = byKey(key);
     return { id: `demo-req-ok-${key}`, fromUser: p.id, toUser: myId, fromHandle: handleOf(p), fromAvatar: p.avatar, toHandle: me, toAvatar: myAvatar, status: 'accepted', conversationId: `demo-dm-${key}`, createdAt: agoIso(minsAgo) };
   };
-  return [
-    received('wanjiru', 20),
-    received('brian', 190),
-    received('achieng', 1500),
-    received('kevo', 2900),
-    sent('zawadi', 60),
-    sent('ian', 300),
-    sent('njeri', 1400),
-    accepted('mwende', 4000),
-    accepted('tito', 5000),
-    accepted('farida', 6000),
-  ];
+  // Demo Mode no longer shows hangout requests (likes you / sent).
+  void received; void sent; void accepted;
+  return [];
 }
 
 // ---------------------------------------------------------------------------

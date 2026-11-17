@@ -114,6 +114,15 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
     [activeChatId, conversations]
   );
   const setActiveChat = (c: ChatConversation | null) => setActiveChatId(c ? c.id : null);
+  // Demo Mode: plain group chats live in the Groups tab; Chats keeps DMs and outing chats
+  const demoGroupChats = React.useMemo(
+    () => (isDemoMode() ? conversations.filter((c) => c.type === 'group' && !c.isTemporary) : []),
+    [conversations]
+  );
+  const chatListItems = React.useMemo(
+    () => (isDemoMode() ? conversations.filter((c) => !(c.type === 'group' && !c.isTemporary)) : conversations),
+    [conversations]
+  );
   // load the full history whenever a chat is opened
   React.useEffect(() => {
     if (activeChatId) onLoadHistory(activeChatId);
@@ -1282,7 +1291,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           { id: 'chats', label: 'Chats' },
           { id: 'groups', label: 'Groups' },
           { id: 'search', label: 'Search' }
-        ].map((tab) => (
+        ].filter((tab) => !(isDemoMode() && tab.id === 'queue')).map((tab) => (
           <button
             key={tab.id}
             onClick={() => {
@@ -1375,14 +1384,54 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
       {subtab === 'asks' && (
         <AsksSection signedIn={Boolean(myUserId)} showToast={showToast} onChatOpened={(chatId) => { void onRefreshSocials(); setSubtab('chats'); if (isDemoMode() && chatId) setActiveChatId(chatId); }} />
       )}
-      {subtab === 'groups' && (
+      {subtab === 'groups' && !isDemoMode() && (
         <GroupsSection signedIn={Boolean(myUserId)} showToast={showToast} />
+      )}
+      {subtab === 'groups' && isDemoMode() && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className={HEADING}>My groups ({demoGroupChats.length})</h3>
+            <button
+              onClick={onOpenCreateGroupModal}
+              className="px-3 py-1.5 rounded-full bg-[#E0533C]/10 text-[#E0533C] font-extrabold text-xs flex items-center gap-1.5 active:scale-95 transition cursor-pointer"
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>New group</span>
+            </button>
+          </div>
+          <div className="space-y-2">
+            {demoGroupChats.length === 0 && (
+              <div className={`${CARD} border-dashed rounded-3xl py-8 px-5 text-center space-y-2`}>
+                <p className="text-[13px] text-slate-500 dark:text-slate-400">No groups yet. Start one with the New group button.</p>
+              </div>
+            )}
+            {demoGroupChats.map((conv) => (
+              <div
+                key={conv.id}
+                onClick={() => setActiveChat(conv)}
+                className={`p-3 ${CARD} rounded-2xl flex items-center justify-between gap-3 shadow-xs hover:border-[#E0533C]/50 active:scale-[0.99] transition cursor-pointer`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={avatarRing}>
+                    <div className="w-12 h-12 rounded-full bg-cover bg-center border-2 border-white dark:border-[#1C1A1E]" style={{ backgroundImage: `url('${conv.avatar}')` }} />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 truncate">{conv.name}</h4>
+                    <p className="text-xs truncate mt-0.5 text-slate-500 dark:text-slate-400">{conv.lastMessage}</p>
+                    <p className="text-[11px] font-bold text-slate-400 mt-0.5">{(conv.members || []).length} members</p>
+                  </div>
+                </div>
+                <span className="text-[11px] text-slate-400 shrink-0">{formatChatTime((conv as any).lastMessageAt)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {subtab === 'chats' && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className={HEADING}>Conversations ({conversations.length})</h3>
+            <h3 className={HEADING}>Conversations ({chatListItems.length})</h3>
             <button
               onClick={onOpenCreateGroupModal}
               className="px-3 py-1.5 rounded-full bg-[#E0533C]/10 text-[#E0533C] font-extrabold text-xs flex items-center gap-1.5 active:scale-95 transition cursor-pointer"
@@ -1393,7 +1442,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           </div>
 
           <div className="space-y-2">
-            {conversations.length === 0 && (
+            {chatListItems.length === 0 && (
               <div className={`${CARD} border-dashed rounded-3xl py-8 px-5 text-center space-y-2`}>
                 <div className="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-white/[0.06] text-slate-400 flex items-center justify-center mx-auto">
                   <MessageSquare className="w-5 h-5" />
@@ -1403,7 +1452,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                 </p>
               </div>
             )}
-            {conversations.map((conv) => {
+            {chatListItems.map((conv) => {
               const unread = isChatUnread(conv);
               return (
               <div

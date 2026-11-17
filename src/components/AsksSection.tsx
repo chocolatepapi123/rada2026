@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { BadgeCheck, Flag, Heart, MapPin, Plus, ShieldCheck, Ticket, X } from 'lucide-react';
 import AskComposer from './AskComposer.tsx';
+import { isDemoMode } from '../lib/demoMode.ts';
 import { acceptReply, blockUser, closeAsk, declineReply, fetchAsks, fetchReplies, getMyArea, passAsk, replyToAsk, reportAsk, setMyArea, timeLeft, type Ask, type AskReply } from '../lib/asks.ts';
 
 const CARD = 'bg-white dark:bg-[#1C1A1E] border border-slate-200/80 dark:border-white/10';
@@ -192,9 +193,9 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
 
       {replyTo && (
         <div className="fixed inset-0 z-[200] bg-black/60 flex items-end justify-center p-4" onClick={() => setReplyTo(null)}>
-          <div className="bg-white dark:bg-[#1C1A1E] rounded-3xl p-4 w-full max-w-sm space-y-3" onClick={(e) => e.stopPropagation()}>
-            <p className="font-extrabold">Say hi to @{replyTo.handle || 'them'}</p>
-            <input autoFocus value={msg} onChange={(e) => setMsg(e.target.value)} maxLength={140} placeholder="A short line" className={INPUT} />
+          <div className={`rounded-3xl p-4 w-full max-w-sm space-y-3 ${isDemoMode() ? 'bg-white/95 dark:bg-[#1C1A1E]/95 backdrop-blur-md shadow-2xl' : 'bg-white dark:bg-[#1C1A1E]'}`} onClick={(e) => e.stopPropagation()}>
+            <p className="font-extrabold">{isDemoMode() ? 'Are you in?' : `Say hi to @${replyTo.handle || 'them'}`}</p>
+            <input autoFocus value={msg} onChange={(e) => setMsg(e.target.value)} maxLength={140} placeholder={isDemoMode() ? '' : 'A short line'} className={INPUT} />
             <div className="flex gap-2">
               <button disabled={busy} onClick={send} className="flex-1 py-2.5 rounded-full bg-[#E0533C] text-white text-xs font-extrabold cursor-pointer disabled:opacity-60">{busy ? 'Sending…' : 'Send'}</button>
               <button onClick={() => setReplyTo(null)} className="px-4 py-2.5 text-xs font-extrabold text-slate-500 cursor-pointer">Cancel</button>
