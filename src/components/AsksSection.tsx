@@ -133,7 +133,7 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
         <button onClick={() => setComposing(true)} className="ml-auto px-4 py-2.5 rounded-full bg-[#E0533C] text-white font-extrabold text-xs inline-flex items-center gap-1 active:scale-95 cursor-pointer"><Plus className="w-3.5 h-3.5" />Rada?</button>
       </div>
       <div className="flex gap-1 bg-slate-100 dark:bg-white/[0.06] p-1 rounded-full text-[12px] text-center">
-        {([['swipe', 'Discover'], ['mine', `My radas${mine.length ? ` (${mine.length})` : ''}`]] as const).map(([id, label]) => (
+        {([['swipe', 'Discover'], ['mine', `My posts${mine.length ? ` (${mine.length})` : ''}`]] as const).map(([id, label]) => (
           <button key={id} onClick={() => setView(id)} className={`flex-1 py-1.5 rounded-full cursor-pointer ${view === id ? 'font-extrabold bg-white dark:bg-[#1C1A1E] text-[#E0533C] shadow-sm' : 'font-semibold text-slate-500'}`}>{label}</button>
         ))}
       </div>
@@ -164,7 +164,7 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
         ))}
 
       {asks && view === 'mine' && (mine.length === 0
-        ? <p className="text-[13px] text-slate-500 text-center py-10">You have no live radas.</p>
+        ? <p className="text-[13px] text-slate-500 text-center py-10">You have no live posts.</p>
         : mine.map((a) => (
           <div key={a.id} className={`${CARD} rounded-3xl p-4 space-y-2`}>
             {a.media_url && (a.media_type === 'video' ? <video src={a.media_url} className="w-full max-h-56 rounded-2xl object-cover" controls playsInline preload="metadata" /> : <img src={a.media_url} alt="" loading="lazy" className="w-full max-h-56 rounded-2xl object-cover" />)}
