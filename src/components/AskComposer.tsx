@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Camera, MapPin, Clock, X, Video, Image as ImageIcon, RefreshCw, Ticket, Search } from 'lucide-react';
-import { createAsk, searchPlans, uploadAskMedia, type PlanHit, type PlanLink } from '../lib/asks.ts';
+import { clearDraft, createAsk, loadDraft, newAttemptKey, saveDraft, searchPlans, uploadAskMedia, type PlanHit, type PlanLink } from '../lib/asks.ts';
 
 const INPUT = 'w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.04] px-4 py-3 text-[14px] outline-none focus:border-[#E0533C]';
 const EXAMPLES = ['Going to a show, need someone to go with', 'Looking for company at a nyama choma spot', 'New in town, want to explore'];
@@ -12,20 +12,24 @@ interface Props { defaultArea: string; onClose: () => void; onPosted: () => void
 
 /** Full-screen sheet for posting an ask. Poster types the location and picks when it expires. */
 const AskComposer: React.FC<Props> = ({ defaultArea, onClose, onPosted, showToast }) => {
-  const [body, setBody] = useState('');
-  const [area, setArea] = useState(defaultArea);
+  const draft = useRef(loadDraft()).current;
+  const [body, setBody] = useState(draft?.body || '');
+  const [area, setArea] = useState(draft?.area || defaultArea);
   const [expires, setExpires] = useState(() => toLocalInput(new Date(Date.now() + 24 * 3600e3)));
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [plan, setPlan] = useState<PlanLink | null>(null);
+  const [plan, setPlan] = useState<PlanLink | null>(draft?.plan || null);
   const [planQ, setPlanQ] = useState('');
   const [planHits, setPlanHits] = useState<PlanHit[]>([]);
   const [planBusy, setPlanBusy] = useState(false);
+  const attempt = useRef(newAttemptKey());
+  const uploaded = useRef<{ file: File; media: { url: string; type: 'image' | 'video' } } | null>(null);
   const photoRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
   const minNow = toLocalInput(new Date(Date.now() + 5 * 60000));
 
+  useEffect(() => { saveDraft({ body, area, plan }); }, [body, area, plan]);
   useEffect(() => { if (!file) { setPreview(null); return; } const u = URL.createObjectURL(file); setPreview(u); return () => URL.revokeObjectURL(u); }, [file]);
   const isVideo = file?.type.startsWith('video/');
 
@@ -40,13 +44,19 @@ const AskComposer: React.FC<Props> = ({ defaultArea, onClose, onPosted, showToas
   const post = async () => {
     const when = new Date(expires);
     if (Number.isNaN(when.getTime())) return showToast('Pick a date and time for this ask to expire.');
+    if (busy) return;
     setBusy(true);
     try {
-      const media = file ? await uploadAskMedia(file) : null;
-      const err = await createAsk(body, area, when, media, plan);
-      if (err) return showToast(err);
-      showToast('Posted to Rada.'); onPosted();
-    } catch (e: any) { showToast(e?.message || 'Could not post. Try again.'); } finally { setBusy(false); }
+      // Reuse an upload that already succeeded, so a retry does not send the file again.
+      let media = null as { url: string; type: 'image' | 'video' } | null;
+      if (file) {
+        if (uploaded.current?.file !== file) uploaded.current = { file, media: await uploadAskMedia(file) };
+        media = uploaded.current.media;
+      }
+      const err = await createAsk(body, area, when, media, plan, attempt.current);
+      if (err) return showToast(`${err} Your words are saved, nothing is lost.`);
+      clearDraft(); showToast('Posted to Rada.'); onPosted();
+    } catch (e: any) { showToast(`${e?.message || 'Could not post.'} Your words are saved, try again when you are ready.`); } finally { setBusy(false); }
   };
 
   const pick = (ref: React.RefObject<HTMLInputElement | null>) => ref.current?.click();

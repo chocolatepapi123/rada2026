@@ -22,15 +22,15 @@ export const setMyArea = (a: string) => { try { localStorage.setItem(AREA_KEY, a
 export const MAX_MEDIA_MB = 25;
 export const MAX_VIDEO_SECONDS = 30;
 
-/** Shrinks a photo to at most 1600px (JPEG) so it loads fast on mobile data. */
+/** Shrinks a photo to at most 1280px (JPEG) so it loads fast on mobile data. */
 async function shrinkImage(file: File): Promise<Blob> {
   const url = URL.createObjectURL(file);
   try {
     const img = await new Promise<HTMLImageElement>((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Could not read this photo.')); i.src = url; });
-    const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+    const k = Math.min(1, 1280 / Math.max(img.width, img.height));
     const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
     c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height);
-    return await new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('Could not process this photo.'))), 'image/jpeg', 0.82));
+    return await new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('Could not process this photo.'))), 'image/jpeg', 0.8));
   } finally { URL.revokeObjectURL(url); }
 }
 
@@ -54,16 +54,20 @@ export async function uploadAskMedia(file: File): Promise<{ url: string; type: '
   return { url: supabase.storage.from('ask-media').getPublicUrl(path).data.publicUrl, type: isVideo ? 'video' : 'image' };
 }
 
-export async function fetchAsks(area: string): Promise<Ask[]> {
+/** Returns null when the request was cancelled or failed, so callers can keep what is already on screen. */
+export async function fetchAsks(area: string, signal?: AbortSignal): Promise<Ask[] | null> {
   if (!isCloudReady()) return [];
-  const { data, error } = await supabase.rpc('asks_feed', { p_area: area || null });
-  return error ? [] : ((data as Ask[]) || []);
+  let q = supabase.rpc('asks_feed', { p_area: area || null });
+  if (signal) q = q.abortSignal(signal);
+  const { data, error } = await q;
+  if (signal?.aborted) return null;
+  return error ? null : ((data as Ask[]) || []);
 }
-export async function createAsk(body: string, area: string, expiresAt: Date, media?: { url: string; type: 'image' | 'video' } | null, plan?: PlanLink | null): Promise<string | null> {
+export async function createAsk(body: string, area: string, expiresAt: Date, media?: { url: string; type: 'image' | 'video' } | null, plan?: PlanLink | null, clientKey?: string): Promise<string | null> {
   if (body.trim().length < 5) return 'Say a little more, at least a few words.';
   if (area.trim().length < 2) return 'Type where this is happening.';
   if (expiresAt.getTime() < Date.now() + 5 * 60000) return 'Pick an expiry at least 5 minutes from now.';
-  const { error } = await supabase.rpc('create_ask', { p_body: body, p_area: area.trim(), p_expires_at: expiresAt.toISOString(), p_media_url: media?.url ?? null, p_media_type: media?.type ?? null, p_plan_kind: plan?.kind ?? null, p_plan_ref: plan?.ref ?? null, p_plan_title: plan?.title ?? null });
+  const { error } = await supabase.rpc('create_ask', { p_body: body, p_area: area.trim(), p_expires_at: expiresAt.toISOString(), p_media_url: media?.url ?? null, p_media_type: media?.type ?? null, p_plan_kind: plan?.kind ?? null, p_plan_ref: plan?.ref ?? null, p_plan_title: plan?.title ?? null, p_client_key: clientKey ?? null });
   return error ? clean(error.message) : null;
 }
 /** Searches events and spots a person can link to their ask. */
@@ -104,6 +108,16 @@ export async function reportAsk(ask: Ask, reason: string): Promise<string | null
   const { error } = await supabase.from('user_reports').insert({ reporter_id: u.user.id, reported_id: ask.user_id, context: 'other', context_id: `ask:${ask.id}`, reason, details: ask.body.slice(0, 300) });
   return error ? clean(error.message) : null;
 }
+/** One id per posting attempt, so a retry after a dropped connection never creates a second ask. */
+export const newAttemptKey = (): string => (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+
+/** Draft survives a closed sheet, a dropped connection or a failed post. */
+const DRAFT_KEY = 'rada_ask_draft';
+export interface AskDraft { body: string; area: string; plan: PlanLink | null }
+export const loadDraft = (): AskDraft | null => { try { const r = localStorage.getItem(DRAFT_KEY); return r ? (JSON.parse(r) as AskDraft) : null; } catch { return null; } };
+export const saveDraft = (d: AskDraft) => { try { if (!d.body.trim() && !d.plan) localStorage.removeItem(DRAFT_KEY); else localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch { /* private mode */ } };
+export const clearDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } catch { /* private mode */ } };
+
 export const timeLeft = (iso: string) => {
   const ms = new Date(iso).getTime() - Date.now();
   if (ms <= 0) return 'Expired';

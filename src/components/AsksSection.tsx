@@ -35,8 +35,8 @@ const SwipeCard: React.FC<{ ask: Ask; top: boolean; depth: number; onSwipe: (dir
     >
       {ask.media_url
         ? (ask.media_type === 'video'
-          ? <video src={ask.media_url} className="absolute inset-0 w-full h-full object-cover pointer-events-none" autoPlay muted loop playsInline />
-          : <img src={ask.media_url} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover pointer-events-none" />)
+          ? <video src={ask.media_url} className="absolute inset-0 w-full h-full object-cover pointer-events-none" autoPlay={top} preload={top ? 'auto' : 'none'} muted loop playsInline />
+          : <img src={ask.media_url} alt="" draggable={false} decoding="async" loading={top ? 'eager' : 'lazy'} className="absolute inset-0 w-full h-full object-cover pointer-events-none" />)
         : <div className="absolute inset-0 bg-gradient-to-br from-[#E0533C] via-[#C9402B] to-[#2D6A4F]" />}
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-black/30 pointer-events-none" />
       {top && dx > 30 && <span className="absolute top-8 left-6 px-3 py-1 rounded-xl border-4 border-green-400 text-green-300 font-black text-2xl -rotate-12" style={{ opacity: Math.min(1, dx / THRESHOLD) }}>IN</span>}
@@ -68,8 +68,18 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
   const [replies, setReplies] = useState<AskReply[]>([]);
   const [reporting, setReporting] = useState<Ask | null>(null);
 
-  const load = useCallback(async () => setAsks(signedIn ? await fetchAsks(area) : []), [area, signedIn]);
-  useEffect(() => { const t = setTimeout(() => void load(), 350); return () => clearTimeout(t); }, [load]);
+  const [offline, setOffline] = useState(false);
+  const inflight = useRef<AbortController | null>(null);
+  const load = useCallback(async () => {
+    inflight.current?.abort(); // a newer search replaces an older one, so slow answers never overwrite fresh ones
+    if (!signedIn) { setAsks([]); return; }
+    const ctl = new AbortController(); inflight.current = ctl;
+    const res = await fetchAsks(area, ctl.signal);
+    if (ctl.signal.aborted) return;
+    if (res === null) { setOffline(true); setAsks((p) => p ?? []); return; } // keep what is already on screen
+    setOffline(false); setAsks(res);
+  }, [area, signedIn]);
+  useEffect(() => { const t = setTimeout(() => void load(), 350); return () => { clearTimeout(t); inflight.current?.abort(); }; }, [load]);
   useEffect(() => { if (viewing) void fetchReplies(viewing).then(setReplies); }, [viewing]);
 
   const deck = (asks || []).filter((a) => !a.mine && !a.replied);
@@ -125,6 +135,12 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
       </div>
       {composing && <AskComposer defaultArea={area} onClose={() => setComposing(false)} onPosted={() => { setComposing(false); void load(); }} showToast={showToast} />}
 
+      {offline && (
+        <div className="flex items-center justify-between gap-2 rounded-2xl bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-200 px-3 py-2 text-[12px] font-semibold">
+          <span>Couldn't refresh just now. What you see is still fine.</span>
+          <button onClick={() => void load()} className="font-extrabold underline cursor-pointer">Try again</button>
+        </div>
+      )}
       {asks === null && <p className="text-[13px] text-slate-500 text-center py-10">Loading…</p>}
 
       {asks && view === 'swipe' && (deck.length === 0
