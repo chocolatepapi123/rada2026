@@ -1,0 +1,3 @@
+Phase 3 deletes nothing new. If you have not yet, also delete (from phases 1 and 2):
+.aistudio/   metadata.json   server.ts   seed-cinemas.ts (the copy in the project root)   src/types.cinema-patch.ts
+After unzipping run:  npm install && npm run lint && npm test && npm run build

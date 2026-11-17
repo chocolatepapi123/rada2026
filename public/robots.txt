@@ -1,5 +1,4 @@
 User-agent: *
 Allow: /
 
-# Add your sitemap here once you have a custom domain:
-# Sitemap: https://YOUR-DOMAIN/sitemap.xml
+Sitemap: https://rada2026-omega.vercel.app/sitemap.xml

@@ -1,6 +1,6 @@
 /* RADA service worker: makes repeat launches fast and gives an offline shell.
  * No build step needed. Bump VERSION to force every device to drop old caches. */
-const VERSION = 'rada-v9';
+const VERSION = 'rada-v10';
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
 const RUNTIME = `${VERSION}-runtime`;
@@ -86,6 +86,11 @@ self.addEventListener('fetch', (event) => {
     // /assets/* (hashed JS/CSS chunks) is deliberately NOT handled here: the browser's own HTTP cache already
     // keeps hashed files, and routing tab chunks through the worker could stall the first open of a tab.
     if (url.pathname.startsWith('/assets/')) return;
+    // Face-check model files never change under the same name: keep them after the first download.
+    if (url.pathname.startsWith('/models/')) {
+      event.respondWith(cacheFirst(request));
+      return;
+    }
     if (/\.(svg|jpg|jpeg|png|webp|ico|json)$/.test(url.pathname) && url.pathname !== '/sw.js') {
       event.respondWith(staleWhileRevalidate(request));
     }

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "predev": "node scripts/copy-face-models.mjs",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0 --port 4173",
     "start": "vite preview --host 0.0.0.0 --port 4173",
@@ -15,7 +16,9 @@
     "shrink:photos": "node scripts/shrink-photos.mjs",
     "clean": "rm -rf dist",
     "legal": "node scripts/build-legal-pages.mjs",
-    "prebuild": "node scripts/build-legal-pages.mjs"
+    "models": "node scripts/copy-face-models.mjs",
+    "sitemap": "node scripts/build-sitemap.mjs",
+    "prebuild": "node scripts/build-legal-pages.mjs && node scripts/build-sitemap.mjs && node scripts/copy-face-models.mjs"
   },
   "dependencies": {
     "@vladmandic/face-api": "^1.7.15",

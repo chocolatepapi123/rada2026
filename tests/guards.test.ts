@@ -105,3 +105,16 @@ test('no Google AI Studio leftovers', () => {
   assert.ok(!/@google\/genai|"express"|"dotenv"/.test(read('package.json')));
 });
 
+
+test('face-check models are served from our own site, not a CDN', () => {
+  const s = read('src/lib/faceCheck.ts');
+  assert.match(s, /const MODEL_URL = '\/models'/);
+  assert.ok(!/jsdelivr|unpkg|cdnjs/i.test(s), 'face check still points at a CDN');
+  assert.match(read('package.json'), /copy-face-models\.mjs/);
+});
+
+test('index.html has a no-JavaScript fallback and the sitemap script covers the legal pages', () => {
+  assert.match(read('index.html'), /<noscript>[\s\S]*RADA needs JavaScript[\s\S]*<\/noscript>/);
+  const s = read('scripts/build-sitemap.mjs');
+  for (const p of ['/privacy', '/terms', '/guidelines', '/merchant-terms']) assert.ok(s.includes(`'${p}'`), `sitemap is missing ${p}`);
+});

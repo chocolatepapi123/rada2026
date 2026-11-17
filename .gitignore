@@ -12,3 +12,6 @@ shrink-photos-done.json
 .aistudio/
 .vercel/
 .env.local
+
+# Copied from node_modules by scripts/copy-face-models.mjs on every dev/build
+public/models/

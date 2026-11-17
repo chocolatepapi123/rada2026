@@ -12,11 +12,12 @@
  * Because the result is decided on the phone, the server cannot confirm it.
  *
  * Library: @vladmandic/face-api (npm i @vladmandic/face-api). It loads lazily, so the first screen
- * of the app does not get heavier. Model files (about 7 MB, once) come from jsDelivr and are then cached by the browser.
+ * of the app does not get heavier. Model files (about 7 MB, once) are served from this site's /models folder and then cached by the browser.
  */
 import type * as FaceApi from '@vladmandic/face-api';
 
-const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
+// Served from our own site (copied into public/models by scripts/copy-face-models.mjs).
+const MODEL_URL = '/models';
 
 /** Lower distance = more similar. 0.6 is the library default; 0.5 is stricter. */
 export const MATCH_MAX_DISTANCE = 0.55;
