@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Search, X, MapPin, Bookmark, Star, SlidersHorizontal, Compass, Trash2, Navigation } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import type { LucideIcon } from 'lucide-react';
+import { Search, X, MapPin, Bookmark, Star, SlidersHorizontal, Compass, Trash2, Navigation, ChevronDown, Check, LayoutGrid } from 'lucide-react';
 import { SpotItem, SavedItem } from '../types.ts';
-import { spotInCategory, getSpotCategoryIds, isAllKey } from '../lib/spotCategories.ts';
+import { spotInCategory, getSpotCategoryIds, isAllKey, resolveSpotCategory, SPOT_CATEGORIES } from '../lib/spotCategories.ts';
 import { getSpotCategoryAccent, accentVars } from '../lib/spotAccentTheme.ts';
 import { rankSpots, premiumScore, formatKm, useNearYou } from '../lib/spotRanking.ts';
 import { NearYouControl } from './NearYouControl.tsx';
@@ -21,7 +22,90 @@ interface SpotsExplorerProps {
   userCoords?: LatLng | null;
   isAdmin?: boolean;
   onDeleteSpot?: (spot: SpotItem) => void;
+  /** 'picker' = compact venue chooser (no area chips, no count, category dropdown, two cards per row). */
+  variant?: 'default' | 'picker';
 }
+
+interface PillOption { id: string; label: string; icon?: LucideIcon; color?: string }
+
+/** Rounded dropdown that matches RADA's pills and cards (replaces the plain browser select). */
+const PillDropdown: React.FC<{
+  value: string;
+  options: PillOption[];
+  onChange: (id: string) => void;
+  caption?: string;
+  menuWidthClass?: string;
+}> = ({ value, options, onChange, caption, menuWidthClass = 'w-60' }) => {
+  const [open, setOpen] = useState(false);
+  const wrap = useRef<HTMLDivElement>(null);
+  const current = options.find(o => o.id === value) || options[0];
+  const active = value !== options[0].id;
+  const CurIcon = current.icon;
+
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('pointerdown', away);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('pointerdown', away); document.removeEventListener('keydown', esc); };
+  }, [open]);
+
+  return (
+    <div ref={wrap} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className={`flex items-center gap-1.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border rounded-xl px-2.5 py-1.5 font-bold text-slate-800 dark:text-slate-200 cursor-pointer transition ${
+          active ? 'border-[#E0533C]/60' : 'border-slate-200 dark:border-slate-800'
+        }`}
+      >
+        {caption && <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">{caption}</span>}
+        {CurIcon && <CurIcon className="w-3.5 h-3.5 shrink-0" style={{ color: current.color || '#E0533C' }} />}
+        <span className="truncate max-w-[9.5rem]">{current.label}</span>
+        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div
+          role="listbox"
+          className={`absolute left-0 top-full mt-2 z-30 ${menuWidthClass} max-w-[calc(100vw-2rem)] max-h-72 overflow-y-auto rounded-2xl bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 shadow-xl p-1.5 animate-in fade-in zoom-in-95 duration-150`}
+        >
+          {options.map(o => {
+            const Icon = o.icon;
+            const selected = o.id === value;
+            return (
+              <button
+                key={o.id}
+                type="button"
+                role="option"
+                aria-selected={selected}
+                onClick={() => { onChange(o.id); setOpen(false); }}
+                className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-xl text-left cursor-pointer transition ${
+                  selected ? 'bg-[#E0533C]/10' : 'hover:bg-slate-100 dark:hover:bg-slate-800/70'
+                }`}
+              >
+                {Icon && (
+                  <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${o.color || '#E0533C'}1F` }}>
+                    <Icon className="w-3.5 h-3.5" style={{ color: o.color || '#E0533C' }} />
+                  </span>
+                )}
+                <span className={`flex-1 text-[12px] truncate ${selected ? 'font-black text-[#E0533C]' : 'font-bold text-slate-700 dark:text-slate-200'}`}>{o.label}</span>
+                {selected && <Check className="w-4 h-4 text-[#E0533C] shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const CATEGORY_OPTIONS: PillOption[] = [
+  { id: 'all', label: 'All categories', icon: LayoutGrid, color: '#E0533C' },
+  ...SPOT_CATEGORIES.map(c => ({ id: c.id, label: c.label, icon: c.icon, color: c.color })),
+];
 
 const NAIROBI_NEIGHBORHOODS = [
   'All Areas',
@@ -60,11 +144,15 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
   userCoords = null,
   isAdmin = false,
   onDeleteSpot,
+  variant = 'default',
 }) => {
+  // The Plan a Date screen opens this explorer with the title below, so it gets the compact picker layout automatically.
+  const picker = variant === 'picker' || categoryTitle === 'Select Venue for Date';
   const [query, setQuery] = useState('');
   const [selectedNeighborhood, setSelectedNeighborhood] = useState('All Areas');
   const [selectedBudget, setSelectedBudget] = useState('all');
   const [sortBy, setSortBy] = useState<'featured' | 'rating' | 'reviews'>('featured');
+  const [pickedCat, setPickedCat] = useState<string>(isAllKey(categoryKey) ? 'all' : (resolveSpotCategory(categoryKey) || 'all'));
   const nearYou = useNearYou();
   const categorySlotPromos = useActivePromotions('spots_category');
 
@@ -74,13 +162,13 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [query, selectedNeighborhood, selectedBudget, sortBy, nearYou.active, nearYou.radiusKm, categoryKey]);
+  }, [query, selectedNeighborhood, selectedBudget, sortBy, pickedCat, nearYou.active, nearYou.radiusKm, categoryKey]);
 
   const isSaved = (id: string | number) =>
     savedItems.some(s => String(s.id) === String(id) && s.kind === 'spot');
 
   const filteredSpots = useMemo(() => {
-    const effectiveCat = (categoryKey || '').toLowerCase().trim();
+    const effectiveCat = picker ? (pickedCat === 'all' ? 'all' : pickedCat) : (categoryKey || '').toLowerCase().trim();
 
     let result = spots.filter(s => {
       // Category match
@@ -128,7 +216,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
       return sortSpotsByCategoryPromotion(featured, effectiveCat, categorySlotPromos);
     }
     return featured;
-  }, [spots, categorySlotPromos, categoryKey, selectedNeighborhood, selectedBudget, query, sortBy, nearYou.active, nearYou.origin, nearYou.radiusKm]);
+  }, [spots, categorySlotPromos, categoryKey, picker, pickedCat, selectedNeighborhood, selectedBudget, query, sortBy, nearYou.active, nearYou.origin, nearYou.radiusKm]);
 
   return (
     <div className="space-y-4">
@@ -182,8 +270,8 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
           )}
         </div>
 
-        {/* Quick Popular Area Chips */}
-        <div className="-mx-1 px-1 flex gap-1.5 overflow-x-auto hide-scrollbar text-xs">
+        {/* Quick Popular Area Chips (hidden in the venue picker) */}
+        {!picker && <div className="-mx-1 px-1 flex gap-1.5 overflow-x-auto hide-scrollbar text-xs">
           {NAIROBI_NEIGHBORHOODS.slice(0, 8).map(area => (
             <button
               key={area}
@@ -198,12 +286,24 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
               {area}
             </button>
           ))}
-        </div>
+        </div>}
       </div>
 
       {/* Budget & Sort Controls */}
       <div className="flex items-center gap-2 flex-wrap text-xs">
-        <div className="flex items-center gap-1.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5">
+        {picker && (
+          <PillDropdown value={pickedCat} options={CATEGORY_OPTIONS} onChange={setPickedCat} menuWidthClass="w-64" />
+        )}
+        {picker && (
+          <PillDropdown
+            value={selectedBudget}
+            options={BUDGET_TIERS}
+            onChange={setSelectedBudget}
+            caption="Budget"
+            menuWidthClass="w-44"
+          />
+        )}
+        {!picker && <div className="flex items-center gap-1.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5">
           <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">Budget</span>
           <select
             value={selectedBudget}
@@ -216,9 +316,9 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
               </option>
             ))}
           </select>
-        </div>
+        </div>}
 
-        <div className="flex items-center gap-1.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5">
+        {!picker && <div className="flex items-center gap-1.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5">
           <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
           <select
             value={sortBy}
@@ -229,11 +329,11 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
             <option value="rating" className="bg-white dark:bg-[#1C1A1E]">Top Rated</option>
             <option value="reviews" className="bg-white dark:bg-[#1C1A1E]">Most Popular</option>
           </select>
-        </div>
+        </div>}
 
         <NearYouControl />
 
-        {(selectedNeighborhood !== 'All Areas' || selectedBudget !== 'all' || query || sortBy !== 'featured') && (
+        {(selectedNeighborhood !== 'All Areas' || selectedBudget !== 'all' || query || sortBy !== 'featured' || (picker && pickedCat !== 'all')) && (
           <button
             type="button"
             onClick={() => {
@@ -241,6 +341,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
               setSelectedNeighborhood('All Areas');
               setSelectedBudget('all');
               setSortBy('featured');
+              if (picker) setPickedCat('all');
             }}
             className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer ml-auto"
           >
@@ -250,11 +351,11 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
       </div>
 
       {/* Results Header */}
-      <div className="flex items-center justify-between text-xs font-bold text-slate-500 pt-1">
+      {!picker && <div className="flex items-center justify-between text-xs font-bold text-slate-500 pt-1">
         <span>
           {filteredSpots.length} {filteredSpots.length === 1 ? 'place' : 'places'} {nearYou.active ? `within ${nearYou.radiusKm ? nearYou.radiusKm + ' km' : 'range'} of you` : 'available'}
         </span>
-      </div>
+      </div>}
 
       {/* Spots Grid */}
       {filteredSpots.length === 0 ? (
@@ -273,6 +374,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
               setSelectedNeighborhood('All Areas');
               setSelectedBudget('all');
               setSortBy('featured');
+              if (picker) setPickedCat('all');
             }}
             className="px-4 py-2 bg-[#E0533C] text-white font-bold rounded-xl text-xs hover:bg-orange-700 transition cursor-pointer"
           >
@@ -280,7 +382,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+        <div className={picker ? 'grid grid-cols-2 gap-2.5' : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5'}>
           {filteredSpots.slice(0, visibleCount).map((spot) => {
             const saved = isSaved(spot.id);
             const reviewCount = spot.reviews?.length ?? (spot.reviewCount || 0);
@@ -294,12 +396,12 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
               <div
                 key={String(spot.id)}
                 onClick={() => onOpenSpot(spot)}
-                className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shadow-xs cursor-pointer transition flex flex-col justify-between group"
+                className={`bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 shadow-xs cursor-pointer transition flex flex-col justify-between group min-w-0 ${picker ? 'rounded-2xl p-2' : 'rounded-3xl p-3'}`}
                 style={accentVars(primary)}
               >
                 <div>
                   <div
-                    className="h-44 rounded-2xl bg-cover bg-center mb-3 relative overflow-hidden bg-slate-200 dark:bg-slate-800"
+                    className={`${picker ? 'h-28 rounded-xl mb-2' : 'h-44 rounded-2xl mb-3'} bg-cover bg-center relative overflow-hidden bg-slate-200 dark:bg-slate-800`}
                     style={{ backgroundImage: `url('${spot.img}')` }}
                   >
                     {/* Admin Delete shortcut */}
@@ -344,8 +446,8 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
                   </div>
 
                   <div className="space-y-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate transition">
+                    <div className={picker ? 'flex flex-col items-start gap-1' : 'flex items-center justify-between gap-1'}>
+                      <h4 className={`font-black text-slate-900 dark:text-slate-100 truncate transition max-w-full ${picker ? 'text-[13px]' : 'text-sm'}`}>
                         {spot.title}
                       </h4>
                       <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
@@ -359,7 +461,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
                       <span className="truncate">{spot.address || spot.neighborhood}</span>
                     </p>
 
-                    {spot.description && (
+                    {!picker && spot.description && (
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-1 leading-relaxed">
                         {spot.description}
                       </p>
@@ -367,11 +469,11 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
                   </div>
                 </div>
 
-                <div className="mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between gap-1.5">
-                  <span className="text-[11px] font-bold text-slate-500 truncate">
+                <div className={`border-t border-slate-200 dark:border-slate-800/80 ${picker ? 'mt-2 pt-2 flex flex-col gap-1.5' : 'mt-3 pt-2.5 flex items-center justify-between gap-1.5'}`}>
+                  <span className={`text-[11px] font-bold text-slate-500 truncate ${picker ? 'hidden' : ''}`}>
                     {spot.neighborhood}
                   </span>
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className={`flex items-center gap-1.5 ${picker ? 'w-full' : 'shrink-0'}`}>
                     {isAdmin && (
                       <button
                         type="button"
@@ -392,9 +494,9 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
                         e.stopPropagation();
                         onOpenSpot(spot);
                       }}
-                      className="px-3 py-1.5 rounded-xl text-[11px] font-bold transition shadow-xs cursor-pointer hover:opacity-90 bg-[var(--accent)] dark:bg-[var(--accent-deep)] text-[color:var(--accent-on)] dark:text-[color:var(--accent-ink)] border border-transparent dark:border-[color:var(--accent-line)]"
+                      className={`${picker ? 'w-full px-2 py-2' : 'px-3 py-1.5'} rounded-xl text-[11px] font-bold transition shadow-xs cursor-pointer hover:opacity-90 bg-[var(--accent)] dark:bg-[var(--accent-deep)] text-[color:var(--accent-on)] dark:text-[color:var(--accent-ink)] border border-transparent dark:border-[color:var(--accent-line)]`}
                     >
-                      View Details
+                      {picker ? 'Pick venue' : 'View Details'}
                     </button>
                   </div>
                 </div>
