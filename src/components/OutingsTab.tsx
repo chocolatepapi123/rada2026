@@ -538,7 +538,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
     showToast('Cover image uploaded');
   };
 
-  const [planDate, setPlanDate] = useState('2026-10-24');
+  const [planDate, setPlanDate] = useState('');
   const [planTime, setPlanTime] = useState('18:00');
   const [maxAttendees, setMaxAttendees] = useState(6);
 
@@ -1320,449 +1320,360 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       )}
 
       {/* =========================================================================
-          HOST A PLAN MODAL
+          HOST A PLAN SHEET
           ========================================================================= */}
       {isHostModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#1C1A1E] text-slate-900 dark:text-slate-100 rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[92vh]">
-            {/* Modal Header */}
-            <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-black/20">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-orange-100 dark:bg-orange-950/80 text-[#E0533C] flex items-center justify-center font-bold">
-                  <CalendarPlus className="w-4 h-4" />
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center animate-in fade-in duration-200">
+          <div className="relative w-full sm:max-w-md max-h-[94vh] bg-white dark:bg-[#1C1A1E] text-slate-900 dark:text-slate-100 rounded-t-[2rem] sm:rounded-[2rem] overflow-hidden shadow-2xl flex flex-col animate-in slide-in-from-bottom-6 duration-300">
+            {/* Header */}
+            <div className="shrink-0 px-5 pt-5 pb-4 bg-gradient-to-br from-[#E0533C]/12 via-white to-white dark:from-[#E0533C]/15 dark:via-[#1C1A1E] dark:to-[#1C1A1E]">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#E0533C] animate-pulse shrink-0" />
+                    <h3 className="text-[22px] font-black leading-tight tracking-tight">Host a plan</h3>
+                  </div>
+                  <p className="text-[13px] text-slate-500 dark:text-slate-400 mt-1">Pick a spot, set the time and let people join.</p>
                 </div>
-                <div>
-                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-                    Host an Outing Plan
-                  </h3>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                    Create a public plan and invite fellow explorers
-                  </p>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsHostModalOpen(false)}
+                  aria-label="Close"
+                  className="w-9 h-9 shrink-0 rounded-full bg-slate-100 dark:bg-white/[0.08] flex items-center justify-center active:scale-95 transition cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-
-              <button
-                type="button"
-                onClick={() => setIsHostModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center transition cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
             </div>
 
-            {/* Modal Form */}
-            <form onSubmit={handleSubmitPlan} className="p-5 overflow-y-auto space-y-4 text-xs">
-              {/* 1. Target Spot / Venue Selection with Custom Entry Toggle */}
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between gap-2">
-                  <label className="font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
-                    <span>1. Hangout Venue / Spot *</span>
-                  </label>
+            {/* Form */}
+            <form onSubmit={handleSubmitPlan} className="flex-1 min-h-0 flex flex-col">
+              <div className="flex-1 overflow-y-auto px-5 pt-2 pb-5 space-y-6">
 
-                  {/* Toggle between selecting from database or typing custom spot */}
-                  <div className="flex items-center p-0.5 bg-slate-100 dark:bg-slate-800/80 rounded-xl text-[11px] font-bold">
+                {/* Where */}
+                <section className="space-y-3">
+                  <p className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />Where
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-1 p-1 rounded-2xl bg-slate-100 dark:bg-white/[0.06]">
                     <button
                       type="button"
                       onClick={() => setVenueMode('catalog')}
-                      className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
-                        venueMode === 'catalog'
-                          ? 'bg-white dark:bg-slate-900 text-[#E0533C] shadow-2xs'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                      }`}
+                      className={`h-9 rounded-xl text-[12px] font-extrabold transition cursor-pointer ${venueMode === 'catalog' ? 'bg-white dark:bg-[#1C1A1E] text-[#E0533C] shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
                     >
-                      Browse Spots
+                      Browse spots
                     </button>
                     <button
                       type="button"
                       onClick={() => setVenueMode('custom')}
-                      className={`px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1 ${
-                        venueMode === 'custom'
-                          ? 'bg-[#E0533C] text-white shadow-2xs'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-[#E0533C]'
-                      }`}
+                      className={`h-9 rounded-xl text-[12px] font-extrabold transition cursor-pointer flex items-center justify-center gap-1 ${venueMode === 'custom' ? 'bg-white dark:bg-[#1C1A1E] text-[#E0533C] shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
                     >
-                      <Plus className="w-3 h-3 stroke-[3]" />
-                      <span>Custom Venue</span>
+                      <Plus className="w-3.5 h-3.5 stroke-[3]" />Custom venue
                     </button>
                   </div>
-                </div>
 
-                {venueMode === 'catalog' ? (
-                  /* Catalog Spot Selection */
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <Search className="w-3.5 h-3.5 absolute left-3 text-slate-400 pointer-events-none" />
-                      <input
-                        type="text"
-                        value={spotSearchQuery}
-                        onChange={(e) => setSpotSearchQuery(e.target.value)}
-                        placeholder="Search spots or enter custom venue..."
-                        className="w-full pl-9 pr-8 py-2 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:ring-2 focus:ring-[#E0533C] focus:outline-none"
-                      />
-                      {spotSearchQuery && (
-                        <button
-                          type="button"
-                          onClick={() => setSpotSearchQuery('')}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Spot Select Carousel/List */}
-                    <div className="flex gap-2 overflow-x-auto hide-scrollbar py-1">
-                      {filteredSpotsForHosting.map((spot) => {
-                        const isSelected = selectedSpotId === spot.id;
-                        return (
-                          <div
-                            key={spot.id}
-                            onClick={() => setSelectedSpotId(spot.id)}
-                            className={`w-36 p-2 rounded-2xl border transition cursor-pointer shrink-0 flex flex-col justify-between ${
-                              isSelected
-                                ? 'border-[#E0533C] ring-2 ring-[#E0533C]/40 bg-orange-50/60 dark:bg-orange-950/30'
-                                : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 hover:border-slate-300'
-                            }`}
+                  {venueMode === 'catalog' ? (
+                    <div className="space-y-3">
+                      <div className="relative">
+                        <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={spotSearchQuery}
+                          onChange={(e) => setSpotSearchQuery(e.target.value)}
+                          placeholder="Search spots"
+                          className="w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.04] pl-10 pr-10 py-3 text-[14px] font-semibold outline-none focus:border-[#E0533C] focus:ring-2 focus:ring-[#E0533C]/15 transition"
+                        />
+                        {spotSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setSpotSearchQuery('')}
+                            aria-label="Clear search"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer"
                           >
-                            <div
-                              className="h-16 rounded-xl bg-cover bg-center mb-1.5 relative overflow-hidden"
-                              style={{ backgroundImage: `url('${optimizedUrl(spot.img || '', 240)}')` }}
-                            >
-                              {isSelected && (
-                                <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#E0533C] text-white flex items-center justify-center">
-                                  <Check className="w-2.5 h-2.5 stroke-[3]" />
-                                </span>
-                              )}
-                            </div>
-                            <h4 className="font-extrabold text-[11px] truncate text-slate-900 dark:text-slate-100">
-                              {spot.title}
-                            </h4>
-                            <p className="text-[9px] text-slate-500 truncate">
-                              {spot.neighborhood}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
 
-                    <div className="flex items-center justify-between pt-0.5">
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                        Selected: <span className="font-bold text-slate-800 dark:text-slate-200">{selectedSpot?.title}</span> • {selectedSpot?.neighborhood}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setVenueMode('custom');
-                          if (spotSearchQuery.trim()) setCustomSpotTitle(spotSearchQuery.trim());
-                        }}
-                        className="text-[10px] font-extrabold text-[#E0533C] hover:underline flex items-center gap-1 cursor-pointer"
-                      >
-                        <Plus className="w-3 h-3" />
-                        <span>Can't find it? Add Custom</span>
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  /* Custom Venue Entry Form */
-                  <div className="p-3.5 bg-orange-50/50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/40 rounded-2xl space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-black text-[#E0533C] flex items-center gap-1">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>Custom Spot & Venue Details</span>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setVenueMode('catalog')}
-                        className="text-[10px] text-slate-500 hover:text-slate-700 dark:text-slate-400 underline font-semibold cursor-pointer"
-                      >
-                        Switch to Catalog Spots
-                      </button>
-                    </div>
-
-                    {/* Venue Name */}
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-extrabold text-slate-800 dark:text-slate-200 block">
-                        Venue / Spot Name *
-                      </label>
-                      <input
-                        type="text"
-                        required={venueMode === 'custom'}
-                        value={customSpotTitle}
-                        onChange={(e) => setCustomSpotTitle(e.target.value)}
-                        placeholder="e.g. K1 Klub House, Brew Bistro, Ruiru Falls, Java House..."
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-[#E0533C] focus:outline-none"
-                      />
-                    </div>
-
-                    {/* Location / Area */}
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-extrabold text-slate-800 dark:text-slate-200 block">
-                        Location / Area / Address
-                      </label>
-                      <input
-                        type="text"
-                        value={customSpotAddress}
-                        onChange={(e) => setCustomSpotAddress(e.target.value)}
-                        placeholder="e.g. Ruiru Bypass, Ojijo Rd Parklands, Karen Road..."
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-[#E0533C] focus:outline-none"
-                      />
-                    </div>
-
-                    {/* Spot Category (10 Standard Categories) */}
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-extrabold text-slate-800 dark:text-slate-200 block">
-                        Spot Category * (10 Standard Categories)
-                      </label>
-                      <select
-                        value={customSpotCategory}
-                        onChange={(e) => setCustomSpotCategory(e.target.value)}
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-[#E0533C] focus:outline-none"
-                      >
-                        {RADA_10_CATEGORIES.filter(c => c.id !== 'all').map((cat) => (
-                          <option key={cat.id} value={cat.id}>
-                            {cat.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Cover photo upload */}
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-extrabold text-slate-800 dark:text-slate-200 flex items-center justify-between">
-                        <span>Cover photo (optional)</span>
-                        <span className="text-[10px] text-slate-400 font-normal">Auto-assigned if left empty</span>
-                      </label>
-                      <input
-                        ref={coverInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const f = e.target.files?.[0];
-                          e.target.value = '';
-                          if (f) handleCoverPicked(f);
-                        }}
-                      />
-                      {customSpotImage ? (
-                        <div className="relative h-36 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900">
-                          <img loading="lazy" decoding="async" src={customSpotImage} alt="Cover preview" className="w-full h-full object-cover" />
-                          <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                      <div className="flex gap-2.5 overflow-x-auto hide-scrollbar -mx-5 px-5 py-1 snap-x">
+                        {filteredSpotsForHosting.map((spot) => {
+                          const isSelected = selectedSpotId === spot.id;
+                          return (
                             <button
                               type="button"
-                              onClick={() => coverInputRef.current?.click()}
-                              disabled={coverUploading}
-                              className="px-2.5 py-1.5 rounded-full bg-black/60 hover:bg-black/80 text-white text-[10px] font-bold backdrop-blur-md cursor-pointer disabled:opacity-60"
+                              key={spot.id}
+                              onClick={() => setSelectedSpotId(spot.id)}
+                              className={`w-40 shrink-0 snap-start text-left rounded-2xl overflow-hidden border transition active:scale-[0.98] cursor-pointer ${
+                                isSelected
+                                  ? 'border-[#E0533C] ring-2 ring-[#E0533C]/30 bg-[#E0533C]/[0.06]'
+                                  : 'border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.04]'
+                              }`}
                             >
-                              Change
+                              <div
+                                className="h-20 bg-cover bg-center bg-slate-100 dark:bg-white/[0.06] relative"
+                                style={{ backgroundImage: `url('${optimizedUrl(spot.img || '', 320)}')` }}
+                              >
+                                {isSelected && (
+                                  <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#E0533C] text-white flex items-center justify-center shadow-sm">
+                                    <Check className="w-3 h-3 stroke-[3]" />
+                                  </span>
+                                )}
+                              </div>
+                              <div className="p-2.5">
+                                <h4 className="font-extrabold text-[12px] truncate">{spot.title}</h4>
+                                <p className="text-[11px] text-slate-500 truncate">{spot.neighborhood}</p>
+                              </div>
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => setCustomSpotImage('')}
-                              aria-label="Remove cover image"
-                              className="w-7 h-7 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md cursor-pointer"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                          {coverUploading && (
-                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                              <Loader2 className="w-5 h-5 text-white animate-spin" />
-                            </div>
-                          )}
-                        </div>
-                      ) : (
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-[12px] text-slate-500 dark:text-slate-400 min-w-0 truncate">
+                          Selected: <span className="font-extrabold text-slate-800 dark:text-slate-100">{selectedSpot?.title}</span>{selectedSpot?.neighborhood ? ` · ${selectedSpot.neighborhood}` : ''}
+                        </p>
                         <button
                           type="button"
-                          onClick={() => coverInputRef.current?.click()}
-                          disabled={coverUploading}
-                          className="w-full h-28 rounded-xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200/70 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 flex flex-col items-center justify-center gap-1.5 transition cursor-pointer disabled:cursor-wait"
+                          onClick={() => {
+                            setVenueMode('custom');
+                            if (spotSearchQuery.trim()) setCustomSpotTitle(spotSearchQuery.trim());
+                          }}
+                          className="text-[12px] font-extrabold text-[#E0533C] shrink-0 cursor-pointer"
                         >
-                          {coverUploading ? (
-                            <>
-                              <Loader2 className="w-5 h-5 animate-spin text-[#E0533C]" />
-                              <span className="text-xs font-bold">Uploading...</span>
-                            </>
-                          ) : (
-                            <>
-                              <ImagePlus className="w-5 h-5 text-[#E0533C]" />
-                              <span className="text-xs font-extrabold">Upload Cover Image</span>
-                              <span className="text-[10px] text-slate-400">Pick a photo from your device</span>
-                            </>
-                          )}
+                          Not listed? Add it
                         </button>
-                      )}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  ) : (
+                    <div className="rounded-2xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200/70 dark:border-white/10 p-4 space-y-4">
+                      <label className="block">
+                        <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 block mb-1.5">Venue name</span>
+                        <input
+                          type="text"
+                          required={venueMode === 'custom'}
+                          value={customSpotTitle}
+                          onChange={(e) => setCustomSpotTitle(e.target.value)}
+                          placeholder="e.g. Java House Westlands"
+                          className="w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1C1A1E] px-4 py-3 text-[14px] font-semibold outline-none focus:border-[#E0533C] focus:ring-2 focus:ring-[#E0533C]/15 transition"
+                        />
+                      </label>
 
-              {/* 2. Date and Time */}
-              <div className="grid grid-cols-2 gap-2.5">
-                <div className="space-y-1">
-                  <label className="font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5 text-[#E0533C]" />
-                    <span>Date *</span>
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={planDate}
-                    onChange={(e) => setPlanDate(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-[#E0533C] focus:outline-none"
-                  />
-                </div>
+                      <label className="block">
+                        <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 block mb-1.5">Area or address</span>
+                        <input
+                          type="text"
+                          value={customSpotAddress}
+                          onChange={(e) => setCustomSpotAddress(e.target.value)}
+                          placeholder="e.g. Ojijo Road, Parklands"
+                          className="w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1C1A1E] px-4 py-3 text-[14px] font-semibold outline-none focus:border-[#E0533C] focus:ring-2 focus:ring-[#E0533C]/15 transition"
+                        />
+                      </label>
 
-                <div className="space-y-1">
-                  <label className="font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5 text-[#E0533C]" />
-                    <span>Time *</span>
-                  </label>
-                  <input
-                    type="time"
-                    required
-                    value={planTime}
-                    onChange={(e) => setPlanTime(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-[#E0533C] focus:outline-none"
-                  />
-                </div>
-              </div>
+                      <label className="block">
+                        <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 block mb-1.5">Category</span>
+                        <select
+                          value={customSpotCategory}
+                          onChange={(e) => setCustomSpotCategory(e.target.value)}
+                          className="w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1C1A1E] px-4 py-3 text-[14px] font-semibold outline-none focus:border-[#E0533C] focus:ring-2 focus:ring-[#E0533C]/15 transition cursor-pointer"
+                        >
+                          {RADA_10_CATEGORIES.filter(c => c.id !== 'all').map((cat) => (
+                            <option key={cat.id} value={cat.id}>{cat.label}</option>
+                          ))}
+                        </select>
+                      </label>
 
-              {/* Quick Date Shortcuts */}
-              <div className="flex gap-1.5 text-[10px]">
-                <button
-                  type="button"
-                  onClick={() => setPlanDate('2026-10-23')}
-                  className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 font-bold hover:bg-slate-200"
-                >
-                  This Friday (Oct 23)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPlanDate('2026-10-24')}
-                  className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 font-bold hover:bg-slate-200"
-                >
-                  Saturday (Oct 24)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPlanDate('2026-10-25')}
-                  className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 font-bold hover:bg-slate-200"
-                >
-                  Sunday (Oct 25)
-                </button>
-              </div>
+                      <div>
+                        <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 flex items-center justify-between mb-1.5">
+                          <span>Cover photo</span>
+                          <span className="font-semibold text-slate-400">Optional</span>
+                        </span>
+                        <input
+                          ref={coverInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            e.target.value = '';
+                            if (f) handleCoverPicked(f);
+                          }}
+                        />
+                        {customSpotImage ? (
+                          <div className="relative h-36 rounded-2xl overflow-hidden bg-slate-100 dark:bg-white/[0.06]">
+                            <img loading="lazy" decoding="async" src={customSpotImage} alt="Cover preview" className="w-full h-full object-cover" />
+                            <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => coverInputRef.current?.click()}
+                                disabled={coverUploading}
+                                className="px-3 py-1.5 rounded-full bg-black/55 text-white text-[11px] font-bold backdrop-blur-md cursor-pointer disabled:opacity-60"
+                              >
+                                Change
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setCustomSpotImage('')}
+                                aria-label="Remove cover image"
+                                className="w-8 h-8 rounded-full bg-black/55 text-white flex items-center justify-center backdrop-blur-md cursor-pointer"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                            {coverUploading && (
+                              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                <Loader2 className="w-5 h-5 text-white animate-spin" />
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => coverInputRef.current?.click()}
+                            disabled={coverUploading}
+                            className="w-full h-28 rounded-2xl border border-dashed border-[#E0533C]/40 bg-[#E0533C]/[0.05] text-slate-600 dark:text-slate-300 flex flex-col items-center justify-center gap-1.5 active:scale-[0.99] transition cursor-pointer disabled:opacity-60"
+                          >
+                            {coverUploading ? (
+                              <>
+                                <Loader2 className="w-5 h-5 animate-spin text-[#E0533C]" />
+                                <span className="text-[12px] font-bold">Uploading...</span>
+                              </>
+                            ) : (
+                              <>
+                                <ImagePlus className="w-5 h-5 text-[#E0533C]" />
+                                <span className="text-[13px] font-extrabold">Add a cover photo</span>
+                                <span className="text-[11px] text-slate-400">We pick one for you if you skip this</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </section>
 
-              {/* 3. Max Attendees & Access Type */}
-              <div className="grid grid-cols-2 gap-2.5">
-                <div className="space-y-1">
-                  <label className="font-extrabold text-slate-900 dark:text-slate-100 flex items-center justify-between">
-                    <span>
-                      Max Attendees
-                      <span className="ml-1 font-semibold text-[10px] text-slate-400">(up to {quota.attendeeCap ?? 'any'})</span>:
-                    </span>
-                    <span className="font-black text-[#E0533C] text-sm">{maxAttendees}</span>
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setMaxAttendees(prev => Math.max(2, prev - 1))}
-                      className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-black text-sm flex items-center justify-center hover:bg-slate-200 cursor-pointer"
-                    >
-                      -
-                    </button>
+                {/* When */}
+                <section className="space-y-3">
+                  <p className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    <Calendar className="w-3.5 h-3.5 text-[#E0533C]" />When
+                  </p>
+                  <div className="grid grid-cols-2 gap-2.5">
                     <input
-                      type="range"
-                      min={2}
-                      max={attendeeMax}
-                      value={maxAttendees}
-                      onChange={(e) => setMaxAttendees(parseInt(e.target.value, 10))}
-                      className="flex-1 accent-[#E0533C]"
+                      type="date"
+                      required
+                      aria-label="Date"
+                      min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10)}
+                      value={planDate}
+                      onChange={(e) => setPlanDate(e.target.value)}
+                      className="w-full min-w-0 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.04] px-4 py-3 text-[14px] font-semibold outline-none focus:border-[#E0533C] focus:ring-2 focus:ring-[#E0533C]/15 transition"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setMaxAttendees(prev => Math.min(attendeeMax, prev + 1))}
-                      className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-black text-sm flex items-center justify-center hover:bg-slate-200 cursor-pointer"
-                    >
-                      +
-                    </button>
+                    <input
+                      type="time"
+                      required
+                      aria-label="Time"
+                      value={planTime}
+                      onChange={(e) => setPlanTime(e.target.value)}
+                      className="w-full min-w-0 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.04] px-4 py-3 text-[14px] font-semibold outline-none focus:border-[#E0533C] focus:ring-2 focus:ring-[#E0533C]/15 transition"
+                    />
                   </div>
-                </div>
+                </section>
 
-                <div className="space-y-1">
-                  <label className="font-extrabold text-slate-900 dark:text-slate-100 block">
-                    Access Type *
-                  </label>
-                  <div className="grid grid-cols-2 gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                {/* Who */}
+                <section className="space-y-3">
+                  <p className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    <Users className="w-3.5 h-3.5 text-[#E0533C]" />Who can join
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-1 p-1 rounded-2xl bg-slate-100 dark:bg-white/[0.06]">
                     <button
                       type="button"
                       onClick={() => setAccessType('open')}
-                      className={`py-1.5 rounded-lg font-bold text-[11px] transition cursor-pointer ${
-                        accessType === 'open'
-                          ? 'bg-white dark:bg-slate-900 text-[#E0533C] shadow-xs'
-                          : 'text-slate-600 dark:text-slate-400'
-                      }`}
+                      className={`h-9 rounded-xl text-[12px] font-extrabold transition cursor-pointer flex items-center justify-center gap-1.5 ${accessType === 'open' ? 'bg-white dark:bg-[#1C1A1E] text-[#E0533C] shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
                     >
-                      Open
+                      <Users className="w-3.5 h-3.5" />Open plan
                     </button>
                     <button
                       type="button"
                       onClick={() => setAccessType('singles_only')}
-                      className={`py-1.5 rounded-lg font-bold text-[11px] transition cursor-pointer ${
-                        accessType === 'singles_only'
-                          ? 'bg-white dark:bg-slate-900 text-rose-500 shadow-xs'
-                          : 'text-slate-600 dark:text-slate-400'
-                      }`}
+                      className={`h-9 rounded-xl text-[12px] font-extrabold transition cursor-pointer flex items-center justify-center gap-1.5 ${accessType === 'singles_only' ? 'bg-white dark:bg-[#1C1A1E] text-rose-500 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
                     >
-                      Singles Only
+                      <Heart className="w-3.5 h-3.5" />Singles only
                     </button>
                   </div>
-                </div>
-              </div>
 
-              {/* 4. Short Description & Vibe Note */}
-              <div className="space-y-1">
-                <label className="font-extrabold text-slate-900 dark:text-slate-100 block">
-                  Short Description & Vibe Note *
-                </label>
-                <textarea
-                  required
-                  rows={3}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="e.g. Heading to the sundowner DJ set and woodfired tacos. Looking for easygoing music lovers to hang out with!"
-                  className="w-full p-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:ring-2 focus:ring-[#E0533C] focus:outline-none resize-none leading-relaxed"
+                  <div className="rounded-2xl bg-slate-50 dark:bg-white/[0.04] p-4">
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-[13px] font-extrabold">
+                        Max attendees
+                        <span className="ml-1.5 text-[11px] font-semibold text-slate-400">up to {quota.attendeeCap ?? 'any'}</span>
+                      </span>
+                      <span className="text-[22px] font-black text-[#E0533C] leading-none">{maxAttendees}</span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-3">
+                      <button
+                        type="button"
+                        aria-label="Fewer attendees"
+                        onClick={() => setMaxAttendees(prev => Math.max(2, prev - 1))}
+                        className="w-9 h-9 shrink-0 rounded-full bg-white dark:bg-white/[0.08] shadow-sm text-slate-700 dark:text-slate-200 font-black text-base flex items-center justify-center active:scale-95 transition cursor-pointer"
+                      >
+                        -
+                      </button>
+                      <input
+                        type="range"
+                        min={2}
+                        max={attendeeMax}
+                        value={maxAttendees}
+                        onChange={(e) => setMaxAttendees(parseInt(e.target.value, 10))}
+                        className="flex-1 accent-[#E0533C]"
+                      />
+                      <button
+                        type="button"
+                        aria-label="More attendees"
+                        onClick={() => setMaxAttendees(prev => Math.min(attendeeMax, prev + 1))}
+                        className="w-9 h-9 shrink-0 rounded-full bg-white dark:bg-white/[0.08] shadow-sm text-slate-700 dark:text-slate-200 font-black text-base flex items-center justify-center active:scale-95 transition cursor-pointer"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Vibe */}
+                <section className="space-y-3">
+                  <p className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    <Sparkles className="w-3.5 h-3.5 text-[#E0533C]" />The vibe
+                  </p>
+                  <textarea
+                    required
+                    rows={3}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="e.g. Sundowner DJ set and woodfired tacos. Looking for easygoing music lovers!"
+                    className="w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.04] px-4 py-3 text-[14px] leading-relaxed outline-none focus:border-[#E0533C] focus:ring-2 focus:ring-[#E0533C]/15 resize-none transition"
+                  />
+                </section>
+
+                <TemplatePicker
+                  userId={currentUserId}
+                  current={{ spotId: selectedSpotId, description, maxAttendees, accessType, tags: selectedTags }}
+                  onApply={(d) => {
+                    if (d.spotId != null) setSelectedSpotId(d.spotId);
+                    if (typeof d.description === 'string') setDescription(d.description);
+                    if (typeof d.maxAttendees === 'number') setMaxAttendees(clampAttendees(myPlan, d.maxAttendees));
+                    if (d.accessType) setAccessType(d.accessType);
+                    if (Array.isArray(d.tags)) setSelectedTags(d.tags);
+                  }}
                 />
               </div>
 
-              <TemplatePicker
-                userId={currentUserId}
-                current={{ spotId: selectedSpotId, description, maxAttendees, accessType, tags: selectedTags }}
-                onApply={(d) => {
-                  if (d.spotId != null) setSelectedSpotId(d.spotId);
-                  if (typeof d.description === 'string') setDescription(d.description);
-                  if (typeof d.maxAttendees === 'number') setMaxAttendees(clampAttendees(myPlan, d.maxAttendees));
-                  if (d.accessType) setAccessType(d.accessType);
-                  if (Array.isArray(d.tags)) setSelectedTags(d.tags);
-                }}
-              />
-
-              {/* Submit Buttons */}
-              <div className="pt-2 flex items-center gap-2">
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex-1 py-3 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-2xl shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                >
+              {/* Sticky footer */}
+              <div
+                className="shrink-0 px-5 pt-3 border-t border-slate-100 dark:border-white/10 bg-white dark:bg-[#1C1A1E]"
+                style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
+              >
+                <button type="submit" disabled={isSubmitting} className={`${OUTING_BTN_PRIMARY} w-full`}>
                   <CalendarPlus className="w-4 h-4 stroke-[2.5]" />
-                  <span>{isSubmitting ? 'Publishing Plan...' : 'Publish Outing Plan'}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsHostModalOpen(false)}
-                  className="px-4 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-2xl transition cursor-pointer"
-                >
-                  Cancel
+                  <span>{isSubmitting ? 'Publishing...' : 'Publish plan'}</span>
                 </button>
               </div>
             </form>
