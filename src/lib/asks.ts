@@ -8,7 +8,10 @@ export interface Ask {
   media_url: string | null; media_type: 'image' | 'video' | null;
   created_at: string; expires_at: string; user_id: string; handle: string | null; avatar: string | null;
   verified: boolean; trusted: boolean; mine: boolean; replies: number; replied: boolean;
+  plan_kind: 'event' | 'spot' | null; plan_ref: string | null; plan_title: string | null;
 }
+export interface PlanHit { kind: 'event' | 'spot'; ref: string; title: string; subtitle: string | null }
+export type PlanLink = { kind: 'event' | 'spot'; ref: string; title: string };
 export interface AskReply { id: string; user_id: string; handle: string | null; avatar: string | null; verified: boolean; message: string; status: 'pending' | 'accepted' | 'declined'; created_at: string }
 
 const clean = (m?: string) => String(m || 'Something went wrong. Please try again.').replace(/^.*?:\s*/, '').trim();
@@ -56,12 +59,19 @@ export async function fetchAsks(area: string): Promise<Ask[]> {
   const { data, error } = await supabase.rpc('asks_feed', { p_area: area || null });
   return error ? [] : ((data as Ask[]) || []);
 }
-export async function createAsk(body: string, area: string, expiresAt: Date, media?: { url: string; type: 'image' | 'video' } | null): Promise<string | null> {
+export async function createAsk(body: string, area: string, expiresAt: Date, media?: { url: string; type: 'image' | 'video' } | null, plan?: PlanLink | null): Promise<string | null> {
   if (body.trim().length < 5) return 'Say a little more, at least a few words.';
   if (area.trim().length < 2) return 'Type where this is happening.';
   if (expiresAt.getTime() < Date.now() + 5 * 60000) return 'Pick an expiry at least 5 minutes from now.';
-  const { error } = await supabase.rpc('create_ask', { p_body: body, p_area: area.trim(), p_expires_at: expiresAt.toISOString(), p_media_url: media?.url ?? null, p_media_type: media?.type ?? null });
+  const { error } = await supabase.rpc('create_ask', { p_body: body, p_area: area.trim(), p_expires_at: expiresAt.toISOString(), p_media_url: media?.url ?? null, p_media_type: media?.type ?? null, p_plan_kind: plan?.kind ?? null, p_plan_ref: plan?.ref ?? null, p_plan_title: plan?.title ?? null });
   return error ? clean(error.message) : null;
+}
+/** Searches events and spots a person can link to their ask. */
+export async function searchPlans(q: string): Promise<PlanHit[]> {
+  const term = q.trim();
+  if (term.length < 2) return [];
+  const { data, error } = await supabase.rpc('ask_plan_search', { p_q: term });
+  return error ? [] : ((data as PlanHit[]) || []);
 }
 export async function passAsk(id: string): Promise<void> { await supabase.rpc('pass_ask', { p_ask: id }); }
 export async function closeAsk(id: string): Promise<string | null> {

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Camera, MapPin, Clock, X, Video, Image as ImageIcon, RefreshCw } from 'lucide-react';
-import { createAsk, uploadAskMedia } from '../lib/asks.ts';
+import { Camera, MapPin, Clock, X, Video, Image as ImageIcon, RefreshCw, Ticket, Search } from 'lucide-react';
+import { createAsk, searchPlans, uploadAskMedia, type PlanHit, type PlanLink } from '../lib/asks.ts';
 
 const INPUT = 'w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.04] px-4 py-3 text-[14px] outline-none focus:border-[#E0533C]';
 const EXAMPLES = ['Going to a show, need someone to go with', 'Looking for company at a nyama choma spot', 'New in town, want to explore'];
@@ -18,6 +18,10 @@ const AskComposer: React.FC<Props> = ({ defaultArea, onClose, onPosted, showToas
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [plan, setPlan] = useState<PlanLink | null>(null);
+  const [planQ, setPlanQ] = useState('');
+  const [planHits, setPlanHits] = useState<PlanHit[]>([]);
+  const [planBusy, setPlanBusy] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
   const minNow = toLocalInput(new Date(Date.now() + 5 * 60000));
@@ -25,13 +29,21 @@ const AskComposer: React.FC<Props> = ({ defaultArea, onClose, onPosted, showToas
   useEffect(() => { if (!file) { setPreview(null); return; } const u = URL.createObjectURL(file); setPreview(u); return () => URL.revokeObjectURL(u); }, [file]);
   const isVideo = file?.type.startsWith('video/');
 
+  useEffect(() => {
+    if (plan || planQ.trim().length < 2) { setPlanHits([]); setPlanBusy(false); return; }
+    setPlanBusy(true);
+    let off = false;
+    const t = setTimeout(async () => { const h = await searchPlans(planQ); if (!off) { setPlanHits(h); setPlanBusy(false); } }, 300);
+    return () => { off = true; clearTimeout(t); };
+  }, [planQ, plan]);
+
   const post = async () => {
     const when = new Date(expires);
     if (Number.isNaN(when.getTime())) return showToast('Pick a date and time for this ask to expire.');
     setBusy(true);
     try {
       const media = file ? await uploadAskMedia(file) : null;
-      const err = await createAsk(body, area, when, media);
+      const err = await createAsk(body, area, when, media, plan);
       if (err) return showToast(err);
       showToast('Posted to Rada.'); onPosted();
     } catch (e: any) { showToast(e?.message || 'Could not post. Try again.'); } finally { setBusy(false); }
@@ -78,6 +90,33 @@ const AskComposer: React.FC<Props> = ({ defaultArea, onClose, onPosted, showToas
           <textarea value={body} onChange={(e) => setBody(e.target.value)} maxLength={160} rows={3} placeholder="What's the plan, and who do you want with you?" className={INPUT} />
           <div className="flex flex-wrap gap-1.5">
             {EXAMPLES.map((e) => <button key={e} onClick={() => setBody(e)} className="text-[11px] px-2.5 py-1 rounded-full bg-slate-100 dark:bg-white/[0.06] text-slate-500 cursor-pointer">{e}</button>)}
+          </div>
+
+          <div className="block">
+            <span className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 flex items-center gap-1 mb-1"><Ticket className="w-3.5 h-3.5 text-[#E0533C]" />Link an event or spot (optional)</span>
+            {plan ? (
+              <div className="flex items-center gap-2 rounded-2xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 px-3 py-2.5">
+                <span className="flex-1 min-w-0 text-[13px] font-bold truncate">{plan.kind === 'event' ? 'Event' : 'Spot'}: {plan.title}</span>
+                <button onClick={() => { setPlan(null); setPlanQ(''); }} aria-label="Remove link" className="cursor-pointer"><X className="w-4 h-4 text-slate-500" /></button>
+              </div>
+            ) : (
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input value={planQ} onChange={(e) => setPlanQ(e.target.value)} maxLength={60} placeholder="Search an event or spot" className={`${INPUT} pl-10`} />
+              </div>
+            )}
+            {!plan && planBusy && <p className="text-[11px] text-slate-400 mt-1.5">Searching…</p>}
+            {!plan && !planBusy && planQ.trim().length >= 2 && planHits.length === 0 && <p className="text-[11px] text-slate-400 mt-1.5">Nothing found. You can still post without a link.</p>}
+            {!plan && planHits.length > 0 && (
+              <div className="mt-1.5 rounded-2xl border border-slate-200 dark:border-white/10 overflow-hidden">
+                {planHits.slice(0, 6).map((h) => (
+                  <button key={`${h.kind}-${h.ref}`} onClick={() => { setPlan({ kind: h.kind, ref: h.ref, title: h.title.slice(0, 120) }); setPlanQ(''); setPlanHits([]); }} className="w-full text-left px-3 py-2.5 border-b last:border-b-0 border-slate-100 dark:border-white/5 cursor-pointer">
+                    <p className="text-[13px] font-bold truncate">{h.title}</p>
+                    <p className="text-[11px] text-slate-500 truncate">{h.kind === 'event' ? 'Event' : 'Spot'}{h.subtitle ? ` · ${h.subtitle}` : ''}</p>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <label className="block">
