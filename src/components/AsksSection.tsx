@@ -60,6 +60,7 @@ const SwipeCard: React.FC<{ ask: Ask; top: boolean; depth: number; onSwipe: (dir
 const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onChatOpened }) => {
   const [area, setArea] = useState(getMyArea());
   const [asks, setAsks] = useState<Ask[] | null>(null);
+  const [showArea, setShowArea] = useState(false);
   const [view, setView] = useState<'swipe' | 'mine'>('swipe');
   const [composing, setComposing] = useState(false);
   const [replyTo, setReplyTo] = useState<Ask | null>(null);
@@ -103,7 +104,7 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
     setReplies((p) => p.map((x) => (x.id === r.id ? { ...x, status: 'accepted' } : x)));
   };
   const decline = async (r: AskReply) => { const err = await declineReply(r.id); if (err) return showToast(err); setReplies((p) => p.map((x) => (x.id === r.id ? { ...x, status: 'declined' } : x))); };
-  const close = async (a: Ask) => { const err = await closeAsk(a.id); if (err) return showToast(err); showToast('Ask closed.'); void load(); };
+  const close = async (a: Ask) => { const err = await closeAsk(a.id); if (err) return showToast(err); showToast('Rada closed.'); void load(); };
   const report = async (reason: string, alsoBlock: boolean) => {
     if (!reporting) return;
     const err = await reportAsk(reporting, reason); if (err) return showToast(err);
@@ -122,15 +123,17 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <label className="flex-1 flex items-center gap-1.5 rounded-full bg-slate-100 dark:bg-white/[0.06] px-3 py-2 text-[12px] font-bold">
-          <MapPin className="w-3.5 h-3.5 text-[#E0533C] shrink-0" />
-          <input value={area} onChange={(e) => { setArea(e.target.value); setMyArea(e.target.value); }} placeholder="Everywhere · type a place to narrow" className="bg-transparent flex-1 min-w-0 outline-none placeholder:font-semibold" />
-          {area && <button onClick={() => { setArea(''); setMyArea(''); }} aria-label="Clear" className="cursor-pointer"><X className="w-3.5 h-3.5" /></button>}
-        </label>
-        <button onClick={() => setComposing(true)} className="px-3 py-2 rounded-full bg-[#E0533C] text-white font-extrabold text-xs inline-flex items-center gap-1 active:scale-95 cursor-pointer"><Plus className="w-3.5 h-3.5" />Post an ask</button>
+        <button onClick={() => setShowArea((v) => !v)} aria-label="Filter by location" className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center cursor-pointer active:scale-95 ${area || showArea ? 'bg-[#E0533C]/15' : 'bg-slate-100 dark:bg-white/[0.06]'}`}><MapPin className="w-4 h-4 text-[#E0533C]" /></button>
+        {(showArea || area) && (
+          <label className="flex-1 flex items-center gap-1.5 rounded-full bg-slate-100 dark:bg-white/[0.06] px-3 py-2 text-[12px] font-bold">
+            <input autoFocus={showArea && !area} value={area} onChange={(e) => { setArea(e.target.value); setMyArea(e.target.value); }} placeholder="Type a place" className="bg-transparent flex-1 min-w-0 outline-none placeholder:font-semibold" />
+            {area && <button onClick={() => { setArea(''); setMyArea(''); setShowArea(false); }} aria-label="Clear" className="cursor-pointer"><X className="w-3.5 h-3.5" /></button>}
+          </label>
+        )}
+        <button onClick={() => setComposing(true)} className="ml-auto px-4 py-2.5 rounded-full bg-[#E0533C] text-white font-extrabold text-xs inline-flex items-center gap-1 active:scale-95 cursor-pointer"><Plus className="w-3.5 h-3.5" />Rada?</button>
       </div>
       <div className="flex gap-1 bg-slate-100 dark:bg-white/[0.06] p-1 rounded-full text-[12px] text-center">
-        {([['swipe', 'Swipe'], ['mine', `My asks${mine.length ? ` (${mine.length})` : ''}`]] as const).map(([id, label]) => (
+        {([['swipe', 'Discover'], ['mine', `My radas${mine.length ? ` (${mine.length})` : ''}`]] as const).map(([id, label]) => (
           <button key={id} onClick={() => setView(id)} className={`flex-1 py-1.5 rounded-full cursor-pointer ${view === id ? 'font-extrabold bg-white dark:bg-[#1C1A1E] text-[#E0533C] shadow-sm' : 'font-semibold text-slate-500'}`}>{label}</button>
         ))}
       </div>
@@ -145,7 +148,7 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
       {asks === null && <p className="text-[13px] text-slate-500 text-center py-10">Loading…</p>}
 
       {asks && view === 'swipe' && (deck.length === 0
-        ? <p className="text-[13px] text-slate-500 text-center py-12">You're all caught up{area ? ` near ${area}` : ''}. Post an ask or check back soon.</p>
+        ? <p className="text-[13px] text-slate-500 text-center py-12">You're all caught up{area ? ` near ${area}` : ''}. Post a rada or check back soon.</p>
         : (
           <>
             <div className="relative w-full aspect-[4/5] max-h-[62vh] mx-auto">
@@ -161,7 +164,7 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
         ))}
 
       {asks && view === 'mine' && (mine.length === 0
-        ? <p className="text-[13px] text-slate-500 text-center py-10">You have no live asks.</p>
+        ? <p className="text-[13px] text-slate-500 text-center py-10">You have no live radas.</p>
         : mine.map((a) => (
           <div key={a.id} className={`${CARD} rounded-3xl p-4 space-y-2`}>
             {a.media_url && (a.media_type === 'video' ? <video src={a.media_url} className="w-full max-h-56 rounded-2xl object-cover" controls playsInline preload="metadata" /> : <img src={a.media_url} alt="" loading="lazy" className="w-full max-h-56 rounded-2xl object-cover" />)}
@@ -207,7 +210,7 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
       {reporting && (
         <div className="fixed inset-0 z-[200] bg-black/60 flex items-end sm:items-center justify-center p-4" onClick={() => setReporting(null)}>
           <div className="bg-white dark:bg-[#1C1A1E] rounded-3xl p-4 w-full max-w-sm space-y-2" onClick={(e) => e.stopPropagation()}>
-            <p className="font-extrabold">Report this ask</p>
+            <p className="font-extrabold">Report this rada</p>
             {REPORT_REASONS.map(([id, label]) => <button key={id} onClick={() => report(id, false)} className="w-full text-left px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.05] text-[13px] font-semibold cursor-pointer">{label}</button>)}
             <button onClick={() => report('other', true)} className="w-full px-3 py-2.5 rounded-xl bg-red-50 text-red-600 text-[13px] font-extrabold cursor-pointer">Report and block @{reporting.handle || 'this person'}</button>
           </div>

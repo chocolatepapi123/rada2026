@@ -43,7 +43,7 @@ const AskComposer: React.FC<Props> = ({ defaultArea, onClose, onPosted, showToas
 
   const post = async () => {
     const when = new Date(expires);
-    if (Number.isNaN(when.getTime())) return showToast('Pick a date and time for this ask to expire.');
+    if (Number.isNaN(when.getTime())) return showToast('Pick a date and time for this rada to expire.');
     if (busy) return;
     setBusy(true);
     try {
@@ -66,7 +66,7 @@ const AskComposer: React.FC<Props> = ({ defaultArea, onClose, onPosted, showToas
     <div className="fixed inset-0 z-[200] bg-white dark:bg-[#141216] overflow-y-auto" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <div className="max-w-md mx-auto px-4 pb-10">
         <div className="flex items-center justify-between py-4">
-          <p className="text-lg font-extrabold">New ask</p>
+          <p className="text-lg font-extrabold">New rada</p>
           <button onClick={onClose} aria-label="Close" className="w-9 h-9 rounded-full bg-slate-100 dark:bg-white/[0.08] flex items-center justify-center cursor-pointer"><X className="w-5 h-5" /></button>
         </div>
 
