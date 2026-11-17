@@ -1,0 +1,5 @@
+Delete these from your project (a zip cannot delete files):
+.aistudio/            (whole folder: leftover AI Studio temp files)
+seed-cinemas.ts       (moved to scripts/seed-cinemas.ts)
+src/types.cinema-patch.ts   (unused patch note)
+src/lib/demoData.ts   (unused duplicate; the app uses src/data/demoData.ts)

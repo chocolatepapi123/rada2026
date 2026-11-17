@@ -1,20 +1,40 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# RADA: Spots, Events & Outings in Nairobi
 
-# Run and deploy your AI Studio app
+A React + Vite web app (installable as a PWA) backed by Supabase.
 
-This contains everything you need to run your app locally.
+## Run it on your computer
+1. `npm install`
+2. Copy `.env.example` to `.env.local` and fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+3. `npm run dev` (opens on http://localhost:3000)
 
-View your app in AI Studio: https://ai.studio/apps/a7e35918-593b-40c5-82ce-bdbb7a3c876e
+## Check before every release
+```
+npm run lint     # type check
+npm test         # guard tests
+npm run build    # production build into /dist
+npm run preview  # try the production build locally
+```
 
-## Run Locally
+## Put the website online
+RADA is a static site. No server is needed.
+- **Vercel:** import the repo. `vercel.json` already sets the build, the page rewrite and security headers.
+- **Netlify / Cloudflare Pages:** build command `npm run build`, output folder `dist`. `public/_redirects` and `public/_headers` are included.
+- In the host's environment settings add `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and `VITE_PUBLIC_URL` (your final web address).
+- Do **not** set `VITE_ENABLE_DEMO` in production.
+- Never put `SUPABASE_SERVICE_ROLE_KEY` in the website's settings.
 
-**Prerequisites:**  Node.js
+## Supabase
+- Run the SQL files in `supabase/migrations` in date order (the GitHub flow does not run them).
+- In Supabase, keep **Confirm email** switched on (admin rights are tied to the admin email).
+- Open the Security Advisor and make sure every table has row-level security.
+- Edge functions live in `supabase/functions`. Payments stay off until the `MPESA_*` secrets are set. See `TICKETS_GO_LIVE.md`.
 
+## Helper scripts (run on your own computer)
+- `npm run seed:spots`: add spots from Google Maps data.
+- `npm run seed:cinemas`: refresh cinema listings.
+- `npm run shrink:photos`: shrink stored photos.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+`server.ts` is an optional Node server with an AI chat endpoint. The app does not call it, so you can ignore it.
+
+## Docs
+`docs/RADA-User-Guide.pdf` and `docs/RADA-Plans-and-Pricing.pdf`.

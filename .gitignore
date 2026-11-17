@@ -9,3 +9,6 @@ dist
 
 photo-backup/
 shrink-photos-done.json
+.aistudio/
+.vercel/
+.env.local

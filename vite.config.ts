@@ -2,14 +2,21 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export default defineConfig(() => {
+export default defineConfig(({ mode }) => {
+  // The public address of the site, used for share previews (og:image, canonical). Set VITE_PUBLIC_URL when you get a custom domain.
+  const env = loadEnv(mode, process.cwd(), 'VITE_');
+  const publicUrl = String(process.env.VITE_PUBLIC_URL || env.VITE_PUBLIC_URL || 'https://rada2026-omega.vercel.app').replace(/\/+$/, '');
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      { name: 'rada-public-url', transformIndexHtml: (html: string) => html.replace(/__PUBLIC_URL__/g, publicUrl) },
+    ],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

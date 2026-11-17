@@ -65,3 +65,21 @@ test('migrations never delete user data', () => {
     assert.ok(!/\btruncate table\b/.test(s), `${f} truncates a table`);
   }
 });
+
+test('share preview tags and hosting config are in place', () => {
+  const html = read('index.html');
+  assert.match(html, /property="og:image"/);
+  assert.match(html, /name="twitter:card" content="summary_large_image"/);
+  const vercel = JSON.parse(read('vercel.json'));
+  assert.ok(Array.isArray(vercel.rewrites) && vercel.rewrites.some((r: any) => r.destination === '/index.html'));
+  assert.ok(read('public/robots.txt').includes('User-agent'));
+});
+
+test('every script in package.json points to a file that exists', () => {
+  const pkg = JSON.parse(read('package.json'));
+  for (const [name, cmd] of Object.entries(pkg.scripts as Record<string, string>)) {
+    const m = String(cmd).match(/(?:node|tsx)\s+(?:--test\s+)?([\w./-]+\.(?:mjs|ts))/);
+    if (m && !m[1].includes('*')) assert.ok(statSync(join(root, m[1])).isFile(), `script "${name}" points to missing ${m[1]}`);
+  }
+});
+
