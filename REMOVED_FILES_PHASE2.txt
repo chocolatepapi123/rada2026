@@ -1,0 +1,5 @@
+Delete these from your project (a zip cannot delete files):
+metadata.json   (Google AI Studio app description)
+server.ts       (AI Studio Node server; the app never called it)
+After unzipping, run:  npm install   (this drops express, dotenv and @google/genai)
+Apply rada-phase1.zip first, then this one.

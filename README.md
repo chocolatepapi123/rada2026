@@ -34,7 +34,8 @@ RADA is a static site. No server is needed.
 - `npm run seed:cinemas`: refresh cinema listings.
 - `npm run shrink:photos`: shrink stored photos.
 
-`server.ts` is an optional Node server with an AI chat endpoint. The app does not call it, so you can ignore it.
+## Legal pages
+`npm run legal` (also runs before every build) turns `src/data/legal.json` into public web pages: `/privacy.html`, `/terms.html`, `/guidelines.html` and `/merchant-terms.html`. Edit the text in `legal.json` only. If you want your operator name and address shown, fill `operator` in that file.
 
 ## Docs
 `docs/RADA-User-Guide.pdf` and `docs/RADA-Plans-and-Pricing.pdf`.

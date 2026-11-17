@@ -612,8 +612,8 @@ export const RelationshipStatusField: React.FC<{ p: OwnProfile }> = ({ p }) => (
     </div>
     <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
       {p.status === 'single'
-        ? 'People can send you hangout and match requests.'
-        : 'Match requests are turned off for your profile.'}
+        ? 'People can send you hangout and match requests. Your status is shown on your profile and used for Discover. You can change it any time.'
+        : 'Match requests are turned off for your profile. Your status is shown on your profile.'}
     </p>
   </div>
 );

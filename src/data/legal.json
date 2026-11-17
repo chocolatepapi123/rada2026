@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-draft-4",
+  "version": "2026-11-draft-5",
   "support_email": "hello.rada.app@gmail.com",
   "docs": {
     "terms": {
@@ -81,16 +81,24 @@
     "privacy": {
       "title": "Privacy Policy",
       "intro": [
-        "This explains what RADA collects, why, and the choices you have. We handle personal data in line with the Kenya Data Protection Act, 2019."
+        "This explains what RADA collects, why, who it is shared with, and the choices you have. We handle personal data in line with the Kenya Data Protection Act, 2019."
       ],
       "sections": [
         {
-          "h": "1. What we collect",
+          "h": "1. Who is responsible for your data",
+          "p": [
+            "RADA is run from Nairobi, Kenya. We decide why and how your personal data is used, so we are the data controller under the Kenya Data Protection Act, 2019. You can reach us at hello.rada.app@gmail.com."
+          ]
+        },
+        {
+          "h": "2. What we collect",
           "li": [
             "Account details: email address, display name, username, profile photo and bio.",
+            "Relationship status (single or not single), if you choose to set it. This is personal information that we treat with extra care. It is shown on your profile and decides who can send you match requests and who appears in Discover. You can change it at any time.",
             "What you do in the app: saved places, outings you host or join, messages, match requests, reviews and statuses.",
+            "Tickets: tickets you get or buy, and check-in records at events.",
             "Location, only if you allow it, to show places near you and to send your position if you use SOS.",
-            "Business details if you set up a business account, and payment records (amount, plan, date, phone number used and the payment reference) if you pay for a plan or boost. We never see your M-Pesa PIN.",
+            "Business details if you set up a business account, and payment records (amount, plan, date, phone number used and the payment reference) if you pay for a plan, ticket or boost. We never see your M-Pesa PIN.",
             "Photos, and videos you upload.",
             "Selfie check: if you use the selfie check, your phone's camera is compared with your profile photo on your device. Nothing from the camera is uploaded or kept. We store only that you passed. Your profile photo is stored like any other photo.",
             "Basic technical data: device and browser type, the app version, and crash reports (the error message and the page it happened on, without your name).",
@@ -98,49 +106,79 @@
           ]
         },
         {
-          "h": "2. Why we use it",
+          "h": "3. Why we may use your data",
           "p": [
-            "To run the app, show you relevant places and events, connect you with people you choose to meet, keep the community safe, take payments, find and fix crashes, and improve RADA. We do not sell your personal data."
+            "We use your data to give you the app you asked for, with your consent where you give it (location, camera, the selfie check, relationship status and broadcasts from businesses), to keep RADA safe, to meet legal duties such as tax and payment records, and for our legitimate interest in keeping RADA working and improving it. You can withdraw consent at any time. This does not affect what we did before you withdrew it."
           ]
         },
         {
-          "h": "3. Messages from RADA and from businesses",
+          "h": "4. What we do with it",
+          "p": [
+            "To run the app, show you relevant places and events, connect you with people you choose to meet, keep the community safe, take payments, find and fix crashes, and improve RADA. We do not sell your personal data and we do not use it for third-party advertising."
+          ]
+        },
+        {
+          "h": "5. Messages from RADA and from businesses",
           "p": [
             "RADA may send you notices inside the app about your account, safety and activity. Businesses can send you a broadcast only if you have chosen to receive broadcasts from them. You can turn this off at any time in your settings."
           ]
         },
         {
-          "h": "4. Who can see it",
+          "h": "6. Who can see it and who we share it with",
           "p": [
-            "Your public username, photo and bio can be seen by other users. Your email and phone number are not shown to other users. Messages are visible only to the people in the chat. We use service providers such as Supabase and Vercel to store and run the app, and our payment partner together with M-Pesa and Airtel Money to process payments. They may only use data to provide those services. Some of these providers store data outside Kenya. We may share information if the law requires it or to protect someone's safety."
+            "Your public username, photo, bio and relationship status can be seen by other users. Your email and phone number are not shown to other users. Messages are visible only to the people in the chat. We may share information if the law requires it or to protect someone's safety."
+          ],
+          "li": [
+            "Supabase stores our database, logins and files. Vercel hosts the website.",
+            "Our payment partner, M-Pesa and Airtel Money process payments for plans, tickets and boosts.",
+            "When you use RADA your device also contacts a few services that can see your IP address and device type: Google Fonts (fonts), jsDelivr, unpkg and cdnjs (code libraries and the selfie-check models), wsrv.nl (picture resizing), CARTO and OpenStreetMap (maps), OpenStreetMap Nominatim (the place names you search for) and Open-Meteo (weather for a rounded position, only if you allow location).",
+            "These providers may only use data to provide their service."
           ]
         },
         {
-          "h": "5. Location and SOS",
+          "h": "7. Where your data is kept",
+          "p": [
+            "Some of our providers store data outside Kenya. We only use providers that protect data, and we only send data abroad where the Kenya Data Protection Act, 2019 allows it."
+          ]
+        },
+        {
+          "h": "8. Location and SOS",
           "p": [
             "RADA only reads your location when you use a feature that needs it. If you press SOS, your current position is put into a message that you choose to send to your emergency contacts. RADA does not track you in the background."
           ]
         },
         {
-          "h": "6. How long we keep it",
+          "h": "9. How long we keep it",
           "p": [
             "We keep your data while your account is active. When you delete your account we delete your profile and your content, except where we must keep limited records for safety, payment, tax or legal reasons, for as long as the law requires. Crash reports are kept for 30 days and anonymous usage counts for 180 days."
           ]
         },
         {
-          "h": "7. Your rights",
+          "h": "10. Your rights",
           "p": [
-            "You can see, correct and delete your data, object to some uses, and withdraw consent. Most of this is in Account Settings. For anything else write to hello.rada.app@gmail.com. You can also complain to the Office of the Data Protection Commissioner in Kenya."
+            "You can ask to see, correct or delete your data, to object to or limit some uses, to receive a copy of the data you gave us, and to withdraw consent. Many of these are in Account Settings, including the request to delete your account. For anything else write to hello.rada.app@gmail.com. We will reply as quickly as we can and within the time the law sets. You can also complain to the Office of the Data Protection Commissioner in Kenya."
           ]
         },
         {
-          "h": "8. Adults only",
+          "h": "11. If something goes wrong",
+          "p": [
+            "If a data breach puts your rights at risk we will report it to the Data Protection Commissioner within 72 hours of becoming aware of it, and tell you as soon as we reasonably can."
+          ]
+        },
+        {
+          "h": "12. Storage on your device",
+          "p": [
+            "RADA keeps some things on your device, such as your login session, your theme and the list of people you blocked, and it saves pages so the app opens faster and works with a weak connection. We do not use advertising cookies."
+          ]
+        },
+        {
+          "h": "13. Adults only",
           "p": [
             "RADA is not for people under 18, and we do not knowingly collect their data. If you think a child is using RADA, report the profile or contact us."
           ]
         },
         {
-          "h": "9. Changes",
+          "h": "14. Changes",
           "p": [
             "If we change this policy in a meaningful way we will update the version date and tell you in the app."
           ]
@@ -282,5 +320,9 @@
         }
       ]
     }
+  },
+  "operator": {
+    "name": "",
+    "address": ""
   }
 }

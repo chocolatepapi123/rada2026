@@ -83,3 +83,25 @@ test('every script in package.json points to a file that exists', () => {
   }
 });
 
+test('privacy policy covers the things the app really does', () => {
+  const all = JSON.stringify(JSON.parse(read('src/data/legal.json')).docs.privacy);
+  for (const word of ['data controller', 'Relationship status', 'Selfie check', 'Supabase', 'Open-Meteo', 'wsrv.nl', '72 hours', 'outside Kenya', 'Adults only|under 18']) {
+    assert.match(all, new RegExp(word, 'i'), `privacy policy is missing: ${word}`);
+  }
+});
+
+test('public legal pages exist and match the legal text version', () => {
+  const legal = JSON.parse(read('src/data/legal.json'));
+  for (const f of ['privacy.html', 'terms.html', 'guidelines.html', 'merchant-terms.html']) {
+    const html = read(join('public', f));
+    assert.ok(html.includes(legal.version), `${f} is out of date: run npm run legal`);
+    assert.ok((html.match(/<h2>/g) || []).length >= 5, `${f} is missing its sections: run npm run legal`);
+  }
+});
+
+test('no Google AI Studio leftovers', () => {
+  for (const f of walk('src')) assert.ok(!/ai ?studio|aistudio/i.test(read(f)), `AI Studio text in ${f}`);
+  assert.ok(!/ai ?studio|aistudio|DISABLE_HMR/i.test(read('vite.config.ts')));
+  assert.ok(!/@google\/genai|"express"|"dotenv"/.test(read('package.json')));
+});
+

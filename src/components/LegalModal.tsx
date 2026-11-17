@@ -65,6 +65,12 @@ export function LegalModal({ doc, onClose }: LegalModalProps) {
           </button>
         </div>
         <div className="overflow-y-auto px-5 pb-6 pt-3">
+          {(legal as any).operator?.name && (
+            <p className="text-xs text-stone-400 leading-relaxed mb-2">
+              Run by {(legal as any).operator.name}
+              {(legal as any).operator.address ? `, ${(legal as any).operator.address}` : ''}.
+            </p>
+          )}
           {content.intro.map((t, i) => (
             <p key={i} className="text-xs text-stone-300 leading-relaxed mb-2">{t}</p>
           ))}
