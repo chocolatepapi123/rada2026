@@ -1,4 +1,5 @@
 
+import { DISCOVER_VISIBLE } from '../lib/featureFlags.ts';
 import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending, formatOpeningHours } from '../lib/spotsFeed.ts';
 import React, { useState, useEffect, useRef } from 'react';
 import { track } from '../lib/tracking';
@@ -2141,6 +2142,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   Privacy & Interactions
                 </span>
                 <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden divide-y divide-slate-200/60 dark:divide-slate-800/80">
+                  {DISCOVER_VISIBLE && (
                   <div className="p-3.5 flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
                       <Eye className="w-4 h-4 text-blue-500" />
@@ -2159,6 +2161,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       <div className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${datingDiscoverable ? 'translate-x-6' : 'translate-x-0'}`} />
                     </button>
                   </div>
+                  )}
 
                   <div className="p-3.5 flex items-center justify-between">
                     <div className="flex items-center gap-2.5">

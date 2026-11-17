@@ -20,6 +20,8 @@ RADA is a static site. No server is needed.
 - **Vercel:** import the repo. `vercel.json` already sets the build, the page rewrite and security headers.
 - **Netlify / Cloudflare Pages:** build command `npm run build`, output folder `dist`. `public/_redirects` and `public/_headers` are included.
 - In the host's environment settings add `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and `VITE_PUBLIC_URL` (your final web address).
+- Discover is hidden by default. To show it later, add `VITE_SHOW_DISCOVER=true` and redeploy.
+- The security policy (CSP) is sent as **report-only** first: open the live site, use every tab, and check the browser console for "Content Security Policy" warnings. When there are none, rename `Content-Security-Policy-Report-Only` to `Content-Security-Policy` in `vercel.json` and `public/_headers`.
 - Do **not** set `VITE_ENABLE_DEMO` in production.
 - Never put `SUPABASE_SERVICE_ROLE_KEY` in the website's settings.
 

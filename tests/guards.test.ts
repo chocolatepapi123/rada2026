@@ -118,3 +118,28 @@ test('index.html has a no-JavaScript fallback and the sitemap script covers the 
   const s = read('scripts/build-sitemap.mjs');
   for (const p of ['/privacy', '/terms', '/guidelines', '/merchant-terms']) assert.ok(s.includes(`'${p}'`), `sitemap is missing ${p}`);
 });
+
+test('Discover is hidden unless VITE_SHOW_DISCOVER=true, and the code is still there', () => {
+  assert.match(read('src/lib/featureFlags.ts'), /VITE_SHOW_DISCOVER === 'true'/);
+  const tab = read('src/components/SocialsTab.tsx');
+  assert.match(tab, /DISCOVER_VISIBLE \|\| tab\.id !== 'discover'/);
+  assert.match(tab, /fetchDiscoverPool/);
+});
+
+test('no inline scripts (so the Content-Security-Policy can forbid them) and a CSP header is set', () => {
+  const html = read('index.html');
+  assert.ok(!/<script(?![^>]*\ssrc=)[^>]*>/.test(html), 'inline <script> in index.html');
+  assert.ok(!/\sonload=/.test(html), 'inline onload handler in index.html');
+  for (const f of ['vercel.json', 'public/_headers']) {
+    const s = read(f);
+    assert.match(s, /Content-Security-Policy/);
+    assert.match(s, /object-src 'none'/);
+    assert.ok(!/script-src[^;]*unsafe-inline/.test(s), `${f}: script-src must not allow unsafe-inline`);
+  }
+});
+
+test('terms say where listings come from, and the privacy text no longer names CDNs we dropped', () => {
+  const all = JSON.stringify(JSON.parse(read('src/data/legal.json')));
+  assert.match(all, /compiled from public sources/);
+  assert.ok(!/jsDelivr|cdnjs|CARTO/.test(all));
+});

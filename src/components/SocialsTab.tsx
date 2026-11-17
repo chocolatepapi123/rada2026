@@ -41,6 +41,7 @@ import { VideoMessagePlayer } from './VideoMessagePlayer.tsx';
 import { generatePlayableWavDataUrl, generateFallbackVideoBlobUrl, formatMediaDuration, deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 import type { ToastOptions } from './Toast.tsx';
 import { isDemoMode } from '../lib/demoMode.ts';
+import { DISCOVER_VISIBLE } from '../lib/featureFlags.ts';
 import { parseUnlockMessage } from '../lib/systemMessage';
 import {
   CloudRequest,
@@ -95,7 +96,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
 }) => {
   const isUserSingle = isDemoMode() || currentUserProfile?.relationshipStatus === 'single' || currentUserProfile?.relationship_status?.toLowerCase() === 'single';
   const isUserVerifiedSingle = isDemoMode() || (isUserSingle && Boolean(currentUserProfile?.isLivenessVerified || currentUserProfile?.is_liveness_verified));
-  const [subtab, setSubtab] = useState<'discover' | 'queue' | 'chats' | 'search'>('discover');
+  const [subtab, setSubtab] = useState<'discover' | 'queue' | 'chats' | 'search'>(DISCOVER_VISIBLE ? 'discover' : 'chats');
   const [showGateModal, setShowGateModal] = useState(false);
   const [profileIndex, setProfileIndex] = useState(0);
   const [swipeAnimation, setSwipeAnimation] = useState<'like' | 'pass' | null>(null);
@@ -263,7 +264,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
 
   React.useEffect(() => {
     let cancelled = false;
-    if (!myUserId) { setCommunitySingles([]); return; }
+    if (!myUserId || !DISCOVER_VISIBLE) { setCommunitySingles([]); return; }
     fetchDiscoverPool()
       .then(rows => {
         if (cancelled) return;
@@ -1246,7 +1247,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           { id: 'queue', label: 'Requests' },
           { id: 'chats', label: 'Chats' },
           { id: 'search', label: 'Search' }
-        ].map((tab) => (
+        ].filter((tab) => DISCOVER_VISIBLE || tab.id !== 'discover').map((tab) => (
           <button
             key={tab.id}
             onClick={() => {
@@ -1274,7 +1275,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
       </div>
 
       {/* DISCOVER: gate for people who are not verified singles */}
-      {subtab === 'discover' && (!isUserSingle || !isUserVerifiedSingle) && (
+      {DISCOVER_VISIBLE && subtab === 'discover' && (!isUserSingle || !isUserVerifiedSingle) && (
         <div className={`p-5 ${CARD} rounded-3xl text-center space-y-4 shadow-sm animate-in fade-in duration-200`}>
           <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto">
             <ShieldCheck className="w-7 h-7" />
@@ -1316,7 +1317,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
       )}
 
       {/* DISCOVER: profile card (verified singles) */}
-      {subtab === 'discover' && isUserSingle && isUserVerifiedSingle && (
+      {DISCOVER_VISIBLE && subtab === 'discover' && isUserSingle && isUserVerifiedSingle && (
         <div className="space-y-4">
           {currentProfile ? (
             <div

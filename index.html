@@ -25,7 +25,7 @@
     <link rel="preconnect" href="https://wsrv.nl" crossorigin>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" media="print" data-async-css>
     <noscript>
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap">
     </noscript>
@@ -44,24 +44,7 @@
 <link rel="preload" as="image" href="/rada-mark.png" />
 <meta name="theme-color" content="#E05328" />
 <meta name="color-scheme" content="light" />
-<script>
-  /* App theme: light unless the person chose dark. Set before first paint so there is no dark flash.
-     Phone bars do not follow it. */
-  try {
-    var dark = localStorage.getItem('rada_theme') === 'dark';
-    document.documentElement.classList.add(dark ? 'dark' : 'light');
-    document.querySelector('meta[name="color-scheme"]').setAttribute('content', dark ? 'dark' : 'light');
-  } catch (e) { document.documentElement.classList.add('light'); }
-</script>
-<script>
-  /* Low-memory / data-saver phones get a lighter look (no blur effects), set before first paint. */
-  try {
-    var n = navigator, c = n.connection || {};
-    if ((n.deviceMemory && n.deviceMemory <= 4) || (n.hardwareConcurrency && n.hardwareConcurrency <= 4) || c.saveData) {
-      document.documentElement.classList.add('low-end');
-    }
-  } catch (e) {}
-</script>
+<script src="/boot.js"></script>
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="RADA" />

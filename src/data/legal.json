@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-draft-5",
+  "version": "2026-11-draft-6",
   "support_email": "hello.rada.app@gmail.com",
   "docs": {
     "terms": {
@@ -37,7 +37,8 @@
         {
           "h": "5. Outings, events and businesses",
           "p": [
-            "Outings are organised by their hosts and events by their organisers. Venues, businesses and event organisers are responsible for their own listings, offers, prices, permits and tickets. RADA is not a party to any arrangement between users, hosts, venues or organisers."
+            "Outings are organised by their hosts and events by their organisers. Venues, businesses and event organisers are responsible for their own listings, offers, prices, permits and tickets. RADA is not a party to any arrangement between users, hosts, venues or organisers.",
+            "Information about spots, venues and cinemas is compiled from public sources, including public map listings and venue or ticketing websites, and from businesses themselves. It can be out of date or wrong, so check opening times, prices and showtimes with the venue before you go. Map data is © OpenStreetMap contributors. Names and logos belong to their owners and are used only to identify the place. If you run a venue and want a listing corrected or removed, email hello.rada.app@gmail.com and we will act on it promptly."
           ]
         },
         {
@@ -87,7 +88,7 @@
         {
           "h": "1. Who is responsible for your data",
           "p": [
-            "RADA is run from Nairobi, Kenya. We decide why and how your personal data is used, so we are the data controller under the Kenya Data Protection Act, 2019. You can reach us at hello.rada.app@gmail.com."
+            "RADA is an online service run from Nairobi, Kenya, with no public office. We decide why and how your personal data is used, so we are the data controller under the Kenya Data Protection Act, 2019. You can reach us at hello.rada.app@gmail.com."
           ]
         },
         {
@@ -131,7 +132,7 @@
           "li": [
             "Supabase stores our database, logins and files. Vercel hosts the website.",
             "Our payment partner, M-Pesa and Airtel Money process payments for plans, tickets and boosts.",
-            "When you use RADA your device also contacts a few services that can see your IP address and device type: Google Fonts (fonts), jsDelivr, unpkg and cdnjs (code libraries and the selfie-check models), wsrv.nl (picture resizing), CARTO and OpenStreetMap (maps), OpenStreetMap Nominatim (the place names you search for) and Open-Meteo (weather for a rounded position, only if you allow location).",
+            "When you use RADA your device also contacts a few services that can see your IP address and device type: Google Fonts (fonts), unpkg (the map library), wsrv.nl (picture resizing), OpenStreetMap (map tiles), OpenStreetMap Nominatim (the place names you search for) and Open-Meteo (weather for a rounded position, only if you allow location).",
             "These providers may only use data to provide their service."
           ]
         },
