@@ -129,9 +129,16 @@ export function resolveSpotBudget(spot: any): BudgetTier {
 /** Label shown on badges. */
 export function budgetBadge(tier: string | undefined | null): string {
   switch (tier) {
-    case 'Low': return 'Budget $';
-    case 'High': return 'Luxury $$$';
-    case 'Mid': return 'Mid $$';
+    case 'Low': return 'Low';
+    case 'High': return 'High';
+    case 'Mid': return 'Mid';
     default: return '';
   }
+}
+
+/** Turns a raw price string like "$$" into Low / Mid / High; anything else passes through without dollar signs. */
+export function plainPriceLabel(raw: string | undefined | null): string {
+  const t = String(raw ?? '').trim();
+  if (/^\$+$/.test(t)) return t.length === 1 ? 'Low' : t.length === 2 ? 'Mid' : 'High';
+  return t.replace(/\s*\$+/g, '').trim();
 }

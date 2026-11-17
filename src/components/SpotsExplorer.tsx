@@ -6,7 +6,7 @@ import { spotInCategory, getSpotCategoryIds, isAllKey, resolveSpotCategory, SPOT
 import { getSpotCategoryAccent, accentVars } from '../lib/spotAccentTheme.ts';
 import { rankSpots, premiumScore, formatKm, useNearYou } from '../lib/spotRanking.ts';
 import { NearYouControl } from './NearYouControl.tsx';
-import { resolveSpotBudget, budgetBadge } from '../lib/spotBudget.ts';
+import { resolveSpotBudget, budgetBadge, plainPriceLabel } from '../lib/spotBudget.ts';
 import type { LatLng } from '../lib/geo.ts';
 import { spotMatchesSearchWithTags } from '../utils/spotTags.ts';
 import { spotMatchesArea } from '../lib/spotsFeed.ts';
@@ -22,7 +22,7 @@ interface SpotsExplorerProps {
   userCoords?: LatLng | null;
   isAdmin?: boolean;
   onDeleteSpot?: (spot: SpotItem) => void;
-  /** 'picker' = compact venue chooser (no area chips, no count, category dropdown, two cards per row). */
+  /** 'picker' (default) = compact layout: no area chips, no count, category dropdown, two cards per row. */
   variant?: 'default' | 'picker';
 }
 
@@ -127,9 +127,9 @@ const NAIROBI_NEIGHBORHOODS = [
 
 const BUDGET_TIERS = [
   { id: 'all', label: 'All Budgets' },
-  { id: 'Low', label: 'Budget ($)' },
-  { id: 'Mid', label: 'Mid ($$)' },
-  { id: 'High', label: 'Luxury ($$$)' },
+  { id: 'Low', label: 'Low' },
+  { id: 'Mid', label: 'Mid' },
+  { id: 'High', label: 'High' },
 ];
 
 const PAGE_SIZE = 18;
@@ -144,15 +144,17 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
   userCoords = null,
   isAdmin = false,
   onDeleteSpot,
-  variant = 'default',
+  variant = 'picker',
 }) => {
   // The Plan a Date screen opens this explorer with the title below, so it gets the compact picker layout automatically.
-  const picker = variant === 'picker' || categoryTitle === 'Select Venue for Date';
+  const picker = variant === 'picker';
+  const forDate = categoryTitle === 'Select Venue for Date';
   const [query, setQuery] = useState('');
   const [selectedNeighborhood, setSelectedNeighborhood] = useState('All Areas');
   const [selectedBudget, setSelectedBudget] = useState('all');
   const [sortBy, setSortBy] = useState<'featured' | 'rating' | 'reviews'>('featured');
   const [pickedCat, setPickedCat] = useState<string>(isAllKey(categoryKey) ? 'all' : (resolveSpotCategory(categoryKey) || 'all'));
+  useEffect(() => { setPickedCat(isAllKey(categoryKey) ? 'all' : (resolveSpotCategory(categoryKey) || 'all')); }, [categoryKey]);
   const nearYou = useNearYou();
   const categorySlotPromos = useActivePromotions('spots_category');
 
@@ -387,7 +389,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
             const saved = isSaved(spot.id);
             const reviewCount = spot.reviews?.length ?? (spot.reviewCount || 0);
             const hasReviews = reviewCount > 0;
-            const budgetText = budgetBadge(resolveSpotBudget(spot)) || spot.price;
+            const budgetText = budgetBadge(resolveSpotBudget(spot)) || plainPriceLabel(spot.price);
             const catIds = getSpotCategoryIds(spot);
             const primary = getSpotCategoryAccent(catIds[0] || spot.category);
             const dist = (spot as any).distanceKm as number | undefined;
@@ -496,7 +498,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
                       }}
                       className={`${picker ? 'w-full px-2 py-2' : 'px-3 py-1.5'} rounded-xl text-[11px] font-bold transition shadow-xs cursor-pointer hover:opacity-90 bg-[var(--accent)] dark:bg-[var(--accent-deep)] text-[color:var(--accent-on)] dark:text-[color:var(--accent-ink)] border border-transparent dark:border-[color:var(--accent-line)]`}
                     >
-                      {picker ? 'Pick venue' : 'View Details'}
+                      {forDate ? 'Pick venue' : 'View Details'}
                     </button>
                   </div>
                 </div>
