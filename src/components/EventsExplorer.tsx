@@ -13,7 +13,7 @@ import {
   sortEvents,
   type EventSort
 } from '../utils/eventUtils.ts';
-import { featuredEventOrder } from '../lib/featuredEvents.ts';
+import { pinFeaturedEvents } from '../lib/featuredEvents.ts';
 
 interface EventsExplorerProps {
   events: EventItem[];
@@ -54,10 +54,8 @@ export const EventsExplorer: React.FC<EventsExplorerProps> = ({
   const results = useMemo(() => {
     const filtered = filterEvents(events, { query, category, price, date });
     const sorted = sortEvents(filtered, sortBy);
-    // Keep the four editorial picks pinned in the default relevance view.
-    return sortBy === 'smart'
-      ? [...sorted].sort((a, b) => featuredEventOrder(a) - featuredEventOrder(b))
-      : sorted;
+    // Keep the editorial picks pinned first in the default relevance view.
+    return sortBy === 'smart' ? pinFeaturedEvents(sorted) : sorted;
   }, [events, query, category, price, date, sortBy]);
 
   const activeFilterCount = (price !== 'all' ? 1 : 0) + (date !== 'all' ? 1 : 0) + (category !== 'all' ? 1 : 0);

@@ -1,4 +1,5 @@
 import { useActivePromotions, offerRankMap, offerPromoKey, sortByPromotion } from '../lib/promotions.ts';
+import { pinFeaturedEvents } from '../lib/featuredEvents.ts';
 import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending, formatOpeningHours } from '../lib/spotsFeed.ts';
 import { resolveSpotBudget, budgetBadge } from '../lib/spotBudget.ts';
 import { useLocationPreference, sortByProximity, NEIGHBORHOOD_COORDS, formatDistance, distanceKm, resolveNearestNeighborhood } from '../lib/geo.ts';
@@ -653,7 +654,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
   // Events Suite: soonest first (or cheapest when asked); capped for the home carousel
   const sortedEvents = useMemo(() => {
-    if (eventSortBy === 'smart') return sortEvents(filteredEvents, 'smart');
+    if (eventSortBy === 'smart') return pinFeaturedEvents(sortEvents(filteredEvents, 'smart'));
     return [...filteredEvents].sort((a, b) => {
       if (eventSortBy === 'popular') {
         return (b.goingCount || 0) - (a.goingCount || 0) || compareByStart(a, b);

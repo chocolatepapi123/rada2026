@@ -7,11 +7,55 @@ const POSTERS = {
   keinemusik: 'https://images.ra.co/971dbfd1726eb2ca9a5d87df2d182901cfea07d1.png',
 };
 
-const featured = (event: EventItem): EventItem => ({
-  ...event,
-  tags: [...(event.tags || []), 'rada-featured'],
-  images: event.images?.length ? event.images : [event.img],
-});
+const featured = (raw: EventItem): EventItem => {
+  const event = withEventPoster(raw);
+  return {
+    ...event,
+    tags: [...(event.tags || []), 'rada-featured'],
+    images: event.images?.length ? event.images : [event.img],
+  };
+};
+
+interface Extra {
+  id: string; title: string; match: RegExp; cat: 'concerts' | 'nightlife' | 'arts' | 'food' | 'community' | 'sports';
+  genre: string; start: string; end?: string; label: string; time?: string; location: string;
+  url: string; host?: string; price?: number | null; tier?: string; description: string; tags: string[];
+}
+
+/** Builds a featured card from compact data. Day-only events run 00:00-23:59 Nairobi time. */
+const extra = (x: Extra): EventItem => {
+  const legacy = x.cat === 'concerts' ? 'concerts' : x.cat === 'nightlife' ? 'nightlife' : x.cat === 'sports' ? 'sports' : 'art';
+  return featured({
+    id: x.id, title: x.title, category: legacy, genre: x.genre, date: x.label, time: x.time,
+    location: x.location, lat: Number.NaN, lng: Number.NaN, img: '', goingCount: 0, url: x.url,
+    artists: [],
+    tiers: x.tier ? [{ name: 'Tickets', price: x.tier, priceValue: x.price ?? null, currency: 'KES' }] : [],
+    description: x.description,
+    startAt: `${x.start}T00:00:00+03:00`, endAt: `${x.end || x.start}T23:59:00+03:00`,
+    source: 'manual', host: x.host, currency: 'KES', country: 'KE', radaCategory: x.cat,
+    priceMin: x.price ?? null, tags: ['trending', ...x.tags],
+  });
+};
+
+const EXTRA_EVENTS: Extra[] = [
+  { id: 'rada-featured-amapianoland-2026', title: 'Amapianoland Nairobi', match: /amapiano\s*land/i, cat: 'concerts', genre: 'Amapiano', start: '2026-12-05', label: 'Sat, 5 Dec 2026', location: 'MASSHOUSE, Nairobi', url: 'https://ra.co/events/ke/nairobi', description: 'Kabza De Small, Uncle Waffles, DJ Maphorisa and more. Confirm tickets and timings with the organiser.', tags: ['amapiano'] },
+  { id: 'rada-featured-ferre-gola-2026', title: 'Ferre Gola LIVE', match: /ferre\s*gola/i, cat: 'concerts', genre: 'Congolese Rhumba', start: '2026-12-12', label: 'Sat, 12 Dec 2026', location: 'ASK Showgrounds, Jamhuri Park, Nairobi', url: 'https://nairobieventsguide.com/event-type/concerts-music/', description: 'Congolese rhumba concert. Confirm ticket prices and timings with the organiser.', tags: ['rhumba', 'ferre gola'] },
+  { id: 'rada-featured-fatboy-slim-2026', title: 'Fatboy Slim LIVE', match: /fat\s*boy\s*slim/i, cat: 'nightlife', genre: 'Electronic', start: '2026-12-11', label: 'Fri, 11 Dec 2026', location: 'MUZE Club, Nairobi', url: 'https://nairobieventsguide.com/event-type/concerts-music/', description: 'International DJ and electronic music night. Confirm details with the organiser.', tags: ['electronic', 'dj'] },
+  { id: 'rada-featured-black-coffee-2026', title: 'Black Coffee', match: /black\s*coffee/i, cat: 'nightlife', genre: 'Afro House', start: '2026-12-04', label: 'Fri, 4 Dec 2026', location: 'Nairobi (venue TBA)', url: 'https://ra.co/events/ke/nairobi', description: 'Black Coffee in Nairobi. Venue to be announced; check the listing for updates.', tags: ['afro house', 'dj'] },
+  { id: 'rada-featured-sondela-2026', title: 'Sondela Nairobi', match: /sondela/i, cat: 'nightlife', genre: 'Club Night', start: '2026-12-04', label: 'Fri, 4 Dec 2026', location: 'KODA, Nairobi', url: 'https://www.weareafr0.co.ke/', description: '21+ event. Check the official listing before booking.', tags: ['club night', 'koda'] },
+  { id: 'rada-featured-naya-nights-2026', title: 'NAYÄ NIGHTS', match: /nay[aä]\s*nights/i, cat: 'nightlife', genre: 'Club Night', start: '2026-11-19', label: 'Thu, 19 Nov 2026', location: 'KODA, Nairobi', url: 'https://www.weareafr0.co.ke/', price: 500, tier: 'From KES 500', description: 'Club night at KODA. Admission listed from KES 500.', tags: ['club night', 'koda'] },
+  { id: 'rada-featured-maya-amolo-tgblk-2026', title: 'Maya Amolo & TG.BLK | Sweet November Special', match: /maya\s*amolo/i, cat: 'nightlife', genre: 'Live & DJ', start: '2026-11-20', label: 'Fri, 20 Nov 2026', location: 'KODA, Nairobi', url: 'https://www.weareafr0.co.ke/', description: 'Sweet November special at KODA.', tags: ['koda', 'maya amolo'] },
+  { id: 'rada-featured-koda-continuum-2026', title: 'KODA Presents Continuum', match: /continuum/i, cat: 'nightlife', genre: 'Club Night', start: '2026-11-21', label: 'Sat, 21 Nov 2026', location: 'KODA, Nairobi', url: 'https://www.weareafr0.co.ke/', description: 'KODA presents Continuum.', tags: ['koda', 'continuum'] },
+  { id: 'rada-featured-friends-of-mongoma-2026', title: 'Friends of Mongoma', match: /friends\s*of\s*mongoma/i, cat: 'nightlife', genre: 'Club Night', start: '2026-11-27', label: 'Fri, 27 Nov 2026', location: 'KODA, Nairobi', url: 'https://www.weareafr0.co.ke/', description: 'Friends of Mongoma at KODA.', tags: ['koda', 'mongoma'] },
+  { id: 'rada-featured-nairobi-sports-festival-2026', title: 'Nairobi Sports Festival', match: /nairobi\s*sports\s*festival/i, cat: 'sports', genre: 'Multi-sport', start: '2026-11-20', end: '2026-11-21', label: 'Fri 20 – Sat 21 Nov 2026', location: 'University of Nairobi Sports Ground', url: 'https://www.nairobisportsfestival.org/', price: 0, tier: 'Free', description: 'Multi-sport activities, competitions and family activities. Free entry for public-school and community teams.', tags: ['sports', 'free', 'family'] },
+  { id: 'rada-featured-rafiki-alphabet-2026', title: 'RAFIKI ALPHABET', match: /rafiki\s*alphabet/i, cat: 'community', genre: 'Community', start: '2026-11-28', label: 'Sat, 28 Nov 2026', location: 'KICC, Nairobi', url: 'https://egotickets.com/events?category=nightlife-party-concert&city%5B%5D=ke%3Anairobi', price: 0, tier: 'Free', description: 'Listed as free. Check the listing for entry and programme details.', tags: ['free'] },
+  { id: 'rada-featured-dezemba-kids-2026', title: 'Dezemba Kids Festival', match: /dezemba\s*kids/i, cat: 'community', genre: 'Family', start: '2026-12-05', label: 'Sat, 5 Dec 2026', location: 'Sportsview Hotel, Kasarani', url: 'https://stayhappening.com/nairobi--festivals', price: 0, tier: 'Free', description: 'Family-oriented festival, listed as free.', tags: ['kids', 'family', 'free'] },
+  { id: 'rada-featured-colour-festival-2026', title: 'Nairobi Colour Festival 2026', match: /nairobi\s*colou?r\s*festival/i, cat: 'community', genre: 'Festival', start: '2026-12-06', label: 'Sun, 6 Dec 2026', location: 'Nairobi', url: 'https://stayhappening.com/nairobi--festivals', description: 'Festival listing; entry price not confirmed.', tags: ['festival'] },
+  { id: 'rada-featured-artisan-souk-2026', title: 'Artisan Makers Market | Christmas Souk', match: /artisan\s*makers|christmas\s*souk/i, cat: 'arts', genre: 'Market', start: '2026-12-05', end: '2026-12-06', label: 'Sat 5 – Sun 6 Dec 2026', location: 'Shamba Events, Loresho', url: 'https://www.tipsitickets.com/blog/nairobi-markets-shopping-events-december-2026', description: 'Christmas market with local makers and artisans.', tags: ['market', 'christmas'] },
+  { id: 'rada-featured-bizarre-bazaar-2026', title: 'Bizarre Bazaar Christmas Festival', match: /bizarre\s*bazaar/i, cat: 'food', genre: 'Festival & Market', start: '2026-12-11', end: '2026-12-13', label: 'Fri 11 – Sun 13 Dec 2026', location: 'KSTVET, Gigiri', url: 'https://bizbazevents.com/eventpage', price: 200, tier: 'Adults KES 500 · Under 18 KES 200', description: 'Adult entry KES 500 per day; under-18s KES 200.', tags: ['market', 'christmas'] },
+  { id: 'rada-featured-nutcracker-2026', title: 'The Nutcracker', match: /nutcracker/i, cat: 'arts', genre: 'Ballet & Theatre', start: '2026-11-20', end: '2026-11-29', label: '20–22 & 28–29 Nov 2026', location: 'Kenya National Theatre, Nairobi', url: 'https://tic.magicalkenya.com/whats-on/', description: 'Shows on 20–22 and 28–29 November. Confirm times with the venue.', tags: ['theatre', 'ballet'] },
+  { id: 'rada-featured-beats-brunch-2026', title: 'Beats & Brunch', match: /beats\s*(&|and)\s*brunch/i, cat: 'food', genre: 'Brunch', start: '2026-11-29', label: 'Sun, 29 Nov 2026', location: 'The Wine & Bottle, Nairobi', url: 'https://tic.magicalkenya.com/whats-on/', description: 'Brunch with music.', tags: ['brunch'] },
+];
 
 export const FEATURED_EVENTS: EventItem[] = [
   featured({
@@ -118,18 +162,24 @@ export const FEATURED_EVENTS: EventItem[] = [
     priceMin: null,
     tags: ['trending', 'afro house', 'keinemusik'],
   }),
+  ...EXTRA_EVENTS.map(extra),
 ];
 
-const FEATURED_MATCHERS: Array<[RegExp, number]> = [
-  [/sol\s*fest/i, 0],
-  [/all hands on deck|house of kodong/i, 1],
-  [/detty\s*dezemba/i, 2],
-  [/keinemusik/i, 3],
-];
+const CORE_MATCHERS: RegExp[] = [/sol\s*fest/i, /all hands on deck|house of kodong/i, /detty\s*dezemba/i, /keinemusik/i];
+const FEATURED_MATCHERS: RegExp[] = [...CORE_MATCHERS, ...EXTRA_EVENTS.map(x => x.match)];
 
+/** 0.. = pinned position (our featured list, in order); 1000 = not featured. */
 export function featuredEventOrder(event: EventItem): number {
-  const match = FEATURED_MATCHERS.find(([pattern]) => pattern.test(event.title));
-  return match ? match[1] : 100;
+  const idx = FEATURED_MATCHERS.findIndex(pattern => pattern.test(event.title));
+  return idx === -1 ? 1000 : idx;
+}
+
+/** Stable: keeps the incoming order inside each group, featured first. */
+export function pinFeaturedEvents(events: EventItem[]): EventItem[] {
+  return events
+    .map((event, i) => ({ event, i, o: featuredEventOrder(event) }))
+    .sort((a, b) => a.o - b.o || a.i - b.i)
+    .map(x => x.event);
 }
 
 function escapeSvg(value: string): string {
@@ -147,9 +197,8 @@ export function withEventPoster(event: EventItem): EventItem {
 }
 
 export function mergeFeaturedEvents(liveEvents: EventItem[]): EventItem[] {
-  const curatedPatterns = [/sol\s*fest/i, /all hands on deck|house of kodong/i, /detty\s*dezemba/i, /keinemusik/i];
   const remaining = liveEvents
-    .filter(event => !curatedPatterns.some(pattern => pattern.test(event.title)))
+    .filter(event => !FEATURED_MATCHERS.some(pattern => pattern.test(event.title)))
     .map(withEventPoster);
   return [...FEATURED_EVENTS, ...remaining];
 }
