@@ -1805,18 +1805,18 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         </div>
       )}
 
-      {/* CENTURY CINEMAX SHOWINGS (Official Posters, Showtime by Date removed, Movie Genre filter added) */}
+      {/* IN CINEMAS (Official Posters, Showtime by Date removed, Movie Genre filter added) */}
       {(selectedHomeSection === 'all' || selectedHomeSection === 'cinemas') && (selectedVibe === 'all' || selectedVibe === 'cinemas') && filteredCinemaMovies.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Film className="w-4 h-4 text-[#2D6A4F]" />
               <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
-                Century Cinemax Showings
+                In Cinemas
               </h2>
             </div>
             <button
-              onClick={() => onOpenDedicatedViewAll('Century Cinemax Movies', 'cinemas')}
+              onClick={() => onOpenDedicatedViewAll('In Cinemas', 'cinemas')}
               className="text-[11px] font-bold text-[#E0533C] hover:underline"
             >
               All Movies ({filteredCinemaMovies.length})
