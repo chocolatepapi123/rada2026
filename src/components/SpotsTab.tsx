@@ -385,7 +385,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
       const totalReviews = combinedRevs.length;
       const calculatedRating = totalReviews > 0
         ? (combinedRevs.reduce((sum, r) => sum + Number(r.rating || 0), 0) / totalReviews).toFixed(1)
-        : (sp.rating && !isNaN(Number(sp.rating)) ? String(sp.rating) : 'New');
+        : (sp.rating && !isNaN(Number(sp.rating)) ? String(sp.rating) : '');
 
       return {
         ...sp,
@@ -605,10 +605,12 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[11px] shrink-0">
-                <Star className={`w-3 h-3 ${hasReviews ? 'fill-amber-500 text-amber-500' : 'text-slate-400'}`} />
-                <span>{hasReviews ? spot.rating : 'New'}</span>
-              </div>
+              {hasReviews && (
+                <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[11px] shrink-0">
+                  <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                  <span>{spot.rating}</span>
+                </div>
+              )}
             </div>
 
             {(spot as any).distanceKm != null && (
@@ -785,7 +787,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
             )}
             {selectedPriceTier !== 'all' && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#2D6A4F] text-white shrink-0">
-                <span>{selectedPriceTier === 'Low' ? 'Budget $' : selectedPriceTier === 'Mid' ? 'Mid $$' : 'Luxury $$$'}</span>
+                <span>{selectedPriceTier === 'Low' ? 'Low' : selectedPriceTier === 'Mid' ? 'Mid' : 'High'}</span>
                 <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedPriceTier('all')} />
               </span>
             )}
@@ -925,9 +927,9 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                 <div className="grid grid-cols-4 gap-1.5 text-xs">
                   {[
                     { id: 'all', label: 'All' },
-                    { id: 'Low', label: 'Budget $' },
-                    { id: 'Mid', label: 'Mid $$' },
-                    { id: 'High', label: 'Luxury $$$' }
+                    { id: 'Low', label: 'Low' },
+                    { id: 'Mid', label: 'Mid' },
+                    { id: 'High', label: 'High' }
                   ].map((tier) => (
                     <button
                       key={tier.id}
@@ -1056,9 +1058,9 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider shrink-0 mr-1">Budget:</span>
           {[
             { id: 'all', label: 'All' },
-            { id: 'Low', label: 'Budget $' },
-            { id: 'Mid', label: 'Mid $$' },
-            { id: 'High', label: 'Luxury $$$' }
+            { id: 'Low', label: 'Low' },
+            { id: 'Mid', label: 'Mid' },
+            { id: 'High', label: 'High' }
           ].map((tier) => (
             <button
               key={tier.id}

@@ -768,7 +768,7 @@ export default function App() {
             const count = cleanReviews.length;
             const rating = count > 0
               ? (cleanReviews.reduce((sum: number, r: any) => sum + Number(r.rating || 0), 0) / count).toFixed(1)
-              : 'New';
+              : '';
             return {
               ...sp,
               reviews: cleanReviews,
@@ -1856,7 +1856,7 @@ export default function App() {
         const reviewCount = mine.length;
         const rating = reviewCount > 0
           ? (mine.reduce((sum: number, r: any) => sum + Number(r.rating || 0), 0) / reviewCount).toFixed(1)
-          : 'New';
+          : '';
 
         return { ...base, reviews: allReviews, reviewCount, rating, images };
       });
@@ -2099,7 +2099,7 @@ export default function App() {
         lat: 0,
         lng: 0,
         hasCoords: false,
-        rating: 'New',
+        rating: '',
         reviewCount: 0,
         price: '',
         img: biz.coverImage || biz.logo || '',

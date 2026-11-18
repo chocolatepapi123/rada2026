@@ -879,7 +879,7 @@ export const SpotInsightsAnalytics: React.FC<SpotInsightsAnalyticsProps> = ({
             </div>
           </div>
           <div className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
-            {data.averageRating > 0 ? `${data.averageRating.toFixed(1)} / 5` : 'New'}
+            {data.averageRating > 0 ? `${data.averageRating.toFixed(1)} / 5` : '—'}
           </div>
           <p className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold mt-0.5">
             {data.totalReviews} customer ratings
@@ -1695,7 +1695,7 @@ export const MerchantHubTab: React.FC<MerchantHubTabProps> = ({
       lat: existing?.hasCoords === false ? 0 : (existing?.lat || 0),
       lng: existing?.hasCoords === false ? 0 : (existing?.lng || 0),
       hasCoords: existing?.hasCoords === false ? false : Boolean(existing?.lat && existing?.lng),
-      rating: existing?.rating || 'New',
+      rating: existing?.rating || '',
       reviewCount: existing?.reviewCount || 0,
       price: spotPrice as any,
       img: spotCoverImg,
@@ -3809,8 +3809,8 @@ isSpotFormOpen && (
                               <span>{spot.exactLocationTag || spot.address}</span>
                             </p>
                             <div className="flex items-center gap-2 mt-1.5 text-[10px] text-slate-400 font-semibold">
-                              <span>{spot.rating}/5 ({spot.reviewCount || 0} reviews)</span>
-                              <span>•</span>
+                              {Number(spot.rating) > 0 && <><span>{spot.rating}/5 ({spot.reviewCount || 0} reviews)</span>
+                              <span>•</span></>}
                               <span>{spot.menuItems?.length || 0} Menu Items</span>
                               <span>•</span>
                               <span className="text-emerald-600 font-bold">Claimed & Verified</span>

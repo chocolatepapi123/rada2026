@@ -641,7 +641,7 @@ export const CinemaExplorer: React.FC<CinemaExplorerProps> = ({ movies, onBookMo
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
+        <div className="grid grid-cols-2 gap-2.5">
           {filtered.slice(0, visibleCount).map(g => {
             const venueCount = g.venueLabels.length;
             const venueText = venueCount === 0 ? '' : venueCount === 1 ? g.venueLabels[0] : `${g.venueLabels[0]} +${venueCount - 1} more`;
@@ -695,7 +695,7 @@ export const CinemaExplorer: React.FC<CinemaExplorerProps> = ({ movies, onBookMo
         <div className="pt-2 text-center">
           <button type="button" onClick={() => setVisibleCount(v => v + PAGE_SIZE)}
             className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold rounded-2xl text-xs transition cursor-pointer">
-            Load More Movies ({filtered.length - visibleCount} remaining)
+            Load more
           </button>
         </div>
       )}

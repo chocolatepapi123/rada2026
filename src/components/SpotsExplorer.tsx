@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { Search, X, MapPin, Bookmark, Star, SlidersHorizontal, Compass, Trash2, Navigation, ChevronDown, Check, LayoutGrid } from 'lucide-react';
+import { Search, X, MapPin, Bookmark, Star, Compass, Trash2, Navigation, ChevronDown, Check, LayoutGrid, Wallet } from 'lucide-react';
 import { SpotItem, SavedItem } from '../types.ts';
 import { spotInCategory, getSpotCategoryIds, isAllKey, resolveSpotCategory, SPOT_CATEGORIES } from '../lib/spotCategories.ts';
 import { getSpotCategoryAccent, accentVars } from '../lib/spotAccentTheme.ts';
@@ -9,7 +9,6 @@ import { NearYouControl } from './NearYouControl.tsx';
 import { resolveSpotBudget, budgetBadge, plainPriceLabel } from '../lib/spotBudget.ts';
 import type { LatLng } from '../lib/geo.ts';
 import { spotMatchesSearchWithTags } from '../utils/spotTags.ts';
-import { spotMatchesArea } from '../lib/spotsFeed.ts';
 import { useActivePromotions, sortSpotsByCategoryPromotion } from '../lib/promotions.ts';
 
 interface SpotsExplorerProps {
@@ -22,7 +21,7 @@ interface SpotsExplorerProps {
   userCoords?: LatLng | null;
   isAdmin?: boolean;
   onDeleteSpot?: (spot: SpotItem) => void;
-  /** 'picker' (default) = compact layout: no area chips, no count, category dropdown, two cards per row. */
+  /** Kept for backwards compatibility; every explorer now uses the same compact 2-column layout. */
   variant?: 'default' | 'picker';
 }
 
@@ -107,29 +106,11 @@ const CATEGORY_OPTIONS: PillOption[] = [
   ...SPOT_CATEGORIES.map(c => ({ id: c.id, label: c.label, icon: c.icon, color: c.color })),
 ];
 
-const NAIROBI_NEIGHBORHOODS = [
-  'All Areas',
-  'Westlands',
-  'Kilimani',
-  'Kileleshwa',
-  'Lavington',
-  'Karen',
-  'CBD',
-  'Gigiri',
-  'Parklands',
-  'Ngong Road',
-  'Langata',
-  'South B',
-  'South C',
-  'Ruaka',
-  'Thika Road'
-];
-
-const BUDGET_TIERS = [
-  { id: 'all', label: 'All Budgets' },
-  { id: 'Low', label: 'Low' },
-  { id: 'Mid', label: 'Mid' },
-  { id: 'High', label: 'High' },
+const BUDGET_TIERS: PillOption[] = [
+  { id: 'all', label: 'All budgets', icon: Wallet, color: '#E0533C' },
+  { id: 'Low', label: 'Low', icon: Wallet, color: '#2D6A4F' },
+  { id: 'Mid', label: 'Mid', icon: Wallet, color: '#D97706' },
+  { id: 'High', label: 'High', icon: Wallet, color: '#7C3AED' },
 ];
 
 const PAGE_SIZE = 18;
@@ -144,17 +125,13 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
   userCoords = null,
   isAdmin = false,
   onDeleteSpot,
-  variant = 'picker',
 }) => {
-  // The Plan a Date screen opens this explorer with the title below, so it gets the compact picker layout automatically.
-  const picker = variant === 'picker';
   const forDate = categoryTitle === 'Select Venue for Date';
   const [query, setQuery] = useState('');
-  const [selectedNeighborhood, setSelectedNeighborhood] = useState('All Areas');
   const [selectedBudget, setSelectedBudget] = useState('all');
-  const [sortBy, setSortBy] = useState<'featured' | 'rating' | 'reviews'>('featured');
   const [pickedCat, setPickedCat] = useState<string>(isAllKey(categoryKey) ? 'all' : (resolveSpotCategory(categoryKey) || 'all'));
   useEffect(() => { setPickedCat(isAllKey(categoryKey) ? 'all' : (resolveSpotCategory(categoryKey) || 'all')); }, [categoryKey]);
+  const showCategoryDropdown = isAllKey(categoryKey);
   const nearYou = useNearYou();
   const categorySlotPromos = useActivePromotions('spots_category');
 
@@ -164,22 +141,19 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [query, selectedNeighborhood, selectedBudget, sortBy, pickedCat, nearYou.active, nearYou.radiusKm, categoryKey]);
+  }, [query, selectedBudget, pickedCat, nearYou.active, nearYou.radiusKm, categoryKey]);
 
   const isSaved = (id: string | number) =>
     savedItems.some(s => String(s.id) === String(id) && s.kind === 'spot');
 
   const filteredSpots = useMemo(() => {
-    const effectiveCat = picker ? (pickedCat === 'all' ? 'all' : pickedCat) : (categoryKey || '').toLowerCase().trim();
+    const effectiveCat = showCategoryDropdown ? pickedCat : (categoryKey || '').toLowerCase().trim();
 
     let result = spots.filter(s => {
       // Category match
       if (effectiveCat && !isAllKey(effectiveCat) && effectiveCat !== 'spots') {
         if (!spotInCategory(s, effectiveCat)) return false;
       }
-
-      // Neighborhood match
-      if (!spotMatchesArea(s, selectedNeighborhood)) return false;
 
       // Budget filter
       if (selectedBudget !== 'all') {
@@ -200,25 +174,13 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
       return rankSpots(result, { nearYou: true, origin: nearYou.origin, radiusKm: nearYou.radiusKm });
     }
 
-    // 2) Explicit sorts
-    if (sortBy === 'rating') {
-      return [...result].sort((a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0) || premiumScore(b) - premiumScore(a));
-    }
-    if (sortBy === 'reviews') {
-      return [...result].sort((a, b) => {
-        const cA = a.reviews?.length ?? (a.reviewCount || 0);
-        const cB = b.reviews?.length ?? (b.reviewCount || 0);
-        return cB - cA || premiumScore(b) - premiumScore(a);
-      });
-    }
-
-    // 3) Default "Featured": premium / high-end first; paid category slots (no labels) go first in admin order
+    // 2) Default "Featured": premium / high-end first; paid category slots (no labels) go first in admin order
     const featured = rankSpots(result);
     if (effectiveCat && !isAllKey(effectiveCat) && effectiveCat !== 'spots') {
       return sortSpotsByCategoryPromotion(featured, effectiveCat, categorySlotPromos);
     }
     return featured;
-  }, [spots, categorySlotPromos, categoryKey, picker, pickedCat, selectedNeighborhood, selectedBudget, query, sortBy, nearYou.active, nearYou.origin, nearYou.radiusKm]);
+  }, [spots, categorySlotPromos, categoryKey, showCategoryDropdown, pickedCat, selectedBudget, query, nearYou.active, nearYou.origin, nearYou.radiusKm]);
 
   return (
     <div className="space-y-4">
@@ -249,115 +211,34 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
         )}
       </div>
 
-      {/* Searchbox for Exact Location */}
-      <div className="space-y-1.5">
-        <div className="relative">
-          <MapPin className="w-3.5 h-3.5 text-[#E0533C] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            value={selectedNeighborhood === 'All Areas' ? '' : selectedNeighborhood}
-            onChange={(e) => setSelectedNeighborhood(e.target.value.trim() ? e.target.value : 'All Areas')}
-            placeholder="Search exact location or area (e.g. Westlands, Kilimani, Karen)..."
-            className="w-full pl-8 pr-8 py-2 rounded-xl text-xs font-semibold bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-[#E0533C]"
-          />
-          {selectedNeighborhood !== 'All Areas' && (
-            <button
-              type="button"
-              onClick={() => setSelectedNeighborhood('All Areas')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
-              title="Reset location"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-
-        {/* Quick Popular Area Chips (hidden in the venue picker) */}
-        {!picker && <div className="-mx-1 px-1 flex gap-1.5 overflow-x-auto hide-scrollbar text-xs">
-          {NAIROBI_NEIGHBORHOODS.slice(0, 8).map(area => (
-            <button
-              key={area}
-              type="button"
-              onClick={() => setSelectedNeighborhood(selectedNeighborhood === area ? 'All Areas' : area)}
-              className={`px-2.5 py-1 rounded-full font-bold whitespace-nowrap transition cursor-pointer text-[11px] ${
-                selectedNeighborhood.toLowerCase() === area.toLowerCase()
-                  ? 'bg-[#E0533C] text-white shadow-xs'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-              }`}
-            >
-              {area}
-            </button>
-          ))}
-        </div>}
-      </div>
-
-      {/* Budget & Sort Controls */}
+      {/* Filters: budget dropdown, category (all-spots screens only), Near You */}
       <div className="flex items-center gap-2 flex-wrap text-xs">
-        {picker && (
+        {showCategoryDropdown && (
           <PillDropdown value={pickedCat} options={CATEGORY_OPTIONS} onChange={setPickedCat} menuWidthClass="w-64" />
         )}
-        {picker && (
-          <PillDropdown
-            value={selectedBudget}
-            options={BUDGET_TIERS}
-            onChange={setSelectedBudget}
-            caption="Budget"
-            menuWidthClass="w-44"
-          />
-        )}
-        {!picker && <div className="flex items-center gap-1.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5">
-          <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">Budget</span>
-          <select
-            value={selectedBudget}
-            onChange={(e) => setSelectedBudget(e.target.value)}
-            className="bg-transparent font-bold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
-          >
-            {BUDGET_TIERS.map(b => (
-              <option key={b.id} value={b.id} className="bg-white dark:bg-[#1C1A1E]">
-                {b.label}
-              </option>
-            ))}
-          </select>
-        </div>}
-
-        {!picker && <div className="flex items-center gap-1.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5">
-          <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-            className="bg-transparent font-bold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
-          >
-            <option value="featured" className="bg-white dark:bg-[#1C1A1E]">Featured</option>
-            <option value="rating" className="bg-white dark:bg-[#1C1A1E]">Top Rated</option>
-            <option value="reviews" className="bg-white dark:bg-[#1C1A1E]">Most Popular</option>
-          </select>
-        </div>}
-
+        <PillDropdown
+          value={selectedBudget}
+          options={BUDGET_TIERS}
+          onChange={setSelectedBudget}
+          caption="Budget"
+          menuWidthClass="w-48"
+        />
         <NearYouControl />
 
-        {(selectedNeighborhood !== 'All Areas' || selectedBudget !== 'all' || query || sortBy !== 'featured' || (picker && pickedCat !== 'all')) && (
+        {(selectedBudget !== 'all' || query || (showCategoryDropdown && pickedCat !== 'all')) && (
           <button
             type="button"
             onClick={() => {
               setQuery('');
-              setSelectedNeighborhood('All Areas');
               setSelectedBudget('all');
-              setSortBy('featured');
-              if (picker) setPickedCat('all');
+              if (showCategoryDropdown) setPickedCat('all');
             }}
             className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer ml-auto"
           >
-            Reset Filters
+            Reset
           </button>
         )}
       </div>
-
-      {/* Results Header */}
-      {!picker && <div className="flex items-center justify-between text-xs font-bold text-slate-500 pt-1">
-        <span>
-          {filteredSpots.length} {filteredSpots.length === 1 ? 'place' : 'places'} {nearYou.active ? `within ${nearYou.radiusKm ? nearYou.radiusKm + ' km' : 'range'} of you` : 'available'}
-        </span>
-      </div>}
 
       {/* Spots Grid */}
       {filteredSpots.length === 0 ? (
@@ -367,16 +248,14 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
           <p className="text-xs text-slate-500 max-w-xs mx-auto">
             {nearYou.active
               ? 'Nothing in this radius. Try a wider distance or switch off Near You.'
-              : 'Try adjusting your search terms or clearing neighborhood/budget filters.'}
+              : 'Try adjusting your search or clearing the budget filter.'}
           </p>
           <button
             type="button"
             onClick={() => {
               setQuery('');
-              setSelectedNeighborhood('All Areas');
               setSelectedBudget('all');
-              setSortBy('featured');
-              if (picker) setPickedCat('all');
+              if (showCategoryDropdown) setPickedCat('all');
             }}
             className="px-4 py-2 bg-[#E0533C] text-white font-bold rounded-xl text-xs hover:bg-orange-700 transition cursor-pointer"
           >
@@ -384,7 +263,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
           </button>
         </div>
       ) : (
-        <div className={picker ? 'grid grid-cols-2 gap-2.5' : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5'}>
+        <div className="grid grid-cols-2 gap-2.5">
           {filteredSpots.slice(0, visibleCount).map((spot) => {
             const saved = isSaved(spot.id);
             const reviewCount = spot.reviews?.length ?? (spot.reviewCount || 0);
@@ -398,12 +277,12 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
               <div
                 key={String(spot.id)}
                 onClick={() => onOpenSpot(spot)}
-                className={`bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 shadow-xs cursor-pointer transition flex flex-col justify-between group min-w-0 ${picker ? 'rounded-2xl p-2' : 'rounded-3xl p-3'}`}
+                className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 shadow-xs cursor-pointer transition flex flex-col justify-between group min-w-0 rounded-2xl p-2"
                 style={accentVars(primary)}
               >
                 <div>
                   <div
-                    className={`${picker ? 'h-28 rounded-xl mb-2' : 'h-44 rounded-2xl mb-3'} bg-cover bg-center relative overflow-hidden bg-slate-200 dark:bg-slate-800`}
+                    className="h-28 rounded-xl mb-2 bg-cover bg-center relative overflow-hidden bg-slate-200 dark:bg-slate-800"
                     style={{ backgroundImage: `url('${spot.img}')` }}
                   >
                     {/* Admin Delete shortcut */}
@@ -448,14 +327,16 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
                   </div>
 
                   <div className="space-y-1">
-                    <div className={picker ? 'flex flex-col items-start gap-1' : 'flex items-center justify-between gap-1'}>
-                      <h4 className={`font-black text-slate-900 dark:text-slate-100 truncate transition max-w-full ${picker ? 'text-[13px]' : 'text-sm'}`}>
+                    <div className="flex flex-col items-start gap-1">
+                      <h4 className="font-black text-slate-900 dark:text-slate-100 truncate transition max-w-full text-[13px]">
                         {spot.title}
                       </h4>
-                      <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
-                        <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
-                        <span>{hasReviews ? spot.rating : 'New'}</span>
-                      </div>
+                      {hasReviews && (
+                        <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
+                          <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
+                          <span>{spot.rating}</span>
+                        </div>
+                      )}
                     </div>
 
                     <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
@@ -463,19 +344,11 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
                       <span className="truncate">{spot.address || spot.neighborhood}</span>
                     </p>
 
-                    {!picker && spot.description && (
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-1 leading-relaxed">
-                        {spot.description}
-                      </p>
-                    )}
                   </div>
                 </div>
 
-                <div className={`border-t border-slate-200 dark:border-slate-800/80 ${picker ? 'mt-2 pt-2 flex flex-col gap-1.5' : 'mt-3 pt-2.5 flex items-center justify-between gap-1.5'}`}>
-                  <span className={`text-[11px] font-bold text-slate-500 truncate ${picker ? 'hidden' : ''}`}>
-                    {spot.neighborhood}
-                  </span>
-                  <div className={`flex items-center gap-1.5 ${picker ? 'w-full' : 'shrink-0'}`}>
+                <div className="border-t border-slate-200 dark:border-slate-800/80 mt-2 pt-2 flex flex-col gap-1.5">
+                  <div className="flex items-center gap-1.5 w-full">
                     {isAdmin && (
                       <button
                         type="button"
@@ -496,7 +369,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
                         e.stopPropagation();
                         onOpenSpot(spot);
                       }}
-                      className={`${picker ? 'w-full px-2 py-2' : 'px-3 py-1.5'} rounded-xl text-[11px] font-bold transition shadow-xs cursor-pointer hover:opacity-90 bg-[var(--accent)] dark:bg-[var(--accent-deep)] text-[color:var(--accent-on)] dark:text-[color:var(--accent-ink)] border border-transparent dark:border-[color:var(--accent-line)]`}
+                      className={`w-full px-2 py-2 rounded-xl text-[11px] font-bold transition shadow-xs cursor-pointer hover:opacity-90 bg-[var(--accent)] dark:bg-[var(--accent-deep)] text-[color:var(--accent-on)] dark:text-[color:var(--accent-ink)] border border-transparent dark:border-[color:var(--accent-line)]`}
                     >
                       {forDate ? 'Pick venue' : 'View Details'}
                     </button>
@@ -516,7 +389,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
             onClick={() => setVisibleCount(prev => prev + PAGE_SIZE)}
             className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold rounded-2xl text-xs transition cursor-pointer"
           >
-            Load More Places ({filteredSpots.length - visibleCount} remaining)
+            Load more
           </button>
         </div>
       )}

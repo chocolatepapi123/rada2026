@@ -442,7 +442,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       const totalReviews = combinedRevs.length;
       const calculatedRating = totalReviews > 0
         ? (combinedRevs.reduce((sum, r) => sum + Number(r.rating || 0), 0) / totalReviews).toFixed(1)
-        : (sp.rating || 'New');
+        : (sp.rating || '');
 
       return {
         ...sp,
@@ -887,7 +887,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             )}
             {selectedHomeBudget !== 'all' && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-600 text-white shrink-0">
-                <span>{selectedHomeBudget === 'Low' ? 'Budget $' : selectedHomeBudget === 'Mid' ? 'Mid $$' : selectedHomeBudget === 'High' ? 'Luxury $$$' : 'Free Entry'}</span>
+                <span>{selectedHomeBudget === 'Low' ? 'Low' : selectedHomeBudget === 'Mid' ? 'Mid' : selectedHomeBudget === 'High' ? 'High' : 'Free Entry'}</span>
                 <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedHomeBudget('all')} />
               </span>
             )}
@@ -1102,9 +1102,9 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   {[
                     { id: 'all', label: 'All' },
                     { id: 'free', label: 'Free' },
-                    { id: 'Low', label: 'Budget $' },
-                    { id: 'Mid', label: 'Mid $$' },
-                    { id: 'High', label: 'Luxury $$$' },
+                    { id: 'Low', label: 'Low' },
+                    { id: 'Mid', label: 'Mid' },
+                    { id: 'High', label: 'High' },
                   ].map((p) => (
                     <button
                       key={p.id}
@@ -1750,7 +1750,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold text-[#475569] dark:text-slate-300">
-                      {evt.goingCount > 0 ? `${evt.goingCount} going` : (getSourceLabel(evt.source) ? `via ${getSourceLabel(evt.source)}` : 'New')}
+                      {evt.goingCount > 0 ? `${evt.goingCount} going` : (getSourceLabel(evt.source) ? `via ${getSourceLabel(evt.source)}` : '')}
                     </span>
                     <button
                       onClick={(e) => {
@@ -1963,10 +1963,12 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-[#E0533C] transition">
                           {spot.title}
                         </h4>
-                        <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
-                          <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
-                          <span>{hasReviews ? spot.rating : 'New'}</span>
-                        </div>
+                        {hasReviews && (
+                          <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
+                            <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
+                            <span>{spot.rating}</span>
+                          </div>
+                        )}
                       </div>
 
                       <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
@@ -2096,10 +2098,12 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                             <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-[#E0533C] transition">
                               {spot.title}
                             </h4>
-                            <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
-                              <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
-                              <span>{spot.rating}</span>
-                            </div>
+                            {Number(spot.rating) > 0 && (
+                              <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
+                                <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
+                                <span>{spot.rating}</span>
+                              </div>
+                            )}
                           </div>
 
                           <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">

@@ -493,7 +493,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   onClick={() => {
                     shareContent({
                       title: `RADA Spot: ${selectedSpot.title}`,
-                      text: `Check out ${selectedSpot.title} (${selectedSpot.category}) in ${selectedSpot.address} on RADA Nairobi! Rating: ${selectedSpot.rating}/5.`,
+                      text: `Check out ${selectedSpot.title} (${selectedSpot.category}) in ${selectedSpot.address} on RADA Nairobi! ${Number(selectedSpot.rating) > 0 ? ` Rating: ${selectedSpot.rating}/5.` : ''}`,
                       url: window.location.href,
                       onSuccess: showToast,
                       onError: showToast
@@ -569,7 +569,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       return (
                         <span className="absolute bottom-3 left-3 bg-white/90 dark:bg-black/90 backdrop-blur-md text-slate-900 dark:text-white text-[10px] font-black px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-xs">
                           <Star className={`w-3.5 h-3.5 ${hasReviews ? 'fill-amber-400 text-amber-400' : 'text-slate-400'}`} />
-                          <span>{hasReviews ? `${selectedSpot.rating} (${revCount} ${revCount === 1 ? 'review' : 'reviews'})` : 'New (No reviews yet)'}</span>
+                          <span>{hasReviews ? `${selectedSpot.rating} (${revCount} ${revCount === 1 ? 'review' : 'reviews'})` : 'No reviews yet'}</span>
                         </span>
                       );
                     })()}
@@ -2561,7 +2561,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 />
               ) : (viewAllCategory === 'offers' || viewAllCategory === 'promotions') ? (
                 /* DISPLAY ALL RUNNING OFFERS & PROMOTIONS */
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2.5">
                   {sortedOffers.map((offer) => (
                     <div
                       key={offer.id}

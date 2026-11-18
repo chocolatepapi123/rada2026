@@ -55,7 +55,7 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
     ? {
         title: spot.title,
         subtitle: `${spot.neighborhood} • ${spot.address}`,
-        popupMeta: `${spot.neighborhood} • ${spot.rating}/5`,
+        popupMeta: Number(spot.rating) > 0 ? `${spot.neighborhood} • ${spot.rating}/5` : `${spot.neighborhood}`,
         address: spot.address,
         lat: spot.lat as number | null,
         lng: spot.lng as number | null,

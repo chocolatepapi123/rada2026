@@ -111,7 +111,6 @@ export const EventsExplorer: React.FC<EventsExplorerProps> = ({
           >
             <CategoryIcon name={c.icon} />
             <span>{c.label}</span>
-            <span className={`text-[10px] ${category === c.id ? 'text-white/80' : 'text-slate-400'}`}>{categoryCounts[c.id]}</span>
           </button>
         ))}
       </div>
@@ -202,14 +201,12 @@ export const EventsExplorer: React.FC<EventsExplorerProps> = ({
               : EVENT_CATEGORY_FILTERS.find(c => c.id === category)?.label}
           </span>
         </h4>
-        <span className="text-[10px] text-slate-400 font-bold">
-          {results.length} {results.length === 1 ? 'event' : 'events'}
-        </span>
       </div>
 
       {/* Results */}
       {results.length > 0 ? (
         <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2.5">
           {results.slice(0, visible).map(evt => {
             const today = isHappeningToday(evt);
             const saved = isSaved(evt.id);
@@ -217,41 +214,36 @@ export const EventsExplorer: React.FC<EventsExplorerProps> = ({
               <div
                 key={evt.id}
                 onClick={() => onOpenEvent(evt)}
-                className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 flex gap-3 shadow-xs cursor-pointer hover:border-[#E0533C] transition group"
+                className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-2 flex flex-col justify-between shadow-xs cursor-pointer hover:border-[#E0533C] transition group min-w-0"
               >
-                <div
-                  className="w-24 h-24 rounded-xl bg-slate-200 dark:bg-slate-800 bg-cover bg-center shrink-0 relative overflow-hidden"
-                  style={evt.img ? { backgroundImage: `url('${evt.img}')` } : undefined}
-                >
-                  {today && (
-                    <span className="absolute bottom-1 left-1 bg-emerald-600/90 text-white text-[8px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wide">
-                      Today
-                    </span>
-                  )}
-                </div>
-
-                <div className="min-w-0 flex-1 flex flex-col justify-between">
-                  <div className="space-y-0.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition line-clamp-2">
-                        {evt.title}
-                      </h4>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onToggleSave?.(evt, 'event');
-                        }}
-                        className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer ${
-                          saved
-                            ? 'bg-[#E0533C] text-white'
-                            : 'bg-white dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700'
-                        }`}
-                        title={saved ? 'Remove bookmark' : 'Bookmark this event'}
-                      >
-                        <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
-                      </button>
-                    </div>
+                <div>
+                  <div
+                    className="h-28 rounded-xl mb-2 bg-slate-200 dark:bg-slate-800 bg-cover bg-center relative overflow-hidden"
+                    style={evt.img ? { backgroundImage: `url('${evt.img}')` } : undefined}
+                  >
+                    {today && (
+                      <span className="absolute bottom-1.5 left-1.5 bg-emerald-600/90 text-white text-[8px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wide">
+                        Today
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleSave?.(evt, 'event');
+                      }}
+                      className={`absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs ${
+                        saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
+                      }`}
+                      title={saved ? 'Remove bookmark' : 'Bookmark this event'}
+                    >
+                      <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
+                    </button>
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="font-black text-[13px] text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition line-clamp-2">
+                      {evt.title}
+                    </h4>
                     <p className="text-[10px] text-[#E0533C] font-semibold flex items-center gap-1">
                       <Clock className="w-3 h-3 shrink-0" />
                       <span className="truncate">{evt.date}{evt.time ? ` • ${evt.time}` : ''}</span>
@@ -261,19 +253,16 @@ export const EventsExplorer: React.FC<EventsExplorerProps> = ({
                       <span className="truncate">{evt.location}</span>
                     </p>
                   </div>
-
-                  <div className="flex items-center justify-between gap-2 pt-1">
-                    <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 truncate">
-                      {getEventPriceLabel(evt)}
-                    </span>
-                    {evt.source && getSourceLabel(evt.source) && (
-                      <span className="text-[9px] font-bold text-slate-400 shrink-0">via {getSourceLabel(evt.source)}</span>
-                    )}
-                  </div>
+                </div>
+                <div className="border-t border-slate-200 dark:border-slate-800/80 mt-2 pt-2">
+                  <span className="block text-center text-[10px] font-black px-2 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 truncate">
+                    {getEventPriceLabel(evt)}
+                  </span>
                 </div>
               </div>
             );
           })}
+          </div>
 
           {visible < results.length && (
             <button
@@ -281,7 +270,7 @@ export const EventsExplorer: React.FC<EventsExplorerProps> = ({
               onClick={() => setVisible(v => v + PAGE_SIZE)}
               className="w-full py-2.5 rounded-2xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-black cursor-pointer hover:opacity-90 transition"
             >
-              Show more ({results.length - visible} left)
+              Load more
             </button>
           )}
         </div>

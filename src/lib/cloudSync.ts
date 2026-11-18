@@ -2852,7 +2852,7 @@ export async function submitCommunitySpot(
       lng: spotData.lng ?? 36.8219,
       // No exact pin yet, so "near me" must not trust these coordinates
       ...(spotData.lat == null ? { hasCoords: false } : {}),
-      rating: 'New',
+      rating: '',
       reviewCount: 0,
       reviews: [],
       status: 'suggested',
