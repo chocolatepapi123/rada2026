@@ -1,9 +1,10 @@
 // RADA – live loader for public.external_events (Mookh, Ticketsasa, Tikiti scrapes).
 import { supabase, isSupabaseConfigured } from './supabase';
 import type { EventItem } from '../types.ts';
-import { mapExternalRow, compareByStart, isUpcoming, type ExternalEventRow } from '../utils/eventUtils.ts';
+import { mapExternalRow, isUpcoming, type ExternalEventRow } from '../utils/eventUtils.ts';
+import { FEATURED_EVENTS, mergeFeaturedEvents } from './featuredEvents.ts';
 
-/** RADA is a Nairobi hub: only show Kenyan events. Set to false to include UG / TZ / RW listings. */
+/** Kenyan listings only. */
 export const ONLY_KENYA = true;
 
 const COLUMNS =
@@ -11,13 +12,13 @@ const COLUMNS =
   'price_min,currency,country,tiers,description,address,lat,lng,gallery,tags,place_id';
 
 /**
- * Loads upcoming events straight from Supabase.
- * Returns null on failure so callers can keep what they already have instead of showing an empty feed.
+ * Loads live Kenyan events and adds four organiser-poster-backed featured events.
+ * Curated cards remain available if Supabase is not configured or temporarily unavailable.
  */
 export async function fetchExternalEvents(): Promise<EventItem[] | null> {
-  if (!isSupabaseConfigured || !supabase) return null;
+  if (!isSupabaseConfigured || !supabase) return FEATURED_EVENTS.filter(event => isUpcoming(event, new Date()));
+  const now = new Date();
   try {
-    // include events that started up to 12h ago so "happening now" ones are not cut off
     const cutoff = new Date(Date.now() - 12 * 3600 * 1000).toISOString();
     let q = supabase
       .from('external_events')
@@ -29,15 +30,14 @@ export async function fetchExternalEvents(): Promise<EventItem[] | null> {
     const { data, error } = await q;
     if (error) {
       console.warn('external_events load failed:', error.message);
-      return null;
+      return FEATURED_EVENTS.filter(event => isUpcoming(event, now));
     }
-    const now = new Date();
-    return ((data || []) as unknown as ExternalEventRow[])
+    const live = ((data || []) as unknown as ExternalEventRow[])
       .map(mapExternalRow)
-      .filter(e => isUpcoming(e, now))
-      .sort(compareByStart);
-  } catch (e) {
-    console.warn('external_events load error:', e);
-    return null;
+      .filter(event => isUpcoming(event, now));
+    return mergeFeaturedEvents(live).filter(event => isUpcoming(event, now));
+  } catch (error) {
+    console.warn('external_events load error:', error);
+    return FEATURED_EVENTS.filter(event => isUpcoming(event, new Date()));
   }
 }
