@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
-  Search, X, Film, MapPin, Ticket, Clapperboard, Clock, ExternalLink, CalendarDays,
+  Search, X, Film, MapPin, Ticket, Clapperboard, Clock, ExternalLink, CalendarDays, Check, ChevronDown,
 } from 'lucide-react';
 import { CinemaMovie, CinemaShowtime } from '../types.ts';
 import { distanceKm, LatLng } from '../lib/geo.ts';
 import { AREAS, areaOf, providerOf, titleKey, PROVIDERS } from '../lib/cinemaProviders.ts';
+import { LOCAL_POSTERS } from '../lib/localPosters.ts';
 
 interface CinemaExplorerProps {
   movies: CinemaMovie[];
@@ -59,6 +60,7 @@ interface MovieGroup {
   key: string;
   title: string;
   img: string;
+  fallbackImg?: string;
   synopsis?: string;
   genre?: string;
   rating?: string;
@@ -106,7 +108,8 @@ function buildGroups(movies: CinemaMovie[]): MovieGroup[] {
 
     groups.push({
       key, title,
-      img: (first('img') as string) || '',
+      img: (first('img') as string) || LOCAL_POSTERS[key] || '',
+      fallbackImg: LOCAL_POSTERS[key],
       synopsis: first('synopsis'),
       genre: first('genre'),
       rating: first('rating'),
@@ -127,9 +130,19 @@ function buildGroups(movies: CinemaMovie[]): MovieGroup[] {
 }
 
 // ───────────────────────── small UI pieces ─────────────────────────
-const Poster: React.FC<{ src: string; alt: string; className?: string }> = ({ src, alt, className = '' }) => {
+const Poster: React.FC<{ src: string; alt: string; className?: string; fallbackSrc?: string }> = ({ src, alt, className = '', fallbackSrc }) => {
   const [failed, setFailed] = useState(false);
-  useEffect(() => setFailed(false), [src]);
+  const [fallbackFailed, setFallbackFailed] = useState(false);
+  useEffect(() => { setFailed(false); setFallbackFailed(false); }, [src, fallbackSrc]);
+  if (fallbackSrc && fallbackSrc !== src && (!src || failed) && !fallbackFailed) {
+    return (
+      <img
+        src={fallbackSrc} alt={alt} loading="lazy"
+        onError={() => setFallbackFailed(true)}
+        className={`object-cover bg-slate-200 dark:bg-slate-800 ${className}`}
+      />
+    );
+  }
   if (!src || failed) {
     return (
       <div className={`flex items-center justify-center bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-800 dark:to-slate-900 ${className}`}>
@@ -219,7 +232,7 @@ const MovieSheet: React.FC<SheetProps> = ({ group, onClose, onBook }) => {
         <div className="px-4 pb-6 space-y-5">
           {/* hero */}
           <div className="flex gap-3.5">
-            <Poster src={group.img} alt={group.title} className="w-28 h-40 rounded-2xl shrink-0 shadow-md" />
+            <Poster src={group.img} alt={group.title} fallbackSrc={group.fallbackImg} className="w-28 h-40 rounded-2xl shrink-0 shadow-md" />
             <div className="min-w-0 flex-1 space-y-2">
               <h3 className="font-black text-lg leading-tight text-slate-900 dark:text-slate-50">{group.title}</h3>
               <div className="flex flex-wrap gap-1.5">
@@ -395,6 +408,67 @@ export const CinemaMovieSheet: React.FC<CinemaMovieSheetProps> = ({ movie, allMo
   return <MovieSheet key={group.key} group={group} onClose={onClose} onBook={book} />;
 };
 
+// ───────────────────────── dropdown ─────────────────────────
+interface DropdownOption { id: string; label: string; hint?: string }
+
+const FilterDropdown: React.FC<{
+  icon: React.ReactNode; value: string; options: DropdownOption[]; onChange: (id: string) => void;
+  ariaLabel: string; align?: 'left' | 'right'; className?: string;
+}> = ({ icon, value, options, onChange, ariaLabel, align = 'left', className = '' }) => {
+  const [open, setOpen] = useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: Event) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('pointerdown', close);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', esc); };
+  }, [open]);
+
+  const current = options.find(o => o.id === value) || options[0];
+  const active = value !== options[0].id;
+  return (
+    <div ref={ref} className={`relative ${className}`}>
+      <button
+        type="button" aria-label={ariaLabel} aria-haspopup="listbox" aria-expanded={open}
+        onClick={() => setOpen(v => !v)}
+        className={`w-full h-11 rounded-2xl border px-3.5 flex items-center gap-2 text-[13px] font-extrabold text-left transition active:scale-[0.99] cursor-pointer ${
+          open ? 'border-[#2D6A4F] ring-2 ring-[#2D6A4F]/15 bg-white dark:bg-[#1C1A1E]'
+          : active ? 'border-[#2D6A4F]/40 bg-[#2D6A4F]/[0.07] text-[#2D6A4F]'
+          : 'border-slate-200 dark:border-slate-800 bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-100'}`}
+      >
+        <span className={`shrink-0 ${active || open ? 'text-[#2D6A4F]' : 'text-slate-400'}`}>{icon}</span>
+        <span className="flex-1 min-w-0 truncate">{current.label}</span>
+        <ChevronDown className={`w-4 h-4 shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div
+          role="listbox"
+          className={`absolute top-full mt-2 z-30 min-w-[210px] w-full max-h-72 overflow-y-auto rounded-2xl bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-white/10 shadow-xl shadow-black/10 p-1.5 animate-in fade-in slide-in-from-top-1 duration-150 ${align === 'right' ? 'right-0' : 'left-0'}`}
+        >
+          {options.map(o => {
+            const on = o.id === value;
+            return (
+              <button
+                key={o.id} type="button" role="option" aria-selected={on}
+                onClick={() => { onChange(o.id); setOpen(false); }}
+                className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-left transition cursor-pointer ${on ? 'bg-[#2D6A4F]/10' : 'hover:bg-slate-50 dark:hover:bg-white/[0.05]'}`}
+              >
+                <span className="min-w-0">
+                  <span className={`block text-[13px] font-extrabold truncate ${on ? 'text-[#2D6A4F]' : 'text-slate-800 dark:text-slate-100'}`}>{o.label}</span>
+                  {o.hint && <span className="block text-[11px] text-slate-400">{o.hint}</span>}
+                </span>
+                {on && <Check className="w-4 h-4 text-[#2D6A4F] shrink-0 stroke-[3]" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ───────────────────────── explorer ─────────────────────────
 export const CinemaExplorer: React.FC<CinemaExplorerProps> = ({ movies, onBookMovie, userCoords = null }) => {
   const [query, setQuery] = useState('');
@@ -415,6 +489,11 @@ export const CinemaExplorer: React.FC<CinemaExplorerProps> = ({ movies, onBookMo
     () => [...new Set(groups.flatMap(g => g.providerIds))].filter(id => id !== 'other'),
     [groups],
   );
+  const formatOptions = useMemo<DropdownOption[]>(() => {
+    const hints: Record<string, string> = { '2D': 'Standard screen', '3D': 'With 3D glasses', IMAX: 'Giant screen' };
+    const present = FORMAT_FILTERS.filter(f => f !== 'All' && groups.some(g => g.formats.includes(f)));
+    return [{ id: 'All', label: 'All formats' }, ...present.map(f => ({ id: f, label: f, hint: hints[f] }))];
+  }, [groups]);
   const areasPresent = useMemo(() => {
     const ids = new Set(groups.flatMap(g => [...g.areaIds]));
     return AREAS.filter(a => ids.has(a.id));
@@ -494,7 +573,6 @@ export const CinemaExplorer: React.FC<CinemaExplorerProps> = ({ movies, onBookMo
       {/* Ticketing provider pills */}
       {providersPresent.length > 0 && (
         <div className="-mx-1 px-1 flex gap-1.5 overflow-x-auto hide-scrollbar pb-1">
-          <button type="button" onClick={() => setSelectedProvider('all')} className={chip(selectedProvider === 'all')}>All sites</button>
           {providersPresent.map(id => {
             const p = providerOf(id);
             const on = selectedProvider === id;
@@ -517,26 +595,33 @@ export const CinemaExplorer: React.FC<CinemaExplorerProps> = ({ movies, onBookMo
       </div>
 
       {/* Cinema + format */}
-      <div className="flex items-center gap-2 flex-wrap text-xs">
-        <div className="flex items-center gap-1.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5">
-          <MapPin className="w-3.5 h-3.5 text-[#2D6A4F]" />
-          <select value={selectedArea} onChange={e => setSelectedArea(e.target.value)}
-            className="bg-transparent font-bold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer max-w-[150px]">
-            <option value="all" className="bg-white dark:bg-[#1C1A1E]">All Cinemas</option>
-            {areasPresent.map(a => <option key={a.id} value={a.id} className="bg-white dark:bg-[#1C1A1E]">{a.label}</option>)}
-          </select>
-        </div>
-        <div className="flex items-center gap-1.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5">
-          <Clapperboard className="w-3.5 h-3.5 text-slate-400" />
-          <select value={selectedFormat} onChange={e => setSelectedFormat(e.target.value)}
-            className="bg-transparent font-bold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer">
-            {FORMAT_FILTERS.map(f => <option key={f} value={f} className="bg-white dark:bg-[#1C1A1E]">{f === 'All' ? 'All Formats' : f}</option>)}
-          </select>
+      <div className="relative z-20 space-y-2">
+        <div className={`grid gap-2 ${formatOptions.length > 1 ? 'grid-cols-[minmax(0,1fr)_auto]' : 'grid-cols-1'}`}>
+          <FilterDropdown
+            ariaLabel="Filter by cinema"
+            icon={<MapPin className="w-4 h-4" />}
+            value={selectedArea}
+            onChange={setSelectedArea}
+            options={[{ id: 'all', label: 'All cinemas' }, ...areasPresent.map(a => ({ id: a.id, label: a.label }))]}
+          />
+          {formatOptions.length > 1 && (
+            <FilterDropdown
+              ariaLabel="Filter by format"
+              icon={<Clapperboard className="w-4 h-4" />}
+              value={selectedFormat}
+              onChange={setSelectedFormat}
+              options={formatOptions}
+              align="right"
+              className="min-w-[132px]"
+            />
+          )}
         </div>
         {anyFilter && (
-          <button type="button" onClick={reset} className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer ml-auto">
-            Reset Filters
-          </button>
+          <div className="flex justify-end">
+            <button type="button" onClick={reset} className="text-[12px] font-extrabold text-[#E0533C] cursor-pointer">
+              Reset filters
+            </button>
+          </div>
         )}
       </div>
 
@@ -570,7 +655,7 @@ export const CinemaExplorer: React.FC<CinemaExplorerProps> = ({ movies, onBookMo
                 className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 shadow-xs cursor-pointer hover:border-[#2D6A4F] transition flex flex-col justify-between group">
                 <div>
                   <div className="h-44 sm:h-52 rounded-xl mb-2.5 relative overflow-hidden">
-                    <Poster src={g.img} alt={g.title} className="absolute inset-0 w-full h-full" />
+                    <Poster src={g.img} alt={g.title} fallbackSrc={g.fallbackImg} className="absolute inset-0 w-full h-full" />
                     <span className="absolute top-2 left-2 bg-black/75 text-white text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
                       {g.formats.join(' / ')}
                     </span>

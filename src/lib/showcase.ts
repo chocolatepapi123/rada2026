@@ -48,7 +48,10 @@ const isoDay = (offset: number) => {
 // Posters are drawn as inline SVG so they load instantly, offline, on bad venue wifi.
 // To use a real poster for any film, add its slug to POSTER_OVERRIDES (a URL or /public path).
 export const POSTER_OVERRIDES: Record<string, string> = {
-  // 'project-hail-mary': '/posters/project-hail-mary.jpg',
+  'project-hail-mary': '/posters/project-hail-mary.jpg',
+  'toy-story-5': '/posters/toy-story-5.jpg',
+  'moana': '/posters/moana.jpg',
+  'reminders-of-him': '/posters/reminders-of-him.jpg',
 };
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
