@@ -71,6 +71,12 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, max
   return lines;
 }
 
+/** Public host label: the @username, never the real name. */
+const hostTag = (p: { hostHandle?: string; hostName?: string }) => {
+  const h = String(p.hostHandle || '').trim().replace(/^@+/, '');
+  return h ? `@${h}` : 'RADA member';
+};
+
 async function drawCard(canvas: HTMLCanvasElement, plan: OutingPlan, edits: ShareCardEdits) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -148,7 +154,7 @@ async function drawCard(canvas: HTMLCanvasElement, plan: OutingPlan, edits: Shar
   y += panelH + 36;
 
   // host row
-  if (edits.showHost && plan.hostName) {
+  if (edits.showHost && (plan.hostHandle || plan.hostName)) {
     const av = await loadImage(plan.hostAvatar || '');
     ctx.save();
     ctx.beginPath();
@@ -160,7 +166,7 @@ async function drawCard(canvas: HTMLCanvasElement, plan: OutingPlan, edits: Shar
     ctx.restore();
     ctx.fillStyle = t.text;
     ctx.font = `700 36px ${FONT}`;
-    ctx.fillText(`Hosted by ${plan.hostName}`, 150, y + 46);
+    ctx.fillText(`Hosted by ${hostTag(plan)}`, 150, y + 46);
     y += 96;
   }
 
@@ -233,7 +239,7 @@ export const OutingShareCard: React.FC<Props> = ({ plan, tier, link, onClose, on
     []
   );
 
-  const text = `${plan.hostName} is hosting a plan at ${plan.spotTitle} (${plan.date}). Join on RADA:`;
+  const text = `${hostTag(plan)} is hosting a plan at ${plan.spotTitle} (${plan.date}). Join on RADA:`;
 
   const share = async () => {
     setBusy(true);

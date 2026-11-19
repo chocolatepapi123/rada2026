@@ -99,11 +99,6 @@ export const TeamPanel: React.FC<{ businessId: string; businessName?: string; si
       {err && <p className="text-[11px] font-bold text-rose-600">{err}</p>}
       {note && <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">{note}</p>}
 
-      {info && info.seats_limit === 0 && myRole === 'owner' && (
-        <p className="text-[12px] font-semibold text-slate-600 dark:text-slate-300">
-          Team members start on Pro (up to {TEAM_SEATS.pro}) and Elite (up to {TEAM_SEATS.elite}). Upgrade to give your staff their own logins.
-        </p>
-      )}
 
       {info && canManage && info.seats_limit > 0 && (
         <div className="space-y-2">
@@ -118,7 +113,7 @@ export const TeamPanel: React.FC<{ businessId: string; businessName?: string; si
             </button>
           </div>
           <p className="text-[11px] font-semibold text-slate-500">{ROLE_HELP[role]}</p>
-          {full && <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400">All seats are in use. Remove someone or upgrade for more.</p>}
+          {full && <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400">All seats are in use. Remove someone to free up a seat.</p>}
         </div>
       )}
 

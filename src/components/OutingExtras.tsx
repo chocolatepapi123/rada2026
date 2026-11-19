@@ -152,7 +152,7 @@ export const TrialReportCard: React.FC<{ kind: 'creator' | 'merchant' }> = ({ ki
         ))}
       </div>
       <p className="text-[10px] text-slate-400 leading-relaxed">
-        Taps show interest, not confirmed visits. When the trial ends, your account and content stay. Paid tools pause and new actions follow Free limits until you pick a plan. Nothing is charged automatically.
+        Taps show interest, not confirmed visits.
       </p>
     </div>
   );

@@ -111,15 +111,16 @@ export interface OutingLimits {
 }
 
 export const OUTING_LIMITS: Record<PlanId, OutingLimits> = {
-  free: { perMonth: 4, attendees: 10 },
-  pro: { perMonth: 10, attendees: 30 },
+  // Everything is free: no monthly cap and no attendee cap on any plan.
+  free: { perMonth: null, attendees: null },
+  pro: { perMonth: null, attendees: null },
   elite: { perMonth: null, attendees: null },
 };
 
 /** Slider ceiling used in the UI when a plan has no attendee cap. */
 export const UNLIMITED_ATTENDEES_UI_MAX = 100;
 
-export const getOutingLimits = (plan: PlanId): OutingLimits => OUTING_LIMITS[plan] || OUTING_LIMITS.free;
+export const getOutingLimits = (_plan?: PlanId): OutingLimits => OUTING_LIMITS.elite;
 
 export function attendeeCeiling(plan: PlanId): number {
   return getOutingLimits(plan).attendees ?? UNLIMITED_ATTENDEES_UI_MAX;
@@ -171,6 +172,8 @@ export function countOutingsThisMonth(
 export type TierBadgeKind = 'creator' | 'golden_creator' | 'business' | 'golden_featured';
 
 export function tierBadgeFor(kind: SubKind, plan?: PlanId | null): TierBadgeKind | null {
+  // Paid tier badges are switched off: everything is free.
+  if (true) return null;
   if (plan === 'elite') return kind === 'creator' ? 'golden_creator' : 'golden_featured';
   if (plan === 'pro') return kind === 'creator' ? 'creator' : 'business';
   return null;
@@ -280,7 +283,7 @@ export async function fetchMyOutingUsage(): Promise<{ plan: PlanId; used: number
   if (!isSupabaseConfigured) return null;
   const { data, error } = await supabase.rpc('get_my_outing_usage');
   if (error || !data) return null;
-  return { plan: (data.plan as PlanId) || 'free', used: Number(data.used) || 0 };
+  return { plan: 'elite', used: Number(data.used) || 0 };
 }
 
 export function useMySubscriptions(userId?: string | null) {
@@ -318,12 +321,14 @@ export function useMySubscriptions(userId?: string | null) {
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [userId, refresh]);
 
-  const plan = useMemo(
-    () => highestPlan(subs.creator?.effective_plan, subs.merchant?.effective_plan),
-    [subs]
+  // Everything is free: every signed-in person gets full access, whatever the server row says.
+  const open = useMemo<MySubscriptions>(
+    () => (userId ? { creator: createPermanentEliteRecord('creator', userId), merchant: createPermanentEliteRecord('merchant', userId) } : EMPTY),
+    [userId]
   );
+  const plan: PlanId = 'elite';
 
-  return { subs, loading, error, refresh, plan };
+  return { subs: open, loading: false, error: null as string | null, refresh, plan };
 }
 
 // ----- public badges (only the tier is exposed, never dates or status) -----
@@ -337,6 +342,8 @@ const badgeCache = new Map<string, { at: number; tiers: PublicTiers }>();
 const BADGE_TTL_MS = 5 * 60 * 1000;
 
 export async function fetchPublicTiers(userIds: string[]): Promise<Record<string, PublicTiers>> {
+  // No paid tiers any more, so nobody carries a tier badge. Skips the server call.
+  if (true) return {};
   const ids = Array.from(new Set(userIds.filter((id) => id && UUID_RE.test(id))));
   const result: Record<string, PublicTiers> = {};
   const missing: string[] = [];

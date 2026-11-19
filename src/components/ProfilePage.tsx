@@ -495,7 +495,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                   <Briefcase className="w-5 h-5 shrink-0" />
                   <span className="flex-1 min-w-0">
                     <span className="block text-[14px] font-black">{own.isPro ? 'Open Creator Hub' : 'Become a creator'}</span>
-                    <span className="block text-[11px] opacity-90">Outings, analytics, broadcasts, badge and plan</span>
+                    <span className="block text-[11px] opacity-90">Outings, analytics, broadcasts and profile</span>
                   </span>
                   <ChevronRight className="w-4 h-4 shrink-0" />
                 </button>

@@ -27,8 +27,6 @@ import {
 import type { OutingPlan } from '../types';
 import { VerifiedBadge } from './VerifiedBadge';
 import { TierBadge } from './BusinessBadge';
-import { SubscriptionPlans, TrialBanner } from './SubscriptionPlans';
-import PromotionsPanel from './PromotionsPanel';
 import { fetchMyAnalytics, type MyAnalytics } from '../lib/tracking';
 import { fetchBroadcastAudience, sendBroadcast, type BroadcastAudience } from '../lib/broadcasts';
 import {
@@ -50,7 +48,7 @@ import {
 } from '../lib/subscriptions';
 import { ProfessionalSwitchCard, type OwnProfile } from './ProfileSettingsKit';
 
-type HubTab = 'overview' | 'outings' | 'analytics' | 'audience' | 'profile' | 'plan';
+type HubTab = 'overview' | 'outings' | 'analytics' | 'audience' | 'profile';
 
 interface CreatorHubTabProps {
   own: OwnProfile;
@@ -184,7 +182,7 @@ const HostVideosCard: React.FC<{ userId?: string; showToast: CreatorHubTabProps[
         )}
       </div>
       {allow.max_count === 0 ? (
-        <p className={`text-[11px] ${subtle}`}>Video uploads come with the Pro and Elite plans.</p>
+        <p className={`text-[11px] ${subtle}`}>Video uploads are not available right now.</p>
       ) : (
         <>
           <p className={`text-[11px] ${subtle}`}>
@@ -289,7 +287,7 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
     0
   );
 
-  const goPlan = () => setTab('plan');
+  const goPlan = () => setTab('overview');
 
   // Real tracked numbers for hosts (views, profile views, link taps, RSVPs). Falls back to the old estimates.
   const [ana, setAna] = useState<MyAnalytics | null>(null);
@@ -310,7 +308,6 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
     { id: 'analytics', label: 'Analytics', icon: <BarChart3 className="w-3.5 h-3.5" /> },
     { id: 'audience', label: 'Audience & Promote', icon: <Megaphone className="w-3.5 h-3.5" /> },
     { id: 'profile', label: 'Profile & Badge', icon: <UserCircle2 className="w-3.5 h-3.5" /> },
-    { id: 'plan', label: 'My Plan', icon: <Crown className="w-3.5 h-3.5" /> },
   ];
 
   const activeCls: Record<HubTab, string> = {
@@ -319,7 +316,6 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
     analytics: 'bg-amber-600 text-white',
     audience: 'bg-rose-600 text-white',
     profile: 'bg-slate-900 text-white dark:bg-white dark:text-slate-900',
-    plan: 'bg-gradient-to-r from-amber-400 to-yellow-500 text-amber-950',
   };
 
   const body = (
@@ -342,7 +338,7 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
                   {tierBadge ? <TierBadge badge={tierBadge} size="xs" /> : own.isPro && <VerifiedBadge status="approved" size="xs" />}
                 </div>
                 <p className={`text-[11px] truncate ${subtle}`}>
-                  Creator Hub • {PLAN_META[plan].name} plan{own.handle ? ` • ${own.handle}` : ''}
+                  Creator Hub{own.handle ? ` • ${own.handle}` : ''}
                 </p>
               </div>
             </div>
@@ -379,12 +375,12 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
 
       <div className="max-w-lg mx-auto px-4 py-5 space-y-5 pb-24">
         {/* Not a professional yet: one clear gate for the whole hub */}
-        {!own.isPro && tab !== 'plan' && (
+        {!own.isPro && (
           <div className={`${card} overflow-hidden`}>
             <ProfessionalSwitchCard p={own} />
             <div className="px-4 pb-4 space-y-2">
               <p className={`text-[12px] font-semibold ${subtle}`}>Switch on to unlock this hub</p>
-              {['Host dashboard, outing manager and analytics', 'Creator badge, broadcasts and video uploads on paid plans', 'Featured spots and priority listing controls'].map((t) => (
+              {['Host dashboard, outing manager and analytics', 'Broadcasts, video uploads and profile looks', 'Featured spots and priority listing controls'].map((t) => (
                 <p key={t} className="text-[12px] flex items-start gap-2 text-slate-600 dark:text-slate-300">
                   <Lock className="w-3.5 h-3.5 mt-0.5 shrink-0 text-slate-400" />
                   <span>{t}</span>
@@ -393,8 +389,6 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
             </div>
           </div>
         )}
-
-        {own.isPro && tab !== 'plan' && creatorSub && <TrialBanner record={creatorSub} compact onManage={goPlan} />}
 
         {/* ============ OVERVIEW ============ */}
         {own.isPro && tab === 'overview' && (
@@ -516,7 +510,7 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
                 <span className="w-8 h-8 rounded-full bg-[#E0533C]/10 text-[#E0533C] flex items-center justify-center shrink-0"><Check className="w-4 h-4" /></span>
                 <div>
                   <p className="text-[13px] font-black">Waitlist tools</p>
-                  <p className={`text-[11px] mt-0.5 ${subtle}`}>Custom waitlists are included on your plan, where available in your app version.</p>
+                  <p className={`text-[11px] mt-0.5 ${subtle}`}>Custom waitlists are included, where available in your app version.</p>
                 </div>
               </div>
             ) : (
@@ -531,7 +525,7 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
             <div>
               <h3 className="text-base font-black tracking-tight">Analytics</h3>
               <p className={`text-xs ${subtle}`}>
-                {caps.analytics === 'basic' ? 'Basic view counts on the Free plan.' : caps.analytics === 'profile' ? 'Profile views and link clicks on Pro.' : 'Expanded analytics suite on Elite.'} Figures are estimates from available platform data.
+                Figures are estimates from available platform data.
               </p>
             </div>
 
@@ -592,7 +586,7 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
           <div className="space-y-5">
             <div>
               <h3 className="text-base font-black tracking-tight">Audience & Promote</h3>
-              <p className={`text-xs ${subtle}`}>Reach people who follow you, and boost your outings.</p>
+              <p className={`text-xs ${subtle}`}>Reach people who follow you.</p>
             </div>
 
             {/* Broadcasts */}
@@ -645,7 +639,7 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
               </div>
             ) : (
               <LockedCard title="Broadcasts" need="pro" onUpgrade={goPlan}>
-                Message the people who subscribed to your updates. Pro gets 2 a week, Elite gets 2 a day.
+                Message the people who subscribed to your updates.
               </LockedCard>
             )}
 
@@ -680,22 +674,6 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
               ))}
             </div>
 
-            {/* Paid boosts (info only, from the pricing guide) */}
-            <div className={`${card} p-4`}>
-              <p className="text-[13px] font-black">Paid boosts</p>
-              <p className={`text-[11px] mt-0.5 mb-2 ${subtle}`}>Separate from your plan. Indicative prices in KES; confirm availability and terms at checkout.</p>
-              {[
-                ['Outing boost, weekly', 'KES 200 / week'],
-                ['Outing boost, weekend (Fri to Sun)', 'KES 300'],
-                ['General weekend promotion package', 'KES 500 (Fri to Sun)'],
-              ].map(([n, p]) => (
-                <div key={n} className="flex items-center justify-between py-2 border-t border-slate-100 dark:border-slate-800/80 text-[12px]">
-                  <span className="font-semibold pr-3">{n}</span>
-                  <span className={`shrink-0 font-bold ${subtle}`}>{p}</span>
-                </div>
-              ))}
-              <p className={`text-[10px] mt-2 ${subtle}`}>Boosts do not guarantee a position, views, RSVPs or attendance.</p>
-            </div>
           </div>
         )}
 
@@ -709,7 +687,8 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
 
             <div className={`${card} p-4 space-y-3`}>
               <div className="flex items-center gap-2">
-                {tierBadge ? <TierBadge badge={tierBadge} size="md" /> : <span className={`text-[12px] ${subtle}`}>No paid badge on the Free plan</span>}
+                <VerifiedBadge status="approved" size="md" />
+                <span className="text-[13px] font-bold">Verified host</span>
               </div>
               <p className={`text-[11px] ${subtle}`}>
                 Badges depend on eligibility and are not a guarantee of quality or safety.
@@ -719,8 +698,8 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
             <div className={`${card} divide-y divide-slate-100 dark:divide-slate-800/80`}>
               {[
                 ['Profile look', caps.personalization, <Sparkles key="p" className="w-4 h-4" />, true],
-                ['Photo uploads', 'Included on every plan', <ImageIcon key="i" className="w-4 h-4" />, true],
-                ['Video uploads', caps.video ? 'Included on your plan' : 'Pro and Elite', <Video key="v" className="w-4 h-4" />, caps.video],
+                ['Photo uploads', 'Included', <ImageIcon key="i" className="w-4 h-4" />, true],
+                ['Video uploads', 'Included', <Video key="v" className="w-4 h-4" />, caps.video],
                 ['Share your profile', own.handle || 'Set a username first', <Share2 key="s" className="w-4 h-4" />, true],
               ].map(([t, sub, icon, on]) => (
                 <div key={t as string} className="p-3.5 flex items-center gap-3">
@@ -734,37 +713,9 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
               ))}
             </div>
             <HostVideosCard userId={userId} showToast={showToast} />
-            {plan !== 'elite' && (
-              <button type="button" onClick={goPlan} className="text-[12px] font-black text-[#E0533C] dark:text-[#D17A68] cursor-pointer">
-                {plan === 'free' ? 'Get the Creator badge and video uploads. See plans' : 'Upgrade to the Golden Creator badge. See plans'}
-              </button>
-            )}
           </div>
         )}
 
-        {/* ============ MY PLAN ============ */}
-        {tab === 'plan' && (
-          <div className="pb-8">
-            <SubscriptionPlans
-              kind="creator"
-              record={creatorSub}
-              loading={mySubs.loading}
-              error={mySubs.error}
-              onRefresh={mySubs.refresh}
-              signedIn={Boolean(userId)}
-              onOpenAuth={onOpenAuth}
-              accountLabel={own.displayName || 'your account'}
-            />
-            {mine.length > 0 && (
-              <div className="mt-6">
-                <PromotionsPanel
-                  audience="creator"
-                  targets={mine.map((o) => ({ type: 'outing' as const, id: String(o.id), title: `${o.spotTitle || 'Outing'} · ${o.date}` }))}
-                />
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

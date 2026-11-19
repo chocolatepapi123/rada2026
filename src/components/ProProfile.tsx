@@ -6,7 +6,7 @@ import { VerifiedBadge } from './VerifiedBadge';
 /**
  * Professional profile card + full profile page.
  * Used for host/creator accounts (UserProfileModal) and for businesses (Merchant Hub).
- * Viewing is open to every professional account; EDITING is only for the Pro and Elite plans.
+ * Viewing is open to every professional account; editing is open to everyone.
  */
 
 export const NAME_LIMIT = 40;
@@ -63,19 +63,9 @@ export const ProProfileCard: React.FC<CardProps> = ({ kind, name, subtitle, avat
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <p className="text-[15px] font-black truncate text-slate-900 dark:text-white">{name || (kind === 'business' ? 'Your business' : 'Your name')}</p>
-            <VerifiedBadge status="approved" size="sm" golden={plan === 'elite'} />
+            <VerifiedBadge status="approved" size="sm"  />
           </div>
           {subtitle && <p className="text-[12px] font-semibold text-slate-500 dark:text-slate-400 truncate">{subtitle}</p>}
-          <span
-            className={`mt-1 inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full ${
-              editable
-                ? 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300'
-                : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
-            }`}
-          >
-            {editable ? <Crown className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
-            {editable ? planLabel(plan) : 'Pro & Elite'}
-          </span>
         </div>
         <ChevronRight className="w-5 h-5 text-slate-300 shrink-0" />
       </div>
@@ -83,7 +73,7 @@ export const ProProfileCard: React.FC<CardProps> = ({ kind, name, subtitle, avat
       {bio ? (
         <p className="mt-3 text-[12.5px] leading-relaxed text-slate-600 dark:text-slate-300 line-clamp-2">{bio}</p>
       ) : (
-        <p className="mt-3 text-[12.5px] text-slate-400">{editable ? 'Add a bio so people know who you are.' : 'Upgrade to Pro or Elite to edit your profile.'}</p>
+        <p className="mt-3 text-[12.5px] text-slate-400">{editable ? 'Add a bio so people know who you are.' : 'Add a bio so people know who you are.'}</p>
       )}
 
       {stats.length > 0 && (
@@ -231,26 +221,11 @@ export const ProProfilePage: React.FC<PageProps> = ({
           )}
           <div className="mt-3 flex items-center gap-1.5">
             <h2 className="text-xl font-black tracking-tight">{name || (kind === 'business' ? 'Your business' : 'Your name')}</h2>
-            <VerifiedBadge status="approved" size="md" golden={plan === 'elite'} />
+            <VerifiedBadge status="approved" size="md"  />
           </div>
           {subtitle && <p className="text-[13px] font-semibold text-slate-500">{subtitle}</p>}
         </div>
 
-        {!planAllows && (
-          <div className="rounded-3xl p-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 space-y-2">
-            <p className="flex items-center gap-2 text-[13px] font-black text-amber-900 dark:text-amber-200">
-              <Lock className="w-4 h-4" /> Editing your profile is on Pro and Elite
-            </p>
-            <p className="text-[12px] font-semibold text-amber-900/80 dark:text-amber-200/80">
-              Upgrade to change your {kind === 'business' ? 'business name' : 'display name'} and bio, and to manage your profile page.
-            </p>
-            {onUpgrade && (
-              <button type="button" onClick={onUpgrade} className="px-4 py-2 rounded-xl bg-[#E0533C] text-white text-[12px] font-black cursor-pointer">
-                See plans
-              </button>
-            )}
-          </div>
-        )}
 
         {planAllows && !allowEdit && (
           <p className="rounded-2xl px-4 py-3 bg-slate-100 dark:bg-slate-800/60 text-[12px] font-semibold text-slate-600 dark:text-slate-300">

@@ -287,6 +287,14 @@ function matchOutingLocation(plan: OutingPlan, selectedLocation: string, spot?: 
 // Old labels from the removed open / singles split; never shown or saved
 const GENERIC_PLAN_TAGS = ['All Plans', 'Group Hangouts', 'Singles Only', 'Open Plan'];
 
+/** Public host label: always the @username, never the real name. */
+const hostLabel = (p: { hostHandle?: string; hostName?: string }): string => {
+  const h = String(p.hostHandle || '').trim().replace(/^@+/, '');
+  if (h) return `@${h}`;
+  const n = String(p.hostName || '').trim();
+  return n.startsWith('@') ? n : 'RADA member';
+};
+
 interface OutingsTabProps {
   outings: OutingPlan[];
   spots: SpotItem[];
@@ -374,7 +382,6 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
     }
   };
   const [isHostModalOpen, setIsHostModalOpen] = useState(false);
-  const [upgradePrompt, setUpgradePrompt] = useState<{ kind: 'outing_limit' | 'attendee_cap'; message: string } | null>(null);
   const [selectedOutingDetail, setSelectedOutingDetail] = useState<OutingPlan | null>(null);
   // Host analytics: one view per outing and one profile view per host, per session.
   useEffect(() => {
@@ -422,7 +429,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
     const link = buildOutingLink(plan);
     shareContent({
       title: `RADA Outing: ${plan.spotTitle}`,
-      text: `${plan.hostName} is hosting a plan at ${plan.spotTitle} (${plan.date}). Join on RADA:`,
+      text: `${hostLabel(plan)} is hosting a plan at ${plan.spotTitle} (${plan.date}). Join on RADA:`,
       url: link,
       onSuccess: showToast,
       onError: async () => {
@@ -535,7 +542,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   const [planTime, setPlanTime] = useState('18:00');
   const [maxAttendees, setMaxAttendees] = useState(6);
 
-  // ---- Plan limits: Free 4 / Pro 10 / Elite unlimited outings a month; attendees 10 / 30 / unlimited ----
+  // ---- No plan limits: everything is free ----
   const { plan: myPlan } = useMySubscriptions(currentUserId);
   const [serverOutingsUsed, setServerOutingsUsed] = useState(0);
   useEffect(() => {
@@ -559,7 +566,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   useEffect(() => {
     setMaxAttendees((prev) => clampAttendees(myPlan, prev));
   }, [myPlan]);
-  const outingLimitMessage = `You've used all ${quota.limit} outings for this month on the ${PLAN_META[myPlan].name} plan. Upgrade in Account & Security to host more.`;
+  const outingLimitMessage = 'You cannot create another outing right now.';
   const accessType = 'open' as const; // every plan is open
   const [description, setDescription] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -678,7 +685,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   // Check user attendee status for a plan
   const getAttendeeStatus = (plan: OutingPlan): 'host' | 'joined' | 'pending' | 'awaiting' | 'none' => {
     const effectiveUserId = currentUserId || currentUserProfile.handle || 'current-user';
-    if (plan.hostId === effectiveUserId || plan.hostName === currentUserProfile.name) {
+    if (plan.hostId === effectiveUserId || (!!currentUserProfile.handle && plan.hostHandle === currentUserProfile.handle)) {
       return 'host';
     }
     const myAttendee = plan.attendees?.find(a => 
@@ -757,7 +764,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       id: `att-${Date.now()}`,
       outingId: plan.id,
       userId: currentUserId || `usr-${Date.now()}`,
-      userName: currentUserProfile.name || 'Explorer',
+      userName: currentUserProfile.handle || 'Explorer',
       userAvatar: currentUserProfile.avatar || '',
       userHandle: currentUserProfile.handle || '@explorer',
       status: 'pending',
@@ -783,7 +790,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
     }
 
     if (quota.attendeeCap !== null && Number(maxAttendees) > quota.attendeeCap) {
-      showToast(`The ${PLAN_META[myPlan].name} plan allows up to ${quota.attendeeCap} attendees per outing.`);
+      showToast(`Outings can have up to ${quota.attendeeCap} attendees.`);
       return;
     }
 
@@ -823,7 +830,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       const newPlan: OutingPlan = {
         id: `out-${Date.now()}`,
         hostId: currentUserId || `host-${Date.now()}`,
-        hostName: currentUserProfile.name || 'RADA member',
+        hostName: currentUserProfile.handle || 'RADA member',
         hostAvatar: currentUserProfile.avatar || '',
         hostHandle: currentUserProfile.handle || '@host',
         isHostVerified: currentUserProfile.is_verified === true, // RADA-approved only; the database re-checks this on save
@@ -853,12 +860,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       setCustomSpotImage('');
       setVenueMode('catalog');
     } catch (err: any) {
-      if (err?.kind === 'outing_limit' || err?.kind === 'attendee_cap') {
-        // The server said no because of the plan: explain it and offer the upgrade instead of an error toast
-        setUpgradePrompt({ kind: err.kind, message: String(err.message || '') });
-      } else {
-        showToast(err?.message || 'Could not publish outing plan');
-      }
+      showToast(err?.message || 'Could not publish outing plan');
     } finally {
       setIsSubmitting(false);
     }
@@ -881,23 +883,6 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
             <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
               Got a plan? Host it and let the community join.
             </p>
-            {isUserSignedIn && !isDemoMode() && (
-              <div className="mt-3.5 space-y-2">
-                <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
-                  {quota.limit === null
-                    ? `Unlimited outings · ${PLAN_META[myPlan].name} plan`
-                    : `${quota.used} of ${quota.limit} outings used this month · ${PLAN_META[myPlan].name} plan`}
-                </p>
-                {quota.limit !== null && (
-                  <div className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden" aria-hidden="true">
-                    <div
-                      className={`h-full rounded-full ${quota.allowed ? 'bg-[#E0533C]' : 'bg-red-500'}`}
-                      style={{ width: `${Math.min(100, Math.round((quota.used / quota.limit) * 100))}%` }}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
           </div>
 
           <button
@@ -1088,7 +1073,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                     <div className="min-w-0">
                       <div className="flex items-center gap-1">
                         <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">
-                          {plan.hostName}
+                          {hostLabel(plan)}
                         </span>
                         <HostBadge hostId={plan.hostId} verified={!!plan.isHostVerified} size="sm" />
                         <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] uppercase tracking-wider shrink-0 ml-1">
@@ -1558,7 +1543,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                     <div className="flex items-baseline justify-between">
                       <span className="text-[13px] font-extrabold">
                         Max attendees
-                        <span className="ml-1.5 text-[11px] font-semibold text-slate-400">up to {quota.attendeeCap ?? 'any'}</span>
+                        
                       </span>
                       <span className="text-[22px] font-black text-[#E0533C] leading-none">{maxAttendees}</span>
                     </div>
@@ -1708,7 +1693,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                     <div className="w-11 h-11 rounded-full bg-cover bg-center border-2 border-white dark:border-[#1C1A1E] shadow-sm shrink-0" style={{ backgroundImage: `url('${optimizedUrl(plan.hostAvatar || '', 96)}')` }} />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-extrabold text-[14px] truncate">{plan.hostName}</span>
+                        <span className="font-extrabold text-[14px] truncate">{hostLabel(plan)}</span>
                         <HostBadge hostId={plan.hostId} verified={!!plan.isHostVerified} size="sm" />
                       </div>
                       <span className="text-[12px] text-slate-500 dark:text-slate-400 truncate block">Host {plan.hostHandle ? `· ${plan.hostHandle}` : ''}</span>
@@ -1735,7 +1720,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                   <div className="flex flex-wrap gap-2">
                     <span className="inline-flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-[#E0533C]/10 text-[12px] font-bold">
                       <img loading="lazy" decoding="async" src={plan.hostAvatar} alt="" className="w-6 h-6 rounded-full object-cover" />
-                      <span className="truncate max-w-[110px]">{plan.hostName}</span>
+                      <span className="truncate max-w-[110px]">{hostLabel(plan)}</span>
                       <span className="text-[9px] font-black text-[#E0533C] uppercase">Host</span>
                     </span>
                     {joined.map((att) => (
@@ -2034,7 +2019,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                           />
                           <div>
                             <div className="flex items-center gap-1">
-                              <span className="font-extrabold text-xs">{activeManagingOuting.hostName}</span>
+                              <span className="font-extrabold text-xs">{hostLabel(activeManagingOuting)}</span>
                               <HostBadge hostId={activeManagingOuting.hostId} verified={!!activeManagingOuting.isHostVerified} size="xs" />
                             </div>
                             <span className="text-[9px] text-[#E0533C] font-black uppercase">Host & Organizer</span>
@@ -2135,47 +2120,6 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
         />
       )}
 
-      {upgradePrompt && (() => {
-        const onPro = /\bpro\b/i.test(upgradePrompt.message);
-        const next = onPro ? 'Elite' : 'Pro';
-        const isCap = upgradePrompt.kind === 'attendee_cap';
-        return (
-          <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" role="dialog" aria-modal="true">
-            <div className="w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl bg-white dark:bg-[#1C1A1E] p-6 space-y-4 shadow-xl">
-              <p className="text-[11px] font-extrabold uppercase tracking-wider text-[#E0533C]">Plan limit reached</p>
-              <h3 className="text-lg font-black tracking-tight">
-                {isCap ? 'That is more guests than your plan allows' : 'You have used all your outings this month'}
-              </h3>
-              <p className="text-[13px] text-slate-600 dark:text-slate-300 leading-relaxed">
-                {isCap
-                  ? 'Pick a smaller group size, or move up a plan to host bigger outings.'
-                  : 'Your count resets at the start of next month, or you can move up a plan to host more now.'}
-              </p>
-              <p className="text-[12px] text-slate-500 leading-relaxed">
-                Free: 4 outings a month, up to 10 guests. Pro: 10 outings, up to 30 guests. Elite: unlimited.
-              </p>
-              <div className="flex gap-2 pt-1">
-                {onOpenPlans && (
-                  <button
-                    type="button"
-                    onClick={() => { setUpgradePrompt(null); setIsHostModalOpen(false); onOpenPlans(); }}
-                    className="flex-1 py-3 rounded-2xl bg-[#E0533C] hover:bg-orange-700 text-white text-[13px] font-black cursor-pointer"
-                  >
-                    See {next} plan
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setUpgradePrompt(null)}
-                  className="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-[13px] font-black cursor-pointer"
-                >
-                  {isCap ? 'Change group size' : 'Not now'}
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
     </section>
   );
 };

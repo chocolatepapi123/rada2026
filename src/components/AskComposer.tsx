@@ -3,15 +3,27 @@ import { Camera, MapPin, Clock, X, Video, Image as ImageIcon, RefreshCw, Ticket,
 import { clearDraft, createAsk, loadDraft, newAttemptKey, saveDraft, searchPlans, uploadAskMedia, type PlanHit, type PlanLink } from '../lib/asks.ts';
 
 const INPUT = 'w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.04] px-4 py-3 text-[14px] outline-none focus:border-[#E0533C]';
-const EXAMPLES = ['Going to a show, need someone to go with', 'Looking for company at a nyama choma spot', 'New in town, want to explore'];
+
+const norm = (v: unknown) => String(v ?? '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+/** Searches the spots and events already loaded in the app, so linking works even when the server search is empty. */
+function searchLocalPlans(q: string, spots: any[], events: any[]): PlanHit[] {
+  const words = norm(q).split(' ').filter(Boolean);
+  if (!words.length) return [];
+  const match = (...parts: unknown[]) => { const hay = norm(parts.join(' ')); return words.every((w) => hay.includes(w)); };
+  const out: PlanHit[] = [];
+  for (const s of spots) if (s?.title && match(s.title, s.neighborhood, s.address, s.category)) out.push({ kind: 'spot', ref: String(s.id), title: String(s.title), subtitle: s.neighborhood || s.address || null });
+  for (const e of events) if (e?.title && match(e.title, e.location, e.address)) out.push({ kind: 'event', ref: String(e.id), title: String(e.title), subtitle: [e.date, e.location].filter(Boolean).join(' · ') || null });
+  const starts = (h: PlanHit) => (norm(h.title).startsWith(words[0]) ? 0 : 1);
+  return out.sort((a, b) => starts(a) - starts(b)).slice(0, 8);
+}
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const toLocalInput = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
-interface Props { defaultArea: string; onClose: () => void; onPosted: () => void; showToast: (m: string) => void }
+interface Props { defaultArea: string; onClose: () => void; onPosted: () => void; showToast: (m: string) => void; spots?: any[]; events?: any[] }
 
 /** Full-screen sheet for posting an ask. Poster types the location and picks when it expires. */
-const AskComposer: React.FC<Props> = ({ defaultArea, onClose, onPosted, showToast }) => {
+const AskComposer: React.FC<Props> = ({ defaultArea, onClose, onPosted, showToast, spots = [], events = [] }) => {
   const draft = useRef(loadDraft()).current;
   const [body, setBody] = useState(draft?.body || '');
   const [area, setArea] = useState(draft?.area || defaultArea);
@@ -37,13 +49,14 @@ const AskComposer: React.FC<Props> = ({ defaultArea, onClose, onPosted, showToas
     if (plan || planQ.trim().length < 2) { setPlanHits([]); setPlanBusy(false); return; }
     setPlanBusy(true);
     let off = false;
-    const t = setTimeout(async () => { const h = await searchPlans(planQ); if (!off) { setPlanHits(h); setPlanBusy(false); } }, 300);
+    const t = setTimeout(async () => { const local = searchLocalPlans(planQ, spots, events); let remote: PlanHit[] = []; try { remote = await searchPlans(planQ); } catch { /* local results still work */ } const seen = new Set(local.map((x) => `${x.kind}-${x.ref}`)); const h = [...local, ...remote.filter((x) => !seen.has(`${x.kind}-${x.ref}`))]; if (!off) { setPlanHits(h); setPlanBusy(false); } }, 300);
     return () => { off = true; clearTimeout(t); };
-  }, [planQ, plan]);
+  }, [planQ, plan, spots, events]);
 
   const post = async () => {
     const when = new Date(expires);
     if (Number.isNaN(when.getTime())) return showToast('Pick a date and time for this rada to expire.');
+    if (!file) return showToast('Add a photo or video to post your rada.');
     if (busy) return;
     setBusy(true);
     try {
@@ -86,24 +99,21 @@ const AskComposer: React.FC<Props> = ({ defaultArea, onClose, onPosted, showToas
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center">
               <div className="w-16 h-16 rounded-full bg-white dark:bg-[#1C1A1E] shadow-md flex items-center justify-center"><Camera className="w-7 h-7 text-[#E0533C]" /></div>
-              <p className="text-[15px] font-extrabold">Add a photo or video</p>
+              <p className="text-[15px] font-extrabold">Add a photo or video <span className="text-[#E0533C]">*</span></p>
               <div className="flex gap-2">
                 <button onClick={() => pick(photoRef)} className="px-4 py-2.5 rounded-full bg-[#E0533C] text-white text-[13px] font-extrabold inline-flex items-center gap-1.5 cursor-pointer active:scale-95"><ImageIcon className="w-4 h-4" />Photo</button>
                 <button onClick={() => pick(videoRef)} className="px-4 py-2.5 rounded-full bg-white dark:bg-[#1C1A1E] text-[#E0533C] text-[13px] font-extrabold inline-flex items-center gap-1.5 shadow-sm cursor-pointer active:scale-95"><Video className="w-4 h-4" />Video</button>
               </div>
-              <p className="text-[11px] text-slate-500">Videos up to 30 seconds</p>
+              <p className="text-[11px] text-slate-500">Required · Videos up to 30 seconds</p>
             </div>
           )}
         </div>
 
         <div className="space-y-3 mt-4">
           <textarea value={body} onChange={(e) => setBody(e.target.value)} maxLength={160} rows={3} placeholder="What's the plan, and who do you want with you?" className={INPUT} />
-          <div className="flex flex-wrap gap-1.5">
-            {EXAMPLES.map((e) => <button key={e} onClick={() => setBody(e)} className="text-[11px] px-2.5 py-1 rounded-full bg-slate-100 dark:bg-white/[0.06] text-slate-500 cursor-pointer">{e}</button>)}
-          </div>
 
           <div className="block">
-            <span className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 flex items-center gap-1 mb-1"><Ticket className="w-3.5 h-3.5 text-[#E0533C]" />Link an event or spot (optional)</span>
+            <span className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 flex items-center gap-1 mb-1"><Ticket className="w-3.5 h-3.5 text-[#E0533C]" />Link an event or spot</span>
             {plan ? (
               <div className="flex items-center gap-2 rounded-2xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 px-3 py-2.5">
                 <span className="flex-1 min-w-0 text-[13px] font-bold truncate">{plan.kind === 'event' ? 'Event' : 'Spot'}: {plan.title}</span>
@@ -116,7 +126,7 @@ const AskComposer: React.FC<Props> = ({ defaultArea, onClose, onPosted, showToas
               </div>
             )}
             {!plan && planBusy && <p className="text-[11px] text-slate-400 mt-1.5">Searching…</p>}
-            {!plan && !planBusy && planQ.trim().length >= 2 && planHits.length === 0 && <p className="text-[11px] text-slate-400 mt-1.5">Nothing found. You can still post without a link.</p>}
+            {!plan && !planBusy && planQ.trim().length >= 2 && planHits.length === 0 && <p className="text-[11px] text-slate-400 mt-1.5">No matching spot or event. Try a different name.</p>}
             {!plan && planHits.length > 0 && (
               <div className="mt-1.5 rounded-2xl border border-slate-200 dark:border-white/10 overflow-hidden">
                 {planHits.slice(0, 6).map((h) => (
@@ -140,7 +150,7 @@ const AskComposer: React.FC<Props> = ({ defaultArea, onClose, onPosted, showToas
           </label>
 
           <p className="text-[11px] text-slate-400">No phone numbers or links; chat in RADA once someone replies.</p>
-          <button disabled={busy} onClick={post} className="w-full py-3.5 rounded-full bg-[#E0533C] text-white text-[14px] font-extrabold cursor-pointer active:scale-95 disabled:opacity-60">{busy ? 'Posting…' : 'Post to Rada'}</button>
+          <button disabled={busy || !file} onClick={post} className="w-full py-3.5 rounded-full bg-[#E0533C] text-white text-[14px] font-extrabold cursor-pointer active:scale-95 disabled:opacity-60">{busy ? 'Posting…' : !file ? 'Add a photo or video to post' : 'Post to Rada'}</button>
         </div>
       </div>
     </div>

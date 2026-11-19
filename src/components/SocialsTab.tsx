@@ -74,6 +74,9 @@ interface SocialsTabProps {
   showToast: (msg: string, options?: ToastOptions) => void;
   targetChatId?: string | null;
   onClearTargetChatId?: () => void;
+  /** Used by the Rada composer so people can search and link a real spot or event. */
+  spots?: any[];
+  events?: any[];
 }
 
 export const SocialsTab: React.FC<SocialsTabProps> = ({
@@ -92,7 +95,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   onViewUserProfile,
   showToast,
   targetChatId,
-  onClearTargetChatId
+  onClearTargetChatId,
+  spots,
+  events
 }) => {
   const [subtab, setSubtab] = useState<'discover' | 'queue' | 'chats' | 'groups' | 'asks' | 'search'>('asks');
   const [showBillSheet, setShowBillSheet] = useState(false);
@@ -1355,7 +1360,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
 
       {/* CHATS */}
       {subtab === 'asks' && (
-        <AsksSection signedIn={Boolean(myUserId)} showToast={showToast} onChatOpened={(chatId) => { void onRefreshSocials(); setSubtab('chats'); if (isDemoMode() && chatId) setActiveChatId(chatId); }} />
+        <AsksSection signedIn={Boolean(myUserId)} showToast={showToast} spots={spots} events={events} onChatOpened={(chatId) => { void onRefreshSocials(); setSubtab('chats'); if (isDemoMode() && chatId) setActiveChatId(chatId); }} />
       )}
       {subtab === 'groups' && !isDemoMode() && (
         <GroupsSection signedIn={Boolean(myUserId)} showToast={showToast} />

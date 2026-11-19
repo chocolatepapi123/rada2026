@@ -1,15 +1,11 @@
 import { getDemoPersona } from '../lib/demoMode';
 import { demoMerchantInsights } from '../lib/demoPersonas';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Crown as PlanCrownIcon } from 'lucide-react';
 import { useMySubscriptions } from '../lib/subscriptions';
-import { SubscriptionPlans, TrialBanner } from './SubscriptionPlans';
 import { TeamPanel, TeamInvitesCard } from './TeamPanel';
 import { fetchMyTeams, ROLE_LABEL, type MyTeam } from '../lib/team';
 import { ProProfileCard, ProProfilePage } from './ProProfile';
-import PromotionsPanel, { BoostSheet } from './PromotionsPanel';
 import { PROMO_BOOST_PLACEMENTS, offerPromoKey, offerScheduleText, AUDIENCES, DOW_SHORT } from '../lib/promotions';
-import { Rocket } from 'lucide-react';
 import { LegalModal, type LegalDoc } from './LegalModal';
 import { RedeemCodePanel, OfferStatsLine, ReviewReplyBlock } from './RetentionBits';
 import { SPOT_CATEGORIES, resolveSpotCategory } from '../lib/spotCategories';
@@ -3338,8 +3334,8 @@ isSpotFormOpen && (
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60'
               }`}
             >
-              <PlanCrownIcon className="w-3.5 h-3.5" />
-              <span>My Plan</span>
+              <Users className="w-3.5 h-3.5" />
+              <span>Team</span>
             </button>
 
             {/* Spot Merchant Specific Tabs */}
@@ -3399,20 +3395,6 @@ isSpotFormOpen && (
               </>
             )}
 
-            {!adminMode && (
-              <button
-                onClick={() => setActiveSubTab('boost')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
-                  activeSubTab === 'boost'
-                    ? 'bg-[#E0533C] text-white shadow-xs'
-                    : 'text-[#E0533C] bg-[#E0533C]/10 hover:bg-[#E0533C]/15'
-                }`}
-              >
-                <Rocket className="w-3.5 h-3.5" />
-                <span>Boost</span>
-              </button>
-            )}
-
             {/* Independent Offers & Deals tab for ALL merchants */}
             <button
               onClick={() => setActiveSubTab('offers')}
@@ -3440,10 +3422,6 @@ isSpotFormOpen && (
           </div>
         )}
 
-        {/* Trial countdown / plan status (hidden on the plan tab itself) */}
-        {!adminMode && activeSubTab !== 'plan' && merchantSub && (
-          <TrialBanner record={merchantSub} compact onManage={() => setActiveSubTab('plan')} />
-        )}
 
         {/* =========================================================================
             SUB-TAB: OVERVIEW
@@ -3503,8 +3481,7 @@ isSpotFormOpen && (
                       hosted={bizEvents.map((ev) => ({ id: String(ev.id), title: ev.title, meta: [ev.date, ev.time].filter(Boolean).join(' · '), image: ev.img }))}
                       hostedTitle="Events hosted"
                       hostedEmpty="No events hosted yet."
-                      onUpgrade={() => { setProPageOpen(false); setActiveSubTab('plan'); }}
-                      onClose={() => setProPageOpen(false)}
+                                            onClose={() => setProPageOpen(false)}
                     />
                   )}
                 </>
@@ -3992,20 +3969,10 @@ isSpotFormOpen && (
             SUB-TAB: SPOT ANALYTICS & INSIGHTS
             ========================================================================= */}
         {/* =========================================================================
-            SUB-TAB: MY PLAN (merchant subscription)
+            SUB-TAB: TEAM
             ========================================================================= */}
         {activeSubTab === 'plan' && (
           <div className="space-y-6 pb-8 animate-in fade-in duration-150">
-            <SubscriptionPlans
-              kind="merchant"
-              record={merchantSub}
-              loading={mySubs.loading}
-              error={mySubs.error}
-              onRefresh={mySubs.refresh}
-              signedIn={Boolean(isUserSignedIn ?? userId)}
-              onOpenAuth={onOpenAuth}
-              accountLabel={currentBiz.name}
-            />
             {!adminMode && (
               <>
                 <TeamInvitesCard signedIn={Boolean(isUserSignedIn ?? userId)} onChanged={() => { void loadMyTeams(); }} />
@@ -4014,39 +3981,9 @@ isSpotFormOpen && (
                 )}
               </>
             )}
-            {!adminMode && (
-              <button type="button" onClick={() => setActiveSubTab('boost')}
-                className="w-full rounded-3xl p-4 bg-white dark:bg-[#1C1A1E] border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-3 text-left cursor-pointer">
-                <span className="w-10 h-10 rounded-2xl bg-[#E0533C]/10 text-[#E0533C] flex items-center justify-center"><Rocket className="w-5 h-5" /></span>
-                <span className="flex-1">
-                  <span className="block text-[14px] font-black">Boost your promos</span>
-                  <span className="block text-[11px] text-slate-500">Pick a promo to boost, pay with M-Pesa and track it in the Boost tab.</span>
-                </span>
-              </button>
-            )}
           </div>
         )}
 
-        {activeSubTab === 'boost' && !adminMode && (
-          <div className="pb-8 animate-in fade-in duration-150">
-            {ownedBusinesses.length > 0 ? (
-              <PromotionsPanel
-                audience="merchant"
-                noun="promo"
-                placements={PROMO_BOOST_PLACEMENTS}
-                categories={SPOT_CATEGORIES.map((c) => ({ id: c.id, label: c.label }))}
-                targets={promoTargets}
-                emptyTargets={promoTargets.length === 0 ? { text: 'Boosts are for one promo at a time. Create a promo first, then come back to boost it.', actionLabel: 'Create a promo', onAction: () => { setActiveSubTab('offers'); openCreateOfferModal(); } } : undefined}
-              />
-            ) : (
-              <div className="rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1C1A1E] p-6 text-center">
-                <Rocket className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-[13px] font-black">Set up your business first</p>
-                <p className="text-xs text-slate-400 mt-1">Boosts are for verified businesses.</p>
-              </div>
-            )}
-          </div>
-        )}
 
         {activeSubTab === 'analytics' && (
           <div className="space-y-6 animate-in fade-in duration-150">
@@ -4275,18 +4212,6 @@ isSpotFormOpen && (
               </button>
             </div>
 
-            {!adminMode && myOffers.length > 0 && (
-              <button type="button" onClick={() => setBoostFor({})}
-                className="w-full rounded-2xl p-3.5 flex items-center gap-3 text-left text-white cursor-pointer active:scale-[0.99] transition"
-                style={{ background: 'linear-gradient(135deg,#E0533C,#B8402C)' }}>
-                <span className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><Rocket className="w-4 h-4" /></span>
-                <span className="flex-1">
-                  <span className="block text-[13px] font-black">Get a promo seen first</span>
-                  <span className="block text-[11px] text-white/80">Pick one promo and boost it up the Home feed</span>
-                </span>
-                <span className="text-[11px] font-black bg-white text-[#E0533C] px-3 py-1.5 rounded-full">Boost</span>
-              </button>
-            )}
 
             {myOffers.length === 0 ? (
               <div className="text-center py-12 bg-white dark:bg-[#1C1A1E] border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl p-6">
@@ -4346,15 +4271,6 @@ isSpotFormOpen && (
                       </div>
 
                       <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
-                        {!adminMode && (
-                          <button
-                            onClick={() => setBoostFor({ offerId: offer.id, subject: offer.title })}
-                            className="mr-auto px-3 py-1.5 rounded-xl bg-[#E0533C] text-white text-xs font-black flex items-center gap-1 cursor-pointer"
-                          >
-                            <Rocket className="w-3.5 h-3.5" />
-                            <span>Boost</span>
-                          </button>
-                        )}
                         <button
                           onClick={() => openEditOfferModal(offer)}
                           className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-bold flex items-center gap-1 transition"
@@ -4384,35 +4300,6 @@ isSpotFormOpen && (
       {/* =========================================================================
           FULL-SCREEN DEDICATED VIEW: CREATE / EDIT SPOT & MENU
           ========================================================================= */}
-      {boostPrompt && (
-        <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center bg-black/50 animate-in fade-in duration-150" onClick={() => setBoostPrompt(null)}>
-          <div className="w-full sm:max-w-sm rounded-t-[28px] sm:rounded-3xl bg-white dark:bg-[#1C1A1E] p-6 space-y-4 shadow-2xl animate-in slide-in-from-bottom duration-200" onClick={(e) => e.stopPropagation()}>
-            <span className="w-12 h-12 rounded-2xl bg-[#E0533C]/10 text-[#E0533C] flex items-center justify-center"><Rocket className="w-6 h-6" /></span>
-            <div>
-              <p className="text-[17px] font-black tracking-tight">Your promo is live</p>
-              <p className="text-[12px] text-slate-500 mt-1 leading-relaxed">&ldquo;{boostPrompt.title}&rdquo; is on the Home feed. Want more people to see it? Boost this promo up the feed.</p>
-            </div>
-            <div className="space-y-2">
-              <button type="button" onClick={() => { const t = boostPrompt; setBoostPrompt(null); if (t) setBoostFor({ offerId: t.id, subject: t.title }); }}
-                className="w-full py-3.5 rounded-2xl bg-[#E0533C] text-white text-[14px] font-black cursor-pointer">Boost it</button>
-              <button type="button" onClick={() => setBoostPrompt(null)} className="w-full py-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-[13px] font-bold cursor-pointer">Not now</button>
-            </div>
-          </div>
-        </div>
-      )}
-      {boostFor && (
-        <BoostSheet
-          audience="merchant"
-          noun="promo"
-          placements={PROMO_BOOST_PLACEMENTS}
-          subject={boostFor.subject}
-          categories={SPOT_CATEGORIES.map((c) => ({ id: c.id, label: c.label }))}
-          targets={promoTargets}
-          lockedTargetKey={boostFor.offerId ? `listing:${offerPromoKey(boostFor.offerId)}` : undefined}
-          onClose={() => setBoostFor(null)}
-          onViewBoosts={() => setActiveSubTab('boost')}
-        />
-      )}
 
       {spotFormOverlay}
 

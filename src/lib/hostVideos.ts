@@ -59,12 +59,12 @@ export function readVideoSeconds(file: File): Promise<number> {
 
 /** Checks the plan limits in the browser, then uploads. Throws a readable message on any problem. */
 export async function uploadHostVideo(userId: string, file: File, allowance: VideoAllowance): Promise<void> {
-  if (allowance.max_count === 0) throw new Error('Video uploads need the Pro or Elite creator plan.');
+  if (allowance.max_count === 0) throw new Error('Video uploads are not available right now.');
   if (allowance.slots_left <= 0) throw new Error(`You have reached your limit of ${allowance.max_count} videos. Delete one to add another.`);
   if (!['video/mp4', 'video/webm', 'video/quicktime'].includes(file.type)) throw new Error('Use an MP4, WebM or MOV video.');
-  if (file.size > allowance.max_mb * 1024 * 1024) throw new Error(`Videos can be up to ${allowance.max_mb} MB on your plan.`);
+  if (file.size > allowance.max_mb * 1024 * 1024) throw new Error(`Videos can be up to ${allowance.max_mb} MB.`);
   const secs = await readVideoSeconds(file);
-  if (secs > allowance.max_seconds + 0.5) throw new Error(`Videos can be up to ${allowance.max_seconds} seconds on your plan.`);
+  if (secs > allowance.max_seconds + 0.5) throw new Error(`Videos can be up to ${allowance.max_seconds} seconds.`);
   const ext = file.type === 'video/webm' ? 'webm' : file.type === 'video/quicktime' ? 'mov' : 'mp4';
   const path = `${userId}/${Date.now()}.${ext}`;
   const { error } = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type, upsert: false });

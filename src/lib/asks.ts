@@ -68,6 +68,7 @@ export async function fetchAsks(area: string, signal?: AbortSignal): Promise<Ask
   return error ? null : ((data as Ask[]) || []);
 }
 export async function createAsk(body: string, area: string, expiresAt: Date, media?: { url: string; type: 'image' | 'video' } | null, plan?: PlanLink | null, clientKey?: string): Promise<string | null> {
+  if (!media?.url) return 'Add a photo or video to post your rada.';
   if (body.trim().length < 5) return 'Say a little more, at least a few words.';
   if (area.trim().length < 2) return 'Type where this is happening.';
   if (expiresAt.getTime() < Date.now() + 5 * 60000) return 'Pick an expiry at least 5 minutes from now.';

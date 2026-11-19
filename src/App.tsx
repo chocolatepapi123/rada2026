@@ -2878,6 +2878,8 @@ export default function App() {
                 targetChatId={targetChatId}
                 onClearTargetChatId={() => setTargetChatId(null)}
                 showToast={showToast}
+                spots={allMergedSpots}
+                events={allEvents}
               />
             )}
                 </Suspense>

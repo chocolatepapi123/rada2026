@@ -9,7 +9,7 @@ const INPUT = 'w-full rounded-xl border border-slate-200 dark:border-white/10 bg
 const REPORT_REASONS: [string, string][] = [['spam', 'Spam or selling'], ['harassment', 'Harassment'], ['unsafe_meetup', 'Unsafe plan'], ['inappropriate_content', 'Inappropriate photo or video'], ['fake_profile', 'Fake profile']];
 const THRESHOLD = 110;
 
-interface Props { signedIn: boolean; showToast: (m: string) => void; onNeedSignIn?: () => void; onChatOpened?: (chatId: string) => void }
+interface Props { signedIn: boolean; showToast: (m: string) => void; onNeedSignIn?: () => void; onChatOpened?: (chatId: string) => void; spots?: any[]; events?: any[] }
 
 /** One swipeable card. Right = reply, left = pass. */
 const SwipeCard: React.FC<{ ask: Ask; top: boolean; depth: number; onSwipe: (dir: 'left' | 'right') => void; onReport: () => void }> = ({ ask, top, depth, onSwipe, onReport }) => {
@@ -48,6 +48,7 @@ const SwipeCard: React.FC<{ ask: Ask; top: boolean; depth: number; onSwipe: (dir
         <p className="text-[20px] font-extrabold leading-tight">{ask.body}</p>
         <p className="text-[12px] font-bold flex items-center gap-1.5 flex-wrap text-white/90">
           <span>@{ask.handle || 'someone'}</span>
+          {ask.verified && <BadgeCheck className="w-4 h-4 text-green-300" aria-label="Verified" />}
           {ask.trusted && <span className="inline-flex items-center gap-0.5 text-green-300"><ShieldCheck className="w-4 h-4" />Trusted</span>}
         </p>
         <p className="text-[12px] font-semibold text-white/80 flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{ask.area} · {timeLeft(ask.expires_at)}</p>
@@ -56,7 +57,7 @@ const SwipeCard: React.FC<{ ask: Ask; top: boolean; depth: number; onSwipe: (dir
   );
 };
 
-const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onChatOpened }) => {
+const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onChatOpened, spots, events }) => {
   const [area, setArea] = useState(getMyArea());
   const [asks, setAsks] = useState<Ask[] | null>(null);
   const [showArea, setShowArea] = useState(false);
@@ -136,7 +137,7 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
           <button key={id} onClick={() => setView(id)} className={`flex-1 py-1.5 rounded-full cursor-pointer ${view === id ? 'font-extrabold bg-white dark:bg-[#1C1A1E] text-[#E0533C] shadow-sm' : 'font-semibold text-slate-500'}`}>{label}</button>
         ))}
       </div>
-      {composing && <AskComposer defaultArea={area} onClose={() => setComposing(false)} onPosted={() => { setComposing(false); void load(); }} showToast={showToast} />}
+      {composing && <AskComposer defaultArea={area} onClose={() => setComposing(false)} onPosted={() => { setComposing(false); void load(); }} showToast={showToast} spots={spots} events={events} />}
 
       {offline && (
         <div className="flex items-center justify-between gap-2 rounded-2xl bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-200 px-3 py-2 text-[12px] font-semibold">
@@ -179,7 +180,7 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
                 {replies.length === 0 && <p className="text-[12px] text-slate-400">No replies yet.</p>}
                 {replies.map((r) => (
                   <div key={r.id} className="rounded-2xl bg-slate-50 dark:bg-white/[0.04] px-3 py-2 space-y-1.5">
-                    <p className="text-[12px]"><b>@{r.handle || 'someone'}</b> {r.message}</p>
+                    <p className="text-[12px]"><b>@{r.handle || 'someone'}</b>{r.verified && <BadgeCheck className="inline w-3.5 h-3.5 ml-1 text-[#2D6A4F]" />} {r.message}</p>
                     {r.status === 'pending' ? (
                       <div className="flex gap-2">
                         <button onClick={() => accept(r)} className="px-3 py-1.5 rounded-full bg-[#2D6A4F] text-white text-[11px] font-extrabold cursor-pointer">Accept and chat</button>
@@ -195,7 +196,7 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
 
       {replyTo && (
         <div className="fixed inset-0 z-[200] bg-black/60 flex items-end justify-center p-4" onClick={() => setReplyTo(null)}>
-          <div className={`rounded-3xl p-4 w-full max-w-sm space-y-3 ${isDemoMode() ? 'bg-white/95 dark:bg-[#1C1A1E]/95 backdrop-blur-md shadow-2xl' : 'bg-white dark:bg-[#1C1A1E]'}`} onClick={(e) => e.stopPropagation()}>
+          <div className="rounded-3xl p-4 w-full max-w-sm space-y-3 bg-white dark:bg-[#1C1A1E] shadow-2xl border border-slate-200 dark:border-white/10" onClick={(e) => e.stopPropagation()}>
             <p className="font-extrabold">{isDemoMode() ? 'Are you in?' : `Say hi to @${replyTo.handle || 'them'}`}</p>
             <input autoFocus value={msg} onChange={(e) => setMsg(e.target.value)} maxLength={140} placeholder={isDemoMode() ? '' : 'A short line'} className={INPUT} />
             <div className="flex gap-2">
