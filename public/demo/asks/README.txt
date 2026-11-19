@@ -4,3 +4,4 @@ Portrait 4:5 JPG. A missing file just shows the orange-to-green gradient.
 mzinga-kasarani.jpg   ask: "Mzinga iko Kasarani. Nani ako rada?"
 extra-ticket.jpg      ask: "Got an extra ticket for tonight. Who's coming?"
 catch-the-game.jpg    ask: "Looking for people to catch the game with."
+hii-pekee-yangu.jpg   my own ask: "Hii pekee yangu itanimaliza, nani ako free😂"

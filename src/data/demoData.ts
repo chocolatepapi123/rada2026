@@ -99,6 +99,10 @@ export const DEMO_PEOPLE: DemoPerson[] = [
   P('vee', 'vee_ke', 'Valentine Chebet', '', 'Cocktails, comedy nights and spontaneous plans 🍸'),
 ];
 
+/** The user's own Rada Discover post in Demo Mode (used by demoAsks.ts and by the accepted-reply chat below). */
+export const DEMO_MY_ASK_BODY = 'Hii pekee yangu itanimaliza, nani ako free😂';
+export const DEMO_MY_ASK_ACCEPTED_REPLY = 'Niko free bro 😂 Nakuja na chaser na nyama. Ni wapi?';
+
 const byKey = (key: string): DemoPerson => DEMO_PEOPLE.find(p => p.key === key) as DemoPerson;
 export const getDemoPerson = (id: string): DemoPerson | undefined => DEMO_PEOPLE.find(p => p.id === id);
 const handleOf = (p: DemoPerson) => `@${p.username}`;
@@ -251,14 +255,15 @@ export function buildDemoConversations(myId: string, myHandle: string): ChatConv
     ]
   );
 
+  // Planning a date: the invite card at the bottom is waiting for you to accept.
   const dmMwende = makeConv(
     { id: 'demo-dm-mwende', name: handleOf(mwende), avatar: mwende.avatar, type: 'direct', theme: 'sunset' },
     [
-      { who: 'them', text: 'Heyy! So glad we matched 😊 I saw you also love Pallet Cafe!', ago: 3900 },
-      { who: 'me', text: 'Haha yes, their cardamom latte is dangerous ☕', ago: 3890 },
-      { who: 'them', text: 'Okay we have to go. Are you free this week?', ago: 3880 },
+      { who: 'me', text: 'Pallet Cafe this week? Their cardamom latte is dangerous ☕', ago: 3900 },
+      { who: 'them', text: 'Okay we have to go 😍 Are you free this week?', ago: 3890 },
       { who: 'me', text: 'Thursday evening works for me. Let me plan something nice 😄', ago: 1500 },
       { who: 'them', text: "Say less. I'll be there 😄", ago: 1490 },
+      { who: 'them', text: 'Found us a cozy corner there. Sending the invite now 👇', ago: 14 },
       {
         who: 'them',
         text: 'Date Invite: Pallet Cafe Lavington',
@@ -267,6 +272,22 @@ export function buildDemoConversations(myId: string, myHandle: string): ChatConv
       },
     ],
     mwende.id
+  );
+
+  // Chat that opened after you accepted a reply on your Rada Discover post (see demoAsks.ts).
+  const dennis = byKey('dennis');
+  const askChatId = `demo-dm-ask-${dennis.key}`;
+  const dmAskDennis = makeConv(
+    { id: askChatId, name: handleOf(dennis), avatar: dennis.avatar, type: 'direct' },
+    [
+      { who: 'system', text: `Chat opened from your ask: “${DEMO_MY_ASK_BODY}”`, ago: 33 },
+      { who: 'them', text: DEMO_MY_ASK_ACCEPTED_REPLY, ago: 32 },
+      { who: 'me', text: 'Kasarani bro, Mwiki side. Uje na njaa 😂', ago: 28 },
+      { who: 'them', text: 'Sawa! Drop pin, nafika around 7', ago: 25 },
+      { who: 'me', text: 'Pin imefika 📍 Na tuweke FIFA pia', ago: 20 },
+      { who: 'them', text: 'Unajua unataka kuchapwa 😂 See you!', ago: 18 },
+    ],
+    dennis.id
   );
 
   const dmTito = makeConv(
@@ -291,14 +312,49 @@ export function buildDemoConversations(myId: string, myHandle: string): ChatConv
     farida.id
   );
 
-  return [hostingMine, dmMwende, nyama, dmTito, hostingJoined, dmFarida, karura];
+  const derby = makeConv(
+    {
+      id: 'demo-grp-derby',
+      name: 'Weekend Football Watch Party ⚽',
+      avatar: IMG.gaming,
+      type: 'group',
+      members: [me, handleOf(tito), handleOf(dennis), handleOf(byKey('kevo')), handleOf(otis)],
+    },
+    [
+      { who: 'them', by: handleOf(dennis), text: 'Jumamosi derby, nani ana screen kubwa? 📺', ago: 900 },
+      { who: 'them', by: handleOf(byKey('kevo')), text: 'Mimi! FIFA pia iko 🎮', ago: 880 },
+      { who: 'me', text: 'Mi nitaleta vitu za kuchoma 🍖', ago: 860 },
+      { who: 'them', by: handleOf(tito), text: 'Kick-off ni saa kumi na nusu. Msichelewe 😤', ago: 95 },
+      { who: 'them', by: handleOf(otis), text: 'Nitafika na speaker, tutasherehekea ushindi 🔊', ago: 70 },
+    ]
+  );
+
+  const amapiano = makeConv(
+    {
+      id: 'demo-grp-amapiano',
+      name: 'Amapiano Fridays 💃',
+      avatar: IMG.concert,
+      type: 'group',
+      theme: 'sunset',
+      members: [me, handleOf(byKey('njeri')), handleOf(byKey('vee')), handleOf(byKey('amani')), handleOf(farida)],
+    },
+    [
+      { who: 'them', by: handleOf(byKey('njeri')), text: 'New playlist is up. Friday we dance till the lights come on 🎶', ago: 1500 },
+      { who: 'them', by: handleOf(byKey('vee')), text: 'Which club though? Westlands or Kilimani?', ago: 1490 },
+      { who: 'me', text: 'Kilimani. Entry is cheaper before 10pm 😄', ago: 1470 },
+      { who: 'them', by: handleOf(byKey('amani')), text: 'I will be the one singing off-key in the corner 🎤', ago: 300 },
+      { who: 'them', by: handleOf(farida), text: 'We love you anyway 😂', ago: 290 },
+    ]
+  );
+
+  return [hostingMine, dmAskDennis, dmMwende, nyama, dmTito, derby, hostingJoined, dmFarida, amapiano, karura];
 }
 
-/** A fresh chat after an accepted request or an instant match. */
+/** A fresh direct chat opened from a profile (no match wording: the match feature is gone). */
 export function buildMatchConversation(person: DemoPerson): ChatConversation {
   return makeConv(
     { id: `demo-dm-${person.key}`, name: handleOf(person), avatar: person.avatar, type: 'direct' },
-    [{ who: 'them', text: `Hey! Glad we matched 😊 ${person.bio.split('.')[0]}. What are you up to this weekend?`, ago: 0 }],
+    [{ who: 'them', text: `Hey 👋 ${person.bio.split('.')[0]}. What are you up to this weekend?`, ago: 0 }],
     person.id
   );
 }

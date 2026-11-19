@@ -8,7 +8,7 @@
  */
 import type { Ask, AskReply, PlanHit } from '../lib/asks.ts';
 import type { ChatConversation, ChatMessage } from '../types.ts';
-import { DEMO_PEOPLE, type DemoPerson } from './demoData.ts';
+import { DEMO_PEOPLE, DEMO_MY_ASK_BODY, DEMO_MY_ASK_ACCEPTED_REPLY, type DemoPerson } from './demoData.ts';
 
 const person = (key: string): DemoPerson => DEMO_PEOPLE.find(p => p.key === key) as DemoPerson;
 const hoursFromNow = (h: number) => new Date(Date.now() + h * 3600000).toISOString();
@@ -41,11 +41,13 @@ const DECK: DeckSpec[] = [
   { n: 3, by: 'dennis', body: 'Looking for people to catch the game with.', area: 'Kilimani', img: 'catch-the-game', hours: 7, replies: 9 },
 ];
 
-const MINE_BODY = 'Sunset hike at Ngong Hills this Saturday. Who’s keen?';
-const MINE_REPLIES: { key: string; msg: string; ago: number }[] = [
-  { key: 'nina', msg: 'I’m in! Been wanting to do Ngong for ages 🙌', ago: 35 },
-  { key: 'lulu', msg: 'What time are we meeting? I can bring snacks 🍫', ago: 22 },
-  { key: 'amani', msg: 'Count me in. Will bring the speaker 🎶', ago: 8 },
+const MINE_BODY = DEMO_MY_ASK_BODY;
+const MINE_IMG = 'hii-pekee-yangu';
+const MINE_REPLIES: { key: string; msg: string; ago: number; status?: AskReply['status'] }[] = [
+  { key: 'dennis', msg: DEMO_MY_ASK_ACCEPTED_REPLY, ago: 35, status: 'accepted' },
+  { key: 'tito', msg: 'Hio Kenya Cane peke yako? Wacha nikusaidie 😂 Niko Kasarani, nakuja sasa hivi', ago: 22 },
+  { key: 'vee', msg: 'Niko free after 6 😄 Nitaleta ice na juice ya nanasi', ago: 12 },
+  { key: 'kevo', msg: 'Niko na FIFA, tunapiga mechi kadhaa 🎮', ago: 6 },
 ];
 
 interface State {
@@ -65,13 +67,14 @@ function buildMine(id: string, body: string, area: string, media: Ask['media_url
   };
 }
 
-function toReply(askId: string, key: string, msg: string, ago: number): AskReply {
+function toReply(askId: string, key: string, msg: string, ago: number, status: AskReply['status'] = 'pending'): AskReply {
   const p = person(key);
-  return { id: `demo-rep-${askId}-${key}`, user_id: p.id, handle: p.username, avatar: p.avatar, verified: true, message: msg, status: 'pending', created_at: minsAgo(ago) };
+  return { id: `demo-rep-${askId}-${key}`, user_id: p.id, handle: p.username, avatar: p.avatar, verified: true, message: msg, status, created_at: minsAgo(ago) };
 }
 
 async function init(): Promise<State> {
   const known = await Promise.all(DECK.map(d => photoExists(photo(d.img))));
+  const mineImg = await photoExists(photo(MINE_IMG));
   const asks: Ask[] = DECK.map((d, i) => {
     const p = person(d.by);
     return {
@@ -82,11 +85,11 @@ async function init(): Promise<State> {
       plan_kind: d.plan?.kind ?? null, plan_ref: d.plan?.ref ?? null, plan_title: d.plan?.title ?? null,
     } as Ask;
   });
-  const mine = buildMine('demo-ask-mine-1', MINE_BODY, 'Ngong Hills', null, null, 72, null, MINE_REPLIES.length);
+  const mine = buildMine('demo-ask-mine-1', MINE_BODY, 'Kasarani', mineImg ? photo(MINE_IMG) : null, mineImg ? 'image' : null, 12, null, MINE_REPLIES.length);
   asks.push(mine);
   return {
     asks,
-    replies: { [mine.id]: MINE_REPLIES.map(r => toReply(mine.id, r.key, r.msg, r.ago)) },
+    replies: { [mine.id]: MINE_REPLIES.map(r => toReply(mine.id, r.key, r.msg, r.ago, r.status)) },
     passed: new Set(), replied: new Set(), myId: 'demo-guest-me',
   };
 }
@@ -114,8 +117,8 @@ export async function demoCreateAsk(body: string, area: string, expiresAt: Date,
   s.asks.unshift(ask);
   // two replies arrive so you can show "accept" right after posting
   s.replies[id] = [
-    toReply(id, 'lulu', 'This sounds fun, count me in 🙌', 3),
-    toReply(id, 'amani', 'I’m keen! What time?', 1),
+    toReply(id, 'lulu', 'Niko keen! Count me in 🙌', 3),
+    toReply(id, 'amani', 'Niko free! What time? 😄', 1),
   ];
 }
 
