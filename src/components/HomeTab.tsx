@@ -83,6 +83,7 @@ import {
   isDateToday 
 } from '../utils/calendarUtils.ts';
 import {
+  EVENT_CATEGORY_FILTERS,
   eventMatchesCategory,
   eventMatchesSearch,
   getEventPriceLabel,
@@ -309,7 +310,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   // Events Streamlined Modal Filters
   const [selectedEventPriceTier, setSelectedEventPriceTier] = useState('all');
   const [selectedEventDateRange, setSelectedEventDateRange] = useState('all');
-  const [selectedEventCategory, setSelectedEventCategory] = useState<'all' | 'nightlife' | 'music' | 'tech' | 'art' | 'sports'>('all');
+  const [selectedEventCategory, setSelectedEventCategory] = useState<string>('all');
   const [showStatusEmojiPicker, setShowStatusEmojiPicker] = useState(false);
 
   // Offers state
@@ -627,7 +628,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   };
 
   // Filter live events with real-time query, vibe, genre, price tier, date, category and Home filters
-  const homeEventCategoryId = selectedEventCategory === 'art' ? 'arts' : selectedEventCategory;
+  const homeEventCategoryId = selectedEventCategory;
   const filteredEvents = useMemo(() => {
     return events.filter(e => {
       if (!isUpcoming(e)) return false;
@@ -1601,14 +1602,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
           {/* Scrollable Event Category Filter Pills */}
           <div className="flex gap-1.5 overflow-x-auto hide-scrollbar pb-1 text-xs">
-            {[
-              { id: 'all' as const, label: 'All Events' },
-              { id: 'nightlife' as const, label: 'Parties & Nightlife' },
-              { id: 'music' as const, label: 'Live Music' },
-              { id: 'tech' as const, label: 'Tech & Gaming' },
-              { id: 'art' as const, label: 'Art & Culture' },
-              { id: 'sports' as const, label: 'Sports & Fitness' }
-            ].map((cat) => (
+            {EVENT_CATEGORY_FILTERS.filter(c => c.id === 'all' || c.id === selectedEventCategory || events.some(e => isUpcoming(e) && eventMatchesCategory(e, c.id))).map((cat) => ({ id: cat.id, label: cat.id === 'all' ? 'All Events' : cat.label })).map((cat) => (
               <button
                 key={cat.id}
                 type="button"
@@ -1630,11 +1624,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               <span className="text-slate-400 font-bold uppercase text-[10px]">Active Filters:</span>
               {selectedEventCategory !== 'all' && (
                 <span className="bg-[#E0533C]/10 text-[#E0533C] px-2.5 py-0.5 rounded-full font-bold">
-                  {selectedEventCategory === 'nightlife' && 'Parties & Nightlife'}
-                  {selectedEventCategory === 'music' && 'Live Music'}
-                  {selectedEventCategory === 'tech' && 'Tech & Gaming'}
-                  {selectedEventCategory === 'art' && 'Art & Culture'}
-                  {selectedEventCategory === 'sports' && 'Sports & Fitness'}
+{EVENT_CATEGORY_FILTERS.find(c => c.id === selectedEventCategory)?.label || selectedEventCategory}
                 </span>
               )}
               {selectedGenre !== 'all' && (
@@ -1826,13 +1816,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
           {/* Mall Location Pills */}
           <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
-            {[
-              { id: 'all', label: 'All Malls' },
-              { id: 'gardencity', label: 'Garden City IMAX' },
-              { id: 'sarit', label: 'Sarit Centre' },
-              { id: 'junction', label: 'Junction Mall' },
-              { id: 'tworivers', label: 'Two Rivers Mall' }
-            ].map((loc) => (
+            {[{ id: 'all', label: 'All Cinemas' }, ...Array.from(cinemaMovies.reduce<Map<string, number>>((acc, m) => { const k = m.location || m.locationName; if (k) acc.set(k, (acc.get(k) || 0) + 1); return acc; }, new Map<string, number>()).entries()).sort((x: [string, number], y: [string, number]) => y[1] - x[1]).map(([k]: [string, number]) => ({ id: k, label: k }))].map((loc) => (
               <button
                 key={loc.id}
                 onClick={() => setSelectedCinemaLoc(loc.id)}

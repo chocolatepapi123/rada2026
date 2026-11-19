@@ -12,7 +12,6 @@ import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspens
 import { getStoredAppColor, storeAppColor, applyAppColor } from './lib/appTheme';
 import { useTabSwipe } from './lib/useTabSwipe';
 import { ClaimUsernamePrompt, hasAutoUsername } from './components/ClaimUsernamePrompt';
-import { IntentPrompt } from './components/IntentPrompt';
 import { useIntents } from './lib/userIntent';
 
 // Claim-username popup is switched off for now. Flip to true to bring it back.
@@ -3383,17 +3382,6 @@ export default function App() {
                 setCurrentUserProfile(prev => ({ ...prev, username, handle: `@${username}` }));
                 setClaimPromptDismissed(true);
                 showToast(`You are now @${username}`);
-              }}
-            />
-          )}
-
-          {session?.user?.id && !isGuestMode && !isAuthModalOpen && intentsLoaded && !userIntents && !intentPromptSkipped && !showSplash && (
-            <IntentPrompt
-              uid={session.user.id}
-              onDone={() => { /* saved by the prompt; the menu updates on its own */ }}
-              onSkip={() => {
-                try { sessionStorage.setItem('rada_intent_prompt_skipped', '1'); } catch { /* ignore */ }
-                setIntentPromptSkipped(true);
               }}
             />
           )}
