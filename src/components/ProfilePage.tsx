@@ -62,7 +62,6 @@ interface ProfilePageProps {
   ticketCount?: number;
   onOpenSaved?: () => void;
   isDarkMode: boolean;
-  onToggleTheme: () => void;
   /** Spots people can link a hangout to. */
   spots?: HangoutSpotOption[];
 }
@@ -97,7 +96,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   ticketCount = 0,
   onOpenSaved,
   isDarkMode,
-  onToggleTheme,
   spots = [],
 }) => {
   const user = session?.user;
@@ -133,11 +131,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const creatorPlan = mySubs.subs.creator?.effective_plan ?? 'free';
   const hostedOutings = outings.filter((o) => user?.id && o.hostId === user.id);
 
-  // ---- Profile look: colour theme + tags. Public (saved in the database) so other people see it too. ----
-  const themeKey = `rada_profile_theme_${user?.id || 'guest'}`;
-  const [themeId, setThemeId] = useState<string>(() => {
-    try { return localStorage.getItem(themeKey) || DEFAULT_THEME; } catch { return DEFAULT_THEME; }
-  });
+  // ---- Profile look: tags. Public (saved in the database) so other people see it too. ----
+  const themeId = DEFAULT_THEME; // profile colour is locked
   const [tags, setTags] = useState<string[]>([]);
   const [savedTags, setSavedTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
@@ -150,7 +145,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     if (!user?.id) return;
     fetchProfileLook(user.id).then((look) => {
       if (off || !look) return;
-      setThemeId(look.theme);
       setTags(look.tags);
       setSavedTags(look.tags);
     });
@@ -161,11 +155,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     const err = await saveMyProfileLook({ theme, tags: nextTags });
     if (err) showToast('Saved on this phone only. Run profile_look.sql in Supabase so others can see it.', { type: 'error' });
     return !err;
-  };
-  const pickTheme = async (id: string) => {
-    setThemeId(id);
-    try { localStorage.setItem(themeKey, id); } catch {}
-    await shareLook(id, savedTags);
   };
   const addTag = () => {
     const t = cleanTag(tagInput);
@@ -550,44 +539,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                       <button type="button" onClick={addTag} disabled={!tagInput.trim()} className="px-4 rounded-xl text-white text-[13px] font-black disabled:opacity-40 cursor-pointer" style={{ background: accent }}>
                         Add
                       </button>
-                    </div>
-                  </div>
-                </Section>
-
-                <Section title="Profile theme" description="Colours your whole profile. Other people see it too.">
-                  <div className="p-4 flex flex-wrap gap-3">
-                    {THEMES.map((t) => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => pickTheme(t.id)}
-                        aria-label={t.name}
-                        title={t.name}
-                        className="w-11 h-11 rounded-full flex items-center justify-center cursor-pointer active:scale-95 transition"
-                        style={{ background: t.color, boxShadow: themeId === t.id ? `0 0 0 3px ${isDarkMode ? '#121113' : '#fff'}, 0 0 0 5px ${t.color}` : 'none' }}
-                      >
-                        {themeId === t.id && <Check className="w-5 h-5 text-white" />}
-                      </button>
-                    ))}
-                  </div>
-                </Section>
-
-                <Section title="App appearance">
-                  <div className="p-4">
-                    <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800">
-                      {[
-                        [false, 'Light', Sun],
-                        [true, 'Dark', Moon],
-                      ].map(([val, label, Icon]: any) => (
-                        <button
-                          key={String(label)}
-                          type="button"
-                          onClick={() => { if (isDarkMode !== val) onToggleTheme(); }}
-                          className={`py-2.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 cursor-pointer transition ${isDarkMode === val ? 'bg-white dark:bg-[#1C1A1E] shadow-sm' : 'text-slate-500'}`}
-                        >
-                          <Icon className="w-4 h-4" /> {label}
-                        </button>
-                      ))}
                     </div>
                   </div>
                 </Section>

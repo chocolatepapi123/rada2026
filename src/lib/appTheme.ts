@@ -3,26 +3,8 @@ import { THEMES } from './profileLook';
 // App colour: a soft colour wash over the app's BACKGROUND only (same wash as the profile theme).
 // It never recolours buttons, icons or text. 'none' = the normal plain white / dark background.
 
-export const APP_COLOR_KEY = 'rada_app_color';
-
-// Default (nothing chosen yet) = Terracotta, the warm peach look. 'none' is stored on purpose when someone picks Off.
+// The app colour is fixed to Terracotta, the warm orange look. There is no picker.
 export const DEFAULT_APP_COLOR = 'terracotta';
-
-export const getStoredAppColor = (): string => {
-  try {
-    const v = localStorage.getItem(APP_COLOR_KEY);
-    if (v === 'none') return 'none';
-    return v && THEMES.some((t) => t.id === v) ? v : DEFAULT_APP_COLOR;
-  } catch {
-    return DEFAULT_APP_COLOR;
-  }
-};
-
-export const storeAppColor = (id: string): void => {
-  try {
-    localStorage.setItem(APP_COLOR_KEY, id);
-  } catch {}
-};
 
 const hexToRgb = (hex: string): [number, number, number] => {
   const h = hex.replace('#', '');

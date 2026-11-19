@@ -711,7 +711,8 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   useEffect(() => {
     let off = false;
     const ids = ticketIdsKey ? ticketIdsKey.split(',') : [];
-    fetchTicketSummaries('outing', ids).then((m) => { if (!off) setTicketInfo(m); });
+    // Only free tickets are shown for now: plans that only have paid tickets show no ticket
+    fetchTicketSummaries('outing', ids).then((m) => { if (!off) setTicketInfo(Object.fromEntries(Object.entries(m).filter(([, v]) => !(v.min_price > 0)))); });
     return () => { off = true; };
   }, [ticketIdsKey]);
 
@@ -1694,7 +1695,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                       <span className="w-8 h-8 rounded-xl bg-[#E0533C]/10 text-[#E0533C] flex items-center justify-center shrink-0"><Ticket className="w-4 h-4" /></span>
                       <span className="min-w-0 text-left">
                         <span className="block text-[13px] font-extrabold leading-tight">{status === 'awaiting' ? `Pay to confirm your spot (${timeLeft(myPayBy(plan))})` : 'Get your ticket'}</span>
-                        <span className="block text-[11px] text-slate-500 dark:text-slate-400">{tInfo.left <= 10 && tInfo.left > 0 ? `Only ${tInfo.left} left` : 'Secure it with M-Pesa'}</span>
+                        <span className="block text-[11px] text-slate-500 dark:text-slate-400">{tInfo.left <= 10 && tInfo.left > 0 ? `Only ${tInfo.left} left` : 'Free ticket'}</span>
                       </span>
                     </span>
                     <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />

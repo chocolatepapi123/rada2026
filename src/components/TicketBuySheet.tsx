@@ -80,9 +80,10 @@ export const TicketBuySheet: React.FC<Props> = ({ kind, source, signedIn, onNeed
                 {view.place && <p className="text-sm text-slate-500 flex items-center gap-1.5 mt-0.5"><MapPin className="w-4 h-4" />{view.place}</p>}
               </div>
 
-              {!view.types.length && <p className="text-sm text-slate-500">No tickets are on sale for this yet.</p>}
+              {/* Paid tickets are hidden for now: only free tickets are shown */}
+              {!view.types.filter((t) => !(t.price_kes > 0)).length && <p className="text-sm text-slate-500">No tickets are on sale for this yet.</p>}
               <div className="space-y-2">
-                {view.types.map((t) => {
+                {view.types.filter((t) => !(t.price_kes > 0)).map((t) => {
                   const off = t.left <= 0 || t.closed || (t.price_kes > 0 && !view.paid_enabled);
                   const on = sel?.id === t.id;
                   return (

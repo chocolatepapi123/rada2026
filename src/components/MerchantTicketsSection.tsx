@@ -44,43 +44,11 @@ export const MerchantTicketsSection: React.FC<Props> = ({ events, onPublishEvent
       {/* Intro */}
       <div className="relative overflow-hidden rounded-3xl p-5 text-white bg-gradient-to-br from-[#E0533C] to-[#EE8A47] shadow-lg shadow-[#E0533C]/25">
         <Ticket className="absolute -right-3 -top-3 w-24 h-24 opacity-15 rotate-12" />
-        <h3 className="text-[18px] font-black tracking-tight">Sell tickets on RADA</h3>
-        <p className="text-[13px] text-white/90 mt-1 max-w-[17rem]">Guests pay by M-Pesa, get a QR ticket instantly, and your share is sent to your phone within minutes.</p>
+        <h3 className="text-[18px] font-black tracking-tight">Free tickets on RADA</h3>
+        <p className="text-[13px] text-white/90 mt-1 max-w-[17rem]">Create free tickets for your events. Guests get a QR ticket instantly and you scan it at the door.</p>
         <button onClick={onPublishEvent} className="mt-4 min-h-[44px] rounded-2xl px-4 bg-white text-[#E0533C] text-[13px] font-extrabold flex items-center gap-2 active:scale-[0.98] transition cursor-pointer">
           <CalendarPlus className="w-4 h-4" /> Publish an event
         </button>
-      </div>
-
-      {allowed === false && (
-        <div className="rounded-3xl bg-amber-50 dark:bg-amber-500/10 p-4 text-[13px] text-amber-900 dark:text-amber-200">
-          <p className="font-extrabold">A Pro or Elite plan is needed to sell tickets.</p>
-          <p className="mt-1 opacity-90">You can still publish events. Start a plan to switch ticket sales on.</p>
-          {onGoToPlan && <button onClick={onGoToPlan} className={`${PRIMARY} mt-3`}>See plans</button>}
-        </div>
-      )}
-
-      {/* Payout number */}
-      <div className={CARD}>
-        <p className="text-[12px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"><Smartphone className="w-3.5 h-3.5" /> Where we send your money</p>
-        {allowed === null ? (
-          <Loader2 className="w-4 h-4 animate-spin text-slate-400 mt-3" />
-        ) : payout && !editing ? (
-          <div className="flex items-center gap-2 mt-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-            <span className="text-[14px] font-bold">M-Pesa +{payout}</span>
-            <button onClick={() => { setEditing(true); setInput(''); }} className="ml-auto text-[12px] font-extrabold text-[#E0533C]">Change</button>
-          </div>
-        ) : (
-          <div className="mt-2 space-y-2">
-            <div className="flex gap-2">
-              <input value={input} onChange={(e) => setInput(e.target.value)} inputMode="tel" placeholder="0712 345 678"
-                className="flex-1 min-w-0 rounded-2xl bg-slate-100 dark:bg-white/[0.07] px-4 py-3 text-[14px] outline-none" />
-              <button onClick={save} disabled={busy} className={PRIMARY}>{busy ? 'Saving…' : 'Save'}</button>
-            </div>
-            {err && <p role="alert" className="text-[12px] text-red-600">{err}</p>}
-            <p className="text-[11px] text-slate-500">Needed before you can sell paid tickets.</p>
-          </div>
-        )}
       </div>
 
       {/* Door check-in */}
@@ -100,7 +68,7 @@ export const MerchantTicketsSection: React.FC<Props> = ({ events, onPublishEvent
           <div className={`${CARD} text-center py-8`}>
             <Ticket className="w-9 h-9 text-slate-300 mx-auto mb-2" />
             <p className="font-extrabold text-[14px]">No events yet</p>
-            <p className="text-[12px] text-slate-500 mt-1">Publish an event, then add ticket types and prices.</p>
+            <p className="text-[12px] text-slate-500 mt-1">Publish an event, then add a free ticket.</p>
           </div>
         )}
         {events.map((evt) => (
@@ -121,9 +89,9 @@ export const MerchantTicketsSection: React.FC<Props> = ({ events, onPublishEvent
       <div className={CARD}>
         <p className="text-[12px] font-extrabold uppercase tracking-wider text-slate-400 mb-2">How it works</p>
         <ol className="space-y-2 text-[13px] text-slate-700 dark:text-slate-300">
-          <li><b>1.</b> Publish an event and tap Tickets to add prices.</li>
-          <li><b>2.</b> Share the link. Guests pay with M-Pesa and get a QR ticket.</li>
-          <li><b>3.</b> Scan tickets at the door. Your share arrives on your phone.</li>
+          <li><b>1.</b> Publish an event and tap Tickets to add a free ticket.</li>
+          <li><b>2.</b> Share the link. Guests claim a free QR ticket.</li>
+          <li><b>3.</b> Scan tickets at the door.</li>
         </ol>
       </div>
 

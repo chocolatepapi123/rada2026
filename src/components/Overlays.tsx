@@ -5,7 +5,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { PlanFromEventSheet } from './PlanFromEventSheet.tsx';
 import { track } from '../lib/tracking';
 import { WeatherChip } from './WeatherChip';
-import { THEMES } from '../lib/profileLook';
 import { SpotDetailSections } from './SpotDetailSections';
 import { useActivePromotions, offerRankMap, offerPromoKey, sortByPromotion } from '../lib/promotions';
 import { searchProfiles, type CloudProfileHit } from '../lib/socialsCloud.ts';
@@ -162,9 +161,6 @@ interface OverlaysProps {
 
   // Theme
   isDarkMode: boolean;
-  onToggleTheme: () => void;
-  appColor?: string;
-  onSetAppColor?: (id: string) => void;
 
   showToast: (msg: string, options?: any) => void;
   selectedLocation?: string;
@@ -233,9 +229,6 @@ export const Overlays: React.FC<OverlaysProps> = ({
   onAddEmergencyContact,
   onDeleteEmergencyContact,
   isDarkMode,
-  onToggleTheme,
-  appColor = 'none',
-  onSetAppColor,
   showToast,
   onOpenSaved,
   onOpenAccountSettings,
@@ -2073,49 +2066,6 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   Preferences & Appearance
                 </span>
                 <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden divide-y divide-slate-200/60 dark:divide-slate-800/80">
-                  <div className="p-3.5 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      {isDarkMode ? <Moon className="w-4 h-4 text-purple-400" /> : <Sun className="w-4 h-4 text-amber-500" />}
-                      <div>
-                        <h4 className="font-bold">Dark Appearance</h4>
-                        <p className="text-[10px] text-slate-400">Toggle between Light and Dark mode</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={onToggleTheme}
-                      className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${isDarkMode ? 'bg-[#E0533C]' : 'bg-slate-300'}`}
-                    >
-                      <div className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${isDarkMode ? 'translate-x-6' : 'translate-x-0'}`} />
-                    </button>
-                  </div>
-
-                  <div className="p-3.5">
-                    <h4 className="font-bold">App Colour</h4>
-                    <p className="text-[10px] text-slate-400 mb-2.5">A soft colour wash behind the app. Buttons and text stay the same.</p>
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={() => onSetAppColor?.('none')}
-                        aria-label="No app colour"
-                        title="None"
-                        className={`w-8 h-8 rounded-full border bg-white dark:bg-[#121113] flex items-center justify-center text-[9px] font-black text-slate-400 cursor-pointer ${appColor === 'none' ? 'ring-2 ring-offset-2 ring-slate-400 ring-offset-[#F8F8F6] dark:ring-offset-[#1C1A1E] border-slate-300' : 'border-slate-300 dark:border-slate-700'}`}
-                      >
-                        Off
-                      </button>
-                      {THEMES.map((t) => (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => onSetAppColor?.(t.id)}
-                          aria-label={`${t.name} app colour`}
-                          title={t.name}
-                          style={{ backgroundColor: t.color, ...(appColor === t.id ? { boxShadow: `0 0 0 2px ${t.color}` } : {}) }}
-                          className={`w-8 h-8 rounded-full cursor-pointer ${appColor === t.id ? 'ring-2 ring-offset-2 ring-transparent ring-offset-[#F8F8F6] dark:ring-offset-[#1C1A1E]' : ''}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
                   <div className="p-3.5 flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
                       <Bell className="w-4 h-4 text-[#E0533C]" />

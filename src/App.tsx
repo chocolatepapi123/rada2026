@@ -9,7 +9,7 @@ import { rememberSession, forgetAccount } from './lib/accounts';
 import { track } from './lib/tracking';
 import { logPlatformEvent } from './lib/platformAnalytics';
 import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense, memo } from 'react';
-import { getStoredAppColor, storeAppColor, applyAppColor } from './lib/appTheme';
+import { DEFAULT_APP_COLOR, applyAppColor } from './lib/appTheme';
 import { useTabSwipe } from './lib/useTabSwipe';
 import { ClaimUsernamePrompt, hasAutoUsername } from './components/ClaimUsernamePrompt';
 import { useIntents } from './lib/userIntent';
@@ -551,17 +551,9 @@ export default function App() {
 
   
 
-  // Theme State: the app always opens in light mode until the person picks dark with the toggle.
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    try { return localStorage.getItem('rada_theme') === 'dark'; } catch { return false; }
-  });
-
-  // App colour: a background-only colour wash (see src/lib/appTheme.ts). Remembered on this device.
-  const [appColor, setAppColor] = useState<string>(() => getStoredAppColor());
-  const handleSetAppColor = (id: string) => {
-    storeAppColor(id);
-    setAppColor(id);
-  };
+  // Look is fixed: light mode with the orange (terracotta) background wash. No switches.
+  const isDarkMode = false;
+  const appColor = DEFAULT_APP_COLOR;
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDarkMode);
@@ -595,13 +587,6 @@ export default function App() {
     const t = window.setTimeout(() => { import('./components/ProfilePage.tsx').catch(() => {}); }, 1200);
     return () => window.clearTimeout(t);
   }, []);
-
-  const handleToggleTheme = () => {
-    setIsDarkMode(prev => {
-      try { localStorage.setItem('rada_theme', prev ? 'light' : 'dark'); } catch {}
-      return !prev;
-    });
-  };
 
   // Live cinema showings (fetched, cached for 6h; empty when unavailable)
   const [cinemaMovies, setCinemaMovies] = useState<CinemaMovie[]>([]);
@@ -2746,7 +2731,6 @@ export default function App() {
             hasBusinessAccount={Boolean(currentBusiness)}
             businessName={currentBusiness?.name}
             isDarkMode={isDarkMode}
-            onToggleTheme={handleToggleTheme}
             isGuestMode={isGuestMode || !session}
             onOpenAuth={() => {
               setAuthModalMessage('');
@@ -3101,9 +3085,7 @@ export default function App() {
               setEmergencyContacts(prev => prev.filter(c => c.id !== id));
             }}
             isDarkMode={isDarkMode}
-            onToggleTheme={handleToggleTheme}
             appColor={appColor}
-            onSetAppColor={handleSetAppColor}
             showToast={showToast}
             onOpenSaved={() => requireAuth('view saved collections', () => setIsSavedModalOpen(true))}
             onOpenAccountSettings={() => setIsProfilePageOpen(true)}
@@ -3195,8 +3177,7 @@ export default function App() {
               ticketCount={tickets.length}
               onOpenSaved={() => setIsSavedModalOpen(true)}
               isDarkMode={isDarkMode}
-              onToggleTheme={handleToggleTheme}
-              spots={spots.map(s => ({ id: s.id, title: s.title, neighborhood: s.neighborhood }))}
+                spots={spots.map(s => ({ id: s.id, title: s.title, neighborhood: s.neighborhood }))}
             />
           ) : (
             <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex items-center justify-center">

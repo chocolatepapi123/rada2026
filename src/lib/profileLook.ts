@@ -18,8 +18,8 @@ export const DEFAULT_THEME = 'terracotta';
 export const MAX_TAGS = 8;
 export const MAX_TAG_LEN = 20;
 
-export const themeColor = (id?: string | null): string =>
-  (THEMES.find((t) => t.id === id) || THEMES[0]).color;
+// Profile colour is locked to the app orange for everyone (no theme picker).
+export const themeColor = (_id?: string | null): string => THEMES[0].color;
 
 export interface ProfileLook {
   theme: string;
@@ -38,7 +38,7 @@ export async function fetchProfileLook(userId?: string | null): Promise<ProfileL
     const row: any = Array.isArray(data) ? data[0] : data;
     if (!row) return { theme: DEFAULT_THEME, tags: [] };
     return {
-      theme: THEMES.some((t) => t.id === row.profile_theme) ? row.profile_theme : DEFAULT_THEME,
+      theme: DEFAULT_THEME,
       tags: Array.isArray(row.tags) ? row.tags.map(String) : [],
     };
   } catch {
@@ -51,7 +51,7 @@ export async function saveMyProfileLook(look: ProfileLook): Promise<string | nul
   if (!isSupabaseConfigured) return 'Not connected.';
   try {
     const tags = Array.from(new Set(look.tags.map(cleanTag).filter(Boolean))).slice(0, MAX_TAGS);
-    const { error } = await supabase.rpc('set_my_profile_look', { p_theme: look.theme, p_tags: tags });
+    const { error } = await supabase.rpc('set_my_profile_look', { p_theme: DEFAULT_THEME, p_tags: tags });
     return error ? error.message : null;
   } catch (e: any) {
     return e?.message || 'Could not save.';

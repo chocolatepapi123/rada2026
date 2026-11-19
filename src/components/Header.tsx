@@ -48,7 +48,6 @@ interface HeaderProps {
   hasBusinessAccount: boolean;
   businessName?: string;
   isDarkMode: boolean;
-  onToggleTheme: () => void;
   isGuestMode?: boolean;
   onOpenAuth?: () => void;
 
@@ -86,7 +85,6 @@ export const Header: React.FC<HeaderProps> = ({
   hasBusinessAccount,
   businessName,
   isDarkMode,
-  onToggleTheme,
   isGuestMode,
   onOpenAuth,
   onOpenAdmin,
@@ -364,24 +362,6 @@ export const Header: React.FC<HeaderProps> = ({
                         <span className={MENU_TITLE}>App settings</span>
                       </span>
                       <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600 shrink-0" />
-                    </button>
-
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={!!isDarkMode}
-                      onClick={onToggleTheme}
-                      className={MENU_ROW}
-                    >
-                      <span className={`${MENU_TILE} ${isDarkMode ? 'bg-[#E9C46A]/20 text-[#E9C46A]' : 'bg-slate-200/70 text-slate-600'}`}>
-                        {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                      </span>
-                      <span className="flex-1 min-w-0">
-                        <span className={MENU_TITLE}>Dark mode</span>
-                      </span>
-                      <span className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${isDarkMode ? 'bg-[#E0533C]' : 'bg-slate-300 dark:bg-slate-600'}`}>
-                        <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${isDarkMode ? 'translate-x-4' : 'translate-x-0'}`} />
-                      </span>
                     </button>
                   </div>
 

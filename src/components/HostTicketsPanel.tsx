@@ -40,11 +40,10 @@ export const HostTicketsPanel: React.FC<Props> = ({ kind, source, title, onClose
   const load = useCallback(async () => {
     setErr('');
     try {
-      const ok = await canSellTickets();
-      setAllowed(ok);
-      setPayout(await getMyPayoutPhone());
-      if (ok) setView(await fetchHostView(kind, source));
-      if (ok && kind === 'outing') setRule(await getOutingTicketRule(source));
+      // Free tickets need no plan, so everyone who hosts can add them.
+      setAllowed(true);
+      setView(await fetchHostView(kind, source));
+      if (kind === 'outing') setRule(await getOutingTicketRule(source));
     } catch (e: any) {
       setErr(e?.message || 'We could not load your tickets.');
     } finally {
@@ -69,10 +68,8 @@ export const HostTicketsPanel: React.FC<Props> = ({ kind, source, title, onClose
   };
 
   const submitType = () => {
-    const price = Number(f.price), qty = Number(f.qty);
+    const price = editing ? editing.price_kes : 0, qty = Number(f.qty); // tickets are free
     if (!f.name.trim()) return setErr('Give the ticket a name, like "Early bird".');
-    if (!Number.isFinite(price) || price < 0) return setErr('Enter a price. Use 0 for a free ticket.');
-    if (price > 0 && price < 50) return setErr('Paid tickets start at KES 50, so M-Pesa fees do not eat the sale.');
     if (!Number.isFinite(qty) || qty < 1) return setErr('Enter how many tickets you are selling.');
     run(async () => {
       if (editing) {
@@ -120,58 +117,11 @@ export const HostTicketsPanel: React.FC<Props> = ({ kind, source, title, onClose
 
         {!loading && allowed && (
           <>
-            {/* payout number */}
-            <div className="rounded-2xl border border-slate-200 dark:border-white/10 p-3 space-y-2">
-              <p className="text-xs font-extrabold flex items-center gap-1.5"><Smartphone className="w-3.5 h-3.5" /> Where we send your money</p>
-              {payout ? (
-                <p className="text-sm text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500" /> M-Pesa +{payout}
-                  <button className="ml-auto text-xs font-bold text-[#E0533C]" onClick={() => setPayout(null)}>Change</button>
-                </p>
-              ) : (
-                <div className="flex gap-2">
-                  <input value={payoutInput} onChange={(e) => setPayoutInput(e.target.value)} inputMode="tel" placeholder="0712 345 678"
-                    className="flex-1 min-w-0 rounded-xl border border-slate-200 dark:border-white/10 bg-transparent px-3 py-2 text-sm" />
-                  <button disabled={busy} onClick={() => run(async () => { setPayout(await savePayoutPhone(payoutInput)); }, 'Payout number saved')}
-                    className="px-4 rounded-xl bg-gradient-to-br from-[#E0533C] to-[#EE8A47] text-white text-sm font-bold disabled:opacity-50">Save</button>
-                </div>
-              )}
-              <p className="text-[11px] text-slate-500">Paid tickets need this. Your share is sent within minutes of each sale.</p>
-            </div>
-
             {/* totals */}
             {totals.sold > 0 && (
-              <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="grid grid-cols-2 gap-2 text-center">
                 <div className="rounded-xl bg-slate-50 dark:bg-white/5 p-2"><p className="text-[10px] text-slate-500">Sold</p><p className="font-extrabold">{totals.sold}</p></div>
-                <div className="rounded-xl bg-slate-50 dark:bg-white/5 p-2"><p className="text-[10px] text-slate-500">You earn</p><p className="font-extrabold">{kes(totals.net)}</p></div>
                 <div className="rounded-xl bg-slate-50 dark:bg-white/5 p-2"><p className="text-[10px] text-slate-500">Checked in</p><p className="font-extrabold">{totals.in}</p></div>
-              </div>
-            )}
-
-            {kind === 'outing' && (
-              <div className="rounded-2xl border border-slate-200 dark:border-white/10 p-3 space-y-2">
-                <label className="flex items-start gap-2.5 cursor-pointer">
-                  <input type="checkbox" className="mt-1 w-4 h-4 accent-[#E0533C]" checked={rule.require_ticket}
-                    onChange={(e) => run(async () => { await setOutingTicketRule(source, e.target.checked, rule.pay_window_minutes); }, e.target.checked ? 'Guests must now pay after approval' : 'Ticket no longer required')} />
-                  <span className="text-sm">
-                    <span className="font-bold block">Approved guests must buy a ticket</span>
-                    <span className="text-[11px] text-slate-500">Guests ask to join as usual. After you approve them, they pay to keep their spot.</span>
-                  </span>
-                </label>
-                {rule.require_ticket && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-slate-600 dark:text-slate-300 shrink-0">Pay within</span>
-                    <select value={rule.pay_window_minutes} disabled={busy}
-                      onChange={(e) => run(async () => { await setOutingTicketRule(source, true, Number(e.target.value)); })}
-                      className="flex-1 rounded-xl border border-slate-200 dark:border-white/10 bg-transparent px-2 py-1.5 text-sm">
-                      {[[30, '30 minutes'], [60, '1 hour'], [180, '3 hours'], [720, '12 hours'], [1440, '24 hours'], [2880, '2 days'], [10080, '7 days']].map(([m, l]) => (
-                        <option key={m} value={m}>{l}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-                {rule.require_ticket && <p className="text-[11px] text-slate-500">If a guest does not pay in time, their approval is cancelled and they are told. You will see who is still waiting in Manage.</p>}
-                {rule.require_ticket && !(view?.types || []).length && <p className="text-[11px] text-amber-700">Add a ticket below first. Until one is on sale, approvals go through without payment.</p>}
               </div>
             )}
 
@@ -193,7 +143,7 @@ export const HostTicketsPanel: React.FC<Props> = ({ kind, source, title, onClose
                   </div>
                 </div>
               ))}
-              {!view?.types.length && <p className="text-sm text-slate-500">No tickets yet. Add one to start selling.</p>}
+              {!view?.types.length && <p className="text-sm text-slate-500">No tickets yet. Add a free ticket to get started.</p>}
               <button onClick={openAdd} className="w-full rounded-xl border-2 border-dashed border-slate-300 dark:border-white/15 py-2.5 text-sm font-bold flex items-center justify-center gap-1.5">
                 <Plus className="w-4 h-4" /> Add a ticket
               </button>
@@ -204,21 +154,14 @@ export const HostTicketsPanel: React.FC<Props> = ({ kind, source, title, onClose
                 <p className="text-xs font-extrabold">{editing ? 'Edit ticket' : 'New ticket'}</p>
                 <input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Name (Early bird, VIP...)" className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-transparent px-3 py-2 text-sm" />
                 <div className="flex gap-2">
-                  <input value={f.price} onChange={(e) => setF({ ...f, price: e.target.value.replace(/\D/g, '') })} inputMode="numeric" placeholder="Price KES (0 = free)" className="flex-1 min-w-0 rounded-xl border border-slate-200 dark:border-white/10 bg-transparent px-3 py-2 text-sm" />
-                  <input value={f.qty} onChange={(e) => setF({ ...f, qty: e.target.value.replace(/\D/g, '') })} inputMode="numeric" placeholder="How many" className="w-28 rounded-xl border border-slate-200 dark:border-white/10 bg-transparent px-3 py-2 text-sm" />
+                  <input value={f.qty} onChange={(e) => setF({ ...f, qty: e.target.value.replace(/\D/g, '') })} inputMode="numeric" placeholder="How many free tickets" className="flex-1 rounded-xl border border-slate-200 dark:border-white/10 bg-transparent px-3 py-2 text-sm" />
                 </div>
                 <input value={f.desc} onChange={(e) => setF({ ...f, desc: e.target.value })} placeholder="What's included (optional)" className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-transparent px-3 py-2 text-sm" />
-                {editing && editing.sold > 0 && <p className="text-[11px] text-slate-500">The price is locked once sales start. To change it, pause this ticket and add a new one.</p>}
-                {!editing && Number(f.price) > 0 && pct != null && <p className="text-[11px] text-slate-500">RADA keeps {pct}% of each sale. You receive about {kes(Number(f.price) * (1 - pct / 100))} per ticket.</p>}
                 <div className="flex gap-2">
                   <button disabled={busy} onClick={submitType} className="flex-1 rounded-xl bg-gradient-to-br from-[#E0533C] to-[#EE8A47] text-white py-2 text-sm font-bold disabled:opacity-50">{busy ? 'Saving…' : 'Save'}</button>
                   <button onClick={() => setAdding(false)} className="px-4 rounded-xl text-sm font-bold">Cancel</button>
                 </div>
               </div>
-            )}
-
-            {hasPaid && !view?.paid_enabled && (
-              <p className="text-xs rounded-xl bg-slate-100 dark:bg-white/5 p-3 text-slate-600 dark:text-slate-300">Paid ticket sales are not switched on yet. Your tickets are saved and will go live when RADA turns them on. Free tickets work now.</p>
             )}
 
             {/* share + poster */}
