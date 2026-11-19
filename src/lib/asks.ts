@@ -85,6 +85,20 @@ export async function searchPlans(q: string): Promise<PlanHit[]> {
   return error ? [] : ((data as PlanHit[]) || []);
 }
 export async function passAsk(id: string): Promise<void> { if (isDemoMode()) return demoPassAsk(id); await supabase.rpc('pass_ask', { p_ask: id }); }
+/** Like an ask. It leaves the deck like a pass. No count is shown to anyone. */
+export async function likeAsk(id: string): Promise<void> {
+  if (isDemoMode()) return demoPassAsk(id);
+  const { error } = await supabase.rpc('like_ask', { p_ask: id });
+  if (error) await supabase.rpc('pass_ask', { p_ask: id }); // like function not installed yet: still move on
+}
+/** Same rules the server enforces, so people get a friendly message before sending. */
+export function pullUpLineProblem(text: string): string | null {
+  const m = text.trim();
+  if (m.length < 1) return 'Write a short line.';
+  if (m.length > 140) return 'Keep it under 140 characters.';
+  if (/(https?:\/\/|www\.)/i.test(m) || /(\+?\d[\s-]?){9,}/.test(m)) return 'No phone numbers or links. You can chat in RADA once they let you in.';
+  return null;
+}
 export async function closeAsk(id: string): Promise<string | null> {
   if (isDemoMode()) { await demoCloseAsk(id); return null; }
   const { error } = await supabase.rpc('close_ask', { p_ask: id });

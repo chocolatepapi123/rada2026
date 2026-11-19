@@ -1,17 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { BadgeCheck, Flag, Heart, MapPin, Plus, ShieldCheck, Ticket, X } from 'lucide-react';
+import { BadgeCheck, ChevronsUp, Flag, Heart, MapPin, Plus, ShieldCheck, Ticket, X } from 'lucide-react';
 import AskComposer from './AskComposer.tsx';
-import { isDemoMode } from '../lib/demoMode.ts';
-import { acceptReply, blockUser, closeAsk, declineReply, fetchAsks, fetchReplies, getMyArea, passAsk, replyToAsk, reportAsk, setMyArea, timeLeft, type Ask, type AskReply } from '../lib/asks.ts';
+import PullUpSheet from './PullUpSheet.tsx';
+import { acceptReply, blockUser, closeAsk, declineReply, fetchAsks, fetchReplies, getMyArea, likeAsk, passAsk, reportAsk, setMyArea, timeLeft, type Ask, type AskReply } from '../lib/asks.ts';
 
 const CARD = 'bg-white dark:bg-[#1C1A1E] border border-slate-200/80 dark:border-white/10';
-const INPUT = 'w-full rounded-xl border border-slate-200 dark:border-white/10 bg-transparent px-3 py-2 text-[13px]';
 const REPORT_REASONS: [string, string][] = [['spam', 'Spam or selling'], ['harassment', 'Harassment'], ['unsafe_meetup', 'Unsafe plan'], ['inappropriate_content', 'Inappropriate photo or video'], ['fake_profile', 'Fake profile']];
 const THRESHOLD = 110;
 
 interface Props { signedIn: boolean; showToast: (m: string) => void; onNeedSignIn?: () => void; onChatOpened?: (chatId: string) => void; spots?: any[]; events?: any[] }
 
-/** One swipeable card. Right = reply, left = pass. */
+/** One swipeable card. Right = like, left = pass. Pull up is a button. */
 const SwipeCard: React.FC<{ ask: Ask; top: boolean; depth: number; onSwipe: (dir: 'left' | 'right') => void; onReport: () => void }> = ({ ask, top, depth, onSwipe, onReport }) => {
   const [dx, setDx] = useState(0);
   const [fly, setFly] = useState<null | 'left' | 'right'>(null);
@@ -40,7 +39,7 @@ const SwipeCard: React.FC<{ ask: Ask; top: boolean; depth: number; onSwipe: (dir
           : <img src={ask.media_url} alt="" draggable={false} decoding="async" loading={top ? 'eager' : 'lazy'} className="absolute inset-0 w-full h-full object-cover pointer-events-none" />)
         : <div className="absolute inset-0 bg-gradient-to-br from-[#E0533C] via-[#C9402B] to-[#2D6A4F]" />}
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-black/30 pointer-events-none" />
-      {top && dx > 30 && <span className="absolute top-8 left-6 px-3 py-1 rounded-xl border-4 border-green-400 text-green-300 font-black text-2xl -rotate-12" style={{ opacity: Math.min(1, dx / THRESHOLD) }}>IN</span>}
+      {top && dx > 30 && <span className="absolute top-8 left-6 px-3 py-1 rounded-xl border-4 border-[#EE8A47] text-[#EE8A47] font-black text-2xl -rotate-12" style={{ opacity: Math.min(1, dx / THRESHOLD) }}>LIKE</span>}
       {top && dx < -30 && <span className="absolute top-8 right-6 px-3 py-1 rounded-xl border-4 border-red-400 text-red-300 font-black text-2xl rotate-12" style={{ opacity: Math.min(1, -dx / THRESHOLD) }}>PASS</span>}
       <button onPointerDown={(e) => e.stopPropagation()} onClick={onReport} aria-label="Report" className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 text-white/90 flex items-center justify-center cursor-pointer"><Flag className="w-4 h-4" /></button>
       <div className="absolute inset-x-0 bottom-0 p-5 text-white space-y-2 pointer-events-none">
@@ -63,9 +62,8 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
   const [showArea, setShowArea] = useState(false);
   const [view, setView] = useState<'swipe' | 'mine'>('swipe');
   const [composing, setComposing] = useState(false);
-  const [replyTo, setReplyTo] = useState<Ask | null>(null);
-  const [msg, setMsg] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [pullingUp, setPullingUp] = useState<Ask | null>(null);
+  const [burst, setBurst] = useState(0);
   const [viewing, setViewing] = useState<string | null>(null);
   const [replies, setReplies] = useState<AskReply[]>([]);
   const [reporting, setReporting] = useState<Ask | null>(null);
@@ -82,6 +80,7 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
     setOffline(false); setAsks(res);
   }, [area, signedIn]);
   useEffect(() => { const t = setTimeout(() => void load(), 350); return () => { clearTimeout(t); inflight.current?.abort(); }; }, [load]);
+  useEffect(() => { if (!burst) return; const t = setTimeout(() => setBurst(0), 650); return () => clearTimeout(t); }, [burst]);
   useEffect(() => { if (viewing) void fetchReplies(viewing).then(setReplies); }, [viewing]);
 
   const deck = (asks || []).filter((a) => !a.mine && !a.replied);
@@ -90,17 +89,15 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
 
   const swiped = (a: Ask, dir: 'left' | 'right') => {
     if (dir === 'left') { void passAsk(a.id); drop(a.id); return; }
-    setReplyTo(a); setMsg(''); // card stays under the sheet until sent
+    setBurst(Date.now());
+    void likeAsk(a.id);
+    drop(a.id);
   };
-  const send = async () => {
-    if (!replyTo) return; setBusy(true); const err = await replyToAsk(replyTo.id, msg); setBusy(false);
-    if (err) return showToast(err);
-    showToast('Sent. They will see your reply.'); drop(replyTo.id); setReplyTo(null);
-  };
+  const pulledUp = (a: Ask) => { drop(a.id); setPullingUp(null); };
   const accept = async (r: AskReply) => {
     const { chatId, error } = await acceptReply(r.id);
     if (error || !chatId) return showToast(error || 'Could not open the chat.');
-    showToast(`Chat opened with @${r.handle || 'them'}.`); onChatOpened?.(chatId);
+    showToast(`You let @${r.handle || 'them'} in. Chat opened.`); onChatOpened?.(chatId);
     setReplies((p) => p.map((x) => (x.id === r.id ? { ...x, status: 'accepted' } : x)));
   };
   const decline = async (r: AskReply) => { const err = await declineReply(r.id); if (err) return showToast(err); setReplies((p) => p.map((x) => (x.id === r.id ? { ...x, status: 'declined' } : x))); };
@@ -152,13 +149,15 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
         : (
           <>
             <div className="relative w-full aspect-[4/5] max-h-[62vh] mx-auto">
+              {burst > 0 && <Heart key={burst} className="absolute left-1/2 top-1/2 -ml-10 -mt-10 w-20 h-20 text-[#E0533C] fill-[#E0533C] z-20 pointer-events-none animate-ping" aria-hidden="true" />}
               {deck.slice(0, 3).map((a, i) => ({ a, i })).reverse().map(({ a, i }) => (
                 <SwipeCard key={a.id} ask={a} top={i === 0} depth={i} onSwipe={(d) => swiped(a, d)} onReport={() => setReporting(a)} />
               ))}
             </div>
-            <div className="flex items-center justify-center gap-6 pt-1">
-              <button onClick={() => buttonSwipe('left')} aria-label="Pass" className="w-14 h-14 rounded-full bg-white dark:bg-[#1C1A1E] shadow-md flex items-center justify-center text-slate-500 cursor-pointer active:scale-90"><X className="w-6 h-6" /></button>
-              <button onClick={() => buttonSwipe('right')} aria-label="Reply" className="w-16 h-16 rounded-full bg-[#E0533C] shadow-lg flex items-center justify-center text-white cursor-pointer active:scale-90"><Heart className="w-7 h-7" /></button>
+            <div className="flex items-center justify-center gap-3 pt-1">
+              <button onClick={() => buttonSwipe('left')} aria-label="Pass, next" className="w-14 h-14 shrink-0 rounded-full bg-white dark:bg-[#1C1A1E] border border-slate-200/80 dark:border-white/10 shadow-md flex items-center justify-center text-slate-500 dark:text-slate-300 cursor-pointer active:scale-90 transition"><X className="w-6 h-6" /></button>
+              <button onClick={() => deck[0] && setPullingUp(deck[0])} aria-label="Pull up" className="h-14 flex-1 max-w-[180px] rounded-full bg-gradient-to-br from-[#E0533C] to-[#EE8A47] shadow-lg shadow-[#E0533C]/30 flex items-center justify-center gap-1.5 text-white text-[14px] font-black cursor-pointer active:scale-95 transition"><ChevronsUp className="w-5 h-5" />Pull up</button>
+              <button onClick={() => buttonSwipe('right')} aria-label="Like, next" className="w-14 h-14 shrink-0 rounded-full bg-white dark:bg-[#1C1A1E] border border-slate-200/80 dark:border-white/10 shadow-md flex items-center justify-center text-[#E0533C] cursor-pointer active:scale-90 transition"><Heart className="w-6 h-6" /></button>
             </div>
           </>
         ))}
@@ -172,21 +171,21 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
             <p className="text-[14px] font-semibold leading-snug">{a.body}</p>
             <p className="text-[11px] text-slate-400 font-bold">{a.area} · {timeLeft(a.expires_at)}</p>
             <div className="flex gap-2">
-              <button onClick={() => setViewing(viewing === a.id ? null : a.id)} className="flex-1 py-2 rounded-full bg-slate-100 dark:bg-white/[0.08] text-xs font-extrabold cursor-pointer">Replies ({a.replies})</button>
+              <button onClick={() => setViewing(viewing === a.id ? null : a.id)} className="flex-1 py-2 rounded-full bg-slate-100 dark:bg-white/[0.08] text-xs font-extrabold cursor-pointer inline-flex items-center justify-center gap-1"><ChevronsUp className="w-3.5 h-3.5 text-[#E0533C]" />Pull-ups ({a.replies})</button>
               <button onClick={() => close(a)} className="px-4 py-2 rounded-full text-xs font-extrabold text-slate-500 cursor-pointer">Close</button>
             </div>
             {viewing === a.id && (
               <div className="space-y-2 pt-1">
-                {replies.length === 0 && <p className="text-[12px] text-slate-400">No replies yet.</p>}
+                {replies.length === 0 && <p className="text-[12px] text-slate-400">No pull-ups yet.</p>}
                 {replies.map((r) => (
                   <div key={r.id} className="rounded-2xl bg-slate-50 dark:bg-white/[0.04] px-3 py-2 space-y-1.5">
                     <p className="text-[12px]"><b>@{r.handle || 'someone'}</b>{r.verified && <BadgeCheck className="inline w-3.5 h-3.5 ml-1 text-[#2D6A4F]" />} {r.message}</p>
                     {r.status === 'pending' ? (
                       <div className="flex gap-2">
-                        <button onClick={() => accept(r)} className="px-3 py-1.5 rounded-full bg-[#2D6A4F] text-white text-[11px] font-extrabold cursor-pointer">Accept and chat</button>
-                        <button onClick={() => decline(r)} className="px-3 py-1.5 rounded-full text-slate-500 text-[11px] font-extrabold cursor-pointer">Decline</button>
+                        <button onClick={() => accept(r)} className="px-3 py-1.5 rounded-full bg-[#2D6A4F] text-white text-[11px] font-extrabold cursor-pointer">Let them in</button>
+                        <button onClick={() => decline(r)} className="px-3 py-1.5 rounded-full text-slate-500 text-[11px] font-extrabold cursor-pointer">Not now</button>
                       </div>
-                    ) : <p className="text-[11px] font-bold text-slate-400">{r.status === 'accepted' ? 'Chat opened' : 'Declined'}</p>}
+                    ) : <p className="text-[11px] font-bold text-slate-400">{r.status === 'accepted' ? 'In the chat' : 'Not now'}</p>}
                   </div>
                 ))}
               </div>
@@ -194,18 +193,7 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
           </div>
         )))}
 
-      {replyTo && (
-        <div className="fixed inset-0 z-[200] bg-black/60 flex items-end justify-center p-4" onClick={() => setReplyTo(null)}>
-          <div className="rounded-3xl p-4 w-full max-w-sm space-y-3 bg-white dark:bg-[#1C1A1E] shadow-2xl border border-slate-200 dark:border-white/10" onClick={(e) => e.stopPropagation()}>
-            <p className="font-extrabold">{isDemoMode() ? 'Are you in?' : `Say hi to @${replyTo.handle || 'them'}`}</p>
-            <input autoFocus value={msg} onChange={(e) => setMsg(e.target.value)} maxLength={140} placeholder={isDemoMode() ? '' : 'A short line'} className={INPUT} />
-            <div className="flex gap-2">
-              <button disabled={busy} onClick={send} className="flex-1 py-2.5 rounded-full bg-[#E0533C] text-white text-xs font-extrabold cursor-pointer disabled:opacity-60">{busy ? 'Sending…' : 'Send'}</button>
-              <button onClick={() => setReplyTo(null)} className="px-4 py-2.5 text-xs font-extrabold text-slate-500 cursor-pointer">Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {pullingUp && <PullUpSheet ask={pullingUp} showToast={showToast} onClose={() => setPullingUp(null)} onSent={pulledUp} />}
 
       {reporting && (
         <div className="fixed inset-0 z-[200] bg-black/60 flex items-end sm:items-center justify-center p-4" onClick={() => setReporting(null)}>
