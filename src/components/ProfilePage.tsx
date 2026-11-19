@@ -127,7 +127,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   useEffect(() => {
     own.resetDrafts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, currentUserProfile?.name, currentUserProfile?.username, currentUserProfile?.bio, currentUserProfile?.relationshipStatus]);
+  }, [user?.id, currentUserProfile?.name, currentUserProfile?.username, currentUserProfile?.bio]);
 
   const mySubs = useMySubscriptions(user?.id);
   const creatorPlan = mySubs.subs.creator?.effective_plan ?? 'free';
@@ -219,7 +219,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const earnedBadges = kinds.reduce((n, k) => n + k.level, 0);
   const totalBadges = kinds.reduce((n, k) => n + k.meta.names.length, 0);
 
-  const isSingle = true; // single / not-single removed from the app
   const name = p.name || handle || 'Your profile';
   const initial = String(name).replace(/^@/, '').charAt(0).toUpperCase() || 'R';
 

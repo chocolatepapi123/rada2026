@@ -284,14 +284,8 @@ function matchOutingLocation(plan: OutingPlan, selectedLocation: string, spot?: 
   );
 }
 
-function matchOutingAccessType(plan: OutingPlan, accessType: 'All Plans' | 'Open Plans' | 'Singles Only'): boolean {
-  if (accessType === 'All Plans') return true;
-  if (accessType === 'Open Plans') return plan.accessType === 'open';
-  if (accessType === 'Singles Only') {
-    return plan.accessType === 'singles_only' || (plan.tags?.includes('Singles Only') ?? false);
-  }
-  return true;
-}
+// Old labels from the removed open / singles split; never shown or saved
+const GENERIC_PLAN_TAGS = ['All Plans', 'Group Hangouts', 'Singles Only', 'Open Plan'];
 
 interface OutingsTabProps {
   outings: OutingPlan[];
@@ -339,7 +333,6 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
 
   const [selectedLocation, setSelectedLocation] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [accessTypeFilter, setAccessTypeFilter] = useState<'All Plans' | 'Open Plans' | 'Singles Only'>('All Plans');
   const [searchQuery, setSearchQuery] = useState('');
   // Saved outings (private to the person) and, for hosts, how many people saved each of their outings.
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
@@ -567,9 +560,9 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
     setMaxAttendees((prev) => clampAttendees(myPlan, prev));
   }, [myPlan]);
   const outingLimitMessage = `You've used all ${quota.limit} outings for this month on the ${PLAN_META[myPlan].name} plan. Upgrade in Account & Security to host more.`;
-  const [accessType, setAccessType] = useState<'open' | 'singles_only'>('open'); // singles-only removed: always open
+  const accessType = 'open' as const; // every plan is open
   const [description, setDescription] = useState('');
-  const [selectedTags, setSelectedTags] = useState<string[]>(['Group Hangouts']);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Dynamically extracted locations from active spots and outings database
@@ -617,11 +610,6 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
 
       if (savedOnly && !savedIds.has(plan.id)) return false;
 
-      // Access Type Filter ("All Plans", "Open Plans", "Singles Only")
-      if (!matchOutingAccessType(plan, accessTypeFilter)) {
-        return false;
-      }
-
       // Location Filter (e.g. "All Locations", "Westlands", "Kilimani", "Karen", "Nairobi CBD", "Kiambu Road")
       if (!matchOutingLocation(plan, selectedLocation, spot)) {
         return false;
@@ -654,7 +642,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       .map(x => x.plan);
     // Boosted outings first, in the order RADA chose; everything else keeps its order.
     return sortOutingsByPromotion(list, (p) => p.id, outingRanks);
-  }, [outings, spots, selectedLocation, selectedCategory, accessTypeFilter, searchQuery, outingRanks, savedOnly, savedIds]);
+  }, [outings, spots, selectedLocation, selectedCategory, searchQuery, outingRanks, savedOnly, savedIds]);
 
   // Spots search inside Host modal
   const filteredSpotsForHosting = useMemo(() => {
@@ -849,7 +837,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
         currentAttendeesCount: 1, // host
         description: description.trim(),
         accessType,
-        tags: Array.from(new Set(['Group Hangouts', ...selectedTags.filter(t => t !== 'All Plans' && t !== 'Singles Only')])),
+        tags: Array.from(new Set(selectedTags.filter(t => !GENERIC_PLAN_TAGS.includes(t)))),
         status: 'active',
         createdAt: new Date().toISOString(),
         attendees: []
@@ -1050,13 +1038,12 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
           <span>{filteredOutings.length === 1 ? '1 outing' : `${filteredOutings.length} outings`}</span>
         </span>
         <div className="flex items-center gap-2">
-          {(Boolean(selectedLocation && selectedLocation !== 'All Locations') || selectedCategory !== 'all' || accessTypeFilter !== 'All Plans' || searchQuery.trim() !== '' || savedOnly) && (
+          {(Boolean(selectedLocation && selectedLocation !== 'All Locations') || selectedCategory !== 'all' || searchQuery.trim() !== '' || savedOnly) && (
             <button
               type="button"
               onClick={() => {
                 setSelectedLocation('');
                 setSelectedCategory('all');
-                setAccessTypeFilter('All Plans');
                 setSearchQuery('');
                 setSavedOnly(false);
               }}
@@ -1278,14 +1265,13 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
             </p>
           </div>
           <div className="flex items-center justify-center gap-2 pt-1 flex-wrap">
-            {(selectedLocation !== 'All Locations' || selectedCategory !== 'all' || accessTypeFilter !== 'All Plans' || searchQuery.trim() !== '') && (
+            {(selectedLocation !== 'All Locations' || selectedCategory !== 'all' || searchQuery.trim() !== '') && (
               <button
                 type="button"
                 onClick={() => {
                   setSelectedLocation('All Locations');
                   setSelectedCategory('all');
-                  setAccessTypeFilter('All Plans');
-                  setSearchQuery('');
+                    setSearchQuery('');
                 }}
                 className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs transition inline-flex items-center gap-1.5 cursor-pointer"
               >
@@ -1626,7 +1612,6 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                     if (d.spotId != null) setSelectedSpotId(d.spotId);
                     if (typeof d.description === 'string') setDescription(d.description);
                     if (typeof d.maxAttendees === 'number') setMaxAttendees(clampAttendees(myPlan, d.maxAttendees));
-                    if (d.accessType) setAccessType(d.accessType);
                     if (Array.isArray(d.tags)) setSelectedTags(d.tags);
                   }}
                 />

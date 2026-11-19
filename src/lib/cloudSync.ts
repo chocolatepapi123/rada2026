@@ -1403,92 +1403,6 @@ export async function uploadCoverImage(uid: string, file: File): Promise<{ url?:
   return { url: supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path).data.publicUrl, error: null };
 }
 
-/** Updates ONLY relationship_status so it can never overwrite the liveness flag. */
-export async function saveRelationshipStatus(
-  uid: string,
-  status: 'single' | 'not_single'
-): Promise<{ error: string | null }> {
-  if (!isSupabaseConfigured || !uid) return { error: null };
-  const now = new Date().toISOString();
-  const { data, error } = await supabase
-    .from('profiles')
-    .update({ relationship_status: status, updated_at: now })
-    .eq('id', uid)
-    .select('id');
-  if (error) return { error: error.message };
-  if (!data || data.length === 0) {
-    const { error: upErr } = await supabase
-      .from('profiles')
-      .upsert({ id: uid, relationship_status: status, updated_at: now }, { onConflict: 'id' });
-    if (upErr) return { error: upErr.message };
-  }
-  return { error: null };
-}
-
-// =====================================================================
-// PROFILE VERIFICATION (Supabase 'profiles' table)
-// =====================================================================
-export async function updateProfileVerification(
-  uid: string,
-  relationshipStatus: string,
-  isLivenessVerified: boolean,
-  avatarUrl?: string
-): Promise<{ error: string | null }> {
-  if (!isSupabaseConfigured || !uid) return { error: null };
-  try {
-    const payload: Record<string, any> = {
-      id: uid,
-      relationship_status: relationshipStatus,
-      // is_liveness_verified is never written from here: only the confirm_selfie_check() RPC can set it
-      updated_at: new Date().toISOString()
-    };
-    if (avatarUrl) {
-      payload.avatar_url = avatarUrl;
-    }
-    const { error } = await supabase.from('profiles').upsert(payload, { onConflict: 'id' });
-    if (error) {
-      console.warn('profiles table upsert warning:', error.message);
-      // Fallback: try update if upsert had conflict issues
-      const { error: updateErr } = await supabase
-        .from('profiles')
-        .update({
-          relationship_status: relationshipStatus,
-          ...(avatarUrl ? { avatar_url: avatarUrl } : {})
-        })
-        .eq('id', uid);
-      if (updateErr) {
-        return { error: updateErr.message };
-      }
-    }
-    return { error: null };
-  } catch (err: any) {
-    console.warn('updateProfileVerification error:', err);
-    return { error: err?.message || String(err) };
-  }
-}
-
-export async function fetchProfileVerification(uid: string): Promise<{
-  relationship_status?: string;
-  is_liveness_verified?: boolean;
-  username?: string;
-  avatar_url?: string;
-} | null> {
-  if (!isSupabaseConfigured || !uid) return null;
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('relationship_status, is_liveness_verified, username, avatar_url')
-      .eq('id', uid)
-      .maybeSingle();
-    if (!error && data) {
-      return data;
-    }
-  } catch (e) {
-    console.warn('fetchProfileVerification failed:', e);
-  }
-  return null;
-}
-
 /**
  * Call this once when a user signs in / the app launches, and pass the result to your App's
  * profile setter. It returns the saved name, username, avatar, bio and professional flag from
@@ -1820,8 +1734,8 @@ export async function fetchOutings(): Promise<OutingPlan[] | null> {
           maxAttendees: Number(row.max_attendees || d.maxAttendees || 6),
           currentAttendeesCount: attList.filter((a: any) => a.status === 'joined').length + 1,
           description: row.description || d.description || '',
-          accessType: (row.access_type || d.accessType || 'open') as 'open' | 'singles_only',
-          tags: row.tags || d.tags || ['All Plans', 'Group Hangouts'],
+          accessType: 'open',
+          tags: (row.tags || d.tags || []).filter((t: string) => !['All Plans', 'Group Hangouts', 'Singles Only', 'Open Plan'].includes(t)),
           status: row.status || d.status || 'active',
           createdAt: row.created_at || d.createdAt || new Date().toISOString(),
           isEarlyHost: Boolean(row.host_is_early),
@@ -1886,7 +1800,7 @@ export async function createOuting(rawOuting: OutingPlan): Promise<{ error: stri
       time: outing.time,
       max_attendees: outing.maxAttendees,
       description: outing.description,
-      access_type: outing.accessType,
+      access_type: 'open',
       tags: outing.tags,
       status: outing.status || 'active',
       data: outing

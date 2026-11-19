@@ -152,7 +152,7 @@ export function demoPastOutings(persona: DemoPersona, me: { id: string; name: st
     return {
       id, ...host, spotTitle: title, spotAddress: addr, spotImage: img, spotCategory: cat, date: ymdAgo(ago), time: '18:00',
       maxAttendees: max, currentAttendeesCount: attendees.length + 1, description: 'A great turnout and a great night.',
-      accessType: 'open', tags: ['All Plans', 'Group Hangouts'], status: 'completed', createdAt: daysAgo(ago + 7),
+      accessType: 'open', tags: [], status: 'completed', createdAt: daysAgo(ago + 7),
       attendees: hosting ? attendees : [...attendees, meAtt(id)],
     } as OutingPlan;
   });

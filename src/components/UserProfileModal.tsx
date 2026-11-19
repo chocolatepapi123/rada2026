@@ -196,7 +196,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   if (!user) return null;
 
   const handle = toHandle(user.handle);
-  const isSingle = true; // single / not-single removed from the app: everyone can be matched
 
   // ===================== YOUR PROFILE (read-only preview; all editing lives in Account & Security) =====================
   if (isOwnProfile) {
@@ -244,7 +243,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   <NavRow
                     icon={<UserCog className="w-4 h-4" />}
                     title="Edit profile"
-                    subtitle="Username, display name, bio, relationship status"
+                    subtitle="Username, display name and bio"
                     onClick={() => {
                       onClose();
                       onOpenAccountSettings();
@@ -307,10 +306,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const proWebsite: string = (user as any).professionalWebsite || '';
 
   const handleMatchClick = () => {
-    if (!isSingle) {
-      showToast(`${handle} is Not Single. Matching requests are disabled for this profile.`, { type: 'error' });
-      return;
-    }
     if (onSendMatchRequest) {
       onSendMatchRequest(user);
     } else {
@@ -518,15 +513,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
                 <span>You and <strong>{handle}</strong> are mutual matches. Direct messaging is unlocked!</span>
               </p>
-            ) : isSingle ? (
+            ) : (
               <p className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                 <Lock className="w-4 h-4 shrink-0" style={{ color: accent }} />
                 <span>Direct messaging requires mutual match acceptance. Send a request to connect!</span>
-              </p>
-            ) : (
-              <p className="flex items-center gap-1.5 text-slate-500">
-                <Shield className="w-4 h-4 shrink-0 text-slate-400" />
-                <span>This user is <strong>Not single</strong>. Hangout matching is disabled.</span>
               </p>
             )}
           </div>
@@ -540,7 +530,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             <MessageSquare className="w-4 h-4" />
             <span>Open direct message</span>
           </button>
-        ) : isSingle ? (
+        ) : (
           <>
             <button type="button" onClick={handleMatchClick} className="flex-1 py-3 text-white font-black rounded-2xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer" style={{ background: accent }}>
               <Heart className="w-4 h-4 fill-white" />
@@ -551,11 +541,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <span>Message</span>
             </button>
           </>
-        ) : (
-          <button type="button" onClick={() => showToast(`${handle} is Not Single. Matching requests are disabled.`, { type: 'error' })} className="w-full py-3 bg-slate-200 dark:bg-slate-800 text-slate-400 font-bold rounded-2xl text-xs cursor-not-allowed flex items-center justify-center gap-2">
-            <Heart className="w-4 h-4 opacity-40" />
-            <span>Matching disabled (not single)</span>
-          </button>
         )}
       </div>
       <ReportUserModal

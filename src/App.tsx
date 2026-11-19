@@ -172,7 +172,6 @@ const AccountSettingsModal = lazyNamed(() => import('./components/AccountSetting
 const TicketBuySheet = lazyNamed(() => import('./components/TicketBuySheet.tsx'), 'TicketBuySheet');
 const MyTicketsSheet = lazyNamed(() => import('./components/MyTicketsSheet.tsx'), 'MyTicketsSheet');
 const SavedPlacesModal = lazyNamed(() => import('./components/SavedPlacesModal.tsx'), 'SavedPlacesModal');
-const LivenessVerificationModal = lazyNamed(() => import('./components/LivenessVerificationModal.tsx'), 'LivenessVerificationModal');
 const SuggestSpotModal = lazyNamed(() => import('./components/SuggestSpotModal.tsx'), 'SuggestSpotModal');
 
 const TabFallback = () => {
@@ -253,10 +252,6 @@ const GUEST_PROFILE: UserProfile = {
   avatar: '',
   bio: 'Discovering local spots near you on RADA. Log in or create an account to customize your profile & connect with spots!',
   loc: 'Westlands',
-  relationshipStatus: 'single',
-  relationship_status: 'single',
-  isLivenessVerified: false,
-  is_liveness_verified: false,
   vibes: ['Nightlife', 'Cocktails', 'Amapiano', 'Art', 'Thrifting']
 };
 
@@ -268,10 +263,6 @@ const DEFAULT_PROFILE: UserProfile = {
   avatar: '',
   bio: 'Exploring Nairobi spots, events, and fashion setups. Hit me up for hangouts!',
   loc: 'Nairobi',
-  relationshipStatus: 'single',
-  relationship_status: 'single',
-  isLivenessVerified: false,
-  is_liveness_verified: false,
   vibes: ['Nightlife', 'Cocktails', 'Amapiano', 'Art', 'Thrifting']
 };
 
@@ -337,7 +328,6 @@ export default function App() {
   const [showSplash, setShowSplash] = useState<boolean>(true);
   const [userRole, setUserRole] = useState<'user' | 'merchant' | 'admin'>('user');
   const [isAdminOpen, setIsAdminOpen] = useState(false);
-  const [isLivenessModalOpen, setIsLivenessModalOpen] = useState(false);
   const [isSuggestSpotModalOpen, setIsSuggestSpotModalOpen] = useState(false);
   const [suspensionReason, setSuspensionReason] = useState<string | null>(null);
   const syncRef = useRef<(() => void) | null>(null);
@@ -453,7 +443,7 @@ export default function App() {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('role, relationship_status, is_liveness_verified, avatar_url, is_suspended, suspended_reason')
+        .select('role, avatar_url, is_suspended, suspended_reason')
         .eq('id', session.user.id)
         .maybeSingle();
 
@@ -463,15 +453,8 @@ export default function App() {
       }
 
       if (data) {
-        if (data.relationship_status !== undefined || data.is_liveness_verified !== undefined) {
-          setCurrentUserProfile(prev => ({
-            ...prev,
-            relationshipStatus: (data.relationship_status === 'not_single' ? 'not_single' : 'single') as any,
-            relationship_status: data.relationship_status || 'single',
-            isLivenessVerified: Boolean(data.is_liveness_verified),
-            is_liveness_verified: Boolean(data.is_liveness_verified),
-            ...(data.avatar_url ? { avatar: data.avatar_url } : {})
-          }));
+        if (data.avatar_url) {
+          setCurrentUserProfile(prev => ({ ...prev, avatar: data.avatar_url }));
         }
       }
 
@@ -533,7 +516,6 @@ export default function App() {
     setIsPlanDateModalOpen(false);
     setIsCreateGroupOpen(false);
     setIsSavedModalOpen(false);
-    setIsLivenessModalOpen(false);
     setIsSuggestSpotModalOpen(false);
 
     // If on an authenticated-only tab (like merchant), revert cleanly to home
@@ -976,7 +958,7 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
-  // Current logged in user profile with Single / Not Single status (loads saved profile from localStorage)
+  // Current logged in user profile (loads saved profile from localStorage)
   const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile>(() => {
     try {
       const saved = localStorage.getItem('rada_current_user');
@@ -995,10 +977,6 @@ export default function App() {
             username: assignedUser,
             handle: `@${assignedUser.replace(/^@/, '')}`,
             avatar: sanitizeAvatarUrl(parsed.avatar),
-            relationshipStatus: parsed.relationshipStatus || parsed.relationship_status || 'single',
-            relationship_status: parsed.relationship_status || parsed.relationshipStatus || 'single',
-            isLivenessVerified: Boolean(parsed.isLivenessVerified || parsed.is_liveness_verified),
-            is_liveness_verified: Boolean(parsed.is_liveness_verified || parsed.isLivenessVerified),
           };
         }
       }
@@ -1468,7 +1446,7 @@ export default function App() {
       : [];
     // Sample hostings from the showcase set (with tickets) sit alongside the demo ones
     const sample = buildShowcaseOutings();
-    setDemoOutings(prev => [...[...seed, ...past, ...sample].filter(o => !!(o.spotImage && String(o.spotImage).trim()) && o.accessType !== 'singles_only'), ...prev.filter(o => !/^demo-out-\d+$/.test(String(o.id)) && !String(o.id).startsWith('demo-past-') && !String(o.id).startsWith('showcase-out-'))]);
+    setDemoOutings(prev => [...[...seed, ...past, ...sample].filter(o => !!(o.spotImage && String(o.spotImage).trim())), ...prev.filter(o => !/^demo-out-\d+$/.test(String(o.id)) && !String(o.id).startsWith('demo-past-') && !String(o.id).startsWith('showcase-out-'))]);
   }, [demoUid, session?.user?.email, currentUserProfile?.handle, currentUserProfile?.name, currentUserProfile?.avatar]);
 
   // Demo Mode: saved plans and tickets in the Vault (never saved to the device)
@@ -1550,7 +1528,6 @@ export default function App() {
     selectedEventModal ||
     activeOverlay ||
     isBusinessHubOpen ||
-    isLivenessModalOpen ||
     isSuggestSpotModalOpen
   );
 
@@ -1618,7 +1595,6 @@ export default function App() {
         }
         if (activeOverlay) setActiveOverlay(null);
         if (isBusinessHubOpen) setIsBusinessHubOpen(false);
-        if (isLivenessModalOpen) setIsLivenessModalOpen(false);
         if (isSuggestSpotModalOpen) setIsSuggestSpotModalOpen(false);
         return;
       }
@@ -1679,7 +1655,6 @@ export default function App() {
     selectedEventModal,
     activeOverlay,
     isBusinessHubOpen,
-    isLivenessModalOpen,
     isSuggestSpotModalOpen,
     activeTab,
     showToast
@@ -2541,75 +2516,20 @@ export default function App() {
     }
   };
 
-  // Applies identity changes (username, display name, bio, avatar, status, pro flag) coming from the
+  // Applies identity changes (username, display name, bio, avatar, pro flag) coming from the
   // account/profile screens. Keeps `handle` ("@username") in sync and caches the result locally.
   const handleOwnProfileChange = (patch: Partial<UserProfile>) => {
     setCurrentUserProfile(prev => {
       const merged: UserProfile = { ...prev, ...patch };
       if (patch.username !== undefined) merged.handle = cloud.toHandle(patch.username);
-      if (patch.relationshipStatus) merged.relationship_status = patch.relationshipStatus;
       return merged;
     });
   };
 
   // Update current user profile
   const handleUpdateCurrentUserProfile = (updates: Partial<UserProfile>) => {
-    setCurrentUserProfile(prev => {
-      const merged = { ...prev, ...updates };
-      if (updates.relationshipStatus) {
-        merged.relationship_status = updates.relationshipStatus;
-      }
-      if (updates.isLivenessVerified !== undefined) {
-        merged.is_liveness_verified = updates.isLivenessVerified;
-      }
-      return merged;
-    });
-
-    const uid = session?.user?.id;
-    if (uid && isSupabaseConfigured && (updates.relationshipStatus || updates.isLivenessVerified !== undefined)) {
-      cloud.updateProfileVerification(
-        uid,
-        updates.relationshipStatus || currentUserProfile.relationshipStatus,
-        updates.isLivenessVerified !== undefined ? updates.isLivenessVerified : Boolean(currentUserProfile.isLivenessVerified),
-        updates.avatar || currentUserProfile.avatar
-      ).catch(e => console.warn('Profile verification update error:', e));
-    }
+    setCurrentUserProfile(prev => ({ ...prev, ...updates }));
     showToast('Profile updated!', { category: 'profile' });
-  };
-
-  const handleVerificationSuccess = async (verified: {
-    avatar: string;
-    isLivenessVerified: boolean;
-    relationshipStatus: 'single';
-  }) => {
-    const updated: UserProfile = {
-      ...currentUserProfile,
-      avatar: verified.avatar,
-      isLivenessVerified: true,
-      is_liveness_verified: true,
-      relationshipStatus: 'single',
-      relationship_status: 'Single',
-    };
-    setCurrentUserProfile(updated);
-    localStorage.setItem('rada_current_user', JSON.stringify(updated));
-
-    const uid = session?.user?.id;
-    if (uid && isSupabaseConfigured) {
-      await cloud.updateProfileVerification(
-        uid,
-        'Single',
-        true,
-        verified.avatar
-      );
-      await cloud.saveUserData(uid, {
-        tickets,
-        contacts: emergencyContacts,
-        profile: updated,
-      });
-    }
-
-    setIsLivenessModalOpen(false);
-    showToast('Profile Verified', { category: 'profile' });
   };
 
   const handleBuyEventTicket = (event: EventItem) => {
@@ -2971,7 +2891,6 @@ export default function App() {
                 onOpenPlanDateModal={(chatId) => requireAuth('send messages', () => { setPlanDateChatId(chatId || null); setIsPlanDateModalOpen(true); })}
                 onOpenCreateGroupModal={() => requireAuth('send messages', () => setIsCreateGroupOpen(true))}
                 onViewUserProfile={(profile) => setViewingProfile(profile)}
-                onOpenVerificationModal={() => setIsLivenessModalOpen(true)}
                 targetChatId={targetChatId}
                 onClearTargetChatId={() => setTargetChatId(null)}
                 showToast={showToast}
@@ -3150,7 +3069,6 @@ export default function App() {
             onOpenEventMap={(evt) => setSelectedLocationMapEvent(evt)}
             currentUserProfile={currentUserProfile}
             onUpdateCurrentUserProfile={handleUpdateCurrentUserProfile}
-            onOpenVerificationModal={() => setIsLivenessModalOpen(true)}
             qrPassTitle={qrPassTitle}
             onCloseQrModal={() => setQrPassTitle(null)}
             isPlanDateModalOpen={isPlanDateModalOpen}
@@ -3336,17 +3254,6 @@ export default function App() {
               onToggleSave={handleToggleSave}
               onOpenSpot={(spot) => setSelectedSpotModal(spot)}
               onOpenEvent={(evt) => setSelectedEventModal(evt)}
-              showToast={showToast}
-            />
-          )}
-
-          {isLivenessModalOpen && (
-            <LivenessVerificationModal
-              isOpen={isLivenessModalOpen}
-              onClose={() => setIsLivenessModalOpen(false)}
-              currentUserProfile={currentUserProfile}
-              userId={session?.user?.id}
-              onVerificationSuccess={handleVerificationSuccess}
               showToast={showToast}
             />
           )}

@@ -452,9 +452,7 @@ export interface DatingProfile {
   loc: string;
   img: string;
   bio?: string;
-  relationshipStatus: 'single' | 'not_single';
   vibes?: string[];
-  isLivenessVerified?: boolean;
 }
 
 export interface UserProfile {
@@ -468,11 +466,7 @@ export interface UserProfile {
   avatar: string;
   bio: string;
   loc: string;
-  relationshipStatus: 'single' | 'not_single';
   vibes?: string[];
-  isLivenessVerified?: boolean;
-  is_liveness_verified?: boolean;
-  relationship_status?: string;
   /**
    * Professional (creator/host) account. Switching is instant and self-serve: there is no
    * review or approval step. Mirrors profiles.is_creator in Supabase.
@@ -616,7 +610,7 @@ export interface OutingPlan {
   maxAttendees: number;
   currentAttendeesCount?: number;
   description: string;
-  accessType: 'open' | 'singles_only';
+  accessType: 'open';
   tags?: string[];
   status?: 'active' | 'full' | 'completed' | 'cancelled';
   createdAt?: string;

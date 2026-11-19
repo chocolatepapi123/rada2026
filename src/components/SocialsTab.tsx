@@ -29,9 +29,7 @@ import {
   AlertCircle,
   Plus,
   Image as ImageIcon,
-  ShieldCheck,
   Lock,
-  UserCheck,
   Receipt
 } from 'lucide-react';
 import { DatingProfile, ChatConversation, ChatMessage, ChatTheme, UserProfile } from '../types.ts';
@@ -73,7 +71,6 @@ interface SocialsTabProps {
   onOpenPlanDateModal: (chatId?: string) => void;
   onOpenCreateGroupModal: () => void;
   onViewUserProfile: (profile: UserProfile) => void;
-  onOpenVerificationModal?: () => void;
   showToast: (msg: string, options?: ToastOptions) => void;
   targetChatId?: string | null;
   onClearTargetChatId?: () => void;
@@ -93,16 +90,11 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   onOpenPlanDateModal,
   onOpenCreateGroupModal,
   onViewUserProfile,
-  onOpenVerificationModal,
   showToast,
   targetChatId,
   onClearTargetChatId
 }) => {
-  // single / not-single and verification gates removed from the app: Discover is open to everyone.
-  const isUserSingle = true;
-  const isUserVerifiedSingle = true;
   const [subtab, setSubtab] = useState<'discover' | 'queue' | 'chats' | 'groups' | 'asks' | 'search'>('asks');
-  const [showGateModal, setShowGateModal] = useState(false);
   const [showBillSheet, setShowBillSheet] = useState(false);
   const [profileIndex, setProfileIndex] = useState(0);
   const [swipeAnimation, setSwipeAnimation] = useState<'like' | 'pass' | null>(null);
@@ -293,23 +285,22 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
               loc: 'Nairobi',
               img: r.avatar_url || PLACEHOLDER_AVATAR,
               bio: r.bio || 'Exploring Nairobi hangouts, food, and culture.',
-              relationshipStatus: 'single' as const,
               vibes: ['Nairobi Hangouts', 'Music', 'Outings'],
             }))
         );
       })
       .catch(() => { if (!cancelled) setCommunitySingles([]); });
     return () => { cancelled = true; };
-  }, [myUserId, isUserVerifiedSingle]);
+  }, [myUserId]);
 
-  // Filter out any mock accounts and only show real verified single members
+  // Everyone is a candidate, except people you already have a request or chat with
   const candidatePool = React.useMemo(() => {
     const blocked = new Set<string>();
     requests.forEach(r => {
       if (r.status !== 'declined') { blocked.add(r.fromUser); blocked.add(r.toUser); }
     });
     conversations.forEach(c => { const o = (c as any).otherUserId; if (o) blocked.add(o); });
-    return communitySingles.filter(p => p.relationshipStatus === 'single' && !blocked.has(String(p.id)));
+    return communitySingles.filter(p => !blocked.has(String(p.id)));
   }, [communitySingles, requests, conversations]);
 
   const currentProfile = candidatePool.length > 0 
@@ -728,10 +719,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
       avatar: conv.avatar,
       bio: '',
       loc: '',
-      relationshipStatus: 'single',
     };
     onViewUserProfile(base); // opens right away with what the chat already knows
-    // then fill in the bio and verification when they arrive
+    // then fill in the bio when it arrives
     searchProfiles(handle.replace(/^@/, ''), 5)
       .then((hits) => {
         const hit = hits.find((h) => h.id === uid);
@@ -740,8 +730,6 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           ...base,
           avatar: hit.avatar_url || base.avatar,
           bio: hit.bio || '',
-          relationshipStatus: hit.relationship_status === 'not_single' ? 'not_single' : 'single',
-          isLivenessVerified: hit.is_liveness_verified,
         });
       })
       .catch(() => { /* the basic profile is already showing */ });
@@ -1265,22 +1253,6 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   }
 
   const avatarRing = 'p-[2px] bg-gradient-to-tr from-[#F43F5E] to-[#E0533C] rounded-full shrink-0';
-  const statusRow = (label: string, ok: boolean, okText: string, noText: string, warn = false) => (
-    <div className="flex items-center justify-between font-bold">
-      <span className="text-slate-500 dark:text-slate-400">{label}</span>
-      <span
-        className={`px-2.5 py-0.5 rounded-full text-[11px] font-black ${
-          ok
-            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300'
-            : warn
-            ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300'
-            : 'bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-300'
-        }`}
-      >
-        {ok ? okText : noText}
-      </span>
-    </div>
-  );
 
   return (
     <section className="px-4 py-4 space-y-4 min-[900px]:max-w-2xl min-[900px]:mx-auto">
@@ -1533,7 +1505,6 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
               <p className="text-slate-400 py-4 text-center">No members found with that username.</p>
             )}
             {searchHits.map((p) => {
-              const isSingle = String(p.relationship_status || '').toLowerCase() === 'single';
               return (
                 <div
                   key={p.id}
@@ -1544,7 +1515,6 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                     avatar: p.avatar_url || PLACEHOLDER_AVATAR,
                     bio: p.bio || 'Exploring Nairobi hangouts, good music and vibes.',
                     loc: 'Nairobi',
-                    relationshipStatus: isSingle ? 'single' : 'not_single',
                     vibes: []
                   })}
                   className={`p-3 ${CARD} rounded-2xl flex items-center justify-between cursor-pointer hover:border-[#E0533C]/50 active:scale-[0.99] transition`}
@@ -1558,63 +1528,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                     </div>
                     <h4 className="font-bold text-[13px] truncate text-slate-900 dark:text-slate-100">@{p.username}</h4>
                   </div>
-                  {isSingle && p.is_liveness_verified && (
-                    <span className="text-[11px] font-black px-2.5 py-1 rounded-full bg-[#E0533C]/10 text-[#E0533C] flex items-center gap-1 shrink-0">
-                      <UserCheck className="w-3 h-3" />
-                      <span>Single</span>
-                    </span>
-                  )}
                 </div>
               );
             })}
-          </div>
-        </div>
-      )}
-
-      {/* Gate modal */}
-      {showGateModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-[#1C1A1E] rounded-3xl max-w-sm w-full p-5 border border-slate-200/80 dark:border-white/10 shadow-2xl space-y-4 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto">
-              <ShieldCheck className="w-7 h-7" />
-            </div>
-
-            <div className="space-y-1.5">
-              <h3 className="font-black text-[15px] text-slate-900 dark:text-slate-100">Single-only Discover</h3>
-              <p className="text-[13px] text-slate-600 dark:text-slate-300 leading-relaxed">
-                Discover is reserved for verified single profiles. You can still create and join Group Chats!
-              </p>
-            </div>
-
-            <div className="p-3 bg-slate-50 dark:bg-white/[0.04] rounded-2xl text-xs text-left space-y-2">
-              {statusRow('Your status', isUserSingle, 'Single', 'Not single')}
-              {statusRow('Selfie check', !!currentUserProfile?.isLivenessVerified, 'Passed', 'Not done yet', true)}
-            </div>
-
-            <div className="flex flex-col gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => { setShowGateModal(false); if (onOpenVerificationModal) onOpenVerificationModal(); }}
-                className="w-full py-3 px-4 bg-[#E0533C] text-white font-extrabold rounded-full text-[13px] shadow-lg shadow-[#E0533C]/25 active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Camera className="w-4 h-4" />
-                <span>Verify my single profile</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => { setShowGateModal(false); setSubtab('chats'); }}
-                className="w-full py-3 px-4 bg-slate-100 dark:bg-white/[0.07] text-slate-700 dark:text-slate-200 font-bold rounded-full text-[13px] active:scale-[0.98] transition cursor-pointer"
-              >
-                Go to group chats
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowGateModal(false)}
-                className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-semibold py-1 cursor-pointer"
-              >
-                Dismiss
-              </button>
-            </div>
           </div>
         </div>
       )}

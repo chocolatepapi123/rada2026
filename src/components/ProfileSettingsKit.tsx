@@ -24,7 +24,6 @@ import {
   fetchProfileIdentity,
   normalizeUsername,
   saveHostControls,
-  saveRelationshipStatus,
   saveUnifiedProfile,
   setProfessionalMode,
   toHandle,
@@ -74,23 +73,20 @@ export function useOwnProfile({
   const currentName = sanitizeDisplayName(profile.name);
   const currentBio = profile.bio || '';
   const profileIsPro = profile.is_creator === true || profile.account_type === 'professional';
-  const currentStatus: 'single' | 'not_single' = profile.relationshipStatus === 'single' ? 'single' : 'not_single';
 
   // Always-fresh view of the parent's user object, for async callbacks that outlive a render
   const profileRef = useRef(profile);
   profileRef.current = profile;
-  const latestRef = useRef({ currentName, currentUsername, currentBio, currentStatus });
-  latestRef.current = { currentName, currentUsername, currentBio, currentStatus };
+  const latestRef = useRef({ currentName, currentUsername, currentBio });
+  latestRef.current = { currentName, currentUsername, currentBio };
 
   // ---- drafts: local input state, always re-synced from the parent's user object
   const [name, setName] = useState(currentName);
   const [username, setUsername] = useState(currentUsername);
   const [bio, setBio] = useState(currentBio);
-  const [status, setStatus] = useState<'single' | 'not_single'>(currentStatus);
   useEffect(() => setName(currentName), [currentName, userId]);
   useEffect(() => setUsername(currentUsername), [currentUsername, userId]);
   useEffect(() => setBio(currentBio), [currentBio, userId]);
-  useEffect(() => setStatus(currentStatus), [currentStatus, userId]);
 
   /** Throws away unsaved edits and reloads every input from the parent's user object. */
   const resetDrafts = () => {
@@ -98,7 +94,6 @@ export function useOwnProfile({
     setName(l.currentName);
     setUsername(l.currentUsername);
     setBio(l.currentBio);
-    setStatus(l.currentStatus);
   };
   // Re-opening the modal (it stays mounted while closed) must show the stored values, not the
   // previous session's leftover drafts.
@@ -167,8 +162,7 @@ export function useOwnProfile({
   const dirty =
     name.trim() !== currentName.trim() ||
     normalizeUsername(username) !== currentUsername ||
-    bio.trim() !== currentBio.trim() ||
-    status !== currentStatus;
+    bio.trim() !== currentBio.trim();
 
   // ---- save identity (writes username + display_name, then updates parent immediately)
   const [saving, setSaving] = useState(false);
@@ -202,17 +196,6 @@ export function useOwnProfile({
         if (res.bioSaved === false) bioFailed = true;
         else patch.bio = res.bio;
       }
-    }
-
-    if (status !== currentStatus) {
-      const r = await saveRelationshipStatus(userId, status);
-      if (r.error) {
-        setSaving(false);
-        if (Object.keys(patch).length) onProfileChange?.(patch);
-        showToast(`Relationship status could not be saved: ${r.error}`, { type: 'error' });
-        return false;
-      }
-      patch.relationshipStatus = status;
     }
 
     setSaving(false);
@@ -314,9 +297,7 @@ export function useOwnProfile({
     name, setName,
     username, setUsername,
     bio, setBio,
-    status, setStatus,
     resetDrafts,
-    currentStatus,
     usernameState,
     dirty,
     saving,
@@ -581,40 +562,6 @@ export const ProfessionalSwitchCard: React.FC<{ p: OwnProfile }> = ({ p }) => (
       busy={p.switching}
       label="Switch to professional account"
     />
-  </div>
-);
-
-/** Relationship status, edited here and saved with the rest of the profile. */
-export const RelationshipStatusField: React.FC<{ p: OwnProfile }> = ({ p }) => (
-  <div className="p-4">
-    <div role="radiogroup" aria-label="Relationship status" className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-slate-100 dark:bg-[#121113]">
-      {(
-        [
-          ['single', 'Single'],
-          ['not_single', 'Not single'],
-        ] as const
-      ).map(([value, label]) => (
-        <button
-          key={value}
-          type="button"
-          role="radio"
-          aria-checked={p.status === value}
-          onClick={() => p.setStatus(value)}
-          className={`py-2 rounded-lg text-[13px] font-bold transition cursor-pointer motion-reduce:transition-none ${
-            p.status === value
-              ? 'bg-white dark:bg-[#1C1A1E] shadow-sm text-[#E0533C] dark:text-[#D17A68]'
-              : 'text-slate-500 dark:text-slate-400'
-          }`}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-    <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-      {p.status === 'single'
-        ? 'People can send you hangout and match requests. Your status is shown on your profile and used for Discover. You can change it any time.'
-        : 'Match requests are turned off for your profile. Your status is shown on your profile.'}
-    </p>
   </div>
 );
 

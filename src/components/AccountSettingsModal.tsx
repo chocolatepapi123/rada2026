@@ -158,7 +158,6 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
     currentUserProfile?.name,
     currentUserProfile?.username,
     currentUserProfile?.bio,
-    currentUserProfile?.relationshipStatus,
   ]);
 
   if (!isOpen) return null;

@@ -165,10 +165,11 @@ async function drawCard(canvas: HTMLCanvasElement, plan: OutingPlan, edits: Shar
   }
 
   // tags
-  if (edits.showTags && plan.tags && plan.tags.length) {
+  const shownTags = (plan.tags || []).filter(t => !['All Plans', 'Group Hangouts', 'Singles Only', 'Open Plan'].includes(t));
+  if (edits.showTags && shownTags.length) {
     ctx.font = `700 28px ${FONT}`;
     let x = 56;
-    for (const tag of plan.tags.slice(0, 4)) {
+    for (const tag of shownTags.slice(0, 4)) {
       const label = `#${tag}`;
       const tw = ctx.measureText(label).width + 36;
       if (x + tw > W - 56) break;

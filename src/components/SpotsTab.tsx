@@ -34,7 +34,6 @@ import {
 import { SpotItem, MenuItem, SavedItem, Review } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { supabase } from '../lib/supabase.ts';
-import { LocationCombobox } from './LocationCombobox.tsx';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 import type { ToastOptions } from './Toast.tsx';
 import { resolveSpotBudget, budgetBadge } from '../lib/spotBudget.ts';
@@ -880,45 +879,6 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                 </div>
               </div>
 
-              {/* Area / Neighborhood Quick Selection */}
-              <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-[#2D6A4F]" />
-                  <span>Neighborhood / Area:</span>
-                </span>
-                <div className="flex flex-wrap gap-1.5 text-xs max-h-36 overflow-y-auto pr-1">
-                  {[
-                    'all',
-                    'Westlands',
-                    'Kilimani',
-                    'Karen',
-                    'CBD',
-                    'Lavington',
-                    'Kileleshwa',
-                    'Gigiri',
-                    'Parklands',
-                    'Ngong Road',
-                    'South B',
-                    'South C',
-                    'Ruaka',
-                    'Thika Road'
-                  ].map((area) => (
-                    <button
-                      key={area}
-                      type="button"
-                      onClick={() => setSelectedNeighborhood(area)}
-                      className={`px-2.5 py-1 rounded-xl font-bold transition cursor-pointer text-[11px] ${
-                        selectedNeighborhood.toLowerCase() === area.toLowerCase()
-                          ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-xs'
-                          : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
-                      }`}
-                    >
-                      {area === 'all' ? 'All Nairobi' : area}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* Budget Tier */}
               <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
@@ -1074,18 +1034,6 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               {tier.label}
             </button>
           ))}
-        </div>
-
-        {/* Searchable Location Combobox Filter */}
-        <div className="pt-0.5">
-          <LocationCombobox
-            value={selectedNeighborhood}
-            onChange={(val) => setSelectedNeighborhood(val)}
-            spots={displaySpots}
-            placeholder="Filter by neighborhood, area, or location..."
-            allowAll={true}
-            liveFilter
-          />
         </div>
       </div>
 

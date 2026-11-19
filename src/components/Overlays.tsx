@@ -130,7 +130,6 @@ interface OverlaysProps {
   // Current User Profile
   currentUserProfile: UserProfile;
   onUpdateCurrentUserProfile: (profile: Partial<UserProfile>) => void;
-  onOpenVerificationModal?: () => void;
 
   // QR Modal
   qrPassTitle: string | null;
@@ -214,7 +213,6 @@ export const Overlays: React.FC<OverlaysProps> = ({
   onPlanWithFriends,
   currentUserProfile,
   onUpdateCurrentUserProfile,
-  onOpenVerificationModal,
   qrPassTitle,
   onCloseQrModal,
   isPlanDateModalOpen,
@@ -423,16 +421,14 @@ export const Overlays: React.FC<OverlaysProps> = ({
   const [readReceipts, setReadReceipts] = useState(true);
   const [datingDiscoverable, setDatingDiscoverable] = useState(true);
 
-  // Profile Bio & Relationship Status state (SPEC 6: Rename Profile, strictly Single / Not single)
+  // Profile bio and avatar state
   const [profileBio, setProfileBio] = useState(currentUserProfile?.bio || 'Discovering local hangouts, good music and vibes.');
   const [profileAvatar, setProfileAvatar] = useState(currentUserProfile?.avatar || '');
-  const [profileRelationshipStatus, setProfileRelationshipStatus] = useState<'single' | 'not_single'>(currentUserProfile?.relationshipStatus || 'single');
 
   useEffect(() => {
     if (currentUserProfile) {
       setProfileBio(currentUserProfile.bio);
       setProfileAvatar(currentUserProfile.avatar);
-      setProfileRelationshipStatus(currentUserProfile.relationshipStatus);
     }
   }, [currentUserProfile]);
 
@@ -2365,7 +2361,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
         </div>
       )}
 
-      {/* 11. PROFILE OVERLAY (SPEC 6: Renamed to Profile, strictly Single or Not single without emojis) */}
+      {/* 11. PROFILE OVERLAY (Profile) */}
       {activeOverlay === 'profileOverlay' && (
         <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">

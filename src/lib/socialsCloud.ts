@@ -37,8 +37,6 @@ export interface CloudProfileHit {
   username: string;
   avatar_url: string | null;
   bio: string | null;
-  relationship_status: string | null;
-  is_liveness_verified: boolean;
 }
 
 export interface CloudSnapshot {
@@ -301,7 +299,7 @@ export async function searchProfiles(query: string, limit = 20): Promise<CloudPr
   return (data || []) as CloudProfileHit[];
 }
 
-/** Verified singles for the Discover swipe deck (same function, wider net, filtered client-side). */
+/** People for the Discover swipe deck (same search function, wider net). */
 export async function fetchDiscoverPool(letters: string[] = ['a', 'e', 'i', 'o', 'u']): Promise<CloudProfileHit[]> {
   if (isDemoMode()) return DEMO_PROFILE_HITS;
   if (!isCloudReady()) return [];
@@ -310,9 +308,7 @@ export async function fetchDiscoverPool(letters: string[] = ['a', 'e', 'i', 'o',
   results.flat().forEach(p => {
     if (!seen.has(p.id)) seen.set(p.id, p);
   });
-  return [...seen.values()].filter(
-    p => String(p.relationship_status || '').toLowerCase() === 'single' && p.is_liveness_verified
-  );
+  return [...seen.values()];
 }
 
 export async function sendMatchRequest(

@@ -4,8 +4,7 @@ import { Search, X, MapPin, Bookmark, Star, Compass, Trash2, Navigation, Chevron
 import { SpotItem, SavedItem } from '../types.ts';
 import { spotInCategory, getSpotCategoryIds, isAllKey, resolveSpotCategory, SPOT_CATEGORIES } from '../lib/spotCategories.ts';
 import { getSpotCategoryAccent, accentVars } from '../lib/spotAccentTheme.ts';
-import { rankSpots, premiumScore, formatKm, useNearYou } from '../lib/spotRanking.ts';
-import { NearYouControl } from './NearYouControl.tsx';
+import { rankSpots, premiumScore, formatKm } from '../lib/spotRanking.ts';
 import { resolveSpotBudget, budgetBadge, plainPriceLabel } from '../lib/spotBudget.ts';
 import type { LatLng } from '../lib/geo.ts';
 import { spotMatchesSearchWithTags } from '../utils/spotTags.ts';
@@ -132,7 +131,6 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
   const [pickedCat, setPickedCat] = useState<string>(isAllKey(categoryKey) ? 'all' : (resolveSpotCategory(categoryKey) || 'all'));
   useEffect(() => { setPickedCat(isAllKey(categoryKey) ? 'all' : (resolveSpotCategory(categoryKey) || 'all')); }, [categoryKey]);
   const showCategoryDropdown = isAllKey(categoryKey);
-  const nearYou = useNearYou();
   const categorySlotPromos = useActivePromotions('spots_category');
 
   // Accent for the whole screen (only when a single category is open)
@@ -141,7 +139,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [query, selectedBudget, pickedCat, nearYou.active, nearYou.radiusKm, categoryKey]);
+  }, [query, selectedBudget, pickedCat, categoryKey]);
 
   const isSaved = (id: string | number) =>
     savedItems.some(s => String(s.id) === String(id) && s.kind === 'spot');
@@ -169,18 +167,13 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
       return true;
     });
 
-    // 1) Near You (GPS) wins: nearest first, inside the chosen radius
-    if (nearYou.active && nearYou.origin) {
-      return rankSpots(result, { nearYou: true, origin: nearYou.origin, radiusKm: nearYou.radiusKm });
-    }
-
-    // 2) Default "Featured": premium / high-end first; paid category slots (no labels) go first in admin order
+    // Default "Featured": premium / high-end first; paid category slots (no labels) go first in admin order
     const featured = rankSpots(result);
     if (effectiveCat && !isAllKey(effectiveCat) && effectiveCat !== 'spots') {
       return sortSpotsByCategoryPromotion(featured, effectiveCat, categorySlotPromos);
     }
     return featured;
-  }, [spots, categorySlotPromos, categoryKey, showCategoryDropdown, pickedCat, selectedBudget, query, nearYou.active, nearYou.origin, nearYou.radiusKm]);
+  }, [spots, categorySlotPromos, categoryKey, showCategoryDropdown, pickedCat, selectedBudget, query]);
 
   return (
     <div className="space-y-4">
@@ -211,7 +204,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
         )}
       </div>
 
-      {/* Filters: budget dropdown, category (all-spots screens only), Near You */}
+      {/* Filters: budget dropdown, category (all-spots screens only) */}
       <div className="flex items-center gap-2 flex-wrap text-xs">
         {showCategoryDropdown && (
           <PillDropdown value={pickedCat} options={CATEGORY_OPTIONS} onChange={setPickedCat} menuWidthClass="w-64" />
@@ -223,7 +216,6 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
           caption="Budget"
           menuWidthClass="w-48"
         />
-        <NearYouControl />
 
         {(selectedBudget !== 'all' || query || (showCategoryDropdown && pickedCat !== 'all')) && (
           <button
@@ -246,9 +238,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
           <Compass className="w-8 h-8 mx-auto" style={{ color: screenAccent.color }} />
           <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">No spots found matching your search</h4>
           <p className="text-xs text-slate-500 max-w-xs mx-auto">
-            {nearYou.active
-              ? 'Nothing in this radius. Try a wider distance or switch off Near You.'
-              : 'Try adjusting your search or clearing the budget filter.'}
+            Try adjusting your search or clearing the budget filter.
           </p>
           <button
             type="button"

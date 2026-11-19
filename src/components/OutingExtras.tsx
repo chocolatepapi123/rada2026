@@ -52,7 +52,7 @@ export interface OutingTemplateData {
   spotId?: string | number | null;
   description?: string;
   maxAttendees?: number;
-  accessType?: 'open' | 'singles_only';
+  accessType?: 'open';
   tags?: string[];
 }
 interface TemplateRow { id: string; name: string; data: OutingTemplateData }

@@ -11,6 +11,7 @@ import { NearYouControl } from './NearYouControl.tsx';
 import { TonightSection } from './TonightSection.tsx';
 import { pickTrendingSpots, isHomeSpot } from '../lib/trendingSpots.ts';
 import { CinemaMovieSheet } from './CinemaExplorer.tsx';
+import { localPosterFor } from '../lib/localPosters.ts';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { getStoredLanguage, translations, type AppLanguage } from '../utils/i18n.ts';
 
@@ -1844,7 +1845,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <div>
                   <div
                     className="h-60 bg-slate-200 dark:bg-slate-800 rounded-2xl mb-2.5 bg-cover bg-center relative overflow-hidden shadow-xs"
-                    style={{ backgroundImage: `url('${movie.img}')` }}
+                    style={{ backgroundImage: [movie.img, localPosterFor(movie.title)].filter(Boolean).map(u => `url('${u}')`).join(', ') || undefined }}
                   >
                     <span className="absolute top-2 right-2 bg-[#2D6A4F] text-white text-[9px] font-black px-2 py-0.5 rounded-md shadow-xs">
                       {movie.format}
@@ -2334,7 +2335,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                       avatar: post.avatar,
                       bio: 'Exploring nightlife, music events, and great culinary spots.',
                       loc: post.locationName || 'Kenya',
-                      relationshipStatus: 'single'
                     })}
                   >
                     <div

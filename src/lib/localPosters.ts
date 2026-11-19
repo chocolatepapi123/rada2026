@@ -1,3 +1,5 @@
+import { titleKey } from './cinemaProviders.ts';
+
 /**
  * Real posters shipped with the app (public/posters). Keys are titleKey() of the film title,
  * so "Moana", "Moana (2026)" and "MOANA 3D" all match. Used when a listing has no poster of its own
@@ -9,3 +11,7 @@ export const LOCAL_POSTERS: Record<string, string> = {
   'moana': '/posters/moana.jpg',
   'reminders of him': '/posters/reminders-of-him.jpg',
 };
+
+/** Bundled poster for a film title (or undefined), matching the same way the cinema list does. */
+export const localPosterFor = (title?: string): string | undefined =>
+  title ? LOCAL_POSTERS[titleKey(title)] : undefined;
