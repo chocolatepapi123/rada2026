@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import { BadgeCheck, Check, ChevronsUp, Loader2, MapPin, ShieldCheck, Ticket, X } from 'lucide-react';
+import { BadgeCheck, Check, ChevronsUp, Loader2, MapPin, Send, ShieldCheck, Ticket, X } from 'lucide-react';
 import { pullUpLineProblem, replyToAsk, timeLeft, type Ask } from '../lib/asks.ts';
-
-const QUICK = ["I'm in", 'Pulling up now', 'What time?', 'Can I bring a friend?'];
 
 /**
  * "Pull up" on a rada: a short line to the person who posted it.
@@ -59,14 +57,8 @@ export const PullUpSheet: React.FC<{ ask: Ask; onClose: () => void; onSent: (ask
             </div>
 
             <div className="space-y-2">
-              <div className="flex flex-wrap gap-1.5">
-                {QUICK.map((q) => (
-                  <button key={q} type="button" onClick={() => setLine(q)}
-                    className={`px-3 py-1.5 rounded-full text-[12px] font-bold cursor-pointer border transition active:scale-95 ${line === q ? 'bg-[#E0533C] border-[#E0533C] text-white' : 'border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-200'}`}>{q}</button>
-                ))}
-              </div>
               <div className="relative">
-                <textarea value={line} onChange={(e) => setLine(e.target.value.slice(0, 140))} rows={2} placeholder="Say something short"
+                <textarea value={line} onChange={(e) => setLine(e.target.value.slice(0, 140))} rows={2} placeholder="Utatokea?"
                   className="w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-transparent px-4 py-3 pr-12 text-[14px] font-semibold outline-none focus:border-[#E0533C] resize-none placeholder:font-medium placeholder:text-slate-400" />
                 <span className="absolute right-3 bottom-2.5 text-[10px] font-bold text-slate-400">{line.length}/140</span>
               </div>
@@ -75,7 +67,7 @@ export const PullUpSheet: React.FC<{ ask: Ask; onClose: () => void; onSent: (ask
 
             <button type="button" onClick={send} disabled={busy || !line.trim() || !!problem}
               className="w-full py-3.5 rounded-2xl bg-[#E0533C] hover:bg-orange-700 text-white text-[13px] font-black flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-[0.98] transition shadow-lg shadow-[#E0533C]/20">
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronsUp className="w-4 h-4" />} Pull up
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Reply
             </button>
             <p className="text-[11px] text-slate-400 text-center leading-relaxed">They see your line first. A chat only opens if they let you in.</p>
           </div>
