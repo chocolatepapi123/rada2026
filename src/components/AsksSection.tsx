@@ -48,7 +48,6 @@ const SwipeCard: React.FC<{ ask: Ask; top: boolean; depth: number; onSwipe: (dir
         <p className="text-[20px] font-extrabold leading-tight">{ask.body}</p>
         <p className="text-[12px] font-bold flex items-center gap-1.5 flex-wrap text-white/90">
           <span>@{ask.handle || 'someone'}</span>
-          {ask.verified && <BadgeCheck className="w-4 h-4 text-green-300" aria-label="Verified" />}
           {ask.trusted && <span className="inline-flex items-center gap-0.5 text-green-300"><ShieldCheck className="w-4 h-4" />Trusted</span>}
         </p>
         <p className="text-[12px] font-semibold text-white/80 flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{ask.area} · {timeLeft(ask.expires_at)}</p>
@@ -180,7 +179,7 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
                 {replies.length === 0 && <p className="text-[12px] text-slate-400">No replies yet.</p>}
                 {replies.map((r) => (
                   <div key={r.id} className="rounded-2xl bg-slate-50 dark:bg-white/[0.04] px-3 py-2 space-y-1.5">
-                    <p className="text-[12px]"><b>@{r.handle || 'someone'}</b>{r.verified && <BadgeCheck className="inline w-3.5 h-3.5 ml-1 text-[#2D6A4F]" />} {r.message}</p>
+                    <p className="text-[12px]"><b>@{r.handle || 'someone'}</b> {r.message}</p>
                     {r.status === 'pending' ? (
                       <div className="flex gap-2">
                         <button onClick={() => accept(r)} className="px-3 py-1.5 rounded-full bg-[#2D6A4F] text-white text-[11px] font-extrabold cursor-pointer">Accept and chat</button>

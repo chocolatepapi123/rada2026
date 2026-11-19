@@ -639,7 +639,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
               )}
               {selectedSpot.isUserUploaded && !selectedSpot.businessId && selectedSpot.is_claimed === false && (
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 pt-1">
-                  Suggested by the community{selectedSpot.submitted_by_name ? ` (${selectedSpot.submitted_by_name})` : ''}. Own this place? Claim it from Merchant Hub to get it verified.
+                  Suggested by the community{selectedSpot.submitted_by_name ? ` (${selectedSpot.submitted_by_name})` : ''}.
                 </p>
               )}
             </div>
@@ -1138,7 +1138,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   </h4>
                   <p className="text-[10px] text-slate-400">
                     {(selectedSpot.reviews && selectedSpot.reviews.length > 0)
-                      ? 'Verified community ratings with photo upload'
+                      ? 'Community ratings with photo upload'
                       : 'No ratings yet — be the first to share your experience'}
                   </p>
                 </div>
@@ -2405,91 +2405,6 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   <p className="text-slate-500 font-bold text-[11px]">{currentUserProfile?.handle || '@explorer'} • Nairobi, Kenya</p>
                 </div>
 
-                {/* Relationship Status: Strictly Single or Not single without emojis */}
-                <div className="space-y-1.5 text-left pt-1 border-t border-slate-200 dark:border-slate-800">
-                  <div className="flex items-center justify-between">
-                    <label className="font-extrabold text-[11px] text-slate-700 dark:text-slate-300">
-                      Relationship Status
-                    </label>
-                    <span className="text-[10px] font-bold text-[#E0533C]">
-                      {profileRelationshipStatus === 'single' ? 'Single' : 'Not single'}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setProfileRelationshipStatus('single');
-                        if (!currentUserProfile?.isLivenessVerified) {
-                          showToast('Single status requires photo & camera liveness verification to unlock Discover.');
-                          if (onOpenVerificationModal) onOpenVerificationModal();
-                        }
-                      }}
-                      className={`p-2.5 rounded-xl border text-xs font-black flex flex-col items-center justify-center gap-1 transition cursor-pointer ${
-                        profileRelationshipStatus === 'single'
-                          ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-emerald-800 dark:text-emerald-300 shadow-xs'
-                          : 'bg-white dark:bg-[#121113] border-slate-200 dark:border-slate-800 text-slate-500 hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-1">
-                        <span>Single</span>
-                        {currentUserProfile?.isLivenessVerified && (
-                          <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                        )}
-                      </div>
-                      <span className="text-[9px] font-normal opacity-80">
-                        {currentUserProfile?.isLivenessVerified ? 'Verified Single' : 'Liveness check required'}
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setProfileRelationshipStatus('not_single')}
-                      className={`p-2.5 rounded-xl border text-xs font-black flex flex-col items-center justify-center gap-1 transition cursor-pointer ${
-                        profileRelationshipStatus === 'not_single'
-                          ? 'bg-slate-200 dark:bg-slate-800 border-slate-400 text-slate-900 dark:text-white shadow-xs'
-                          : 'bg-white dark:bg-[#121113] border-slate-200 dark:border-slate-800 text-slate-500 hover:border-slate-300'
-                      }`}
-                    >
-                      <span>Not single</span>
-                      <span className="text-[9px] font-normal opacity-80">Excluded from matching</span>
-                    </button>
-                  </div>
-
-                  {/* Liveness Verification Notice in Profile */}
-                  {profileRelationshipStatus === 'single' && (
-                    <div className="p-3 bg-white dark:bg-[#121113] rounded-2xl border border-slate-200 dark:border-slate-800 mt-2 space-y-2">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="font-bold text-slate-500">Liveness Verification:</span>
-                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                          currentUserProfile?.isLivenessVerified
-                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                            : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                        }`}>
-                          {currentUserProfile?.isLivenessVerified ? 'Verified' : 'Action Required'}
-                        </span>
-                      </div>
-                      {!currentUserProfile?.isLivenessVerified ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (onOpenVerificationModal) onOpenVerificationModal();
-                          }}
-                          className="w-full py-2 bg-[#E0533C] hover:bg-orange-700 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
-                        >
-                          <Camera className="w-3.5 h-3.5" />
-                          <span>Complete Camera Liveness Check</span>
-                        </button>
-                      ) : (
-                        <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" />
-                          <span>Your single profile is verified and active in Discover.</span>
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-
                 <div className="space-y-1 text-left pt-1">
                   <label className="font-bold text-slate-600 dark:text-slate-300 text-[11px]">Personal Bio</label>
                   <textarea
@@ -2501,16 +2416,11 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   />
                   <button
                     onClick={() => {
-                      if (profileRelationshipStatus === 'single' && !currentUserProfile?.isLivenessVerified) {
-                        showToast('Please complete liveness verification to unlock Discover as Single.');
-                        if (onOpenVerificationModal) onOpenVerificationModal();
-                      }
                       onUpdateCurrentUserProfile({
                         bio: profileBio,
-                        avatar: profileAvatar,
-                        relationshipStatus: profileRelationshipStatus
+                        avatar: profileAvatar
                       });
-                      showToast(`Profile saved! Status set to ${profileRelationshipStatus === 'single' ? 'Single' : 'Not single'}.`);
+                      showToast('Profile saved!');
                     }}
                     className="w-full py-2.5 bg-[#2D6A4F] hover:bg-emerald-800 text-white font-bold rounded-xl text-xs shadow mt-1 transition cursor-pointer"
                   >

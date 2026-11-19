@@ -30,7 +30,6 @@ import {
   AvatarHero,
   IdentityFields,
   ProfessionalDashboard,
-  RelationshipStatusField,
   Section,
   useOwnProfile,
 } from './ProfileSettingsKit';
@@ -220,7 +219,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const earnedBadges = kinds.reduce((n, k) => n + k.level, 0);
   const totalBadges = kinds.reduce((n, k) => n + k.meta.names.length, 0);
 
-  const isSingle = p.relationshipStatus === 'single';
+  const isSingle = true; // single / not-single removed from the app
   const name = p.name || handle || 'Your profile';
   const initial = String(name).replace(/^@/, '').charAt(0).toUpperCase() || 'R';
 
@@ -326,10 +325,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
               <span className="inline-flex items-center gap-1 text-[12px] font-semibold px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                 <MapPin className="w-3.5 h-3.5" style={{ color: accent }} />
                 {cleanLoc(p.loc)}
-              </span>
-              <span className={`inline-flex items-center gap-1 text-[12px] font-semibold px-3 py-1.5 rounded-full ${isSingle ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>
-                {isSingle && <CheckCircle2 className="w-3.5 h-3.5" />}
-                {isSingle ? (p.isLivenessVerified ? 'Single (verified)' : 'Single') : 'Not single'}
               </span>
               {own.isPro && (
                 <span className="inline-flex items-center gap-1 text-[12px] font-bold px-3 py-1.5 rounded-full text-white" style={{ background: accent }}>
@@ -529,9 +524,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                   <IdentityFields p={own} />
                 </Section>
 
-                <Section title="Relationship status" description="Controls who can send you hangout and match requests.">
-                  <RelationshipStatusField p={own} />
-                </Section>
 
                 <Section title="Tags" description={`Short labels shown on your profile, like Founder or Foodie. Up to ${MAX_TAGS}.`}>
                   <div className="p-4 space-y-3">

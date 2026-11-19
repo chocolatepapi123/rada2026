@@ -98,8 +98,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   targetChatId,
   onClearTargetChatId
 }) => {
-  const isUserSingle = isDemoMode() || currentUserProfile?.relationshipStatus === 'single' || currentUserProfile?.relationship_status?.toLowerCase() === 'single';
-  const isUserVerifiedSingle = isDemoMode() || (isUserSingle && Boolean(currentUserProfile?.isLivenessVerified || currentUserProfile?.is_liveness_verified));
+  // single / not-single and verification gates removed from the app: Discover is open to everyone.
+  const isUserSingle = true;
+  const isUserVerifiedSingle = true;
   const [subtab, setSubtab] = useState<'discover' | 'queue' | 'chats' | 'groups' | 'asks' | 'search'>('asks');
   const [showGateModal, setShowGateModal] = useState(false);
   const [showBillSheet, setShowBillSheet] = useState(false);

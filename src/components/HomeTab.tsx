@@ -1348,16 +1348,18 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               No events, movie showtimes or offers found for "{searchQuery}"
             </h4>
             <p className="text-xs text-slate-500 max-w-xs mx-auto">
-              Are you an event organizer or promoter? Publish this event live on RADA!
+              Try a different search or category.
             </p>
           </div>
+          {onOpenCreateEvent && (
           <button
-            onClick={() => onOpenCreateEvent ? onOpenCreateEvent(searchQuery) : showToast('Open Business Hub to publish an event')}
+            onClick={() => onOpenCreateEvent(searchQuery)}
             className="px-5 py-2.5 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5"
           >
             <Plus className="w-4 h-4" />
             <span>Create Event "{searchQuery || 'New Showcase'}"</span>
           </button>
+          )}
         </div>
       )}
 

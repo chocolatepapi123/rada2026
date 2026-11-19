@@ -709,10 +709,6 @@ export const CreatorHubTab: React.FC<CreatorHubTabProps> = ({ own, outings, user
 
             <div className={`${card} p-4 space-y-3`}>
               <div className="flex items-center gap-2">
-                <VerifiedBadge status="approved" size="md" golden={plan === 'elite'} />
-                <span className="text-[13px] font-bold">{plan === 'elite' ? 'Golden verified host' : 'Verified host'}</span>
-              </div>
-              <div className="flex items-center gap-2">
                 {tierBadge ? <TierBadge badge={tierBadge} size="md" /> : <span className={`text-[12px] ${subtle}`}>No paid badge on the Free plan</span>}
               </div>
               <p className={`text-[11px] ${subtle}`}>

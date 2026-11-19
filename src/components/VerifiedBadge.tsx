@@ -42,7 +42,9 @@ export const VerifiedBadge: React.FC<VerifiedBadgeProps> = ({
   className = '',
   golden = false,
 }) => {
-  if (status !== 'approved' && status !== 'verified') return null;
+  // Verified marks removed from the app: nothing renders.
+  return null;
+  // eslint-disable-next-line no-unreachable
   const px = PX[size] ?? PX.sm;
 
   return (

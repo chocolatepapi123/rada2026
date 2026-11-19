@@ -31,7 +31,6 @@ import {
   AvatarHero,
   IdentityFields,
   ProfessionalDashboard,
-  RelationshipStatusField,
   Section,
   useOwnProfile,
 } from './ProfileSettingsKit';
@@ -343,9 +342,6 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
                 <IdentityFields p={own} />
               </Section>
 
-              <Section title="Relationship status" description="Controls who can send you hangout and match requests.">
-                <RelationshipStatusField p={own} />
-              </Section>
 
               <Section title="Account">
                 <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
@@ -353,13 +349,6 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
                   icon={<Mail className="w-4 h-4" />}
                   label="Email (private)"
                   value={email}
-                  right={
-                    isLoggedIn ? (
-                      <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                        Verified
-                      </span>
-                    ) : undefined
-                  }
                 />
                 <Row icon={<Globe className="w-4 h-4" />} label="Sign-in method" value={authProviderName} />
               </div>

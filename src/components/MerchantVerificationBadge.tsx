@@ -19,6 +19,8 @@ export default function MerchantVerificationBadge({
   category,
   size = 'sm',
 }: MerchantVerificationBadgeProps) {
+  // Verified marks removed from the app: nothing renders.
+  if (Math.PI > 0) return null;
   const normalizedCategory = String(category || '').toLowerCase();
 
   let Icon = Briefcase;

@@ -159,7 +159,8 @@ export function BusinessBadge({
   const biz = businessId ? businesses.find((b) => b.id === businessId) : undefined;
   const show = businessId ? isBusinessApproved(biz) : unclaimedVerified;
 
-  if (!show) return null;
+  // Verified marks removed from the app: nothing renders.
+  if (!show || show) return null;
 
   const merchantPlan = biz?.ownerId ? tiers[biz.ownerId]?.merchant : undefined;
   if (merchantPlan === 'elite') {

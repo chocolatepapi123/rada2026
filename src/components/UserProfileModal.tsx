@@ -196,7 +196,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   if (!user) return null;
 
   const handle = toHandle(user.handle);
-  const isSingle = user.relationshipStatus === 'single';
+  const isSingle = true; // single / not-single removed from the app: everyone can be matched
 
   // ===================== YOUR PROFILE (read-only preview; all editing lives in Account & Security) =====================
   if (isOwnProfile) {
@@ -227,16 +227,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                     <MapPin className="w-3 h-3 text-[#E0533C] dark:text-[#D17A68]" />
                     {cleanLoc(user.loc)}
-                  </span>
-                  <span
-                    className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full ${
-                      isSingle
-                        ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-                    }`}
-                  >
-                    {isSingle && <CheckCircle2 className="w-3 h-3" />}
-                    {isSingle ? (user.isLivenessVerified ? 'Single (verified)' : 'Single') : 'Not single'}
                   </span>
                 </div>
               }
@@ -426,14 +416,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             <MapPin className="w-3.5 h-3.5" style={{ color: accent }} />
             {cleanLoc(user.loc)}
           </span>
-          <span
-            className={`inline-flex items-center gap-1 text-[12px] font-semibold px-3 py-1.5 rounded-full ${
-              isSingle ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-            }`}
-          >
-            {isSingle && <CheckCircle2 className="w-3.5 h-3.5" />}
-            {isSingle ? (user.isLivenessVerified ? 'Single (verified)' : 'Single') : 'Not single'}
-          </span>
           {tags.map((t) => (
             <span key={t} className="text-[12px] font-semibold px-3 py-1.5 rounded-full" style={{ background: `${accent}1F`, color: accent }}>
               {t}
@@ -484,7 +466,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         )}
 
         <div className="px-4 mt-5 space-y-3.5">
-          {isVerifiedPro && (
+          {false && isVerifiedPro && (
             <div className="p-3 rounded-2xl flex items-center justify-between gap-3" style={{ background: `${accent}14` }}>
               <div className="min-w-0">
                 <p className="text-[12px] font-black" style={{ color: accent }}>{myTiers?.creator === 'elite' ? 'Golden verified host' : 'Verified host'}</p>

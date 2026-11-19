@@ -100,7 +100,6 @@ const TAB_LOADERS: Record<string, () => Promise<any>> = {
   socials: () => import('./components/SocialsTab.tsx'),
   vault: () => import('./components/VaultTab.tsx'),
   calendar: () => import('./components/LukuEventsTab.tsx'),
-  merchant: () => import('./components/MerchantHubTab.tsx'),
 };
 const prefetchTab = (id: string) => { TAB_LOADERS[id]?.().catch(() => {}); };
 
@@ -111,7 +110,7 @@ if (typeof window !== 'undefined') {
     const c: any = (navigator as any).connection || {};
     if (c.saveData) return;
     const gap = document.documentElement.classList.contains('low-end') ? 900 : 400;
-    ['spots', 'outings', 'socials', 'vault', 'merchant'].forEach((id, i) =>
+    ['spots', 'outings', 'socials', 'vault'].forEach((id, i) =>
       setTimeout(() => prefetchTab(id), i * gap)
     );
     // Heavy screens people open from menus: load them in the background too, so the first tap is instant
@@ -163,7 +162,8 @@ const loadTabComponent = (key: string): Promise<React.ComponentType<any>> => {
 
 const AuthModal = lazyNamed(() => import('./components/AuthModal.tsx'), 'AuthModal');
 const AdminDashboard = lazyNamed(() => import('./components/AdminDashboardModal.tsx'), 'AdminDashboard');
-const MerchantHubTab = lazyNamed(() => import('./components/MerchantHubTab.tsx'), 'MerchantHubTab');
+// Merchant Hub removed from the app: this stub keeps old call sites compiling; nothing can open it.
+const MerchantHubTab: React.FC<any> = () => null;
 const PublicBusinessProfileModal = lazyNamed(() => import('./components/PublicBusinessProfileModal.tsx'), 'PublicBusinessProfileModal');
 const Overlays = lazyNamed(() => import('./components/Overlays.tsx'), 'Overlays');
 const LocationMapModal = lazyNamed(() => import('./components/LocationMapModal.tsx'), 'LocationMapModal');
@@ -309,7 +309,7 @@ const TabPane = memo(
 );
 
 // Direction the tab content slides in from (1 = from the right, -1 = from the left).
-const TAB_ORDER = ['home', 'spots', 'outings', 'plans', 'socials', 'vault', 'calendar', 'merchant'];
+const TAB_ORDER = ['home', 'spots', 'outings', 'plans', 'socials', 'vault', 'calendar'];
 let prevSlideTab = 'home';
 let slideDir = 1;
 const tabSlideDir = (tab: string): number => {
@@ -750,7 +750,9 @@ export default function App() {
   return initialBusinesses;
 });
   const [activeBusinessId, setActiveBusinessId] = useState<string>('');
-  const [isBusinessHubOpen, setIsBusinessHubOpen] = useState(false);
+  // Merchant Hub removed: the overlay can no longer be opened.
+  const isBusinessHubOpen = false;
+  const setIsBusinessHubOpen = (_open: boolean) => {};
 
   // Core Data State (Ensures at least 10 items for every category)
   const [spots, setSpots] = useState<SpotItem[]>(() => {
@@ -2879,7 +2881,6 @@ export default function App() {
                   setViewAllTitle(title);
                   setViewAllCategory(cat);
                 }}
-                onOpenCreateEvent={() => requireAuth('add a spot or business', () => setIsBusinessHubOpen(true))}
                 onOpenSuggestSpot={() => setIsSuggestSpotModalOpen(true)}
                 onOpenBusinessProfile={handleOpenBusinessProfile}
                 showToast={showToast}
@@ -2914,7 +2915,6 @@ export default function App() {
                   setViewAllTitle(title);
                   setViewAllCategory(cat);
                 }}
-                onOpenCreateSpot={() => requireAuth('add a spot or business', () => setIsBusinessHubOpen(true))}
                 onOpenSuggestSpot={() => setIsSuggestSpotModalOpen(true)}
                 onPostReview={handlePostReview}
                 onNavigateToCalendar={handleNavigateToCalendar}

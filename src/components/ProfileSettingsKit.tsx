@@ -641,10 +641,6 @@ export const ProfessionalHub: React.FC<{ p: OwnProfile }> = ({ p }) => {
       <div className="px-4 pt-3">
         <p className="text-[12px] font-semibold text-slate-600 dark:text-slate-300 mb-2">Host benefits & badges</p>
         <div className="rounded-xl bg-[#E0533C]/10 dark:bg-[#A94F3E]/10 p-3 space-y-2">
-          <div className="flex items-center gap-2">
-            <VerifiedBadge status="approved" size="lg" />
-            <span className="text-[13px] font-bold">Verified host</span>
-          </div>
           {[
             'RADA host badge on your profile and every outing you host',
             'Outing analytics in this hub',

@@ -110,7 +110,7 @@ export const Header: React.FC<HeaderProps> = ({
   const { intents } = useIntents(userId);
   const intentsKnown = Array.isArray(intents) && intents.length > 0;
   const isProAccount = hasBusinessAccount || userRole === 'merchant' || userRole === 'admin';
-  const showBusinessHub = Boolean(isGuestMode) || isProAccount || !intentsKnown || intents!.includes('business');
+  const showBusinessHub = false; // Merchant Hub removed
   const showSuggestSpot = !intentsKnown || intents!.some((i) => i !== 'business');
   // The menu has two pages: the main list, and "Account & security" (its own page inside the menu).
   const [menuView, setMenuView] = useState<'main' | 'account'>('main');

@@ -1100,16 +1100,18 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               No spots found for "{searchQuery || (selectedCategory === 'all' ? 'your filters' : getSpotCategoryAccent(selectedCategory).label)}"{near.active ? ' near you' : ''}
             </h4>
             <p className="text-xs text-slate-500 max-w-xs mx-auto">
-              Know this spot or running a business here? Add it to the RADA interactive map!
+              Try a different search or category.
             </p>
           </div>
+          {onOpenCreateSpot && (
           <button
-            onClick={() => onOpenCreateSpot ? onOpenCreateSpot(searchQuery) : undefined}
+            onClick={() => onOpenCreateSpot(searchQuery)}
             className="px-5 py-2.5 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5"
           >
             <Plus className="w-4 h-4" />
             <span>Create Spot "{searchQuery || 'New Venue'}"</span>
           </button>
+          )}
         </div>
       )}
 

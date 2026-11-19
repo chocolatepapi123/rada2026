@@ -166,12 +166,6 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
                 <MapPin className="w-3 h-3 text-[#E0533C] dark:text-[#D17A68] shrink-0" />
                 <span className="truncate">{business.address || `${business.neighborhood}, Nairobi`}</span>
               </div>
-              {isBusinessApproved(business) && (
-                <p className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-black text-[#E0533C] dark:text-[#D17A68]">
-                  <VerifiedBadge status="approved" size="sm" />
-                  <span>Verified by RADA</span>
-                </p>
-              )}
               {!isBusinessApproved(business) && business.verificationStatus !== 'rejected' && (
                 <p className="mt-1.5 inline-flex items-center text-[11px] font-black px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                   New · awaiting RADA verification
@@ -335,7 +329,7 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
             <div className="space-y-3">
               <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                 <Store className="w-3.5 h-3.5 text-amber-500" />
-                <span>{isBusinessApproved(business) ? 'Verified Spots' : 'Spots'} ({businessSpots.length})</span>
+                <span>Spots ({businessSpots.length})</span>
               </h3>
               <div className="space-y-2">
                 {sortPremium([...businessSpots]).map(spot => {
