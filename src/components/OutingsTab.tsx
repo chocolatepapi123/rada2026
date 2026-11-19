@@ -567,9 +567,9 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
     setMaxAttendees((prev) => clampAttendees(myPlan, prev));
   }, [myPlan]);
   const outingLimitMessage = `You've used all ${quota.limit} outings for this month on the ${PLAN_META[myPlan].name} plan. Upgrade in Account & Security to host more.`;
-  const [accessType, setAccessType] = useState<'open' | 'singles_only'>('open');
+  const [accessType, setAccessType] = useState<'open' | 'singles_only'>('open'); // singles-only removed: always open
   const [description, setDescription] = useState('');
-  const [selectedTags, setSelectedTags] = useState<string[]>(['All Plans', 'Group Hangouts']);
+  const [selectedTags, setSelectedTags] = useState<string[]>(['Group Hangouts']);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Dynamically extracted locations from active spots and outings database
@@ -849,7 +849,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
         currentAttendeesCount: 1, // host
         description: description.trim(),
         accessType,
-        tags: Array.from(new Set(['All Plans', accessType === 'singles_only' ? 'Singles Only' : 'Group Hangouts', ...selectedTags])),
+        tags: Array.from(new Set(['Group Hangouts', ...selectedTags.filter(t => t !== 'All Plans' && t !== 'Singles Only')])),
         status: 'active',
         createdAt: new Date().toISOString(),
         attendees: []
@@ -1047,7 +1047,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       <div className="flex items-center justify-between px-1 text-xs">
         <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
           <Compass className="w-3.5 h-3.5 text-[#E0533C]" />
-          <span>Active Plans ({filteredOutings.length})</span>
+          <span>{filteredOutings.length === 1 ? '1 outing' : `${filteredOutings.length} outings`}</span>
         </span>
         <div className="flex items-center gap-2">
           {(Boolean(selectedLocation && selectedLocation !== 'All Locations') || selectedCategory !== 'all' || accessTypeFilter !== 'All Plans' || searchQuery.trim() !== '' || savedOnly) && (
@@ -1067,9 +1067,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
             </button>
           )}
           <span className="text-[11px] text-slate-400 font-medium truncate max-w-[200px]">
-            {accessTypeFilter}
-            {selectedLocation && selectedLocation !== 'All Locations' ? ` • ${selectedLocation}` : ''}
-            {selectedCategory !== 'all' ? ` • ${RADA_10_CATEGORIES.find(c => c.id === selectedCategory)?.label}` : ''}
+            {[selectedLocation && selectedLocation !== 'All Locations' ? selectedLocation : '', selectedCategory !== 'all' ? RADA_10_CATEGORIES.find(c => c.id === selectedCategory)?.label : ''].filter(Boolean).join(' • ')}
           </span>
         </div>
       </div>
@@ -1116,18 +1114,6 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0">
-                  {/* Access Type Badge */}
-                  {plan.accessType === 'singles_only' ? (
-                    <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60 flex items-center gap-1 shrink-0">
-                      <Heart className="w-3 h-3 fill-rose-500 text-rose-500" />
-                      <span>Singles Only</span>
-                    </span>
-                  ) : (
-                    <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 flex items-center gap-1 shrink-0">
-                      <Users className="w-3 h-3 text-emerald-600" />
-                      <span>Open Plan</span>
-                    </span>
-                  )}
                   <button
                     type="button"
                     onClick={(e) => handleToggleSave(plan, e)}
@@ -1580,26 +1566,6 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
 
                 {/* Who */}
                 <section className="space-y-3">
-                  <p className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                    <Users className="w-3.5 h-3.5 text-[#E0533C]" />Who can join
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-1 p-1 rounded-2xl bg-slate-100 dark:bg-white/[0.06]">
-                    <button
-                      type="button"
-                      onClick={() => setAccessType('open')}
-                      className={`h-9 rounded-xl text-[12px] font-extrabold transition cursor-pointer flex items-center justify-center gap-1.5 ${accessType === 'open' ? 'bg-white dark:bg-[#1C1A1E] text-[#E0533C] shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
-                    >
-                      <Users className="w-3.5 h-3.5" />Open plan
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAccessType('singles_only')}
-                      className={`h-9 rounded-xl text-[12px] font-extrabold transition cursor-pointer flex items-center justify-center gap-1.5 ${accessType === 'singles_only' ? 'bg-white dark:bg-[#1C1A1E] text-rose-500 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
-                    >
-                      <Heart className="w-3.5 h-3.5" />Singles only
-                    </button>
-                  </div>
 
                   <div className="rounded-2xl bg-slate-50 dark:bg-white/[0.04] p-4">
                     <div className="flex items-baseline justify-between">
@@ -1703,10 +1669,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
               <div className="relative h-56 shrink-0 bg-cover bg-center" style={{ backgroundImage: `url('${optimizedUrl(plan.spotImage || '', 640)}')` }}>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/10" />
                 <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
-                  <span className="px-3 py-1.5 rounded-full text-[11px] font-extrabold bg-white/20 backdrop-blur-md text-white flex items-center gap-1.5">
-                    {plan.accessType === 'singles_only' ? <Heart className="w-3 h-3 fill-white" /> : <Users className="w-3 h-3" />}
-                    {plan.accessType === 'singles_only' ? 'Singles only' : 'Open plan'}
-                  </span>
+                  <span />
                   <button type="button" onClick={close} aria-label="Close" className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-md text-white flex items-center justify-center active:scale-95 transition cursor-pointer">
                     <X className="w-4 h-4" />
                   </button>
@@ -1910,9 +1873,6 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                     </div>
                   </div>
 
-                  <span className="px-2.5 py-1 rounded-xl text-[10px] font-black bg-orange-100 dark:bg-orange-950 text-[#E0533C] border border-orange-200 dark:border-orange-900 shrink-0">
-                    {activeManagingOuting.accessType === 'singles_only' ? 'Singles' : 'Open'}
-                  </span>
                 </div>
 
                 {/* Capacity progress */}

@@ -1468,7 +1468,7 @@ export default function App() {
       : [];
     // Sample hostings from the showcase set (with tickets) sit alongside the demo ones
     const sample = buildShowcaseOutings();
-    setDemoOutings(prev => [...seed, ...past, ...sample, ...prev.filter(o => !/^demo-out-\d+$/.test(String(o.id)) && !String(o.id).startsWith('demo-past-') && !String(o.id).startsWith('showcase-out-'))]);
+    setDemoOutings(prev => [...[...seed, ...past, ...sample].filter(o => !!(o.spotImage && String(o.spotImage).trim()) && o.accessType !== 'singles_only'), ...prev.filter(o => !/^demo-out-\d+$/.test(String(o.id)) && !String(o.id).startsWith('demo-past-') && !String(o.id).startsWith('showcase-out-'))]);
   }, [demoUid, session?.user?.email, currentUserProfile?.handle, currentUserProfile?.name, currentUserProfile?.avatar]);
 
   // Demo Mode: saved plans and tickets in the Vault (never saved to the device)
