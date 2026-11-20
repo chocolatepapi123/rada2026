@@ -456,9 +456,9 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     list: sortSpotsByCategoryPromotion(filteredSpots.filter(sp => spotInCategory(sp, def.id)), def.id, categorySlotPromos),
   })), [filteredSpots, categorySlotPromos]);
 
-  // Only the first category rows paint immediately; the rest follow in low-priority steps.
+  // The first 6 category rows paint immediately; the rest follow quickly in small low-priority steps.
   const visibleRowsTotal = spotsByCategory.filter(({ def, list }) => list.length > 0 && (selectedCategory === 'all' || selectedCategory === def.id)).length;
-  const rowsShown = useProgressiveCount(visibleRowsTotal, 3, 2, 100, selectedCategory);
+  const rowsShown = useProgressiveCount(visibleRowsTotal, 6, 4, 40, selectedCategory);
 
   const isSaved = (id: number | string) => {
     return savedItems.some(s => String(s.id) === String(id) && s.kind === 'spot');
