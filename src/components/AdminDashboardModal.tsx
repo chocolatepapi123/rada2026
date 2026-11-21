@@ -286,7 +286,7 @@ export function AdminDashboardModal({
   const [bizSearch, setBizSearch] = useState('');
   const [selectedBiz, setSelectedBiz] = useState<BusinessAccount | null>(null);
   const [rejectReason, setRejectReason] = useState('');
-  const [subOverride, setSubOverride] = useState<Record<string, SubscriptionStatus>>({});
+  const [subOverride] = useState<Record<string, SubscriptionStatus>>({});
 
   const subOf = (b: BusinessAccount): SubscriptionStatus => subOverride[b.id] || b.subscriptionStatus || 'none';
 
@@ -419,30 +419,22 @@ export function AdminDashboardModal({
     if (kind === 'delete' && actionText.trim() !== 'DELETE') {  return; }
     setBusy(true);
     let err: string | null = null;
-    let msg = '';
 
     if (kind === 'suspend') {
       err = await setUserSuspension(user.id, true, actionText.trim());
-      msg = `${user.name || 'User'} suspended.`;
     } else if (kind === 'unsuspend') {
       err = await setUserSuspension(user.id, false);
-      msg = `${user.name || 'User'} reinstated.`;
     } else if (kind === 'revokeHost') {
       err = await revokeCreatorStatus(user.id);
-      msg = 'Professional host status revoked.';
     } else if (kind === 'revokeBiz') {
       for (const id of user.businessIds) {
         const e = await revokeBusinessStatus(id, actionText.trim() || undefined);
         if (e) { err = e; break; }
       }
-      msg = 'Business status revoked.';
       if (!err) onRefresh?.();
     } else {
       const res = await deleteAccountAdmin(user.id);
       err = res.error;
-      msg = res.authDeleted
-        ? 'Account deleted.'
-        : 'Account data deleted. The login itself needs the admin_delete_user function (see migration).';
       if (!err) onRefresh?.();
     }
     setBusy(false);
@@ -497,11 +489,6 @@ export function AdminDashboardModal({
       ].some(v => String(v || '').toLowerCase().includes(q));
     });
   }, [liveClaims, claimStatusFilter, claimSearch]);
-
-  const openAdminPermsModal = (u: AdminUserRecord) => {
-    setAdminModalUser(u);
-    setAdminPermsForm(u.adminPermissions || { ...DEFAULT_DELEGATED_PERMISSIONS });
-  };
 
   const handleSaveAdminPerms = async () => {
     if (!adminModalUser) return;

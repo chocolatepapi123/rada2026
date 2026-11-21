@@ -1,7 +1,7 @@
 
 import { DISCOVER_VISIBLE } from '../lib/featureFlags.ts';
-import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending, formatOpeningHours } from '../lib/spotsFeed.ts';
-import React, { useState, useEffect, useRef } from 'react';
+import { useUnclaimedSpots, mergeSpots, formatOpeningHours } from '../lib/spotsFeed.ts';
+import React, { useState, useEffect } from 'react';
 import { PlanFromEventSheet } from './PlanFromEventSheet.tsx';
 import { track } from '../lib/tracking';
 import { WeatherChip } from './WeatherChip';
@@ -18,20 +18,13 @@ import {
   Clock, 
   ShieldAlert, 
   CheckCircle2, 
-  Upload, 
   Users, 
   ArrowLeft, 
   ExternalLink, 
   QrCode,
-  Moon,
-  Sun,
-  ShieldCheck,
-  User,
   Star,
   MessageSquare,
   Image as ImageIcon,
-  Send,
-  Ticket,
   ChevronRight,
   Bell,
   Lock,
@@ -42,20 +35,10 @@ import {
   Share2,
   Sliders,
   Compass,
-  Film,
-  Music,
-  Heart,
-  Hotel,
-  Palmtree,
-  Coffee,
-  UtensilsCrossed,
-  Shirt,
-  Store,
   Percent,
   Tag,
   Check,
   Bookmark,
-  Flame,
   KeyRound,
   Trees,
   Plus,
@@ -63,8 +46,7 @@ import {
   Instagram,
   Phone,
   Building2,
-  Gamepad2,
-  Camera
+  Gamepad2
 } from 'lucide-react';
 import { 
   SpotItem, 
@@ -80,12 +62,6 @@ import {
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { shareContent } from '../utils/shareUtils.ts';
 import { getSpotMenuHeading } from '../utils/spotMenuUtils.ts';
-import { 
-  doesEventMatchDay, 
-  getCleanDateHeader, 
-  getCategoryBadgeStyle, 
-  isDateToday 
-} from '../utils/calendarUtils.ts';
 import { EventsExplorer } from './EventsExplorer.tsx';
 import { CinemaExplorer } from './CinemaExplorer.tsx';
 import { SpotsExplorer } from './SpotsExplorer.tsx';
@@ -324,8 +300,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
   const [chosenDate, setChosenDate] = useState('2026-10-25');
   const [chosenTime, setChosenTime] = useState('19:00');
   // SPEC 5: Plan a date - free browsing across all categories
-  const [planDateCategory, setPlanDateCategory] = useState<string>('all');
-  const [planDateSearch, setPlanDateSearch] = useState('');
+  const [planDateCategory] = useState<string>('all');
   const [localCategoryOverride, setLocalCategoryOverride] = useState<string | null>(null);
   const { spots: unclaimedFeed } = useUnclaimedSpots();
   const { origin } = useLocationPreference();
@@ -411,33 +386,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
   // Settings State (SPEC 6: Redesign Settings like Instagram/TikTok)
   const [is2FAEnabled, setIs2FAEnabled] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(true);
-  const [readReceipts, setReadReceipts] = useState(true);
   const [datingDiscoverable, setDatingDiscoverable] = useState(true);
-
-  // Profile bio and avatar state
-  const [profileBio, setProfileBio] = useState(currentUserProfile?.bio || 'Discovering local hangouts, good music and vibes.');
-  const [profileAvatar, setProfileAvatar] = useState(currentUserProfile?.avatar || '');
-
-  useEffect(() => {
-    if (currentUserProfile) {
-      setProfileBio(currentUserProfile.bio);
-      setProfileAvatar(currentUserProfile.avatar);
-    }
-  }, [currentUserProfile]);
-
-  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setProfileAvatar(event.target.result as string);
-          showToast('Profile photo updated!');
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   return (
     <>
@@ -2248,129 +2197,6 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       </div>
                     </div>
                     <span className="text-[10px] font-mono text-slate-400">Up to date</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 10. ACCOUNT & SECURITY OVERLAY */}
-      {activeOverlay === 'youOverlay' && (
-        <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-2 text-[#E9C46A]">
-                <ShieldCheck className="w-5 h-5" />
-                <h3 className="font-black text-sm uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                  Account & Security
-                </h3>
-              </div>
-              <button onClick={onCloseOverlay} className="p-1">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="py-4 space-y-4 text-xs flex-1">
-              <div className="p-3.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl space-y-3">
-                <h4 className="font-bold uppercase text-[10px] tracking-wider text-slate-500">
-                  Account Credentials
-                </h4>
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-600 dark:text-slate-300">Email Address</label>
-                  <input
-                    type="email"
-                    placeholder="name@example.com"
-                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-600 dark:text-slate-300">Phone Number</label>
-                  <input
-                    type="tel"
-                    placeholder="07XX XXX XXX"
-                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
-                  />
-                </div>
-                <div className="pt-2 flex flex-col gap-2">
-                  <button
-                    onClick={() => {
-                      onCloseOverlay();
-                      if (onOpenAccountSettings) onOpenAccountSettings();
-                    }}
-                    className="w-full py-2.5 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl shadow transition flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <KeyRound className="w-4 h-4" />
-                    <span>Security & Change Password</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 11. PROFILE OVERLAY (Profile) */}
-      {activeOverlay === 'profileOverlay' && (
-        <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-2 text-[#E0533C]">
-                <User className="w-5 h-5" />
-                <h3 className="font-black text-sm uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                  Profile
-                </h3>
-              </div>
-              <button onClick={onCloseOverlay} className="p-1">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="py-4 space-y-5 text-xs flex-1">
-              <div className="p-4 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl space-y-4 text-center">
-                <div className="relative w-24 h-24 mx-auto">
-                  {profileAvatar ? (
-                    <div
-                      className="w-24 h-24 rounded-full bg-cover bg-center border-2 border-[#E0533C] shadow-md"
-                      style={{ backgroundImage: `url('${profileAvatar}')` }}
-                    />
-                  ) : (
-                    <div className="w-24 h-24 rounded-full bg-slate-200 dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 flex items-center justify-center shadow-md">
-                      <User className="w-10 h-10 text-slate-400" />
-                    </div>
-                  )}
-                  <label className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#E0533C] text-white flex items-center justify-center cursor-pointer shadow-lg hover:bg-orange-700 transition">
-                    <Upload className="w-3.5 h-3.5" />
-                    <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
-                  </label>
-                </div>
-
-                <div>
-                  <h4 className="font-black text-base">{currentUserProfile?.name || 'RADA member'}</h4>
-                  <p className="text-slate-500 font-bold text-[11px]">{currentUserProfile?.handle || '@explorer'} • Nairobi, Kenya</p>
-                </div>
-
-                <div className="space-y-1 text-left pt-1">
-                  <label className="font-bold text-slate-600 dark:text-slate-300 text-[11px]">Personal Bio</label>
-                  <textarea
-                    rows={2}
-                    value={profileBio}
-                    onChange={(e) => setProfileBio(e.target.value)}
-                    placeholder="Tell everyone what you're into..."
-                    className="w-full p-2.5 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E0533C] resize-none text-xs"
-                  />
-                  <button
-                    onClick={() => {
-                      onUpdateCurrentUserProfile({
-                        bio: profileBio,
-                        avatar: profileAvatar
-                      });
-                      showToast('Profile saved!');
-                    }}
-                    className="w-full py-2.5 bg-[#2D6A4F] hover:bg-emerald-800 text-white font-bold rounded-xl text-xs shadow mt-1 transition cursor-pointer"
-                  >
-                    Save Profile
                   </button>
                 </div>
               </div>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CalendarDays, ChevronRight, Crown, Loader2, Lock, Store, X } from 'lucide-react';
+import { CalendarDays, ChevronRight, Loader2, Store, X } from 'lucide-react';
 import { planRank, type PlanId } from '../lib/subscriptions';
 import { VerifiedBadge } from './VerifiedBadge';
 
@@ -14,8 +14,6 @@ export const BIO_LIMIT = 300;
 
 /** Pro and Elite can edit. Free can only look at the card. */
 export const canEditProProfile = (plan?: PlanId | null): boolean => planRank(plan) >= 1;
-
-const planLabel = (plan?: PlanId | null) => (plan === 'elite' ? 'Elite' : plan === 'pro' ? 'Pro' : 'Free');
 
 export interface ProStat {
   label: string;

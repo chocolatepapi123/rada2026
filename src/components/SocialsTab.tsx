@@ -10,34 +10,22 @@ import {
   Mic, 
   Send, 
   Calendar, 
-  Settings, 
   ArrowLeft,
-  Check,
   Reply,
-  Play,
-  Pause,
   Video,
-  Palette,
   Sparkles,
-  MapPin,
-  Clock,
-  Volume2,
   Paperclip,
-  Film,
   Camera,
-  RotateCcw,
-  AlertCircle,
   Plus,
   Image as ImageIcon,
-  Lock,
   Receipt
 } from 'lucide-react';
-import { DatingProfile, ChatConversation, ChatMessage, ChatTheme, UserProfile } from '../types.ts';
+import { DatingProfile, ChatConversation, ChatMessage, UserProfile } from '../types.ts';
 import { EmojiPicker } from './EmojiPicker.tsx';
 import { AudioMessagePlayer } from './AudioMessagePlayer.tsx';
 import { SwipeToReply } from './SwipeToReply.tsx';
 import { VideoMessagePlayer } from './VideoMessagePlayer.tsx';
-import { generatePlayableWavDataUrl, generateFallbackVideoBlobUrl, formatMediaDuration, deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
+import { formatMediaDuration, deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 import type { ToastOptions } from './Toast.tsx';
 import { isDemoMode } from '../lib/demoMode.ts';
 import { DISCOVER_VISIBLE } from '../lib/featureFlags.ts';
@@ -101,8 +89,6 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
 }) => {
   const [subtab, setSubtab] = useState<'discover' | 'queue' | 'chats' | 'groups' | 'asks' | 'search'>('asks');
   const [showBillSheet, setShowBillSheet] = useState(false);
-  const [profileIndex, setProfileIndex] = useState(0);
-  const [swipeAnimation, setSwipeAnimation] = useState<'like' | 'pass' | null>(null);
 
   // Active Chat Screen State
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -249,30 +235,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
     return () => { cancelled = true; clearTimeout(t); };
   }, [userSearchQuery, myUserId]);
 
-  // Helper to remove 'nearby' and distance prefixes, leaving just the location
-  const cleanLocation = (locStr?: string) => {
-    if (!locStr) return 'Nairobi';
-    return locStr
-      .replace(/^nearby\s+/i, '')
-      .replace(/\bnearby\b/gi, '')
-      .replace(/[\d.]+\s*km\s*away\s*(in\s*)?/i, '')
-      .trim();
-  };
-
-  const isMockMatchProfile = (p: DatingProfile) => {
-    const nameLower = (p.name || '').toLowerCase();
-    const handleLower = (p.handle || '').toLowerCase();
-    return (
-      nameLower.includes('jane doe') ||
-      nameLower.includes('amina mwangi') ||
-      nameLower.includes('chloe ouma') ||
-      handleLower.includes('jane_d') ||
-      handleLower.includes('amina_m') ||
-      handleLower.includes('chloe_o')
-    );
-  };
-
-  const [communitySingles, setCommunitySingles] = useState<DatingProfile[]>([]);
+  const [, setCommunitySingles] = useState<DatingProfile[]>([]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -297,43 +260,6 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
       .catch(() => { if (!cancelled) setCommunitySingles([]); });
     return () => { cancelled = true; };
   }, [myUserId]);
-
-  // Everyone is a candidate, except people you already have a request or chat with
-  const candidatePool = React.useMemo(() => {
-    const blocked = new Set<string>();
-    requests.forEach(r => {
-      if (r.status !== 'declined') { blocked.add(r.fromUser); blocked.add(r.toUser); }
-    });
-    conversations.forEach(c => { const o = (c as any).otherUserId; if (o) blocked.add(o); });
-    return communitySingles.filter(p => !blocked.has(String(p.id)));
-  }, [communitySingles, requests, conversations]);
-
-  const currentProfile = candidatePool.length > 0 
-    ? candidatePool[profileIndex % candidatePool.length]
-    : null;
-
-  const handleSwipe = (action: 'like' | 'pass') => {
-    if (!currentProfile) return;
-    setSwipeAnimation(action);
-    const person = currentProfile;
-    setTimeout(async () => {
-      if (action === 'like') {
-        const res = await onSendMatchRequest(String(person.id));
-        if (res.status === 'error') {
-          showToast(res.error || 'Could not send the request.', { type: 'error' });
-        } else if (res.status === 'matched') {
-          showToast(`It's a match with ${person.handle}!`, { category: 'match' });
-          if (res.conversationId) { setSubtab('chats'); setActiveChatId(res.conversationId); }
-        } else if (res.status === 'already_sent') {
-          showToast(`You already sent ${person.handle} a request.`);
-        } else {
-          showToast(`Hangout & Match request sent to ${person.handle}!`, { category: 'match' });
-        }
-      }
-      setSwipeAnimation(null);
-      setProfileIndex(prev => prev + 1);
-    }, 250);
-  };
 
   const handleAcceptPending = async (req: CloudRequest) => {
     const res = await onRespondRequest(req.id, true);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { MapPin, Search, X, Check, Plus } from 'lucide-react';
+import { MapPin, X, Check, Plus } from 'lucide-react';
 import { SpotItem } from '../types.ts';
 import { searchNairobiLocations } from '../data/nairobiLocations.ts';
 

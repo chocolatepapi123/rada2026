@@ -1,7 +1,7 @@
 import React from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { getDetailBlocks, type BlockConfig } from '../lib/spotDetailFields';
-import type { SpotDetailsForm } from '../lib/spotDetails';
+import { getDetailBlocks, type BlockConfig } from '../../lib/spotDetailFields';
+import type { SpotDetailsForm } from '../../lib/spotDetails';
 
 const input = 'w-full text-xs bg-slate-100 dark:bg-[#121113] rounded-2xl p-3 focus:outline-none';
 const label = 'block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1';

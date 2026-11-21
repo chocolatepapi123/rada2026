@@ -1,18 +1,13 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { 
-  Building2, 
   ShieldAlert, 
   Settings, 
   UserCheck, 
   Menu, 
   MapPin,
-  Sun,
-  Moon,
   Bookmark,
   LogIn,
   Crown,
-  HelpCircle,
-  Sparkles,
   ShieldCheck,
   ChevronRight,
   ArrowLeft,
@@ -107,8 +102,6 @@ export const Header: React.FC<HeaderProps> = ({
   // Nothing is hidden until they have answered (or for guests / people who already run a business).
   const { intents } = useIntents(userId);
   const intentsKnown = Array.isArray(intents) && intents.length > 0;
-  const isProAccount = hasBusinessAccount || userRole === 'merchant' || userRole === 'admin';
-  const showBusinessHub = false; // Merchant Hub removed
   const showSuggestSpot = !intentsKnown || intents!.some((i) => i !== 'business');
   // The menu has two pages: the main list, and "Account & security" (its own page inside the menu).
   const [menuView, setMenuView] = useState<'main' | 'account'>('main');
@@ -268,29 +261,6 @@ export const Header: React.FC<HeaderProps> = ({
                       </span>
                       <span className="relative text-[9px] font-black uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full shrink-0">Admin</span>
                     </button>
-                  )}
-
-                  {/* Business & Merchant Hub (hero card) */}
-                  {showBusinessHub && (
-                  <button
-                    type="button"
-                    onClick={() => handleMenuClick('businessHub')}
-                    className="relative overflow-hidden w-full text-left rounded-2xl p-3 flex items-center gap-3 bg-gradient-to-br from-[#E0533C] to-[#EE8A47] text-white shadow-lg shadow-[#E0533C]/30 active:scale-[0.98] transition cursor-pointer focus:outline-none"
-                  >
-                    <span aria-hidden className="pointer-events-none absolute -right-8 -top-8 w-24 h-24 rounded-full bg-white/20 blur-2xl" />
-                    <span className="relative w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-                      <Building2 className="w-5 h-5" />
-                    </span>
-                    <span className="relative flex-1 min-w-0">
-                      <span className="block text-sm font-extrabold leading-tight">Business &amp; Merchant Hub</span>
-                      <span className="block text-[11px] text-white/85 mt-px truncate">
-                        {hasBusinessAccount
-                          ? `Managing: ${businessName || 'My Business'}`
-                          : 'Create account, spots, events & fits'}
-                      </span>
-                    </span>
-                    <span className="relative text-[9px] font-black uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full shrink-0">Merchant</span>
-                  </button>
                   )}
 
                   {/* Everyday actions */}

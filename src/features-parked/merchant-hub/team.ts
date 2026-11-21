@@ -3,7 +3,7 @@
  * Every change goes through RPCs (invite_team_member, accept_team_invite, remove_team_member,
  * set_team_role); the same rules are enforced in Postgres, this file only calls and displays.
  */
-import { supabase, isSupabaseConfigured } from './supabase';
+import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 
 export type TeamRole = 'manager' | 'editor' | 'staff';
 export type MyRole = TeamRole | 'owner';

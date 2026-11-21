@@ -12,7 +12,6 @@ import {
   OutingPlan,
   SpotClaimRequest
 } from '../types.ts';
-import { generatePlayableWavDataUrl } from '../utils/mediaUtils.ts';
 
 // 10 Detailed Realistic Running Offers & Promotions directly linked to real spots from the Spots Tab
 export const initialOffers: BusinessOffer[] = [

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, AlertCircle, RotateCcw, Volume2 } from 'lucide-react';
+import { Play, Pause, AlertCircle, RotateCcw } from 'lucide-react';
 import { formatMediaDuration } from '../utils/mediaUtils.ts';
 
 interface AudioMessagePlayerProps {

@@ -3,7 +3,6 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { track } from '../lib/tracking';
 import { logPlatformEvent } from '../lib/platformAnalytics';
 import { useActivePromotions, outingRankMap, sortOutingsByPromotion } from '../lib/promotions';
-import { isDemoMode } from '../lib/demoMode.ts';
 import { 
   Users, 
   Calendar, 
@@ -11,8 +10,6 @@ import {
   MapPin, 
   Plus, 
   Search, 
-  CheckCircle2, 
-  Heart, 
   Sparkles, 
   Filter, 
   X, 
@@ -22,11 +19,7 @@ import {
   Share2, 
   Link2, 
   Compass, 
-  AlertCircle,
-  Building2,
   CalendarPlus,
-  ArrowRight,
-  ShieldCheck,
   ChevronDown,
   RotateCcw,
   UserCheck,
@@ -49,7 +42,6 @@ import { useUnclaimedSpots, mergeSpots, sortTrending } from '../lib/spotsFeed.ts
 import { HostBadge, VerifiedBadge } from './VerifiedBadge.tsx';
 import { fetchMySavedOutingIds, toggleOutingSave, fetchOutingSaveCounts } from '../lib/outingSaves';
 import {
-  PLAN_META,
   attendeeCeiling,
   clampAttendees,
   countOutingsThisMonth,
@@ -309,7 +301,7 @@ interface OutingsTabProps {
   onUpdateAttendeeStatus?: (outingId: string, attendeeId: string, status: 'approved' | 'declined') => Promise<void>;
   onOpenOutingChat?: (outing: OutingPlan) => void;
   onOpenSpotDetails?: (spot: SpotItem) => void;
-  showToast: (msg: string) => void;
+  showToast: (msg: string, options?: any) => void;
 }
 
 // Outings card + sheet styling, kept in one place so everything on this tab matches
@@ -603,10 +595,6 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
 
     return Array.from(locSet).sort((a, b) => a.localeCompare(b));
   }, [spots, outings]);
-
-  const popularLocationChips = useMemo(() => {
-    return ['All', 'Westlands', 'Kilimani', 'Karen', 'Ruiru', 'CBD', 'Kiambu Rd', 'Lavington', 'Parklands'];
-  }, []);
 
   // Real-Time Feed Filtering
   const outingPromos = useActivePromotions('event_boost');

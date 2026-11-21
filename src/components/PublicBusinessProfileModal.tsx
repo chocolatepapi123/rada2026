@@ -4,18 +4,12 @@ import {
   MapPin, 
   Phone, 
   Instagram, 
-  ExternalLink, 
   MessageCircle, 
-  Calendar, 
-  Tag, 
-  Sparkles, 
   Store, 
   Ticket, 
   Percent, 
   Copy, 
   Check, 
-  Clock, 
-  UtensilsCrossed, 
   Share2 
 } from 'lucide-react';
 import { 
@@ -24,7 +18,6 @@ import {
   SpotItem, 
   EventItem 
 } from '../types.ts';
-import { VerifiedBadge } from './VerifiedBadge.tsx';
 import { MerchantVerificationBadge } from './MerchantVerificationBadge.tsx';
 import { isBusinessApproved, PublicTierBadges } from './BusinessBadge.tsx';
 import { usePublicTiers } from '../lib/subscriptions';

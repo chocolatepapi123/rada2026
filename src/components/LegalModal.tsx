@@ -1,4 +1,3 @@
-import React from 'react';
 import { X } from 'lucide-react';
 import legal from '../data/legal.json';
 

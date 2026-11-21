@@ -6,16 +6,12 @@ import {
   Bookmark,
   Share2,
   MapPin,
-  CheckCircle2,
   Lock,
   Crown,
   PartyPopper,
   Camera,
   Briefcase,
   Loader2,
-  Sun,
-  Moon,
-  Check,
   X,
   AlertCircle,
 } from 'lucide-react';
@@ -35,7 +31,6 @@ import {
 } from './ProfileSettingsKit';
 import { fetchMilestones, MILESTONE_META, type MilestoneKind, type MilestoneData } from '../lib/milestones';
 import {
-  THEMES,
   DEFAULT_THEME,
   MAX_TAGS,
   MAX_TAG_LEN,

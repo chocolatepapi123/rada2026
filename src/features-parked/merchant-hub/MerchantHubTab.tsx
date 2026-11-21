@@ -1,16 +1,16 @@
-import { getDemoPersona } from '../lib/demoMode';
-import { demoMerchantInsights } from '../lib/demoPersonas';
+import { getDemoPersona } from '../../lib/demoMode';
+import { demoMerchantInsights } from '../../lib/demoPersonas';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useMySubscriptions } from '../lib/subscriptions';
+import { useMySubscriptions } from '../../lib/subscriptions';
 import { TeamPanel, TeamInvitesCard } from './TeamPanel';
-import { fetchMyTeams, ROLE_LABEL, type MyTeam } from '../lib/team';
-import { ProProfileCard, ProProfilePage } from './ProProfile';
-import { PROMO_BOOST_PLACEMENTS, offerPromoKey, offerScheduleText, AUDIENCES, DOW_SHORT } from '../lib/promotions';
-import { LegalModal, type LegalDoc } from './LegalModal';
-import { RedeemCodePanel, OfferStatsLine, ReviewReplyBlock } from './RetentionBits';
-import { SPOT_CATEGORIES, resolveSpotCategory } from '../lib/spotCategories';
+import { fetchMyTeams, ROLE_LABEL, type MyTeam } from './team';
+import { ProProfileCard, ProProfilePage } from '../../components/ProProfile';
+import { PROMO_BOOST_PLACEMENTS, offerPromoKey, offerScheduleText, AUDIENCES, DOW_SHORT } from '../../lib/promotions';
+import { LegalModal, type LegalDoc } from '../../components/LegalModal';
+import { RedeemCodePanel, OfferStatsLine, ReviewReplyBlock } from '../../components/RetentionBits';
+import { SPOT_CATEGORIES, resolveSpotCategory } from '../../lib/spotCategories';
 import { SpotDetailsEditor } from './SpotDetailsEditor';
-import { emptySpotDetailsForm, rowToForm, formFromLegacySpot, hasAnyDetails, saveSpotDetails, fetchSpotDetails, type SpotDetailsForm } from '../lib/spotDetails';
+import { emptySpotDetailsForm, rowToForm, formFromLegacySpot, hasAnyDetails, saveSpotDetails, fetchSpotDetails, type SpotDetailsForm } from '../../lib/spotDetails';
 import { 
   Store, 
   Ticket, 
@@ -84,16 +84,16 @@ import {
   Artist,
   Review,
   SpotClaimRequest
-} from '../types.ts';
-import { BusinessBadge } from './BusinessBadge.tsx';
+} from '../../types.ts';
+import { BusinessBadge } from '../../components/BusinessBadge.tsx';
 import { DynamicLocationSelector } from './DynamicLocationSelector.tsx';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import HostTicketsPanel from './HostTicketsPanel';
+import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import HostTicketsPanel from '../../components/HostTicketsPanel';
 import MerchantTicketsSection from './MerchantTicketsSection';
-import { toValidUuid, listingUuid, fetchUnclaimedSpots, claimUnclaimedSpot, submitSpotClaim, fetchBusinesses } from '../lib/cloudSync.ts';
-import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
-import type { ToastOptions } from './Toast.tsx';
-import { toBudget, BUDGET_OPTIONS } from '../lib/budget.ts';
+import { toValidUuid, listingUuid, fetchUnclaimedSpots, claimUnclaimedSpot, submitSpotClaim, fetchBusinesses } from '../../lib/cloudSync.ts';
+import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../../utils/mediaUtils.ts';
+import type { ToastOptions } from '../../components/Toast.tsx';
+import { toBudget, BUDGET_OPTIONS } from '../../lib/budget.ts';
 
 export type MainCategoryKey = 
   | 'restaurants_dining'

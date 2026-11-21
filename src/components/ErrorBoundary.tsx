@@ -1,5 +1,5 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { RotateCcw, AlertTriangle, Sparkles } from 'lucide-react';
+import { Component, ErrorInfo, ReactNode } from 'react';
+import { RotateCcw } from 'lucide-react';
 import { reportError } from '../lib/monitoring';
 
 interface Props {

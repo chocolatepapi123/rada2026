@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, Loader2, Smartphone, X, XCircle } from 'lucide-react';
-import { PLAN_META, type PlanId, type SubKind } from '../lib/subscriptions';
-import { normalizeKenyanPhone, startPlanPayment, waitForPayment, type BillingPeriod } from '../lib/payments';
+import { PLAN_META, type PlanId, type SubKind } from '../../lib/subscriptions';
+import { normalizeKenyanPhone, startPlanPayment, waitForPayment, type BillingPeriod } from '../../lib/payments';
 
 interface Props {
   kind: SubKind;

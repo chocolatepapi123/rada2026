@@ -13,9 +13,9 @@ import {
   type PlanId,
   type SubKind,
   type SubscriptionRecord,
-} from '../lib/subscriptions';
-import { TrialReportCard } from './OutingExtras';
-import { fetchPlanPrices, type BillingPeriod, type PlanPrice } from '../lib/payments';
+} from '../../lib/subscriptions';
+import { TrialReportCard } from '../../components/OutingExtras';
+import { fetchPlanPrices, type BillingPeriod, type PlanPrice } from '../../lib/payments';
 import ManualPaySheet from './ManualPaySheet';
 import MyPaymentClaims from './MyPaymentClaims';
 

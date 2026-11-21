@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, Copy, Loader2, Pause, Pencil, Play, Plus, Share2, Smartphone, Ticket, X } from 'lucide-react';
+import { Copy, Loader2, Pause, Pencil, Play, Plus, Share2, Ticket, X } from 'lucide-react';
 import {
-  canSellTickets, createTicketType, getOutingTicketRule, setOutingTicketRule, type OutingTicketRule, fetchHostView, getMyPayoutPhone, savePayoutPhone,
+  createTicketType, getOutingTicketRule, type OutingTicketRule, fetchHostView,
   ticketShareUrl, updateTicketType, type HostTicketType, type HostTicketView, type TicketSource,
 } from '../lib/tickets';
 import { shareContent } from '../utils/shareUtils';
@@ -23,14 +23,12 @@ const kes = (n: number) => `KES ${Math.round(n).toLocaleString('en-KE')}`;
 export const HostTicketsPanel: React.FC<Props> = ({ kind, source, title, onClose, onEditPoster, onToast }) => {
   const [loading, setLoading] = useState(true);
   const [allowed, setAllowed] = useState(true);
-  const [payout, setPayout] = useState<string | null>(null);
-  const [payoutInput, setPayoutInput] = useState('');
   const [view, setView] = useState<HostTicketView | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [adding, setAdding] = useState(false);
   const [scanning, setScanning] = useState(false);
-  const [rule, setRule] = useState<OutingTicketRule>({ require_ticket: false, pay_window_minutes: 1440 });
+  const [, setRule] = useState<OutingTicketRule>({ require_ticket: false, pay_window_minutes: 1440 });
   const [editing, setEditing] = useState<HostTicketType | null>(null);
   const [f, setF] = useState({ name: '', price: '', qty: '', desc: '' });
 
@@ -93,8 +91,6 @@ export const HostTicketsPanel: React.FC<Props> = ({ kind, source, title, onClose
     (a, t) => ({ sold: a.sold + t.sold, gross: a.gross + t.gross_kes, net: a.net + t.net_kes, fee: a.fee + t.commission_kes, in: a.in + t.checked_in }),
     { sold: 0, gross: 0, net: 0, fee: 0, in: 0 }
   );
-  const pct = view?.types[0]?.commission_pct;
-  const hasPaid = (view?.types || []).some((t) => t.price_kes > 0);
 
   return (
     <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/50" role="dialog" aria-modal="true">

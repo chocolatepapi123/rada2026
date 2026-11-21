@@ -35,7 +35,7 @@ export async function listHostVideos(hostId: string): Promise<HostVideo[]> {
     .filter((f) => f.name && !f.name.startsWith('.'))
     .map((f) => {
       const path = `${hostId}/${f.name}`;
-      return { name: f.name, path, url: supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl, created_at: f.created_at };
+      return { name: f.name, path, url: supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl, created_at: f.created_at ?? undefined };
     });
 }
 

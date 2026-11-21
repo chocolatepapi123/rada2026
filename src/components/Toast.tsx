@@ -8,7 +8,6 @@ import {
   Video,
   AlertCircle,
   Info,
-  Sparkles,
   X
 } from 'lucide-react';
 
@@ -71,37 +70,6 @@ export const hideToast = () => {
     globalHideToast();
   }
 };
-
-/**
- * Automatically determine the best icon & style based on the toast message keywords
- */
-function resolveToastType(message: string, explicitType?: ToastType): ToastType {
-  if (explicitType) return explicitType;
-  const lower = message.toLowerCase();
-
-  if (lower.includes('vault') || lower.includes('saved') || lower.includes('plan')) {
-    return 'bookmark';
-  }
-  if (lower.includes('review') || lower.includes('star') || lower.includes('rating')) {
-    return 'review';
-  }
-  if (lower.includes('verif') || lower.includes('liveness') || lower.includes('shield')) {
-    return 'verified';
-  }
-  if (lower.includes('voice') || lower.includes('audio') || lower.includes('mic')) {
-    return 'audio';
-  }
-  if (lower.includes('video')) {
-    return 'video';
-  }
-  if (lower.includes('error') || lower.includes('denied') || lower.includes('failed') || lower.includes('required')) {
-    return 'error';
-  }
-  if (lower.includes('removed') || lower.includes('deleted') || lower.includes('passed') || lower.includes('signed out')) {
-    return 'info';
-  }
-  return 'success';
-}
 
 function getToastIcon(type: ToastType, customIcon?: React.ReactNode) {
   if (customIcon) return customIcon;

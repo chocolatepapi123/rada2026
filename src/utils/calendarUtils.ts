@@ -1,4 +1,4 @@
-import { EventItem, TicketTier } from '../types.ts';
+import { TicketTier } from '../types.ts';
 
 // Reference "Today" in RADA 2026 calendar dataset (14 Oct 2026)
 export const isDateToday = (year: number, monthIndex: number, dayNumber: number): boolean => {

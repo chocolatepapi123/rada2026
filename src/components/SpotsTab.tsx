@@ -7,31 +7,17 @@ import {
   Star,
   ChevronLeft,
   ChevronRight,
-  UtensilsCrossed,
-  Music,
-  Coffee,
-  Heart,
-  Hotel,
-  Palmtree,
   SlidersHorizontal,
   Plus,
   Compass,
   Bookmark,
-  Trees,
-  ArrowRight,
-  Sparkles,
-  Palette,
-  Gamepad2,
-  Camera,
   Image as ImageIcon,
-  Building2,
   X,
-  Dumbbell,
   Trash2,
   Navigation
 } from 'lucide-react';
 
-import { SpotItem, MenuItem, SavedItem, Review } from '../types.ts';
+import { SpotItem, SavedItem, Review } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { supabase } from '../lib/supabase.ts';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';

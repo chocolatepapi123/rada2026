@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { listMyClaims, type ManualClaim } from '../lib/manualPayments';
+import { listMyClaims, type ManualClaim } from '../../lib/manualPayments';
 
 const TONE: Record<ManualClaim['status'], string> = {
   pending: 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200',

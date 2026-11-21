@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize2, AlertCircle, RotateCcw, X, Film } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Maximize2, AlertCircle, RotateCcw, X } from 'lucide-react';
 import { formatMediaDuration } from '../utils/mediaUtils.ts';
 
 interface VideoMessagePlayerProps {
@@ -45,29 +45,6 @@ export const VideoMessagePlayer: React.FC<VideoMessagePlayerProps> = ({
       videoRef.current.load();
     }
   }, [videoUrl]);
-
-  const handleTogglePlay = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!videoRef.current) return;
-
-    if (hasError) {
-      handleRetry();
-      return;
-    }
-
-    if (isPlaying) {
-      videoRef.current.pause();
-      setIsPlaying(false);
-    } else {
-      videoRef.current.play()
-        .then(() => setIsPlaying(true))
-        .catch((err) => {
-          console.warn('Video playback error:', err);
-          setHasError(true);
-          setIsPlaying(false);
-        });
-    }
-  };
 
   const handleTimeUpdate = () => {
     if (videoRef.current) {
@@ -149,7 +126,6 @@ export const VideoMessagePlayer: React.FC<VideoMessagePlayerProps> = ({
 
   // Circular video progress calculations
   const progressRatio = duration > 0 ? Math.min(1, currentTime / duration) : 0;
-  const strokeDashoffset = 100 - progressRatio * 100;
 
   if (hasError) {
     return (

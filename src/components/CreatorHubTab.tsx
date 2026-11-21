@@ -6,7 +6,6 @@ import {
   CalendarDays,
   Check,
   Clock,
-  Crown,
   Eye,
   Image as ImageIcon,
   LayoutDashboard,

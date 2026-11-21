@@ -6,22 +6,12 @@ import {
   Bookmark, 
   Trash2, 
   MapPin, 
-  Calendar, 
-  Tag, 
-  Star, 
-  Shirt, 
-  Ticket, 
   ArrowRight,
   Search,
-  Sparkles,
-  FolderPlus,
   Folder,
   ChevronDown,
   Plus,
-  Check,
-  Compass,
-  UtensilsCrossed,
-  Trees
+  Check
 } from 'lucide-react';
 import { 
   SavedItem, 

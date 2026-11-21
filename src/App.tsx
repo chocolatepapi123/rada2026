@@ -11,11 +11,7 @@ import { logPlatformEvent } from './lib/platformAnalytics';
 import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense, memo } from 'react';
 import { DEFAULT_APP_COLOR, applyAppColor } from './lib/appTheme';
 import { useTabSwipe } from './lib/useTabSwipe';
-import { ClaimUsernamePrompt, hasAutoUsername } from './components/ClaimUsernamePrompt';
 import { useIntents } from './lib/userIntent';
-
-// Claim-username popup is switched off for now. Flip to true to bring it back.
-const SHOW_CLAIM_USERNAME_PROMPT = false;
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import * as cloud from './lib/cloudSync';
 import { fetchExternalEvents } from './lib/externalEvents';
@@ -26,7 +22,6 @@ import { HomeTab } from './components/HomeTab.tsx';
 import { SplashScreen, SplashFace } from './components/SplashScreen.tsx';
 import { ToastProvider, showToast as triggerToast, type ToastOptions } from './components/Toast.tsx';
 import { ErrorBoundary } from './components/ErrorBoundary.tsx';
-import { getTimeOfDayGreeting } from './utils/greetingUtils';
 import {
   cleanStatuses,
   addStatusReplacingOwn,
@@ -119,7 +114,6 @@ if (typeof window !== 'undefined') {
       () => import('./components/ProfilePage.tsx'),
       () => import('./components/Overlays.tsx'),
       () => import('./components/UserProfileModal.tsx'),
-      () => import('./components/AccountSettingsModal.tsx'),
     ];
     extra.forEach((load, i) => setTimeout(() => { load().catch(() => {}); }, (5 + i) * gap));
   };
@@ -162,13 +156,10 @@ const loadTabComponent = (key: string): Promise<React.ComponentType<any>> => {
 
 const AuthModal = lazyNamed(() => import('./components/AuthModal.tsx'), 'AuthModal');
 const AdminDashboard = lazyNamed(() => import('./components/AdminDashboardModal.tsx'), 'AdminDashboard');
-// Merchant Hub removed from the app: this stub keeps old call sites compiling; nothing can open it.
-const MerchantHubTab: React.FC<any> = () => null;
 const PublicBusinessProfileModal = lazyNamed(() => import('./components/PublicBusinessProfileModal.tsx'), 'PublicBusinessProfileModal');
 const Overlays = lazyNamed(() => import('./components/Overlays.tsx'), 'Overlays');
 const LocationMapModal = lazyNamed(() => import('./components/LocationMapModal.tsx'), 'LocationMapModal');
 const UserProfileModal = lazyNamed(() => import('./components/UserProfileModal.tsx'), 'UserProfileModal');
-const AccountSettingsModal = lazyNamed(() => import('./components/AccountSettingsModal.tsx'), 'AccountSettingsModal');
 const TicketBuySheet = lazyNamed(() => import('./components/TicketBuySheet.tsx'), 'TicketBuySheet');
 const MyTicketsSheet = lazyNamed(() => import('./components/MyTicketsSheet.tsx'), 'MyTicketsSheet');
 const SavedPlacesModal = lazyNamed(() => import('./components/SavedPlacesModal.tsx'), 'SavedPlacesModal');
@@ -204,7 +195,6 @@ import {
   initialEvents,
   initialStatuses,
   discoveryProfiles,
-  initialConversations,
   initialTickets,
   initialContacts,
   LEGACY_SAMPLE_TICKET_IDS,
@@ -221,7 +211,6 @@ import {
   CinemaMovie,
   StatusPost,
   StatusReply,
-  ChatConversation,
   VaultTicket,
   EmergencyContact,
   Review,
@@ -319,11 +308,7 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isGuestMode, setIsGuestMode] = useState<boolean>(false);
   setDemoGuest(!session?.user?.id || isGuestMode); // guests get the pitch demo (see demoMode.ts)
-  const [claimPromptDismissed, setClaimPromptDismissed] = useState<boolean>(false);
-  const { intents: userIntents, loaded: intentsLoaded } = useIntents(session?.user?.id);
-  const [intentPromptSkipped, setIntentPromptSkipped] = useState<boolean>(() => {
-    try { return sessionStorage.getItem('rada_intent_prompt_skipped') === '1'; } catch { return false; }
-  });
+  useIntents(session?.user?.id);
   const [authModalMessage, setAuthModalMessage] = useState<string>('');
   const [showSplash, setShowSplash] = useState<boolean>(true);
   const [userRole, setUserRole] = useState<'user' | 'merchant' | 'admin'>('user');
@@ -350,7 +335,6 @@ export default function App() {
     localStorage.removeItem('rada_current_user');
     localStorage.removeItem('rada_last_uid');
     setIsAuthModalOpen(false);
-    setIsBusinessHubOpen(false);
     setIsAdminOpen(false);
     triggerToast(`Account Suspended: ${finalReason}`, { type: 'error' });
   };
@@ -503,10 +487,8 @@ export default function App() {
     localStorage.removeItem('rada_current_user');
     localStorage.removeItem('rada_last_uid');
 
-    // Dismiss any open user/admin/merchant modals
-    setIsAccountSettingsOpen(false);
+    // Dismiss any open user/admin modals
     setIsProfilePageOpen(false);
-    setIsBusinessHubOpen(false);
     setIsAdminOpen(false);
     setViewingProfile(null);
     setSelectedPublicBusiness(null);
@@ -517,11 +499,6 @@ export default function App() {
     setIsCreateGroupOpen(false);
     setIsSavedModalOpen(false);
     setIsSuggestSpotModalOpen(false);
-
-    // If on an authenticated-only tab (like merchant), revert cleanly to home
-    if (activeTab === 'merchant') {
-      setActiveTab('home');
-    }
 
     showToast('Signed out successfully. Browsing as Guest.', { type: 'info' });
   };
@@ -534,22 +511,6 @@ export default function App() {
     }
     actionCallback();
   };
-
-  const handleDeleteAccount = async () => {
-    if (isSupabaseConfigured && supabase) {
-      const { error } = await supabase.rpc('delete_user_account');
-      if (error) {
-        showToast("Error deleting account: " + error.message, { type: 'error' });
-      } else {
-        await supabase.auth.signOut();
-        setSession(null);
-      }
-    } else {
-      setSession(null);
-    }
-  };
-
-  
 
   // Look is fixed: light mode with the orange (terracotta) background wash. No switches.
   const isDarkMode = false;
@@ -673,16 +634,6 @@ export default function App() {
 
   // One tab-change handler for the nav bar AND swipes (history.pushState included).
   const changeTab = (tab: string) => {
-    if (tab === 'merchant') {
-      requireAuth('access the Merchant Hub', () => {
-        if (tab !== activeTab) {
-          window.history.pushState({ radaApp: true, tab }, '');
-          setActiveTab(tab);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-      });
-      return;
-    }
     if (tab !== activeTab) {
       if (tab !== 'home') {
         window.history.pushState({ radaApp: true, tab }, '');
@@ -717,9 +668,6 @@ export default function App() {
   return initialBusinesses;
 });
   const [activeBusinessId, setActiveBusinessId] = useState<string>('');
-  // Merchant Hub removed: the overlay can no longer be opened.
-  const isBusinessHubOpen = false;
-  const setIsBusinessHubOpen = (_open: boolean) => {};
 
   // Core Data State (Ensures at least 10 items for every category)
   const [spots, setSpots] = useState<SpotItem[]>(() => {
@@ -1160,7 +1108,6 @@ export default function App() {
       if (status === 'approved') await socials.openOutingChat(outingId);
       return;
     }
-    let targetOuting: OutingPlan | undefined;
     let targetApplicant: OutingAttendee | undefined;
 
     setOutings(prev => {
@@ -1179,7 +1126,6 @@ export default function App() {
             attendees: updatedAttendees,
             currentAttendeesCount: confirmedCount
           };
-          targetOuting = updatedPlan;
           return updatedPlan;
         }
         return o;
@@ -1330,7 +1276,6 @@ export default function App() {
       window.history.replaceState(window.history.state, '', window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash);
     } catch (_) {}
   };
-  const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
   const [isProfilePageOpen, setIsProfilePageOpen] = useState(false);
   // Profile page is loaded into state (not React.lazy) so it always appears the moment its code arrives.
   const [ProfilePageComp, setProfilePageComp] = useState<React.ComponentType<any> | null>(null);
@@ -1475,29 +1420,9 @@ export default function App() {
     writeJSONDebounced('rada_spot_claims', spotClaims);
   }, [spotClaims]);
 
-  // Lock body scroll and handle Escape key for Business Hub modal
-  useEffect(() => {
-    if (isBusinessHubOpen) {
-      document.body.style.overflow = 'hidden';
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') {
-          setIsBusinessHubOpen(false);
-        }
-      };
-      window.addEventListener('keydown', handleKeyDown);
-      return () => {
-        document.body.style.overflow = 'unset';
-        window.removeEventListener('keydown', handleKeyDown);
-      };
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-  }, [isBusinessHubOpen]);
-
   // Hardware Back Button Protection (Mobile Back Button does not close/exit the app)
   const isAnyModalOpen = Boolean(
     isAuthModalOpen ||
-    isAccountSettingsOpen ||
     isProfilePageOpen ||
     isSavedModalOpen ||
     isAdminOpen ||
@@ -1512,7 +1437,6 @@ export default function App() {
     selectedSpotModal ||
     selectedEventModal ||
     activeOverlay ||
-    isBusinessHubOpen ||
     isSuggestSpotModalOpen
   );
 
@@ -1554,7 +1478,6 @@ export default function App() {
         // Modal is closed by browser hardware back button, so history entry is already popped
         modalHistoryPushedRef.current = false;
         if (isAuthModalOpen) setIsAuthModalOpen(false);
-        if (isAccountSettingsOpen) setIsAccountSettingsOpen(false);
         if (isProfilePageOpen) setIsProfilePageOpen(false);
         if (isSavedModalOpen) setIsSavedModalOpen(false);
         if (isAdminOpen) setIsAdminOpen(false);
@@ -1579,7 +1502,6 @@ export default function App() {
           handleCloseEventModal();
         }
         if (activeOverlay) setActiveOverlay(null);
-        if (isBusinessHubOpen) setIsBusinessHubOpen(false);
         if (isSuggestSpotModalOpen) setIsSuggestSpotModalOpen(false);
         return;
       }
@@ -1624,7 +1546,6 @@ export default function App() {
   }, [
     isAnyModalOpen,
     isAuthModalOpen,
-    isAccountSettingsOpen,
     isProfilePageOpen,
     isSavedModalOpen,
     isAdminOpen,
@@ -1639,7 +1560,6 @@ export default function App() {
     selectedSpotModal,
     selectedEventModal,
     activeOverlay,
-    isBusinessHubOpen,
     isSuggestSpotModalOpen,
     activeTab,
     showToast
@@ -2006,143 +1926,7 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [tickets, emergencyContacts, currentUserProfile, userDataReady, session?.user?.id]);
 
-  // Handlers for Business Hub
-  // Returns an error message (string) on failure, or null on success.
-  const handleCreateBusiness = async (newBiz: BusinessAccount): Promise<string | null> => {
-    // If user is guest or unauthenticated, require authentication
-    if (!session || isGuestMode) {
-      setAuthModalMessage('Please log in or create an account to add a spot or business.');
-      setIsAuthModalOpen(true);
-      return 'Please sign in or create an account to register your business.';
-    }
-
-    const effectiveOwner = session?.user?.id || newBiz.ownerId || '';
-    const finalBizId = cloud.toValidUuid(newBiz.id);
-    const biz: BusinessAccount = {
-      ...newBiz,
-      id: finalBizId,
-      ownerId: effectiveOwner,
-      verified: false,
-      verificationStatus: 'pending',
-    };
-
-    mutationRef.current += 1;
-    pendingRef.current += 1;
-    try {
-      if (isSupabaseConfigured) {
-        const err = await cloud.insertBusiness(biz, effectiveOwner);
-        if (err) {
-          console.error('insertBusiness failed:', err);
-          return `Could not save business: ${err}`;
-        }
-      }
-    } catch (e) {
-      console.error('insertBusiness threw:', e);
-      return `Could not save business: ${e instanceof Error ? e.message : String(e)}`;
-    } finally {
-      pendingRef.current -= 1;
-    }
-
-    setBusinesses(prev => [biz, ...prev.filter(b => b.id !== finalBizId && b.id !== newBiz.id)]);
-    setActiveBusinessId(finalBizId);
-
-    // If hospitality venue, automatically create & publish corresponding Spot so it appears live in SpotsTab for all users
-    if (biz.category === 'hospitality') {
-      const newSpot: SpotItem = {
-        id: Date.now(),
-        title: biz.name,
-        category: 'restaurants',
-        neighborhood: biz.neighborhood || 'Westlands',
-        address: biz.address || `${biz.neighborhood || 'Westlands'}, Nairobi`,
-        exactLocationTag: biz.address || `${biz.neighborhood || 'Westlands'}, Nairobi`,
-        landmark: biz.neighborhood || 'Nairobi',
-        // only what the business entered: no invented pin, rating, price, hours or stock photo
-        lat: 0,
-        lng: 0,
-        hasCoords: false,
-        rating: '',
-        reviewCount: 0,
-        price: '',
-        img: biz.coverImage || biz.logo || '',
-        images: [biz.coverImage || biz.logo].filter(Boolean) as string[],
-        description: biz.bio || '',
-        phone: biz.phone || '',
-        openingHours: '',
-        businessId: finalBizId,
-        merchantId: effectiveOwner,
-        isUserUploaded: false,
-        reviews: []
-      };
-
-      setSpots(prev => {
-        const filtered = prev.filter(s => s.businessId !== finalBizId && s.title.toLowerCase() !== biz.name.toLowerCase());
-        return [newSpot, ...filtered];
-      });
-
-      if (isSupabaseConfigured) {
-        try {
-          await cloud.upsertListing('spot', newSpot, finalBizId, effectiveOwner);
-        } catch (sErr) {
-          console.warn('Could not upsert initial spot for business:', sErr);
-        }
-      }
-    }
-
-    // reload from cloud so photos become online links and state refreshes
-    if (pendingRef.current === 0 && isSupabaseConfigured) {
-      await syncRef.current?.();
-    }
-    return null;
-  };
-
-  const handleUpdateBusiness = (updatedBiz: BusinessAccount) => {
-    setBusinesses(prev => prev.map(b => b.id === updatedBiz.id ? updatedBiz : b));
-    const isSeed = initialBusinesses.some(b => b.id === updatedBiz.id);
-    if (currentUserId && !isSeed) {
-      cloudWrite(() => cloud.updateBusiness(updatedBiz, currentUserId));
-    }
-  };
-
-  // Offers Handlers (SPEC 4: Decoupled Independent Engine)
-  const handleCreateOffer = (newOffer: BusinessOffer) => {
-    setOffers(prev => [newOffer, ...prev]);
-    if (currentUserId) cloudWrite(() => cloud.upsertListing('offer', newOffer, newOffer.businessId, currentUserId));
-  };
-
-  const handleUpdateOffer = (updatedOffer: BusinessOffer) => {
-    setOffers(prev => prev.map(o => o.id === updatedOffer.id ? updatedOffer : o));
-    if (currentUserId) cloudWrite(() => cloud.upsertListing('offer', updatedOffer, updatedOffer.businessId, currentUserId));
-  };
-
-  const handleDeleteOffer = (offerId: string) => {
-    setOffers(prev => prev.filter(o => o.id !== offerId));
-    if (currentUserId) cloudWrite(() => cloud.deleteListing('offer', offerId));
-  };
-
-  // Spot Claiming with Proof of Ownership Verification (Admin checks & confirms)
-  const handleSubmitClaimRequest = async (claim: SpotClaimRequest) => {
-    setSpotClaims(prev => [claim, ...prev.filter(c => c.id !== claim.id)]);
-    // Mark spot as having pending claim without transferring ownership yet
-    setSpots(prev => prev.map(s => {
-      if (String(s.id) === String(claim.spotId)) {
-        return {
-          ...s,
-          hasPendingClaim: true,
-          pendingClaimId: claim.id,
-          pendingClaimBusinessId: claim.businessId
-        };
-      }
-      return s;
-    }));
-    const claimErr = await cloud.submitSpotClaim(claim);
-    if (claimErr) {
-      showToast(`Claim not sent: ${claimErr}`, { type: 'error' });
-      setSpotClaims(prev => prev.filter(c => c.id !== claim.id));
-      setSpots(prev => prev.map(s => String(s.id) === String(claim.spotId) && s.pendingClaimId === claim.id
-        ? { ...s, hasPendingClaim: false, pendingClaimId: undefined, pendingClaimBusinessId: undefined }
-        : s));
-    }
-  };
+  // Spot Claiming with Proof of Ownership Verification (Admin reviews)
 
   const handleApproveClaim = async (claim: SpotClaimRequest) => {
     const now = new Date().toISOString();
@@ -2204,128 +1988,11 @@ export default function App() {
     }
   };
 
-  const handleClaimSpot = (spotId: number, businessId: string) => {
-    // Forward to proof submission with target spot
-    const target = spots.find(s => s.id === spotId);
-    const targetBiz = businesses.find(b => b.id === businessId);
-    if (!target || !targetBiz) return;
-    const req: SpotClaimRequest = {
-      id: `claim-${Date.now()}`,
-      spotId,
-      spotTitle: target.title,
-      spotCategory: target.category,
-      spotNeighborhood: target.neighborhood,
-      spotAddress: target.address,
-      spotImg: target.img,
-      businessId,
-      businessName: targetBiz.name,
-      businessCategory: targetBiz.category,
-      businessPhone: targetBiz.phone,
-      businessEmail: targetBiz.email,
-      businessLogo: targetBiz.logo,
-      applicantUserId: session?.user?.id || currentUserId || '',
-      applicantName: targetBiz.name,
-      applicantHandle: `@${targetBiz.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-      claimantRole: 'Owner / Founder',
-      contactPhone: targetBiz.phone || '+254 ',
-      contactEmail: targetBiz.email || '',
-      officialSocialUrl: targetBiz.instagram,
-      proofNote: `Ownership claim submitted by verified merchant ${targetBiz.name}.`,
-      proofDocuments: [],
-      status: 'pending',
-      createdAt: new Date().toISOString()
-    };
-    handleSubmitClaimRequest(req);
-  };
-
-  const handleReleaseSpot = (spotId: number) => {
-    const released = spots.find(s => s.id === spotId);
-    if (released && currentUserId) {
-      cloudWrite(() => cloud.upsertListing('spot', { ...released, businessId: undefined, isUserUploaded: true }, null, currentUserId));
-    }
-    setSpots(prev => prev.map(s => {
-      if (s.id === spotId) {
-        return {
-          ...s,
-          businessId: undefined,
-          isUserUploaded: true
-        };
-      }
-      return s;
-    }));
-  };
-
   const handleOpenBusinessProfile = (bizId: string) => {
     const biz = businesses.find(b => b.id === bizId);
     if (biz) {
       setSelectedPublicBusiness(biz);
     }
-  };
-
-  const handleAddOrUpdateSpot = (spot: SpotItem) => {
-    requireAuth('add a spot or business', () => {
-      const ownerId = session?.user?.id || currentUserId;
-      if (!ownerId) {
-        showToast('Please sign in to manage spots.', { type: 'error' });
-        return;
-      }
-
-      // Check ownership if editing an existing spot
-      const existing = spots.find(s => s.id === spot.id);
-      if (existing && existing.merchantId && existing.merchantId !== ownerId) {
-        const userBizIds = businesses.filter(b => b.ownerId === ownerId).map(b => b.id);
-        if (!existing.businessId || !userBizIds.includes(existing.businessId)) {
-          showToast('Permission denied: Only the spot owner or verified merchant can edit this spot.', { type: 'error' });
-          return;
-        }
-      }
-
-      const spotWithMerchant: SpotItem = {
-        ...spot,
-        merchantId: spot.merchantId || ownerId,
-        businessId: spot.businessId || activeBusinessId || undefined
-      };
-
-      setSpots(prev => {
-        const idx = prev.findIndex(s => s.id === spotWithMerchant.id || s.title.toLowerCase() === spotWithMerchant.title.toLowerCase());
-        if (idx >= 0) {
-          const updated = [...prev];
-          updated[idx] = spotWithMerchant;
-          return updated;
-        }
-        return [spotWithMerchant, ...prev];
-      });
-
-      cloudWrite(async () => {
-        const res = await cloud.upsertListing('spot', spotWithMerchant, spotWithMerchant.businessId, ownerId);
-        // Trigger live refresh across the application feeds
-        syncRef.current?.();
-        return res;
-      });
-    });
-  };
-
-  const handleAddEvent = (event: EventItem) => {
-    requireAuth('add an event', () => {
-      // add new, or replace if this event already exists (editing)
-      setEvents(prev => prev.some(e => e.id === event.id)
-        ? prev.map(e => e.id === event.id ? event : e)
-        : [event, ...prev]);
-      const ownerId = session?.user?.id || currentUserId;
-      if (ownerId) cloudWrite(() => cloud.upsertListing('event', event, event.businessId, ownerId));
-    });
-  };
-
-  const handleDeleteListing = (type: 'spot' | 'event', id: number) => {
-    requireAuth('delete a listing', () => {
-      const ownerId = session?.user?.id || currentUserId;
-      if (ownerId) cloudWrite(() => cloud.deleteListing(type, id));
-      if (type === 'spot') {
-        setSpots(prev => prev.filter(s => s.id !== id));
-      } else {
-        setEvents(prev => prev.filter(e => e.id !== id));
-      }
-    });
   };
 
   // Post Review with Images Handler
@@ -2618,11 +2285,7 @@ export default function App() {
   };
 
   const handleOpenOverlay = (overlayId: string) => {
-    if (overlayId === 'businessHub') {
-      requireAuth('access the Merchant Hub', () => {
-        setIsBusinessHubOpen(true);
-      });
-    } else if (overlayId === 'savedOverlay') {
+    if (overlayId === 'savedOverlay') {
       requireAuth('view saved collections', () => {
         setIsSavedModalOpen(true);
       });
@@ -2907,42 +2570,9 @@ export default function App() {
                 </ErrorBoundary>
               </TabPane>
             )}
-            {(activeTab === 'merchant' || activeTab === 'calendar') && (
+            {activeTab === 'calendar' && (
               <ErrorBoundary key={activeTab} fallbackTitle="Resuming View">
               <div className="rada-tab-enter" style={{ ['--rada-slide' as any]: `${tabSlide}px` }}>
-            {activeTab === 'merchant' && (
-              <MerchantHubTab
-                businesses={businesses}
-                activeBusinessId={activeBusinessId}
-                userId={session?.user?.id}
-                isUserSignedIn={Boolean(session?.user?.id)}
-                onOpenAuth={() => setIsAuthModalOpen(true)}
-                onSelectBusiness={(id) => {
-                  setActiveBusinessId(id);
-                  const b = businesses.find(item => item.id === id);
-                }}
-                onCreateBusiness={handleCreateBusiness}
-                onUpdateBusiness={handleUpdateBusiness}
-                spots={spots}
-                onAddOrUpdateSpot={handleAddOrUpdateSpot}
-                onDeleteListing={handleDeleteListing}
-                events={events}
-                onAddEvent={handleAddEvent}
-                offers={offers}
-                onCreateOffer={handleCreateOffer}
-                onUpdateOffer={handleUpdateOffer}
-                onDeleteOffer={handleDeleteOffer}
-                onClaimSpot={handleClaimSpot}
-                onReleaseSpot={handleReleaseSpot}
-                onViewSpotDetails={(spot) => setSelectedSpotModal(spot)}
-                onViewEventDetails={(event) => setSelectedEventModal(event)}
-                onOpenPublicProfile={(biz) => setSelectedPublicBusiness(biz)}
-                spotClaims={spotClaims}
-                onSubmitClaimRequest={handleSubmitClaimRequest}
-                showToast={showToast}
-              />
-            )}
-{activeTab === 'calendar' && (
               <LukuEventsTab
                 events={allEvents}
                 initialDate={calendarTargetDate}
@@ -2956,7 +2586,6 @@ export default function App() {
                 onToggleSave={handleToggleSave}
                 showToast={showToast}
               />
-            )}
               </div>
               </ErrorBoundary>
             )}
@@ -2974,38 +2603,6 @@ export default function App() {
           {/* Modals & Overlays */}
           <ErrorBoundary fallbackTitle="Resuming View">
           <Suspense fallback={null}>
-          {isBusinessHubOpen && (
-            <div className="fixed inset-0 z-50 bg-[#FBFBF9] dark:bg-[#121113] overflow-y-auto">
-              <MerchantHubTab
-                businesses={businesses}
-                activeBusinessId={activeBusinessId}
-                userId={session?.user?.id}
-                isUserSignedIn={Boolean(session?.user?.id)}
-                onOpenAuth={() => setIsAuthModalOpen(true)}
-                onSelectBusiness={(id) => setActiveBusinessId(id)}
-                onCreateBusiness={handleCreateBusiness}
-                onUpdateBusiness={handleUpdateBusiness}
-                spots={spots}
-                onAddOrUpdateSpot={handleAddOrUpdateSpot}
-                onDeleteListing={handleDeleteListing}
-                events={events}
-                onAddEvent={handleAddEvent}
-                offers={offers}
-                onCreateOffer={handleCreateOffer}
-                onUpdateOffer={handleUpdateOffer}
-                onDeleteOffer={handleDeleteOffer}
-                onClaimSpot={handleClaimSpot}
-                onReleaseSpot={handleReleaseSpot}
-                onViewSpotDetails={(spot) => setSelectedSpotModal(spot)}
-                onViewEventDetails={(event) => setSelectedEventModal(event)}
-                onOpenPublicProfile={(biz) => setSelectedPublicBusiness(biz)}
-                spotClaims={spotClaims}
-                onSubmitClaimRequest={handleSubmitClaimRequest}
-                onClose={() => setIsBusinessHubOpen(false)}
-                showToast={showToast}
-              />
-            </div>
-          )}
 
           {(selectedLocationMapSpot || selectedLocationMapEvent) && (
             <LocationMapModal
@@ -3187,21 +2784,6 @@ export default function App() {
             </div>
           ))}
 
-          {isAccountSettingsOpen && (
-            <AccountSettingsModal
-              isOpen={isAccountSettingsOpen}
-              onClose={() => setIsAccountSettingsOpen(false)}
-              session={session}
-              currentUserProfile={currentUserProfile}
-              showToast={showToast}
-              onOpenAuth={() => setIsAuthModalOpen(true)}
-              onSignOut={handleSignOut}
-              onProfileChange={handleOwnProfileChange}
-              outings={allOutings}
-              myBusinesses={session?.user?.id ? businesses.filter(b => b.ownerId === session.user.id && !isDemoId(b.id)) : []}
-            />
-          )}
-
           {ticketLink && (
             <div className={isAuthModalOpen ? 'hidden' : ''}>
             <TicketBuySheet
@@ -3255,24 +2837,6 @@ export default function App() {
               showToast={showToast}
               currentUserId={session?.user?.id}
               currentUserProfile={currentUserProfile}
-            />
-          )}
-
-          {SHOW_CLAIM_USERNAME_PROMPT && session?.user?.id && !isGuestMode && !isAuthModalOpen && !claimPromptDismissed &&
-            hasAutoUsername(currentUserProfile?.username || currentUserProfile?.handle) &&
-            !sessionStorage.getItem('rada_claim_prompt_dismissed') && (
-            <ClaimUsernamePrompt
-              uid={session.user.id}
-              currentUsername={currentUserProfile?.username || currentUserProfile?.handle || ''}
-              onDismiss={() => {
-                try { sessionStorage.setItem('rada_claim_prompt_dismissed', '1'); } catch { /* ignore */ }
-                setClaimPromptDismissed(true);
-              }}
-              onClaimed={(username) => {
-                setCurrentUserProfile(prev => ({ ...prev, username, handle: `@${username}` }));
-                setClaimPromptDismissed(true);
-                showToast(`You are now @${username}`);
-              }}
             />
           )}
 

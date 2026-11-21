@@ -4,7 +4,7 @@ import { Search, X, MapPin, Bookmark, Star, Compass, Trash2, Navigation, Chevron
 import { SpotItem, SavedItem } from '../types.ts';
 import { spotInCategory, getSpotCategoryIds, isAllKey, resolveSpotCategory, SPOT_CATEGORIES } from '../lib/spotCategories.ts';
 import { getSpotCategoryAccent, accentVars } from '../lib/spotAccentTheme.ts';
-import { rankSpots, premiumScore, formatKm } from '../lib/spotRanking.ts';
+import { rankSpots, formatKm } from '../lib/spotRanking.ts';
 import { resolveSpotBudget, budgetBadge, plainPriceLabel } from '../lib/spotBudget.ts';
 import type { LatLng } from '../lib/geo.ts';
 import { spotMatchesSearchWithTags } from '../utils/spotTags.ts';

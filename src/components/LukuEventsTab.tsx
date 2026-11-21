@@ -1,18 +1,15 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { CategoryIcon } from './CategoryIcon';
 import { WeatherChip } from './WeatherChip.tsx';
 import { 
   Calendar as CalendarIcon, 
   Clock, 
   MapPin, 
-  Ticket, 
-  Sparkles, 
   ChevronLeft, 
   ChevronRight, 
   ArrowRight,
   Filter,
   Flame,
-  CheckCircle2,
   Users,
   ArrowLeft,
   Bookmark
@@ -21,7 +18,6 @@ import { EventItem, SavedItem } from '../types.ts';
 import { 
   doesEventMatchDay, 
   getCleanDateHeader, 
-  getCategoryBadgeStyle,
   parseEventDate
 } from '../utils/calendarUtils.ts';
 import {

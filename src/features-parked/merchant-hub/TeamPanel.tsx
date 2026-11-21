@@ -4,7 +4,7 @@ import {
   ROLE_HELP, ROLE_LABEL, TEAM_SEATS, acceptTeamInvite, fetchMyTeamInvites, fetchTeam, inviteTeamMember,
   removeTeamMember, setTeamRole,
   type TeamInfo, type TeamInvite, type TeamRole,
-} from '../lib/team';
+} from './team';
 
 const cardCls = 'rounded-3xl p-4 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 shadow-sm space-y-3';
 const inputCls = 'w-full rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-2 text-[13px] font-semibold outline-none';

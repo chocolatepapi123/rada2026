@@ -4,7 +4,7 @@ import {
   DOW, STATUS_LABEL, cancelMyPromotion, fetchMyPromotions, fetchPromoProducts, fetchPromotionReport,
   nextStartDate, priceLabel, requestPromotion,
   type PromoPlacement, type PromoProduct, type Promotion, type PromotionReport, type PromoStatus, type PromoTargetType,
-} from '../lib/promotions';
+} from '../../lib/promotions';
 import ManualPaySheet from './ManualPaySheet';
 import MyPaymentClaims from './MyPaymentClaims';
 

@@ -4,15 +4,8 @@ import {
   X,
   Upload,
   MapPin,
-  Tag,
-  DollarSign,
-  Compass,
-  FileText,
   Sparkles,
   Check,
-  Plus,
-  Trash2,
-  Image as ImageIcon,
   Loader2
 } from 'lucide-react';
 import { SpotCategory, SpotItem } from '../types.ts';

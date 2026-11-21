@@ -11,7 +11,7 @@ import {
   X,
   Compass
 } from 'lucide-react';
-import { NairobiLocationItem, searchNairobiLocations, fetchMapDrivenLocations } from '../data/nairobiLocations.ts';
+import { NairobiLocationItem, searchNairobiLocations, fetchMapDrivenLocations } from '../../data/nairobiLocations.ts';
 
 interface DynamicLocationSelectorProps {
   value: string;

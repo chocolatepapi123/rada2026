@@ -19,7 +19,7 @@ import {
   type SubscriptionEvent,
   type SubscriptionRecord,
 } from '../lib/subscriptions';
-import { PlanPill } from './SubscriptionPlans';
+import { PlanPill } from '../features-parked/paid-plans-and-boosts/SubscriptionPlans';
 import type { ToastOptions } from './Toast.tsx';
 
 type Filter = 'all' | 'trialing' | 'pro' | 'elite' | 'free' | 'ended';

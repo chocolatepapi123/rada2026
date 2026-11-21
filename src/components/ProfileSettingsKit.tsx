@@ -30,7 +30,7 @@ import {
   uploadAvatar,
   validateUsernameFormat,
 } from '../lib/cloudSync';
-import { isLegacyWayneName, sanitizeDisplayName, sanitizeUsername, generateNewUserName } from '../utils/userUtils';
+import { isLegacyWayneName, sanitizeDisplayName, sanitizeUsername } from '../utils/userUtils';
 import type { ToastOptions } from './Toast.tsx';
 
 /* ------------------------------------------------------------------ */

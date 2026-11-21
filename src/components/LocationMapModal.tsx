@@ -1,6 +1,6 @@
 import { track } from '../lib/tracking';
 import React, { useEffect, useRef, useState } from 'react';
-import { X, MapPin, Car, Navigation, ExternalLink } from 'lucide-react';
+import { X, MapPin, Car, Navigation } from 'lucide-react';
 import { SpotItem, EventItem } from '../types.ts';
 import { hasEventCoords, resolveEventCoords, eventGoogleMapsUrl } from '../utils/eventUtils.ts';
 import type { ToastOptions } from './Toast.tsx';
@@ -101,7 +101,7 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
 
           // 100% Free OpenStreetMap raster tiles (Zero API key required)
           const isDark = document.documentElement.classList.contains('dark');
-          const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
             subdomains: ['a', 'b', 'c'],
             maxZoom: 19,

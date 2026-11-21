@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { CalendarPlus, CheckCircle2, ChevronRight, Loader2, QrCode, Smartphone, Ticket } from 'lucide-react';
-import { canSellTickets, getMyPayoutPhone, savePayoutPhone } from '../lib/tickets';
-import TicketScanner from './TicketScanner';
-import type { EventItem } from '../types.ts';
+import { canSellTickets, getMyPayoutPhone, savePayoutPhone } from '../../lib/tickets';
+import TicketScanner from '../../components/TicketScanner';
+import type { EventItem } from '../../types.ts';
 
 interface Props {
   events: EventItem[];

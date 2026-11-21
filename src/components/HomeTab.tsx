@@ -1,8 +1,8 @@
 import { useActivePromotions, offerRankMap, offerPromoKey, sortByPromotion } from '../lib/promotions.ts';
 import { pinFeaturedEvents } from '../lib/featuredEvents.ts';
-import { useUnclaimedSpots, spotInCategory, mergeSpots, sortTrending, formatOpeningHours } from '../lib/spotsFeed.ts';
+import { useUnclaimedSpots, spotInCategory, mergeSpots, formatOpeningHours } from '../lib/spotsFeed.ts';
 import { resolveSpotBudget, budgetBadge } from '../lib/spotBudget.ts';
-import { useLocationPreference, sortByProximity, NEIGHBORHOOD_COORDS, formatDistance, distanceKm, resolveNearestNeighborhood } from '../lib/geo.ts';
+import { useLocationPreference, distanceKm } from '../lib/geo.ts';
 import { SPOT_CATEGORIES, getSpotCategoryIds } from '../lib/spotCategories.ts';
 import { getSpotCategoryAccent, accentPillStyle, accentVars } from '../lib/spotAccentTheme.ts';
 import { rankSpots, useNearYou } from '../lib/spotRanking.ts';
@@ -12,7 +12,7 @@ import { TonightSection } from './TonightSection.tsx';
 import { pickTrendingSpots, isHomeSpot } from '../lib/trendingSpots.ts';
 import { CinemaMovieSheet } from './CinemaExplorer.tsx';
 import { localPosterFor } from '../lib/localPosters.ts';
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { getStoredLanguage, translations, type AppLanguage } from '../utils/i18n.ts';
 
 const getDisplayHours = (hours: any, fallback = 'Open Daily'): string => {
@@ -37,37 +37,21 @@ import {
   Ticket, 
   MessageCircle, 
   Send, 
-  UserCheck, 
   Plus, 
-  Sparkles, 
-  Music, 
-  ExternalLink, 
-  Percent, 
   Flame, 
-  Copy, 
-  Check, 
   Store, 
   SlidersHorizontal, 
   Smile, 
   Bookmark, 
-  Trees, 
-  Palette, 
-  Gamepad2, 
   RefreshCw, 
   Trash2, 
   Compass, 
   Star,
-  UtensilsCrossed,
   Crown,
   Users,
   Ban,
-  ShieldCheck,
   ShieldAlert,
-  AlertTriangle,
-  MoreVertical,
-  ChevronDown,
-  Loader2,
-  RotateCcw
+  AlertTriangle
 } from 'lucide-react';
 import { EventItem, OutingPlan, CinemaMovie, StatusPost, UserProfile, BusinessOffer, OfferCategory, SpotItem, SavedItem, BusinessAccount, isOfficialAdmin } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
@@ -77,12 +61,7 @@ import { searchSpots } from '../lib/searchTags.ts';
 import { recordInterest, categoriesForQuery, personalCategoryOrder } from '../lib/interests.ts';
 import { AdminConfirmModal, AdminActionType, AdminTargetAccount } from './AdminConfirmModal.tsx';
 import { deleteAccountAdmin, setUserSuspension, revokeBusinessStatus, fetchAdminUsers } from '../lib/cloudSync';
-import { 
-  doesEventMatchDay, 
-  getCleanDateHeader, 
-  getCategoryBadgeStyle, 
-  isDateToday 
-} from '../utils/calendarUtils.ts';
+import { getCategoryBadgeStyle } from '../utils/calendarUtils.ts';
 import {
   EVENT_CATEGORY_FILTERS,
   eventMatchesCategory,
@@ -164,7 +143,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   isGpsActive
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedVibe, setSelectedVibe] = useState('all');
+  const [selectedVibe] = useState('all');
   const [selectedGenre, setSelectedGenre] = useState('all');
   const [selectedCinemaLoc, setSelectedCinemaLoc] = useState('all');
   const [sheetMovie, setSheetMovie] = useState<CinemaMovie | null>(null);
@@ -191,7 +170,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     actionType: 'delete_account',
     target: { id: '', name: '' }
   });
-  const [activeAdminMenuId, setActiveAdminMenuId] = useState<string | null>(null);
 
   // Load accounts for admin management
   useEffect(() => {
@@ -242,7 +220,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   }, [isAdmin, businesses, statuses]);
 
   const handleAdminTriggerAction = (actionType: AdminActionType, target: AdminTargetAccount) => {
-    setActiveAdminMenuId(null);
     setConfirmModalConfig({
       isOpen: true,
       actionType,
@@ -318,10 +295,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   const [selectedOfferCategory, setSelectedOfferCategory] = useState<'all' | OfferCategory>('all');
 
   // Events sorting state: Upcoming (date) vs Most Popular (going count)
-  const [eventSortBy, setEventSortBy] = useState<'smart' | 'date' | 'popular'>('smart');
-
-  // Outdoor & Social Activity sub-category filter
-  const [selectedActivityCategory, setSelectedActivityCategory] = useState<'all' | 'nature' | 'art' | 'gaming' | 'adrenaline'>('all');
+  const [eventSortBy] = useState<'smart' | 'date' | 'popular'>('smart');
 
   // Universal Bookmark Checker
   const isSaved = (id: string | number, kind: 'spot' | 'event' | 'offer') => {
@@ -334,7 +308,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   // Real spots from Supabase (unclaimedspots + merchant-created) for the Home feed
   const { spots: unclaimedFeed } = useUnclaimedSpots();
   // Home feed is ordered by distance from the device (or a picked neighborhood)
-  const { pref: locPref, setPref: setLocPref, origin: feedOrigin, status: locStatus, requestGps } = useLocationPreference();
+  const { origin: feedOrigin } = useLocationPreference();
   const near = useNearYou();
   const [dbSpots, setDbSpots] = useState<any[]>([]);
   const [liveReviews, setLiveReviews] = useState<Record<string, any[]>>({});

@@ -8,8 +8,6 @@ import {
   Heart,
   MessageSquare,
   MapPin,
-  Sparkles,
-  Shield,
   CheckCircle2,
   Lock,
   Bookmark,

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { X, Copy, CheckCircle2 } from 'lucide-react';
-import { getManualPayInfo, getPlanAmount, submitManualPayment, type ManualPayInfo } from '../lib/manualPayments';
+import { getManualPayInfo, getPlanAmount, submitManualPayment, type ManualPayInfo } from '../../lib/manualPayments';
 
 interface Props {
   kind: 'creator' | 'merchant' | 'promotion';

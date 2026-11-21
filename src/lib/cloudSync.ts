@@ -1,9 +1,9 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import type { BusinessAccount, SavedItem, CollectionFolder, OutingPlan, OutingAttendee, ChatConversation, HostAnalytics, HostControls, UserProfile, AdminUserRecord, PlatformStats, SpotItem, SubscriptionStatus, UnclaimedSpotInput, SpotClaimRequest, CommunitySpotInput, AdminPermissions } from '../types';
+import type { BusinessAccount, SavedItem, CollectionFolder, OutingPlan, OutingAttendee, ChatConversation, HostAnalytics, HostControls, UserProfile, AdminUserRecord, PlatformStats, SpotItem, SubscriptionStatus, UnclaimedSpotInput, SpotClaimRequest, AdminPermissions } from '../types';
 import { isPlatformAdmin, isOfficialAdmin, DEFAULT_DELEGATED_PERMISSIONS, SUPER_ADMIN_PERMISSIONS } from '../types';
 import { STATUS_TTL_MS } from '../utils/statusLifecycle';
 import { loadUnclaimedSpots } from './spotsFeed';
-import { generateNewUserName, isLegacyWayneName, sanitizeDisplayName, sanitizeUsername } from '../utils/userUtils';
+import { generateNewUserName, isLegacyWayneName, sanitizeUsername } from '../utils/userUtils';
 import { logPlatformEvent } from './platformAnalytics';
 import { unlockMessageText } from './systemMessage';
 
@@ -547,7 +547,6 @@ export async function upsertListing(
 
   const bizRef = businessId ?? item.businessId ?? null;
   const safeBizUuid = isValidUuid(bizRef) ? bizRef : null;
-  const safeOwnerUuid = isValidUuid(ownerId) ? ownerId : null;
 
   payload = {
     ...payload,

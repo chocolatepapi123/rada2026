@@ -171,9 +171,11 @@ export function countOutingsThisMonth(
 // ---------------------------------------------------------------------------
 export type TierBadgeKind = 'creator' | 'golden_creator' | 'business' | 'golden_featured';
 
+const TIER_BADGES_ENABLED = false;
+
 export function tierBadgeFor(kind: SubKind, plan?: PlanId | null): TierBadgeKind | null {
   // Paid tier badges are switched off: everything is free.
-  if (true) return null;
+  if (!TIER_BADGES_ENABLED) return null;
   if (plan === 'elite') return kind === 'creator' ? 'golden_creator' : 'golden_featured';
   if (plan === 'pro') return kind === 'creator' ? 'creator' : 'business';
   return null;
@@ -287,9 +289,9 @@ export async function fetchMyOutingUsage(): Promise<{ plan: PlanId; used: number
 }
 
 export function useMySubscriptions(userId?: string | null) {
-  const [subs, setSubs] = useState<MySubscriptions>(EMPTY);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [, setSubs] = useState<MySubscriptions>(EMPTY);
+  const [, setLoading] = useState(false);
+  const [, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!userId) {
@@ -326,7 +328,7 @@ export function useMySubscriptions(userId?: string | null) {
     () => (userId ? { creator: createPermanentEliteRecord('creator', userId), merchant: createPermanentEliteRecord('merchant', userId) } : EMPTY),
     [userId]
   );
-  const plan: PlanId = 'elite';
+  const plan: PlanId = 'elite' as PlanId;
 
   return { subs: open, loading: false, error: null as string | null, refresh, plan };
 }
@@ -343,7 +345,7 @@ const BADGE_TTL_MS = 5 * 60 * 1000;
 
 export async function fetchPublicTiers(userIds: string[]): Promise<Record<string, PublicTiers>> {
   // No paid tiers any more, so nobody carries a tier badge. Skips the server call.
-  if (true) return {};
+  if (!TIER_BADGES_ENABLED) return {};
   const ids = Array.from(new Set(userIds.filter((id) => id && UUID_RE.test(id))));
   const result: Record<string, PublicTiers> = {};
   const missing: string[] = [];

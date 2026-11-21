@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AtSign, Check, Loader2, X } from 'lucide-react';
-import { checkUsernameAvailable, updateUsername } from '../lib/cloudSync';
+import { checkUsernameAvailable, updateUsername } from '../../lib/cloudSync';
 
 interface ClaimUsernamePromptProps {
   uid: string;
