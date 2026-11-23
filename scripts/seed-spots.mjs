@@ -5,6 +5,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import crypto from 'node:crypto';
+import { createDedupe } from './lib/dedupe.mjs';
+import { cleanPhotos, publishPhotos, photoStats } from './lib/photos.mjs';
+import { FACE_FILTER, stopFaceChecker } from './lib/faces.mjs';
+import { r2Missing } from './lib/r2.mjs';
 
 const env = (k, d = '') => (process.env[k] ?? d).toString().trim();
 const list = (s) => s.split(',').map(x => x.trim()).filter(Boolean);
@@ -107,6 +112,7 @@ function fail(msg) { console.error('✖ ' + msg); process.exit(1); }
 const missing = [['SUPABASE_URL', SB_URL], ['SUPABASE_SERVICE_ROLE_KEY', SB_KEY]].filter(([, v]) => !v).map(([k]) => k);
 if (missing.length) fail('Empty in GitHub secrets: ' + missing.join(', ') + ' (check exact name, and that it is a Repository secret with a value)');
 if (!CATEGORIES.length) fail('Tick at least one category');
+if (!DRY_RUN && r2Missing().length) fail('Live runs upload photos to R2. Missing secrets/variables: ' + r2Missing().join(', '));
 if (AREAS.length < 1 || AREAS.length > 8) fail('Give 1–8 places per run (got ' + AREAS.length + ')');
 const unknown = CATEGORIES.filter(c => !TERMS[c]);
 if (unknown.length) fail('Unknown categories: ' + unknown.join(', ') + '\nValid: ' + Object.keys(TERMS).join(' | '));
@@ -211,27 +217,7 @@ async function scrapeArea(spec, cats, depth = DEPTH, termsFor = null) {
   return items;
 }
 
-// Ask Google for a bigger copy of each photo; keep the original link if the bigger one doesn't load.
-async function imageOk(u) {
-  try {
-    const r = await fetch(u, { headers: { Range: 'bytes=0-1023' }, signal: AbortSignal.timeout(15000) });
-    return r.ok && /^image\//i.test(r.headers.get('content-type') || '');
-  } catch { return false; }
-}
-async function bestUrl(u) {
-  const big = baseOf(u) + '=w1200';
-  if (await imageOk(big)) return big;
-  return (await imageOk(u)) ? u : null;
-}
-async function workingPhotos(urls) {
-  const out = [];
-  for (const u of urls) {
-    if (out.length >= MAX_PHOTOS) break;
-    const good = await bestUrl(u);
-    if (good) out.push(good);
-  }
-  return out;
-}
+// Photos are checked, face-filtered, compressed and uploaded in scripts/lib/photos.mjs.
 
 // Network blips happen on long runs, so each Supabase call gets 4 tries before the area is marked failed.
 const sb = async (path, init = {}) => {
@@ -264,16 +250,17 @@ async function existingIds(ids) {
   return found;
 }
 
-function toRow(p, area, category, photos) {
+function toRow(p, area, category, id, media) {
   return {
+    id,
     name: p.title,
     category,
     extra_categories: [],
     address: p.address,
     latitude: p.lat,
     longitude: p.lng,
-    thumbnail: photos[0],
-    gallery: photos,
+    thumbnail: media.thumbnail,
+    gallery: media.gallery,
     phone: p.phone,
     website: p.website,
     rating: p.rating,
@@ -284,6 +271,8 @@ function toRow(p, area, category, photos) {
     social_links: {},
     neighborhood: area,
     google_place_id: p.placeId,
+    photos_mirrored_at: new Date().toISOString(),
+    photos_mirror_note: `${media.gallery.length} copied (webp, no faces)`,
   };
 }
 
@@ -301,6 +290,10 @@ async function main() {
   const pull = spawnSync('docker', ['pull', IMAGE], { encoding: 'utf8' });
   if (pull.status !== 0) fail('Could not pull the scraper image: ' + ((pull.stderr || pull.stdout || 'docker not available').trim().split('\n').slice(-2).join(' ')));
 
+  const dupes = createDedupe(sb);
+  await dupes.load();
+  console.log(`Loaded ${dupes.size()} existing spots for duplicate checks. Face filter: ${FACE_FILTER ? 'ON' : 'OFF'}`);
+  const manifestRows = [];
   const errors = [];
   const picked = new Set(); // place IDs already chosen for an earlier area this run
   for (const spec of AREAS) {
@@ -374,19 +367,24 @@ async function main() {
         stats[cat].qualified += byCat[cat].length;
         stats[cat].inDb += byCat[cat].filter(p => existing.has(p.placeId)).length;
         const ranked = byCat[cat]
-          .filter(p => !existing.has(p.placeId) && !picked.has(p.placeId))
+          .filter(p => !existing.has(p.placeId) && !picked.has(p.placeId) && !dupes.isDuplicate(p))
           .sort((a, b) => b.rating * Math.log10(b.reviews + 1) - a.rating * Math.log10(a.reviews + 1));
         let brokenPhotos = 0;
         for (const p of ranked) {
           if (fresh[cat].length >= need[cat]) break;   // never goes over the number you asked for
-          const photos = await workingPhotos(p.photoUrls); // only checked for spots we'd actually add
-          if (photos.length < MIN_PHOTOS) { brokenPhotos++; continue; }
+          if (dupes.isDuplicate(p)) continue; // an earlier pick in this run may match it
+          const clean = await cleanPhotos(p.photoUrls, MAX_PHOTOS, MIN_PHOTOS); // only for spots we'd actually add
+          if (clean.length < MIN_PHOTOS) { brokenPhotos++; continue; }
+          const id = crypto.randomUUID();
+          const media = await publishPhotos(id, clean, DRY_RUN);
           picked.add(p.placeId);
-          const row = toRow(p, area, cat, photos);
+          dupes.add({ name: p.title, lat: p.lat, lng: p.lng });
+          const row = toRow(p, area, cat, id, media);
           fresh[cat].push(row);
           toInsert.push(row);
+          manifestRows.push(...media.manifest.map(m => ({ ...m, google_place_id: p.placeId, name: p.title, address: p.address, latitude: p.lat, longitude: p.lng })));
         }
-        if (brokenPhotos) console.log(`${where} / ${cat}: skipped ${brokenPhotos} whose photos did not load`);
+        if (brokenPhotos) console.log(`${where} / ${cat}: skipped ${brokenPhotos} with too few clean photos (faces, tiny or broken images)`);
       }
       }
     }
@@ -409,24 +407,34 @@ async function main() {
   }
 
   console.table(report);
+  console.log(`Photos: ${photoStats.checked} checked, ${photoStats.kept} kept, ${photoStats.withFaces} rejected for faces, ${photoStats.tooSmall} too small, ${photoStats.unreadable} unreadable`);
+  stopFaceChecker();
   console.log(`Total new spots: ${toInsert.length}`);
   if (DRY_RUN) {
     console.log('Preview of what a live run would add (check the addresses are really in the right place):');
     for (const r of toInsert) console.log(`  [${r.category}] ${r.name} | ${r.address} | ${r.rating} stars | ${r.gallery.length} photos | filed under ${r.neighborhood}`);
   }
 
+  let addedCount = 0; // how many spots this run really saved (the workflow loop reads it)
   if (!DRY_RUN && toInsert.length) {
     let inserted = 0;
+    const insertedIds = new Set();
     for (let i = 0; i < toInsert.length; i += 50) {
       const chunk = toInsert.slice(i, i + 50);
       const r = await sb('unclaimedspots', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(chunk) });
-      if (r.ok) { inserted += chunk.length; continue; }
+      if (r.ok) { inserted += chunk.length; chunk.forEach(x => insertedIds.add(x.id)); continue; }
       for (const row of chunk) { // fall back row-by-row so one duplicate doesn't sink the batch
         const rr = await sb('unclaimedspots', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(row) });
-        if (rr.ok) inserted++; else console.warn('skip', row.name, rr.status);
+        if (rr.ok) { inserted++; insertedIds.add(row.id); } else console.warn('skip', row.name, rr.status);
       }
     }
     console.log(`✔ Inserted ${inserted}`);
+    addedCount = inserted;
+    const mrows = manifestRows.filter(m => insertedIds.has(m.spot_id));
+    for (let i = 0; i < mrows.length; i += 200) {
+      const r = await sb('photo_manifest', { method: 'POST', headers: { Prefer: 'return=minimal,resolution=ignore-duplicates' }, body: JSON.stringify(mrows.slice(i, i + 200)) });
+      if (!r.ok) console.warn('photo_manifest insert failed:', r.status, (await r.text()).slice(0, 200));
+    }
     fs.mkdirSync('seed-runs', { recursive: true });
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
     fs.writeFileSync(`seed-runs/${stamp}-${AREAS.map(a => a.label).join('+').replace(/\s+/g, '').slice(0, 60)}.json`, JSON.stringify({
@@ -435,11 +443,13 @@ async function main() {
     }, null, 2));
   }
 
+  if (process.env.SEED_RESULT_FILE) fs.appendFileSync(process.env.SEED_RESULT_FILE, addedCount + '\n');
+
   if (errors.length) { console.error('Some areas failed:\n' + errors.join('\n')); process.exitCode = 1; }
 
   if (process.env.GITHUB_STEP_SUMMARY) {
     const md = ['### Seed run ' + (DRY_RUN ? '(dry run)' : ''), '', '| Area | Category | Qualified | Already in DB | New | Note |', '|---|---|---|---|---|---|',
-      ...report.map(r => `| ${r.area} | ${r.category} | ${r.qualified} | ${r.alreadyInDb} | ${r.new} | ${r.note || ''} |`), '', `**Total new: ${toInsert.length}**`, ...(DRY_RUN ? ['', '```', ...toInsert.map(r => `[${r.category}] ${r.name} | ${r.address} | ${r.rating} stars | ${r.gallery.length} photos | ${r.neighborhood}`), '```'] : [])].join('\n');
+      ...report.map(r => `| ${r.area} | ${r.category} | ${r.qualified} | ${r.alreadyInDb} | ${r.new} | ${r.note || ''} |`), '', `**Total new: ${toInsert.length}**`, `Photos: ${photoStats.kept} kept, ${photoStats.withFaces} rejected for faces, ${photoStats.tooSmall} too small, ${photoStats.unreadable} unreadable`, ...(DRY_RUN ? ['', '```', ...toInsert.map(r => `[${r.category}] ${r.name} | ${r.address} | ${r.rating} stars | ${r.gallery.length} photos | ${r.neighborhood}`), '```'] : [])].join('\n');
     fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md + '\n');
   }
 }
