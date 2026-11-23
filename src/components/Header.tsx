@@ -5,7 +5,6 @@ import {
   UserCheck, 
   MoreVertical, 
   MapPin,
-  Bookmark,
   LogIn,
   Crown,
   ShieldCheck,
@@ -85,9 +84,7 @@ export const Header: React.FC<HeaderProps> = ({
   userEmail,
   userId,
   onLogout,
-  onOpenSaved,
   onOpenMyTickets,
-  savedCount,
   onOpenSuggestSpot,
   onOpenCreateEvent,
   avatar,
@@ -265,28 +262,6 @@ export const Header: React.FC<HeaderProps> = ({
 
                   {/* Everyday actions */}
                   <div className={MENU_GROUP}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        if (onOpenSaved) onOpenSaved();
-                        else handleMenuClick('savedOverlay');
-                      }}
-                      className={MENU_ROW}
-                    >
-                      <span className={`${MENU_TILE} bg-[#E0533C]/10 text-[#E0533C]`}>
-                        <Bookmark className="w-4 h-4 fill-[#E0533C]/25" />
-                      </span>
-                      <span className="flex-1 min-w-0">
-                        <span className={MENU_TITLE}>Saved Items</span>
-                      </span>
-                      {savedCount !== undefined && savedCount > 0 && (
-                        <span className="min-w-5 h-5 px-1.5 rounded-full bg-[#E0533C] text-white text-[11px] font-black flex items-center justify-center shadow-sm shadow-[#E0533C]/30">
-                          {savedCount}
-                        </span>
-                      )}
-                    </button>
-
                     {onOpenMyTickets && (
                       <button
                         type="button"

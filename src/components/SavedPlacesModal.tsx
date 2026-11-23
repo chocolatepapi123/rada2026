@@ -419,7 +419,7 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
             filteredItems.map(item => {
               const d = item.data;
               const title = d.title || d.name || 'Untitled Item';
-              const img = d.image || d.imageUrl || d.images?.[0] || d.coverImage || d.posterUrl || d.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400';
+              const img = d.image || d.imageUrl || d.images?.[0] || d.coverImage || d.posterUrl || d.img || '';
               const locationStr = d.neighborhood || d.location || d.address || 'Nairobi';
               const tagStr = d.category || (item.kind === 'event' ? 'Concert / Rave' : 'Promotion');
               const itemKey = `${item.kind}-${item.id}`;
@@ -432,11 +432,17 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
                   onClick={() => handleCardClick(item)}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <img loading="lazy" decoding="async"
-                      src={img}
-                      alt={title}
-                      className="w-16 h-16 rounded-xl object-cover shrink-0 border border-slate-200 dark:border-slate-800"
-                    />
+                    {img ? (
+                      <img loading="lazy" decoding="async"
+                        src={img}
+                        alt={title}
+                        className="w-16 h-16 rounded-xl object-cover shrink-0 border border-slate-200 dark:border-slate-800"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-xl bg-[#E0533C]/10 text-[#E0533C] flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-800">
+                        <Bookmark className="w-6 h-6" />
+                      </div>
+                    )}
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         {/* Category badge */}

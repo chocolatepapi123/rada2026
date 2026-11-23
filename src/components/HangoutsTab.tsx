@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Plus, X, Play, MapPin, Calendar, Trash2, EyeOff, Pencil, Loader2, ChevronLeft, ImagePlus, FileText, Camera, Images } from 'lucide-react';
+import { RadaDatePicker } from './RadaPickers';
 import {
   Hangout,
   HangoutMedia,
@@ -377,8 +378,14 @@ const Editor: React.FC<{ userId: string; accent: string; showToast: Props['showT
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <button type="button" onClick={() => setDate(todayIso)} className={chip(date === todayIso)} style={date === todayIso ? { background: accent } : undefined}>Today</button>
                 <button type="button" onClick={() => setDate(yIso)} className={chip(date === yIso)} style={date === yIso ? { background: accent } : undefined}>Yesterday</button>
-                <input type="date" value={date} max={todayIso} onChange={(e) => setDate(e.target.value)}
-                  className="px-3 py-2 text-[12px] font-bold rounded-full bg-slate-100 dark:bg-slate-800 focus:outline-none text-slate-900 dark:text-slate-100" />
+                <RadaDatePicker
+                  ariaLabel="Entry date"
+                  value={date}
+                  max={todayIso}
+                  onChange={setDate}
+                  className="min-w-[175px]"
+                  buttonClassName="rounded-full py-2 text-[12px] bg-slate-100 dark:bg-slate-800 border-transparent"
+                />
               </div>
             </div>
 

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { QrCode, Plus, X, Trash2, Film, Ticket, Upload, Loader2, Calendar as CalendarIcon, MapPin } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { ToastOptions } from './Toast.tsx';
+import { RadaDatePicker } from './RadaPickers.tsx';
 
 type QrKind = 'event' | 'cinema';
 
@@ -299,11 +300,12 @@ export const VaultQrUploads: React.FC<Props> = ({ showToast }) => {
               placeholder={tab === 'cinema' ? 'Cinema and screen (optional)' : 'Venue (optional)'}
               className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-transparent text-sm"
             />
-            <input
-              type="date"
+            <RadaDatePicker
+              ariaLabel="Event or movie date"
               value={date}
-              onChange={e => setDate(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-transparent text-sm"
+              onChange={setDate}
+              allowClear
+              buttonClassName="bg-transparent border-slate-200 dark:border-slate-800 py-2.5 text-sm font-semibold"
             />
 
             <button

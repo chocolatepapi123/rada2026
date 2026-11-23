@@ -107,7 +107,7 @@ export const HostTicketsPanel: React.FC<Props> = ({ kind, source, title, onClose
 
         {!loading && !allowed && (
           <div className="rounded-2xl bg-amber-50 dark:bg-amber-950/30 p-4 text-sm text-amber-900 dark:text-amber-200">
-            Selling tickets is for creators and merchants on a Pro or Elite plan. Start a plan from your hub to turn it on.
+            Selling tickets is for merchants on a Pro or Elite plan. Start a plan from your hub to turn it on.
           </div>
         )}
 

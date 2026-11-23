@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Check, Clock, Loader2, Users, X } from 'lucide-react';
 import type { EventItem } from '../types.ts';
+import { RadaTimePicker } from './RadaPickers.tsx';
 
 export interface PlanChoice { handle: string }
 
@@ -64,10 +65,17 @@ export const PlanFromEventSheet: React.FC<Props> = ({ event, friends, onClose, o
           <input value={extra} onChange={(e) => setExtra(e.target.value)} placeholder="Or type @usernames" className={input} />
         </div>
 
-        <label className="block space-y-1.5">
+        <div className="space-y-1.5">
           <span className="text-[12px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Meet at (optional)</span>
-          <input type="time" value={meetTime} onChange={(e) => setMeetTime(e.target.value)} className={input} />
-        </label>
+          <RadaTimePicker
+            ariaLabel="Meet at time"
+            value={meetTime}
+            onChange={setMeetTime}
+            allowClear
+            placeholder="Pick meeting time"
+            buttonClassName="bg-transparent border-slate-200 dark:border-slate-700 py-3 text-[14px]"
+          />
+        </div>
 
         {err && <p className="text-[12px] text-red-500">{err}</p>}
         <button type="button" onClick={go} disabled={busy}

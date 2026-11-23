@@ -3,6 +3,7 @@ import { DISCOVER_VISIBLE } from '../lib/featureFlags.ts';
 import { useUnclaimedSpots, mergeSpots, formatOpeningHours } from '../lib/spotsFeed.ts';
 import React, { useState, useEffect } from 'react';
 import { PlanFromEventSheet } from './PlanFromEventSheet.tsx';
+import { RadaDatePicker, RadaSelect, RadaTimePicker } from './RadaPickers.tsx';
 import { track } from '../lib/tracking';
 import { WeatherChip } from './WeatherChip';
 import { SpotDetailSections } from './SpotDetailSections';
@@ -1691,20 +1692,21 @@ export const Overlays: React.FC<OverlaysProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="font-bold text-slate-600 dark:text-slate-300">Choose Date</label>
-                  <input
-                    type="date"
+                  <RadaDatePicker
+                    ariaLabel="Choose Date"
                     value={chosenDate}
-                    onChange={(e) => setChosenDate(e.target.value)}
-                    className="w-full p-3 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
+                    onChange={setChosenDate}
+                    buttonClassName="bg-[#F8F8F6] dark:bg-[#1C1A1E] border-slate-200 dark:border-slate-800 py-2.5"
                   />
                 </div>
                 <div className="space-y-1">
                   <label className="font-bold text-slate-600 dark:text-slate-300">Choose Time</label>
-                  <input
-                    type="time"
+                  <RadaTimePicker
+                    ariaLabel="Choose Time"
                     value={chosenTime}
-                    onChange={(e) => setChosenTime(e.target.value)}
-                    className="w-full p-3 bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none"
+                    onChange={setChosenTime}
+                    align="right"
+                    buttonClassName="bg-[#F8F8F6] dark:bg-[#1C1A1E] border-slate-200 dark:border-slate-800 py-2.5"
                   />
                 </div>
               </div>
@@ -2112,19 +2114,23 @@ export const Overlays: React.FC<OverlaysProps> = ({
                         <p className="text-[10px] text-slate-400">{appLang === 'sw' ? 'Kiswahili' : 'English (Kenya)'}</p>
                       </div>
                     </div>
-                    <select
+                    <RadaSelect
+                      ariaLabel="App language"
+                      compact
+                      align="right"
                       value={appLang}
-                      onChange={(e) => {
-                        const newLang = e.target.value as AppLanguage;
+                      onChange={(val) => {
+                        const newLang = val as AppLanguage;
                         saveStoredLanguage(newLang);
                         setAppLang(newLang);
                         showToast(newLang === 'sw' ? 'Lugha imewekwa kuwa Kiswahili.' : 'Language set to English (Kenya).');
                       }}
-                      className="bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-black text-xs px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none cursor-pointer"
-                    >
-                      <option value="en">English (KE)</option>
-                      <option value="sw">Kiswahili</option>
-                    </select>
+                      options={[
+                        { value: 'en', label: 'English (KE)' },
+                        { value: 'sw', label: 'Kiswahili' },
+                      ]}
+                      className="w-36 shrink-0"
+                    />
                   </div>
                 </div>
               </div>
@@ -2190,35 +2196,12 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 </div>
               </div>
 
-              {/* Group: Account & Saved Collection */}
+              {/* Group: Account */}
               <div className="space-y-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-1">
                   Account & Data
                 </span>
                 <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden divide-y divide-slate-200/60 dark:divide-slate-800/80">
-                  <button
-                    onClick={() => {
-                      onCloseOverlay();
-                      if (onOpenSaved) onOpenSaved();
-                    }}
-                    className="w-full p-3.5 flex items-center justify-between text-left hover:bg-slate-100 dark:hover:bg-slate-800/50 transition cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <Bookmark className="w-4 h-4 text-[#E0533C]" />
-                      <div>
-                        <h4 className="font-bold">My Saved Items & Moves</h4>
-                        <p className="text-[10px] text-slate-400">View bookmarked spots, raves, fits & offers</p>
-                      </div>
-                    </div>
-                    {savedCount !== undefined && savedCount > 0 ? (
-                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#E0533C]/10 text-[#E0533C]">
-                        {savedCount}
-                      </span>
-                    ) : (
-                      <ChevronRight className="w-4 h-4 text-slate-400" />
-                    )}
-                  </button>
-
                   <button
                     onClick={() => {
                       onCloseOverlay();

@@ -2370,7 +2370,7 @@ export async function publishUnclaimedSpot(
     phone: input.phone || '',
     openingHours: input.openingHours || '',
     price: input.price || 'KES 1,000 - 2,500',
-    img: input.img || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
+    img: input.img || '',
     lat: input.lat ?? -1.2921,
     lng: input.lng ?? 36.8219,
     rating: '4.8',
@@ -2745,7 +2745,7 @@ export async function submitCommunitySpot(
       ...(spotData.img ? [spotData.img] : [])
     ])).filter(Boolean);
 
-    const primaryImg = combinedPhotos[0] || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop';
+    const primaryImg = combinedPhotos[0] || '';
     const spotId = typeof spotData.id === 'number' ? spotData.id : Date.now();
     const now = new Date().toISOString();
 
@@ -2759,7 +2759,7 @@ export async function submitCommunitySpot(
       price: spotData.price || 'Mid',
       tags: spotData.tags || [],
       photos: combinedPhotos,
-      images: combinedPhotos.length > 0 ? combinedPhotos : [primaryImg],
+      images: combinedPhotos.length > 0 ? combinedPhotos : [],
       img: primaryImg,
       lat: spotData.lat ?? -1.2921,
       lng: spotData.lng ?? 36.8219,

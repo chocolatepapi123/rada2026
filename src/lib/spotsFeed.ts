@@ -16,6 +16,12 @@ export type RadaCategory = string;
 export const toCanonicalCategory = resolveSpotCategory;
 export { isAllKey, spotInCategory, getSpotCategoryIds, categoryLabelOf };
 
+export function isStockSpotImage(url?: string | null): boolean {
+  const u = String(url || '').trim();
+  if (!u) return true;
+  return /images\.unsplash\.com|unsplash\.com\/photo-|images\.pexels\.com|pexels\.com|placehold\.co|placeholder/i.test(u);
+}
+
 /**
  * Server-side fetch of one category, including spots that only list it in extra_categories.
  * `label` must be the exact DB string, e.g. 'Hotels & Stays'. Pass any category id/label and it is resolved.
@@ -31,8 +37,10 @@ export async function fetchSpotsByCategory(categoryKey: string, table = SPOTS_FE
   if (error) { console.warn('fetchSpotsByCategory error:', error.message); return []; }
   // Re-check after mapping so rows the club guard moved elsewhere don't come back from the server query.
   return table === SPOTS_FEED_VIEW || table === 'unclaimedspots'
-    ? (data || []).map(unclaimedRowToSpot).filter(sp => spotInCategory(sp, categoryKey))
-    : (data || []);
+    ? (data || [])
+        .map(unclaimedRowToSpot)
+        .filter(sp => sp.hasRealPhoto && !isStockSpotImage(sp.img) && spotInCategory(sp, categoryKey))
+    : (data || []).filter((sp: any) => !isStockSpotImage(sp?.img || sp?.thumbnail));
 }
 
 /** Maps a Google-style label from `unclaimedspots.category` to a RADA category. Label first, name only as fallback. */
@@ -239,9 +247,12 @@ function resolveRowCategory(rawCategory?: string | null, name?: string | null): 
 }
 
 export function unclaimedRowToSpot(r: any) {
-  const gallery = Array.isArray(r.gallery) ? r.gallery.filter((g: any) => typeof g === 'string' && g) : [];
-  const cover = r.thumbnail || gallery[0] || '';
-  const img = cover || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop';
+  const gallery = Array.isArray(r.gallery)
+    ? r.gallery.filter((g: any) => typeof g === 'string' && g && !isStockSpotImage(g))
+    : [];
+  const rawThumb = typeof r.thumbnail === 'string' && !isStockSpotImage(r.thumbnail) ? r.thumbnail : '';
+  const cover = rawThumb || gallery[0] || '';
+  const img = cover;
   const category = refineCategory(resolveRowCategory(r.category, r.name), r.name, r.category);
   const extraCategories = parseExtraCategories(r.extra_categories)
     .map(c => categoryLabelOf(c))
@@ -274,7 +285,7 @@ export function unclaimedRowToSpot(r: any) {
     verified: Boolean(r.verified ?? r.is_verified),
     price: undefined,
     img,
-    images: gallery.length ? gallery : [img],
+    images: gallery.length ? gallery : cover ? [cover] : [],
     hasRealPhoto: Boolean(cover),
     phone: r.phone || undefined,
     createdAt: r.created_at || undefined,
@@ -345,7 +356,7 @@ export async function loadUnclaimedSpots(force = false): Promise<any[]> {
     const saved = await savedRowsRead();
     if (saved && !cache) {
       try {
-        cache = saved.map(unclaimedRowToSpot);
+        cache = saved.map(unclaimedRowToSpot).filter(sp => sp.hasRealPhoto && !isStockSpotImage(sp.img));
         listeners.forEach(l => l(cache!));
         void refreshUnclaimedSpots();
         return cache;
@@ -390,49 +401,51 @@ async function refreshUnclaimedSpots(): Promise<any[]> {
       if (cache && (rows.length === 0 || (failed && rows.length < cache.length))) {
         // Download failed or came back short: keep what we already show instead of swapping in less.
       } else if (rows.length > 0) {
-        cache = rows.map(unclaimedRowToSpot);
+        cache = rows.map(unclaimedRowToSpot).filter(sp => sp.hasRealPhoto && !isStockSpotImage(sp.img));
         listeners.forEach(l => l(cache!));
         if (!failed) void savedRowsWrite(rows);
       } else {
-        // Fallback: load scraped places json if available
+        // Fallback: load scraped places json if available (excluding any place without a real non-stock image)
         try {
           const scrapedMod = await import('../../scraped_places.json');
           const rawPlaces = (scrapedMod.default || scrapedMod) as any[];
           if (Array.isArray(rawPlaces) && rawPlaces.length > 0) {
-            cache = rawPlaces.map((p, idx) => {
-              const category = refineCategory(
-                resolveRowCategory(mapUnclaimedCategory(p.categoryName || (p.categories && p.categories[0]), p.title), p.title),
-                p.title,
-                p.categoryName,
-              );
-              const extraDetails = enrichSpotDetails(category, p.title, p);
-              const lat = p.location?.lat ?? -1.2921;
-              const lng = p.location?.lng ?? 36.8219;
-              const address = p.address || 'Nairobi, Kenya';
-              const img = p.imageUrl || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop';
-              return {
-                id: `unclaimed-scraped-${idx + 1}`,
-                title: p.title || 'Untitled Spot',
-                category,
-                subcategory: p.categoryName || undefined,
-                neighborhood: p.neighborhood || neighborhoodFromAddress(address) || 'Nairobi',
-                address,
-                description: p.description || p.categoryName || '',
-                lat,
-                lng,
-                rating: p.totalScore ? String(p.totalScore) : undefined,
-                reviewsCount: p.reviewsCount || undefined,
-                img,
-                images: [img],
-                hasRealPhoto: Boolean(p.imageUrl),
-                phone: p.phone || undefined,
-                is_claimed: false,
-                status: 'approved',
-                isUnclaimedImport: true,
-                reviews: [],
-                ...extraDetails,
-              };
-            });
+            cache = rawPlaces
+              .filter(p => p && typeof p.imageUrl === 'string' && !isStockSpotImage(p.imageUrl))
+              .map((p, idx) => {
+                const category = refineCategory(
+                  resolveRowCategory(mapUnclaimedCategory(p.categoryName || (p.categories && p.categories[0]), p.title), p.title),
+                  p.title,
+                  p.categoryName,
+                );
+                const extraDetails = enrichSpotDetails(category, p.title, p);
+                const lat = p.location?.lat ?? -1.2921;
+                const lng = p.location?.lng ?? 36.8219;
+                const address = p.address || 'Nairobi, Kenya';
+                const img = p.imageUrl;
+                return {
+                  id: `unclaimed-scraped-${idx + 1}`,
+                  title: p.title || 'Untitled Spot',
+                  category,
+                  subcategory: p.categoryName || undefined,
+                  neighborhood: p.neighborhood || neighborhoodFromAddress(address) || 'Nairobi',
+                  address,
+                  description: p.description || p.categoryName || '',
+                  lat,
+                  lng,
+                  rating: p.totalScore ? String(p.totalScore) : undefined,
+                  reviewsCount: p.reviewsCount || undefined,
+                  img,
+                  images: [img],
+                  hasRealPhoto: true,
+                  phone: p.phone || undefined,
+                  is_claimed: false,
+                  status: 'approved',
+                  isUnclaimedImport: true,
+                  reviews: [],
+                  ...extraDetails,
+                };
+              });
             listeners.forEach(l => l(cache!));
           }
         } catch (scrapedErr) {
@@ -480,12 +493,15 @@ export function evictUnclaimedSpot(id: string | number, title?: string) {
   }
 }
 
-/** Merge merchant/user-created spots with real imported ones, de-duplicated by id and title. */
+/** Merge merchant/user-created spots with real imported ones, de-duplicated by id and title, excluding places with stock images. */
 export function mergeSpots(local: any[], unclaimed: any[]): any[] {
-  const ids = new Set(local.map(s => String(s.id)));
-  const titles = new Set(local.map(s => (s.title || '').trim().toLowerCase()));
-  const extra = unclaimed.filter(u => !ids.has(String(u.id)) && !titles.has((u.title || '').trim().toLowerCase()));
-  return [...local, ...extra];
+  const validLocal = local.filter(s => !isStockSpotImage(s?.img));
+  const ids = new Set(validLocal.map(s => String(s.id)));
+  const titles = new Set(validLocal.map(s => (s.title || '').trim().toLowerCase()));
+  const extra = unclaimed.filter(
+    u => !isStockSpotImage(u?.img) && !ids.has(String(u.id)) && !titles.has((u.title || '').trim().toLowerCase())
+  );
+  return [...validLocal, ...extra];
 }
 
 /** Trending order: premium first (rating, reviews, real photos, verification). Stable for ties. */

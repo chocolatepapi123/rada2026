@@ -5,23 +5,15 @@ import {
   ChevronLeft,
   Heart,
   MessageSquare,
-  MapPin,
   CheckCircle2,
   Lock,
   Bookmark,
   ChevronRight,
   UserCog,
   Flag,
-  Bell,
-  BellOff,
 } from 'lucide-react';
 import { ReportUserModal } from './ReportUserModal';
 import { UserProfile, SpotItem, EventItem } from '../types';
-import { VerifiedBadge } from './VerifiedBadge';
-import { PublicTierBadges } from './BusinessBadge';
-import { usePublicTiers } from '../lib/subscriptions';
-import { fetchMyBroadcastSubscriptions, setBroadcastSubscription } from '../lib/broadcasts';
-import { listHostVideos, type HostVideo } from '../lib/hostVideos';
 import { toHandle } from '../lib/cloudSync';
 import { fetchProfileLook, themeColor, DEFAULT_THEME, type ProfileLook } from '../lib/profileLook';
 import {
@@ -97,15 +89,6 @@ const NavRow: React.FC<{
   </button>
 );
 
-const cleanLoc = (loc?: string) =>
-  loc
-    ? loc
-        .replace(/^nearby\s+/i, '')
-        .replace(/\bnearby\b/gi, '')
-        .replace(/[\d.]+\s*km\s*away\s*(in\s*)?/i, '')
-        .trim()
-    : 'Kenya';
-
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   user,
   isMutualMatch = false,
@@ -153,39 +136,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     statsFallback: professionalStats,
   });
 
-  // Public tier (Creator / Golden Creator). Only the tier is exposed, never trial dates.
-  const tierUserId = (isOwnProfile ? currentUserId : undefined) || user?.id;
-  const publicTiers = usePublicTiers([tierUserId]);
-  const myTiers = tierUserId ? publicTiers[tierUserId] : undefined;
-
-  // Host updates opt-in + public videos (someone else's profile only)
   const viewedId = !isOwnProfile ? user?.id : undefined;
-  const [followsUpdates, setFollowsUpdates] = React.useState(false);
-  const [updatesBusy, setUpdatesBusy] = React.useState(false);
-  const [hostVideos, setHostVideos] = React.useState<HostVideo[]>([]);
-  React.useEffect(() => {
-    let off = false;
-    setHostVideos([]);
-    setFollowsUpdates(false);
-    if (!viewedId) return;
-    listHostVideos(viewedId).then((v) => { if (!off) setHostVideos(v); });
-    if (currentUserId) fetchMyBroadcastSubscriptions().then((set) => { if (!off) setFollowsUpdates(set.has(viewedId)); });
-    return () => { off = true; };
-  }, [viewedId, currentUserId]);
-  const toggleUpdates = async () => {
-    if (!viewedId) return;
-    if (!currentUserId) { showToast('Please sign in first.', { type: 'error' }); return; }
-    setUpdatesBusy(true);
-    try {
-      const on = await setBroadcastSubscription(viewedId, !followsUpdates);
-      setFollowsUpdates(on);
-      showToast(on ? 'You will get updates from this host.' : 'You will no longer get updates from this host.');
-    } catch (err: any) {
-      showToast(err?.message || 'Could not change this. Try again.', { type: 'error' });
-    } finally {
-      setUpdatesBusy(false);
-    }
-  };
 
   // Their public look (colour theme + tags) and public saved collections
   const [look, setLook] = React.useState<ProfileLook | null>(null);
@@ -230,14 +181,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             <AvatarHero
               p={own}
               editable={false}
-              subtitle={
-                <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
-                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                    <MapPin className="w-3 h-3 text-[#E0533C] dark:text-[#D17A68]" />
-                    {cleanLoc(user.loc)}
-                  </span>
-                </div>
-              }
             />
 
             <Section title="About">
@@ -272,19 +215,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 )}
               </div>
             </Section>
-
-            {myTiers?.creator && (
-              <div className="mx-4 mt-5">
-                <PublicTierBadges tiers={myTiers} kinds={['creator']} size="md" />
-              </div>
-            )}
-
-            {own.isPro && (
-              <p className="mx-4 mt-4 text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <VerifiedBadge status="approved" size="sm" golden={myTiers?.creator === 'elite'} />
-                <span>Professional account. Open the ••• menu in Account & Security for your host dashboard and plan.</span>
-              </p>
-            )}
           </div>
 
           {onOpenAccountSettings && (
@@ -307,12 +237,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   }
 
   // ===================== SOMEONE ELSE'S PROFILE =====================
-  const isVerifiedPro =
-    user.is_creator === true ||
-    user.account_type === 'professional' ||
-    (user as any).professionalStatus === 'approved';
-  const proCategory: string = (user as any).professionalCategory || '';
-  const proWebsite: string = (user as any).professionalWebsite || '';
 
   const handleMatchClick = () => {
     if (onSendMatchRequest) {
@@ -357,7 +281,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         </button>
         <h2 className="flex-1 text-center text-[17px] font-black tracking-tight flex items-center justify-center gap-1.5 min-w-0">
           <span className="truncate">{handle}</span>
-          <VerifiedBadge status={isVerifiedPro ? 'approved' : 'none'} size="md" golden={myTiers?.creator === 'elite'} />
         </h2>
         {user.id ? (
           <button
@@ -392,11 +315,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="text-[22px] leading-tight font-black truncate">{handle}</h3>
-            {myTiers?.creator && (
-              <div className="mt-1">
-                <PublicTierBadges tiers={myTiers} kinds={['creator']} size="md" />
-              </div>
-            )}
           </div>
         </div>
 
@@ -404,23 +322,21 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           {user.bio || 'Exploring Kenyan hangouts, good music, food, and culture.'}
         </p>
 
-        {/* Chips: location, status, tags, vibes */}
-        <div className="px-4 mt-3 flex flex-wrap gap-2">
-          <span className="inline-flex items-center gap-1 text-[12px] font-semibold px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-            <MapPin className="w-3.5 h-3.5" style={{ color: accent }} />
-            {cleanLoc(user.loc)}
-          </span>
-          {tags.map((t) => (
-            <span key={t} className="text-[12px] font-semibold px-3 py-1.5 rounded-full" style={{ background: `${accent}1F`, color: accent }}>
-              {t}
-            </span>
-          ))}
-          {(user.vibes || []).map((v, idx) => (
-            <span key={`v${idx}`} className="text-[12px] font-semibold px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-              #{v}
-            </span>
-          ))}
-        </div>
+        {/* Chips: tags & vibes */}
+        {(tags.length > 0 || (user.vibes && user.vibes.length > 0)) && (
+          <div className="px-4 mt-3 flex flex-wrap gap-2">
+            {tags.map((t) => (
+              <span key={t} className="text-[12px] font-semibold px-3 py-1.5 rounded-full" style={{ background: `${accent}1F`, color: accent }}>
+                {t}
+              </span>
+            ))}
+            {(user.vibes || []).map((v, idx) => (
+              <span key={`v${idx}`} className="text-[12px] font-semibold px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                #{v}
+              </span>
+            ))}
+          </div>
+        )}
 
         {viewedId && (
           <UserHangouts
@@ -554,51 +470,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         )}
 
         <div className="px-4 mt-5 space-y-3.5">
-          {false && isVerifiedPro && (
-            <div className="p-3 rounded-2xl flex items-center justify-between gap-3" style={{ background: `${accent}14` }}>
-              <div className="min-w-0">
-                <p className="text-[12px] font-black" style={{ color: accent }}>{myTiers?.creator === 'elite' ? 'Golden verified host' : 'Verified host'}</p>
-                {proCategory && <p className="text-xs font-bold truncate">{proCategory}</p>}
-              </div>
-              {proWebsite && (
-                <a
-                  href={proWebsite.startsWith('http') ? proWebsite : `https://${proWebsite}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[11px] font-black shrink-0"
-                  style={{ color: accent }}
-                >
-                  Website
-                </a>
-              )}
-            </div>
-          )}
-
-          {isVerifiedPro && viewedId && (
-            <button
-              type="button"
-              onClick={toggleUpdates}
-              disabled={updatesBusy}
-              className={`w-full py-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-60 ${
-                followsUpdates ? 'bg-white/80 dark:bg-[#1C1A1E] text-slate-600 dark:text-slate-300' : 'text-white'
-              }`}
-              style={followsUpdates ? undefined : { background: accent }}
-            >
-              {followsUpdates ? <BellOff className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
-              <span>{followsUpdates ? 'Stop updates from this host' : 'Get updates from this host'}</span>
-            </button>
-          )}
-
-          {hostVideos.length > 0 && (
-            <div className="space-y-1.5">
-              <h4 className="text-[12px] font-black text-slate-500">Videos</h4>
-              <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
-                {hostVideos.map((v) => (
-                  <video key={v.path} src={v.url} controls preload="metadata" playsInline className="h-44 w-auto rounded-xl bg-black shrink-0" />
-                ))}
-              </div>
-            </div>
-          )}
 
           <div className="p-3 rounded-2xl text-[11px] bg-slate-50/80 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400">
             {isMutualMatch ? (

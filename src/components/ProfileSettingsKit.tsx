@@ -383,9 +383,7 @@ export const AvatarHero: React.FC<{ p: OwnProfile; subtitle?: React.ReactNode; e
           <img
             src={p.avatar}
             alt={p.handle}
-            className={`w-24 h-24 rounded-full object-cover shadow-md ${
-              p.isPro ? 'ring-2 ring-[#E0533C]/60 ring-offset-2 ring-offset-white dark:ring-offset-[#1C1A1E]' : ''
-            }`}
+            className="w-24 h-24 rounded-full object-cover shadow-md"
           />
         ) : (
           <div className="w-24 h-24 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center shadow-md">
@@ -431,7 +429,6 @@ export const AvatarHero: React.FC<{ p: OwnProfile; subtitle?: React.ReactNode; e
 
       <div className="mt-3 flex items-center gap-1.5 max-w-full">
         <h2 className="text-xl font-black truncate">{p.displayName || (p.userId || p.hasUsername ? p.handle : 'Guest')}</h2>
-        <VerifiedBadge status={p.isPro ? 'approved' : 'none'} size="md" />
       </div>
       <p className="mt-0.5 text-[12px] text-slate-500 dark:text-slate-400 flex items-center gap-1 max-w-full">
         <span className="truncate">{p.handle || '@explorer'}</span>

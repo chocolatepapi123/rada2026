@@ -22,6 +22,7 @@ import type { Artist, EventItem, TicketTier } from '../types.ts';
 import type { ToastOptions } from './Toast.tsx';
 import { DynamicLocationSelector } from '../features-parked/merchant-hub/DynamicLocationSelector.tsx';
 import { readFilesAsDataUrls, deduplicateAndLimitPhotos } from '../utils/mediaUtils.ts';
+import { RadaDatePicker, RadaSelect, RadaTimePicker } from './RadaPickers.tsx';
 
 interface CreateEventModalProps {
   open: boolean;
@@ -515,22 +516,19 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   Event Category
                 </label>
-                <select
+                <RadaSelect
+                  ariaLabel="Event Category"
+                  accent="purple"
                   value={eventCategory}
-                  onChange={(e) => {
-                    const nextCat = e.target.value as EventItem['category'];
+                  onChange={(val) => {
+                    const nextCat = val as EventItem['category'];
                     setEventCategory(nextCat);
                     if (nextCat === 'online') setIsOnline(true);
                     else if (isOnline) setIsOnline(false);
                   }}
-                  className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none"
-                >
-                  {EVENT_CATEGORIES.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
+                  options={EVENT_CATEGORIES.map((c) => ({ value: c.id, label: c.label }))}
+                  buttonClassName="bg-slate-100 dark:bg-[#121113] border-transparent py-3"
+                />
               </div>
 
               <div>
@@ -591,12 +589,12 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   Event Date *
                 </label>
-                <input
-                  type="date"
+                <RadaDatePicker
+                  ariaLabel="Event Date"
+                  accent="purple"
                   value={dateYmd}
-                  onChange={(e) => setDateYmd(e.target.value)}
-                  className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none"
-                  required
+                  onChange={setDateYmd}
+                  buttonClassName="bg-slate-100 dark:bg-[#121113] border-transparent py-3"
                 />
               </div>
 
@@ -604,16 +602,15 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   Start Time *
                 </label>
-                <input
-                  type="time"
+                <RadaTimePicker
+                  ariaLabel="Start Time"
+                  accent="purple"
                   value={startTime24}
-                  onChange={(e) => {
-                    const v = e.target.value;
+                  onChange={(v) => {
                     setStartTime24(v);
                     setEventTimeRange(formatTime12h(v));
                   }}
-                  className="w-full text-xs sm:text-sm bg-slate-100 dark:bg-[#121113] rounded-2xl p-3.5 focus:outline-none"
-                  required
+                  buttonClassName="bg-slate-100 dark:bg-[#121113] border-transparent py-3"
                 />
               </div>
 

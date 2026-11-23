@@ -7,6 +7,7 @@ import {
   type AdminOffer, type AdminPromotion, type PromoProduct, type PromoStatus,
 } from '../lib/promotions';
 import type { ToastOptions } from './Toast.tsx';
+import { RadaDatePicker, RadaSelect, RadaTimePicker } from './RadaPickers.tsx';
 
 type Filter = 'requested' | 'live' | 'all';
 type Section = 'boosts' | 'offers';
@@ -186,12 +187,16 @@ const BoostsSection: React.FC<{ toast: Toast }> = ({ toast }) => {
               <div className="grid grid-cols-2 gap-2.5">
                 <div><label className={lbl}>Category</label><input className={field} value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })} /></div>
                 <div><label className={lbl}>Zone</label><input className={field} value={draft.zone} onChange={(e) => setDraft({ ...draft, zone: e.target.value })} /></div>
-                <div><label className={lbl}>Start</label><input type="date" className={field} value={draft.start} onChange={(e) => setDraft({ ...draft, start: e.target.value })} /></div>
-                <div><label className={lbl}>End</label><input type="date" className={field} value={draft.end} onChange={(e) => setDraft({ ...draft, end: e.target.value })} /></div>
+                <div><label className={lbl}>Start</label><RadaDatePicker ariaLabel="Start date" value={draft.start} onChange={(v) => setDraft({ ...draft, start: v })} buttonClassName="py-2 text-[12px]" /></div>
+                <div><label className={lbl}>End</label><RadaDatePicker ariaLabel="End date" align="right" value={draft.end} onChange={(v) => setDraft({ ...draft, end: v })} buttonClassName="py-2 text-[12px]" /></div>
                 <div><label className={lbl}>Status</label>
-                  <select className={field} value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value })}>
-                    {ALL_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
-                  </select>
+                  <RadaSelect
+                    ariaLabel="Status"
+                    value={draft.status}
+                    onChange={(v) => setDraft({ ...draft, status: v })}
+                    options={ALL_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] }))}
+                    buttonClassName="py-2 text-[12px]"
+                  />
                 </div>
                 <div><label className={lbl}>Amount (KES)</label><input inputMode="numeric" className={field} value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} /></div>
                 <div><label className={lbl}>Order #</label><input inputMode="numeric" className={field} value={draft.order} onChange={(e) => setDraft({ ...draft, order: e.target.value })} /></div>
@@ -324,10 +329,10 @@ const OffersSection: React.FC<{ toast: Toast }> = ({ toast }) => {
               <div className="grid grid-cols-2 gap-2.5">
                 <div><label className={lbl}>Venue</label><input className={field} value={draft.venue} onChange={(e) => set('venue', e.target.value)} /></div>
                 <div><label className={lbl}>Location / area</label><input className={field} value={draft.location} onChange={(e) => set('location', e.target.value)} /></div>
-                <div><label className={lbl}>Starts</label><input type="date" className={field} value={draft.startsAt} onChange={(e) => set('startsAt', e.target.value)} /></div>
-                <div><label className={lbl}>Ends</label><input type="date" className={field} value={draft.endsAt} onChange={(e) => set('endsAt', e.target.value)} /></div>
-                <div><label className={lbl}>From</label><input type="time" className={field} value={draft.startTime} onChange={(e) => set('startTime', e.target.value)} /></div>
-                <div><label className={lbl}>To</label><input type="time" className={field} value={draft.endTime} onChange={(e) => set('endTime', e.target.value)} /></div>
+                <div><label className={lbl}>Starts</label><RadaDatePicker ariaLabel="Starts date" value={draft.startsAt} onChange={(v) => set('startsAt', v)} allowClear buttonClassName="py-2 text-[12px]" /></div>
+                <div><label className={lbl}>Ends</label><RadaDatePicker ariaLabel="Ends date" align="right" value={draft.endsAt} onChange={(v) => set('endsAt', v)} allowClear buttonClassName="py-2 text-[12px]" /></div>
+                <div><label className={lbl}>From</label><RadaTimePicker ariaLabel="From time" value={draft.startTime} onChange={(v) => set('startTime', v)} allowClear buttonClassName="py-2 text-[12px]" /></div>
+                <div><label className={lbl}>To</label><RadaTimePicker ariaLabel="To time" align="right" value={draft.endTime} onChange={(v) => set('endTime', v)} allowClear buttonClassName="py-2 text-[12px]" /></div>
                 <div><label className={lbl}>Phone</label><input inputMode="tel" className={field} value={draft.contactPhone} onChange={(e) => set('contactPhone', e.target.value)} /></div>
                 <div><label className={lbl}>Booking link</label><input className={field} value={draft.bookingUrl} onChange={(e) => set('bookingUrl', e.target.value)} /></div>
               </div>
@@ -341,10 +346,13 @@ const OffersSection: React.FC<{ toast: Toast }> = ({ toast }) => {
                 </div>
               </div>
               <div><label className={lbl}>Audience</label>
-                <select className={field} value={draft.audience} onChange={(e) => set('audience', e.target.value)}>
-                  <option value="">Not set</option>
-                  {AUDIENCES.map((a) => <option key={a} value={a}>{a}</option>)}
-                </select>
+                <RadaSelect
+                  ariaLabel="Audience"
+                  value={draft.audience}
+                  onChange={(v) => set('audience', v)}
+                  options={[{ value: '', label: 'Not set' }, ...AUDIENCES.map((a) => ({ value: a, label: a }))]}
+                  buttonClassName="py-2 text-[12px]"
+                />
               </div>
               <label className="flex items-center gap-2 text-[12px] font-semibold"><input type="checkbox" checked={draft.published} onChange={(e) => set('published', e.target.checked)} />Show in the app</label>
               <div className="flex gap-2">

@@ -1,29 +1,19 @@
 import { siteOrigin } from '../lib/siteUrl';
-import React, { useEffect, useRef, useState, lazy, Suspense } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ChevronLeft,
-  ChevronRight,
   Bookmark,
   Share2,
-  MapPin,
-  Crown,
-  Briefcase,
   Loader2,
   X,
   AlertCircle,
   Folder,
 } from 'lucide-react';
 import { UserProfile, OutingPlan, BusinessAccount, SavedItem, CollectionFolder, SpotItem, EventItem, BusinessOffer } from '../types';
-import { useMySubscriptions } from '../lib/subscriptions';
-import { saveUnifiedProfile } from '../lib/cloudSync';
 import { NotificationBell } from './NotificationBell';
-import { ProProfileCard, ProProfilePage } from './ProProfile';
-// Loaded only when the Creator hub is opened, so the profile page itself opens faster.
-const CreatorHubTab = lazy(() => import('./CreatorHubTab').then((m) => ({ default: m.CreatorHubTab })));
 import {
   AvatarHero,
   IdentityFields,
-  ProfessionalDashboard,
   Section,
   useOwnProfile,
 } from './ProfileSettingsKit';
@@ -69,17 +59,8 @@ interface ProfilePageProps {
   initialTab?: Tab;
 }
 
-export type ProfileTab = 'diary' | 'collections' | 'creator' | 'settings';
+export type ProfileTab = 'diary' | 'collections' | 'settings';
 type Tab = ProfileTab;
-
-const cleanLoc = (loc?: string) =>
-  loc
-    ? loc
-        .replace(/^nearby\s+/i, '')
-        .replace(/\bnearby\b/gi, '')
-        .replace(/[\d.]+\s*km\s*away\s*(in\s*)?/i, '')
-        .trim()
-    : 'Kenya';
 
 export const ProfilePage: React.FC<ProfilePageProps> = ({
   onClose,
@@ -90,11 +71,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   onProfileChange,
   professionalStats,
   outings = [],
-  myBusinesses = [],
   savedCount = 0,
   ticketCount = 0,
   onOpenSaved,
-  isDarkMode,
   spots = [],
   savedItems = [],
   savedFolders = [],
@@ -109,8 +88,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const isLoggedIn = !!user;
   const [tab, setTab] = useState<Tab>(initialTab);
   const [selectedCollectionFolder, setSelectedCollectionFolder] = useState<string>('all');
-  const [hubOpen, setHubOpen] = useState(false);
-  const [proPageOpen, setProPageOpen] = useState(false);
   const tabsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -139,8 +116,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, currentUserProfile?.name, currentUserProfile?.username, currentUserProfile?.bio]);
 
-  const mySubs = useMySubscriptions(user?.id);
-  const creatorPlan = mySubs.subs.creator?.effective_plan ?? 'free';
   const hostedOutings = outings.filter((o) => user?.id && o.hostId === user.id);
 
   // ---- Profile look: tags. Public (saved in the database) so other people see it too. ----
@@ -208,7 +183,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const tabs: [Tab, string][] = [
     ['diary', 'Diary'],
     ['collections', 'Collections'],
-    ['creator', 'Creator'],
     ['settings', 'Settings'],
   ];
 
@@ -300,28 +274,32 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
               {p.bio || <span className="text-slate-400">No bio yet. Tap Edit Profile to add one.</span>}
             </p>
 
-            {/* Chips */}
-            <div className="px-4 mt-3 flex flex-wrap gap-2">
-              <span className="inline-flex items-center gap-1 text-[12px] font-semibold px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                <MapPin className="w-3.5 h-3.5" style={{ color: accent }} />
-                {cleanLoc(p.loc)}
-              </span>
-              {own.isPro && (
-                <span className="inline-flex items-center gap-1 text-[12px] font-bold px-3 py-1.5 rounded-full text-white" style={{ background: accent }}>
-                  <Crown className="w-3.5 h-3.5" /> Creator
-                </span>
-              )}
-              {savedTags.map((t) => (
-                <span key={t} className="text-[12px] font-semibold px-3 py-1.5 rounded-full" style={{ background: `${accent}1F`, color: accent }}>
-                  {t}
-                </span>
-              ))}
-            </div>
+            {/* Tags */}
+            {savedTags.length > 0 && (
+              <div className="px-4 mt-3 flex flex-wrap gap-2">
+                {savedTags.map((t) => (
+                  <span key={t} className="text-[12px] font-semibold px-3 py-1.5 rounded-full" style={{ background: `${accent}1F`, color: accent }}>
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
 
             {/* Stats + actions */}
             <div className="px-4 mt-4 flex items-center gap-5">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onOpenSaved) onOpenSaved();
+                  else setTab('collections');
+                }}
+                className="text-center cursor-pointer hover:opacity-80 transition"
+                title="Open Saved Items"
+              >
+                <p className="text-[22px] leading-none font-black">{savedCount}</p>
+                <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-1">Saved</p>
+              </button>
               {[
-                [savedCount, 'Saved'],
                 [hostedOutings.length, 'Hosted'],
                 [ticketCount, 'Tickets'],
               ].map(([n, label]) => (
@@ -381,10 +359,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                     <button
                       type="button"
                       onClick={onOpenSaved}
-                      className="px-3 py-1.5 rounded-xl text-[11px] font-black text-white shrink-0 cursor-pointer"
+                      className="px-3 py-1.5 rounded-xl text-[11px] font-black text-white shrink-0 cursor-pointer flex items-center gap-1.5"
                       style={{ background: accent }}
                     >
-                      Manage
+                      <Bookmark className="w-3 h-3" />
+                      <span>Saved Items</span>
                     </button>
                   )}
                 </div>
@@ -482,43 +461,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
               </div>
             )}
 
-            {/* ===== Creator / professional dashboard ===== */}
-            {tab === 'creator' && (
-              <div className="pt-2">
-                {own.isPro && (
-                  <div className="mx-3 mt-3">
-                    <ProProfileCard
-                      kind="creator"
-                      name={p.name || ''}
-                      subtitle={handle}
-                      avatar={p.avatar}
-                      bio={p.bio}
-                      plan={creatorPlan}
-                      stats={[
-                        { label: 'Hosted', value: hostedOutings.length },
-                        { label: 'Businesses', value: myBusinesses.length },
-                        ...(own.stats.profileViews != null ? [{ label: 'Views', value: own.stats.profileViews }] : []),
-                      ]}
-                      onOpen={() => setProPageOpen(true)}
-                    />
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setHubOpen(true)}
-                  className="mx-3 mt-4 w-[calc(100%-1.5rem)] p-4 rounded-2xl text-white flex items-center gap-3 text-left cursor-pointer shadow-md"
-                  style={{ background: accent }}
-                >
-                  <Briefcase className="w-5 h-5 shrink-0" />
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-[14px] font-black">{own.isPro ? 'Open Creator Hub' : 'Become a creator'}</span>
-                    <span className="block text-[11px] opacity-90">Outings, analytics, broadcasts and profile</span>
-                  </span>
-                  <ChevronRight className="w-4 h-4 shrink-0" />
-                </button>
-                <ProfessionalDashboard p={own} />
-              </div>
-            )}
 
             {/* ===== Settings (this profile + RADA) ===== */}
             {tab === 'settings' && (
@@ -582,56 +524,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             {own.saving || lookSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Save changes</span>}
           </button>
         </div>
-      )}
-
-      {proPageOpen && own.isPro && user?.id && (
-        <ProProfilePage
-          kind="creator"
-          plan={creatorPlan}
-          name={p.name || ''}
-          subtitle={handle}
-          avatar={p.avatar}
-          bio={p.bio}
-          nameLabel="Display name"
-          onSave={async ({ name: n, bio }: { name: string; bio: string }) => {
-            const username = (p.username || handle.replace(/^@/, '')).trim();
-            if (!username) return 'Set a username in Identity & bio first.';
-            const res = await saveUnifiedProfile(user.id, { name: n, username, bio });
-            if (res.error) return res.error;
-            onProfileChange?.({ name: res.name ?? n, bio: res.bio ?? bio });
-            showToast('Profile saved.', { category: 'profile' });
-            return null;
-          }}
-          businesses={myBusinesses.map((b) => ({
-            id: String(b.id),
-            title: b.name,
-            meta: [b.category, b.neighborhood].filter(Boolean).join(' · '),
-            image: b.logo,
-          }))}
-          hosted={hostedOutings.map((o) => ({
-            id: String(o.id),
-            title: o.spotTitle,
-            meta: [o.date, o.time].filter(Boolean).join(' · '),
-            image: o.spotImage,
-          }))}
-          hostedTitle="Outings & events hosted"
-          hostedEmpty="You have not hosted anything yet."
-          onUpgrade={() => { setProPageOpen(false); setHubOpen(true); }}
-          onClose={() => setProPageOpen(false)}
-        />
-      )}
-
-      {hubOpen && (
-        <Suspense fallback={null}>
-          <CreatorHubTab
-            own={own}
-            outings={outings}
-            userId={user?.id}
-            onClose={() => setHubOpen(false)}
-            onOpenAuth={onOpenAuth}
-            showToast={showToast}
-          />
-        </Suspense>
       )}
     </div>
   );

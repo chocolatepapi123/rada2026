@@ -27,6 +27,7 @@ import { AdminManualPayments } from './AdminManualPayments';
 import { supabase } from '../lib/supabase';
 import { initialBusinesses } from '../data/initialData.ts';
 import type { ToastOptions } from './Toast.tsx';
+import { RadaSelect } from './RadaPickers.tsx';
 
 type VerificationStatus = 'pending' | 'approved' | 'rejected';
 type TabId = 'overview' | 'pending_spots' | 'claims' | 'verification' | 'spots' | 'cinema' | 'users' | 'subscriptions' | 'promotions' | 'payments' | 'ticket_money' | 'reports' | 'health' | 'launch';
@@ -1200,12 +1201,15 @@ export function AdminDashboardModal({
                     <span className="text-xs font-bold text-slate-500">Spot name *</span>
                     <input className={inputCls} value={form.title} onChange={e => setF('title', e.target.value)} placeholder="e.g. Karura Forest Café" />
                   </label>
-                  <label className="block">
-                    <span className="text-xs font-bold text-slate-500">Category *</span>
-                    <select className={inputCls} value={form.category} onChange={e => setF('category', e.target.value)}>
-                      {SPOT_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-                    </select>
-                  </label>
+                  <div>
+                    <span className="text-xs font-bold text-slate-500 block mb-1">Category *</span>
+                    <RadaSelect
+                      ariaLabel="Spot category"
+                      value={form.category}
+                      onChange={(val) => setF('category', val)}
+                      options={SPOT_CATEGORIES.map((c) => ({ value: c.id, label: c.label }))}
+                    />
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <label className="block">
                       <span className="text-xs font-bold text-slate-500">Neighborhood *</span>
@@ -1992,17 +1996,19 @@ export function AdminDashboardModal({
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                 Daily Approval Limit
               </label>
-              <select
-                value={adminPermsForm.maxDailyApprovals ?? 10}
-                onChange={e => setAdminPermsForm(p => ({ ...p, maxDailyApprovals: Number(e.target.value) }))}
-                className={inputCls}
-              >
-                <option value={5}>5 approvals / day (Strict Trial)</option>
-                <option value={10}>10 approvals / day (Standard Sub-Admin)</option>
-                <option value={25}>25 approvals / day (Trusted Lead)</option>
-                <option value={50}>50 approvals / day (High Volume)</option>
-                <option value={9999}>Unlimited Approvals</option>
-              </select>
+              <RadaSelect
+                ariaLabel="Daily Approval Limit"
+                accent="purple"
+                value={String(adminPermsForm.maxDailyApprovals ?? 10)}
+                onChange={(val) => setAdminPermsForm(p => ({ ...p, maxDailyApprovals: Number(val) }))}
+                options={[
+                  { value: '5', label: '5 approvals / day (Strict Trial)' },
+                  { value: '10', label: '10 approvals / day (Standard Sub-Admin)' },
+                  { value: '25', label: '25 approvals / day (Trusted Lead)' },
+                  { value: '50', label: '50 approvals / day (High Volume)' },
+                  { value: '9999', label: 'Unlimited Approvals' },
+                ]}
+              />
               <p className="text-[10px] text-slate-400">Limits daily claims and community approvals this admin can perform.</p>
             </div>
 

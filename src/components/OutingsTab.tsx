@@ -39,7 +39,8 @@ import { optimizedUrl } from '../lib/imageOptimizer';
 import { WaitlistButton, TemplatePicker } from './OutingExtras';
 import { uploadCoverImage } from '../lib/cloudSync.ts';
 import { useUnclaimedSpots, mergeSpots, sortTrending } from '../lib/spotsFeed.ts';
-import { HostBadge, VerifiedBadge } from './VerifiedBadge.tsx';
+import { VerifiedBadge } from './VerifiedBadge.tsx';
+import { RadaAreaCombobox, RadaDatePicker, RadaSelect, RadaTimePicker } from './RadaPickers.tsx';
 import { fetchMySavedOutingIds, toggleOutingSave, fetchOutingSaveCounts } from '../lib/outingSaves';
 import {
   attendeeCeiling,
@@ -927,40 +928,12 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
 
         {/* Dynamic Filters (Dynamic Location & Category) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
-          {/* Dynamic Location Search / Type Input with Autocomplete */}
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-              <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
-            </div>
-            <input
-              type="text"
-              list="dynamic-locations-datalist"
-              aria-label="Filter area or neighborhood"
-              value={selectedLocation}
-              onChange={(e) => setSelectedLocation(e.target.value)}
-              placeholder="Filter area (e.g. Ruiru, Karen, Kilimani)..."
-              className="w-full pl-9 pr-8 py-2.5 bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#E0533C] placeholder:text-slate-400"
-            />
-            <datalist id="dynamic-locations-datalist">
-              {dynamicLocations.map((loc) => (
-                <option key={loc} value={loc} />
-              ))}
-            </datalist>
-            {selectedLocation ? (
-              <button
-                type="button"
-                onClick={() => setSelectedLocation('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 cursor-pointer"
-                title="Clear area filter"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            ) : (
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 pointer-events-none">
-                Area
-              </span>
-            )}
-          </div>
+          {/* Dynamic Location Search / Type Input with RADA Autocomplete */}
+          <RadaAreaCombobox
+            value={selectedLocation}
+            onChange={setSelectedLocation}
+            options={dynamicLocations}
+          />
 
           {/* Category Filter Dropdown (10 RADA Categories) */}
           <div className="relative" ref={catRef}>
@@ -1063,7 +1036,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                         <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">
                           {hostLabel(plan)}
                         </span>
-                        <HostBadge hostId={plan.hostId} verified={!!plan.isHostVerified} size="sm" />
+                        <VerifiedBadge status={plan.isHostVerified ? 'verified' : 'none'} size="sm" />
                         <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] uppercase tracking-wider shrink-0 ml-1">
                           Host
                         </span>
@@ -1416,18 +1389,19 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                         />
                       </label>
 
-                      <label className="block">
+                      <div>
                         <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 block mb-1.5">Category</span>
-                        <select
+                        <RadaSelect
+                          ariaLabel="Spot category"
                           value={customSpotCategory}
-                          onChange={(e) => setCustomSpotCategory(e.target.value)}
-                          className="w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1C1A1E] px-4 py-3 text-[14px] font-semibold outline-none focus:border-[#E0533C] focus:ring-2 focus:ring-[#E0533C]/15 transition cursor-pointer"
-                        >
-                          {RADA_10_CATEGORIES.filter(c => c.id !== 'all').map((cat) => (
-                            <option key={cat.id} value={cat.id}>{cat.label}</option>
-                          ))}
-                        </select>
-                      </label>
+                          onChange={setCustomSpotCategory}
+                          options={RADA_10_CATEGORIES.filter((c) => c.id !== 'all').map((cat) => ({
+                            value: cat.id,
+                            label: cat.label,
+                          }))}
+                          buttonClassName="bg-white dark:bg-[#1C1A1E] border-slate-200 dark:border-white/10 py-3 text-[14px] font-semibold"
+                        />
+                      </div>
 
                       <div>
                         <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 flex items-center justify-between mb-1.5">
@@ -1504,22 +1478,19 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                     <Calendar className="w-3.5 h-3.5 text-[#E0533C]" />When
                   </p>
                   <div className="grid grid-cols-2 gap-2.5">
-                    <input
-                      type="date"
-                      required
-                      aria-label="Date"
+                    <RadaDatePicker
+                      ariaLabel="Date"
                       min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10)}
                       value={planDate}
-                      onChange={(e) => setPlanDate(e.target.value)}
-                      className="w-full min-w-0 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.04] px-4 py-3 text-[14px] font-semibold outline-none focus:border-[#E0533C] focus:ring-2 focus:ring-[#E0533C]/15 transition"
+                      onChange={setPlanDate}
+                      buttonClassName="bg-slate-50 dark:bg-white/[0.04] border-slate-200 dark:border-white/10 py-3 text-[13px] font-semibold"
                     />
-                    <input
-                      type="time"
-                      required
-                      aria-label="Time"
+                    <RadaTimePicker
+                      ariaLabel="Time"
                       value={planTime}
-                      onChange={(e) => setPlanTime(e.target.value)}
-                      className="w-full min-w-0 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.04] px-4 py-3 text-[14px] font-semibold outline-none focus:border-[#E0533C] focus:ring-2 focus:ring-[#E0533C]/15 transition"
+                      onChange={setPlanTime}
+                      align="right"
+                      buttonClassName="bg-slate-50 dark:bg-white/[0.04] border-slate-200 dark:border-white/10 py-3 text-[13px] font-semibold"
                     />
                   </div>
                 </section>
@@ -1682,7 +1653,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="font-extrabold text-[14px] truncate">{hostLabel(plan)}</span>
-                        <HostBadge hostId={plan.hostId} verified={!!plan.isHostVerified} size="sm" />
+                        <VerifiedBadge status={plan.isHostVerified ? 'verified' : 'none'} size="sm" />
                       </div>
                       <span className="text-[12px] text-slate-500 dark:text-slate-400 truncate block">Host {plan.hostHandle ? `· ${plan.hostHandle}` : ''}</span>
                     </div>
@@ -2008,7 +1979,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                           <div>
                             <div className="flex items-center gap-1">
                               <span className="font-extrabold text-xs">{hostLabel(activeManagingOuting)}</span>
-                              <HostBadge hostId={activeManagingOuting.hostId} verified={!!activeManagingOuting.isHostVerified} size="xs" />
+                              <VerifiedBadge status={activeManagingOuting.isHostVerified ? 'verified' : 'none'} size="xs" />
                             </div>
                             <span className="text-[9px] text-[#E0533C] font-black uppercase">Host & Organizer</span>
                           </div>

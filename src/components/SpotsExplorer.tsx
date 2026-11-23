@@ -9,6 +9,7 @@ import { resolveSpotBudget, budgetBadge, plainPriceLabel } from '../lib/spotBudg
 import type { LatLng } from '../lib/geo.ts';
 import { spotMatchesSearchWithTags } from '../utils/spotTags.ts';
 import { useActivePromotions, sortSpotsByCategoryPromotion } from '../lib/promotions.ts';
+import { isStockSpotImage } from '../lib/spotsFeed.ts';
 
 interface SpotsExplorerProps {
   categoryKey?: string | null;
@@ -148,6 +149,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
     const effectiveCat = showCategoryDropdown ? pickedCat : (categoryKey || '').toLowerCase().trim();
 
     let result = spots.filter(s => {
+      if (isStockSpotImage(s.img)) return false;
       // Category match
       if (effectiveCat && !isAllKey(effectiveCat) && effectiveCat !== 'spots') {
         if (!spotInCategory(s, effectiveCat)) return false;

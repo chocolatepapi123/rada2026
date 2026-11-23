@@ -24,6 +24,7 @@ import {
 } from '../utils/calendarUtils.ts';
 import type { ToastOptions } from './Toast.tsx';
 import { VaultQrUploads } from './VaultQrUploads.tsx';
+import { RadaSelect } from './RadaPickers.tsx';
 
 interface VaultTabProps {
   tickets: VaultTicket[];
@@ -125,7 +126,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({
   return (
     <section className="w-full max-w-full min-w-0 overflow-x-hidden px-3 sm:px-4 py-4 space-y-6 min-[900px]:max-w-3xl min-[900px]:mx-auto">
       {/* Calendar Card */}
-      <div className="w-full max-w-full min-w-0 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 sm:p-4 shadow-sm space-y-4 overflow-hidden">
+      <div className="w-full max-w-full min-w-0 bg-[#F1F1EE] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3 sm:p-4 shadow-sm space-y-4">
         {/* Month Navigation & Selector */}
         <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 min-w-0">
           <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
@@ -138,25 +139,29 @@ export const VaultTab: React.FC<VaultTabProps> = ({
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
 
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-              className="min-w-0 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 font-black text-xs px-2 py-1.5 rounded-xl focus:outline-none cursor-pointer"
-            >
-              {monthNames.map((m, idx) => (
-                <option key={m} value={idx}>{m}</option>
-              ))}
-            </select>
+            <RadaSelect
+              ariaLabel="Select month"
+              compact
+              value={String(selectedMonth)}
+              onChange={(val) => setSelectedMonth(parseInt(val, 10))}
+              options={monthNames.map((m, idx) => ({ value: String(idx), label: m }))}
+              buttonClassName="bg-white dark:bg-[#121113] rounded-xl px-2.5 py-1.5 font-black text-xs"
+              className="min-w-[7.2rem]"
+            />
 
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-              className="min-w-0 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 font-black text-xs px-2 py-1.5 rounded-xl focus:outline-none cursor-pointer"
-            >
-              <option value={2025}>2025</option>
-              <option value={2026}>2026</option>
-              <option value={2027}>2027</option>
-            </select>
+            <RadaSelect
+              ariaLabel="Select year"
+              compact
+              value={String(selectedYear)}
+              onChange={(val) => setSelectedYear(parseInt(val, 10))}
+              options={[
+                { value: '2025', label: '2025' },
+                { value: '2026', label: '2026' },
+                { value: '2027', label: '2027' },
+              ]}
+              buttonClassName="bg-white dark:bg-[#121113] rounded-xl px-2.5 py-1.5 font-black text-xs"
+              className="min-w-[4.8rem]"
+            />
 
             <button
               type="button"
