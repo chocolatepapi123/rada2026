@@ -37,7 +37,6 @@ import {
   Ticket, 
   MessageCircle, 
   Send, 
-  Plus, 
   Flame, 
   Store, 
   SlidersHorizontal, 
@@ -99,7 +98,6 @@ interface HomeTabProps {
   myStatusId?: string;
   onViewUserProfile: (profile: UserProfile) => void;
   onOpenDedicatedViewAll: (title: string, category: string) => void;
-  onOpenCreateEvent?: (initialTitle?: string) => void;
   onOpenSuggestSpot?: () => void;
   onOpenBusinessProfile?: (businessId: string) => void;
   showToast: (msg: string) => void;
@@ -132,7 +130,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   myStatusId,
   onViewUserProfile,
   onOpenDedicatedViewAll,
-  onOpenCreateEvent,
   onOpenSuggestSpot,
   onOpenBusinessProfile,
   showToast,
@@ -1321,15 +1318,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               Try a different search or category.
             </p>
           </div>
-          {onOpenCreateEvent && (
-          <button
-            onClick={() => onOpenCreateEvent(searchQuery)}
-            className="px-5 py-2.5 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Create Event "{searchQuery || 'New Showcase'}"</span>
-          </button>
-          )}
         </div>
       )}
 
@@ -1554,16 +1542,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               <span>Featured Trending Events</span>
             </h2>
             <div className="flex items-center gap-2">
-              {onOpenCreateEvent && (
-                <button
-                  type="button"
-                  onClick={() => onOpenCreateEvent()}
-                  className="px-2.5 py-1 bg-[#E0533C]/10 hover:bg-[#E0533C]/20 text-[#E0533C] rounded-full text-[11px] font-black inline-flex items-center gap-1 transition cursor-pointer"
-                >
-                  <Plus className="w-3 h-3" />
-                  <span>Add Event</span>
-                </button>
-              )}
               {selectedEventCategory !== 'all' && (
                 <button
                   type="button"

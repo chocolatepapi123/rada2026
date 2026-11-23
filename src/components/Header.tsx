@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ShieldAlert, 
   Settings, 
   UserCheck, 
-  Menu, 
+  MoreVertical, 
   MapPin,
   Bookmark,
   LogIn,
@@ -17,11 +17,7 @@ import {
 import { isPlatformAdmin } from '../types';
 import { useIntents } from '../lib/userIntent';
 import type { ToastOptions } from './Toast.tsx';
-
-// Account & security settings live inside the 3-dot menu; loaded only when the menu is first opened.
-const MenuAccountSection = lazy(() =>
-  import('./MenuAccountSection').then((m) => ({ default: m.MenuAccountSection }))
-);
+import { MenuAccountSection } from './MenuAccountSection';
 
 // Shared look for rows inside the 3-dot menu (big tap targets, soft rounded tiles).
 const MENU_ROW =
@@ -138,14 +134,17 @@ export const Header: React.FC<HeaderProps> = ({
   // Home only: hide on scroll down, show again the moment you scroll up. Other tabs: header just scrolls with the page.
   const [hidden, setHidden] = useState(false);
   const lastY = useRef(0);
+  const menuOpenRef = useRef(menuOpen);
+  useEffect(() => { menuOpenRef.current = menuOpen; }, [menuOpen]);
   useEffect(() => {
     if (!isHome) { setHidden(false); return; }
     lastY.current = window.scrollY;
     const onScroll = () => {
       const y = window.scrollY;
+      if (menuOpenRef.current) { lastY.current = y; return; }
       const d = y - lastY.current;
       if (y <= 8) setHidden(false);
-      else if (d > 6) { setHidden(true); setMenuOpen(false); }
+      else if (d > 10) { setHidden(true); }
       else if (d < -6) setHidden(false);
       lastY.current = y;
     };
@@ -156,7 +155,7 @@ export const Header: React.FC<HeaderProps> = ({
   const initial = (displayName || userEmail || 'R').replace(/^@/, '').trim().charAt(0).toUpperCase() || 'R';
 
   return (
-    <header className={`${isHome ? "sticky top-0 transition-transform duration-200 will-change-transform " + (hidden ? "-translate-y-full" : "translate-y-0") : "relative"} z-40 rada-header bg-white dark:bg-[#121113] border-b border-slate-200 dark:border-slate-800 shadow-xs`}>
+    <header className={`${isHome ? "sticky top-0 transition-transform duration-200 " + (hidden && !menuOpen ? "-translate-y-full" : "") : "relative"} z-[45] rada-header bg-white dark:bg-[#121113] border-b border-slate-200 dark:border-slate-800 shadow-xs`}>
       <div className="max-w-lg min-[900px]:max-w-none mx-auto w-full px-3.5 sm:px-4 min-[900px]:px-8 py-2.5 min-h-[60px] sm:min-h-[64px] grid grid-cols-[1fr_auto_1fr] items-center gap-2">
         {/* Left: profile (or sign-in for guests) */}
         <div className="justify-self-start">
@@ -205,17 +204,17 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="text-2xl font-black tracking-tight text-[#E0533C] leading-none">RADA</span>
         </button>
 
-        {/* Right: menu (three lines) */}
+        {/* Right: 3-dot menu */}
         <div className="relative justify-self-end" ref={menuRef}>
           <button
             type="button"
-            onClick={() => setMenuOpen(!menuOpen)}
+            onClick={() => setMenuOpen((v) => !v)}
             className={`w-10 h-10 shrink-0 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition text-slate-800 dark:text-slate-100 focus:outline-none cursor-pointer ${menuOpen ? "bg-slate-100 dark:bg-slate-800" : ""}`}
             aria-label="More options"
             aria-haspopup="menu"
             aria-expanded={menuOpen}
           >
-            <Menu className="w-6 h-6" strokeWidth={2.25} />
+            <MoreVertical className="w-6 h-6" strokeWidth={2.25} />
           </button>
 
           {menuOpen && (
@@ -235,15 +234,13 @@ export const Header: React.FC<HeaderProps> = ({
                     </span>
                     <span>Menu</span>
                   </button>
-                  <Suspense fallback={<p className="px-4 py-4 text-xs text-slate-400">Loading account…</p>}>
-                    <MenuAccountSection
-                      userId={userId}
-                      showToast={showToast}
-                      onOpenAuth={onOpenAuth}
-                      onLogout={onLogout}
-                      onDone={() => setMenuOpen(false)}
-                    />
-                  </Suspense>
+                  <MenuAccountSection
+                    userId={userId}
+                    showToast={showToast}
+                    onOpenAuth={onOpenAuth}
+                    onLogout={onLogout}
+                    onDone={() => setMenuOpen(false)}
+                  />
                 </>
               ) : (
                 <div className="p-2 space-y-1.5">

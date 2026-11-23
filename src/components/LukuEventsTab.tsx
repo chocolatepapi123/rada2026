@@ -13,8 +13,7 @@ import {
   Users,
   ArrowLeft,
   Bookmark,
-  Globe,
-  Plus
+  Globe
 } from 'lucide-react';
 import { EventItem, SavedItem } from '../types.ts';
 import { 
@@ -46,7 +45,6 @@ function eventOnDay(evt: EventItem, year: number, month: number, day: number): b
 interface LukuEventsTabProps {
   events: EventItem[];
   onOpenEventDetails: (event: EventItem) => void;
-  onOpenCreateEvent?: () => void;
   onExploreTrendingEvents?: () => void;
   onCategoryChange?: (category: string) => void;
   showToast?: (msg: string, options?: ToastOptions) => void;
@@ -60,7 +58,6 @@ interface LukuEventsTabProps {
 export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
   events = [],
   onOpenEventDetails,
-  onOpenCreateEvent,
   onExploreTrendingEvents,
   onCategoryChange,
   showToast,
@@ -404,16 +401,6 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {onOpenCreateEvent && (
-            <button
-              type="button"
-              onClick={onOpenCreateEvent}
-              className="px-3 py-1.5 rounded-xl bg-[#E0533C] hover:bg-orange-700 text-white text-[11px] font-black shadow-xs transition flex items-center gap-1 cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Event</span>
-            </button>
-          )}
           {selectedDay !== null && (
             <button
               type="button"

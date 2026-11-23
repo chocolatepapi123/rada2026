@@ -22,6 +22,12 @@ import { HomeTab } from './components/HomeTab.tsx';
 import { SplashScreen, SplashFace } from './components/SplashScreen.tsx';
 import { ToastProvider, showToast as triggerToast, type ToastOptions } from './components/Toast.tsx';
 import { ErrorBoundary } from './components/ErrorBoundary.tsx';
+import { AuthModal } from './components/AuthModal.tsx';
+import { Overlays } from './components/Overlays.tsx';
+import { MyTicketsSheet } from './components/MyTicketsSheet.tsx';
+import { SavedPlacesModal } from './components/SavedPlacesModal.tsx';
+import { SuggestSpotModal } from './components/SuggestSpotModal.tsx';
+import { CreateEventModal } from './components/CreateEventModal.tsx';
 import {
   cleanStatuses,
   addStatusReplacingOwn,
@@ -99,8 +105,8 @@ const TAB_LOADERS: Record<string, () => Promise<any>> = {
 };
 const prefetchTab = (id: string) => { TAB_LOADERS[id]?.().catch(() => {}); };
 
-// Warm every main tab chunk shortly after first paint. Only skip when the person turned on Data Saver;
-// low-end phones need this MOST, so they still get it (just spaced out more).
+// Heavy screens people open from menus: load them in the background too, so the first tap is instant
+// (same import specifiers as the real imports, so nothing is downloaded twice).
 if (typeof window !== 'undefined') {
   const warmTabs = () => {
     const c: any = (navigator as any).connection || {};
@@ -109,11 +115,8 @@ if (typeof window !== 'undefined') {
     ['spots', 'outings', 'socials', 'vault'].forEach((id, i) =>
       setTimeout(() => prefetchTab(id), i * gap)
     );
-    // Heavy screens people open from menus: load them in the background too, so the first tap is instant
-    // (same import specifiers as the real imports, so nothing is downloaded twice).
     const extra: (() => Promise<any>)[] = [
       () => import('./components/ProfilePage.tsx'),
-      () => import('./components/Overlays.tsx'),
       () => import('./components/UserProfileModal.tsx'),
     ];
     extra.forEach((load, i) => setTimeout(() => { load().catch(() => {}); }, (5 + i) * gap));
@@ -155,17 +158,11 @@ const loadTabComponent = (key: string): Promise<React.ComponentType<any>> => {
   return tabComponentPromises[key];
 };
 
-const AuthModal = lazyNamed(() => import('./components/AuthModal.tsx'), 'AuthModal');
 const AdminDashboard = lazyNamed(() => import('./components/AdminDashboardModal.tsx'), 'AdminDashboard');
 const PublicBusinessProfileModal = lazyNamed(() => import('./components/PublicBusinessProfileModal.tsx'), 'PublicBusinessProfileModal');
-const Overlays = lazyNamed(() => import('./components/Overlays.tsx'), 'Overlays');
 const LocationMapModal = lazyNamed(() => import('./components/LocationMapModal.tsx'), 'LocationMapModal');
 const UserProfileModal = lazyNamed(() => import('./components/UserProfileModal.tsx'), 'UserProfileModal');
 const TicketBuySheet = lazyNamed(() => import('./components/TicketBuySheet.tsx'), 'TicketBuySheet');
-const MyTicketsSheet = lazyNamed(() => import('./components/MyTicketsSheet.tsx'), 'MyTicketsSheet');
-const SavedPlacesModal = lazyNamed(() => import('./components/SavedPlacesModal.tsx'), 'SavedPlacesModal');
-const SuggestSpotModal = lazyNamed(() => import('./components/SuggestSpotModal.tsx'), 'SuggestSpotModal');
-const CreateEventModal = lazyNamed(() => import('./components/CreateEventModal.tsx'), 'CreateEventModal');
 
 const TabFallback = () => {
   const [slow, setSlow] = useState(false);
@@ -1467,7 +1464,9 @@ export default function App() {
     selectedEventModal ||
     activeOverlay ||
     isSuggestSpotModalOpen ||
-    isCreateEventOpen
+    isCreateEventOpen ||
+    isMyTicketsOpen ||
+    Boolean(ticketLink)
   );
 
   // Swipe left/right on the main content to move between tabs (blocked while any modal / full-screen view is open).
@@ -1534,6 +1533,8 @@ export default function App() {
         if (activeOverlay) setActiveOverlay(null);
         if (isSuggestSpotModalOpen) setIsSuggestSpotModalOpen(false);
         if (isCreateEventOpen) setIsCreateEventOpen(false);
+        if (isMyTicketsOpen) setIsMyTicketsOpen(false);
+        if (ticketLink) closeTicketLink();
         return;
       }
 
@@ -2495,10 +2496,6 @@ export default function App() {
                   setViewAllTitle(title);
                   setViewAllCategory(cat);
                 }}
-                onOpenCreateEvent={(title) => {
-                  setCreateEventInitialTitle(title || '');
-                  setIsCreateEventOpen(true);
-                }}
                 onOpenSuggestSpot={() => setIsSuggestSpotModalOpen(true)}
                 onOpenBusinessProfile={handleOpenBusinessProfile}
                 showToast={showToast}
@@ -2629,10 +2626,6 @@ export default function App() {
                 initialDate={calendarTargetDate}
                 highlightEventId={calendarTargetEventId}
                 onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
-                onOpenCreateEvent={() => {
-                  setCreateEventInitialTitle('');
-                  setIsCreateEventOpen(true);
-                }}
                 onExploreTrendingEvents={() => {
                   setActiveTab('spots');
                 }}
@@ -2702,7 +2695,6 @@ export default function App() {
             onToggleGoing={handleToggleGoing}
             goingEventIds={goingEventIds}
             onBuyEventTicket={handleBuyEventTicket}
-            onOpenCreateEvent={() => { setCreateEventInitialTitle(''); setIsCreateEventOpen(true); }}
             planFriends={Array.from(new Set(socials.conversations.filter(c => c.type === 'direct' && c.name && c.name.startsWith('@')).map(c => c.name))).map(handle => ({ handle }))}
             onPlanWithFriends={(evt, opts) => handlePlanWithFriends(evt, opts)}
             onOpenEventMap={(evt) => setSelectedLocationMapEvent(evt)}
@@ -2740,7 +2732,6 @@ export default function App() {
               setEmergencyContacts(prev => prev.filter(c => c.id !== id));
             }}
             isDarkMode={isDarkMode}
-            appColor={appColor}
             showToast={showToast}
             onOpenSaved={() => requireAuth('view saved collections', () => setIsSavedModalOpen(true))}
             onOpenAccountSettings={() => setIsProfilePageOpen(true)}

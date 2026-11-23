@@ -301,7 +301,9 @@ export const DynamicLocationSelector: React.FC<DynamicLocationSelectorProps> = (
           type="text"
           value={searchInput}
           onChange={(e) => {
-            setSearchInput(e.target.value);
+            const val = e.target.value;
+            setSearchInput(val);
+            onChange(val, false);
             setIsDropdownOpen(true);
           }}
           onFocus={() => setIsDropdownOpen(true)}
@@ -313,6 +315,7 @@ export const DynamicLocationSelector: React.FC<DynamicLocationSelectorProps> = (
             type="button"
             onClick={() => {
               setSearchInput('');
+              onChange('', false);
               setIsDropdownOpen(true);
             }}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"

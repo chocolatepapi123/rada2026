@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { CategoryIcon } from './CategoryIcon';
-import { Search, X, Clock, MapPin, Bookmark, Calendar, Ticket, SlidersHorizontal, ArrowUpDown, Globe, Plus } from 'lucide-react';
+import { Search, X, Clock, MapPin, Bookmark, Calendar, Ticket, SlidersHorizontal, ArrowUpDown, Globe } from 'lucide-react';
 import { EventItem, SavedItem } from '../types.ts';
 import {
   EVENT_CATEGORY_FILTERS,
@@ -19,7 +19,6 @@ import { pinFeaturedEvents } from '../lib/featuredEvents.ts';
 interface EventsExplorerProps {
   events: EventItem[];
   onOpenEvent: (event: EventItem) => void;
-  onOpenCreateEvent?: () => void;
   savedItems?: SavedItem[];
   onToggleSave?: (item: any, kind: 'event') => void;
   initialCategory?: string;
@@ -30,7 +29,6 @@ const PAGE_SIZE = 20;
 export const EventsExplorer: React.FC<EventsExplorerProps> = ({
   events,
   onOpenEvent,
-  onOpenCreateEvent,
   savedItems = [],
   onToggleSave,
   initialCategory = 'all'
@@ -111,13 +109,6 @@ export const EventsExplorer: React.FC<EventsExplorerProps> = ({
           <span>Date & Price{price !== 'all' || date !== 'all' ? ` (${(price !== 'all' ? 1 : 0) + (date !== 'all' ? 1 : 0)})` : ''}</span>
         </button>
         <div className="flex items-center gap-1.5">
-          {onOpenCreateEvent && (
-            <button type="button" onClick={onOpenCreateEvent}
-              className="px-3 py-1.5 rounded-xl text-[11px] font-black flex items-center gap-1 bg-[#E0533C] text-white hover:bg-orange-700 shadow-xs transition cursor-pointer">
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Event</span>
-            </button>
-          )}
           <button type="button" onClick={() => setSortBy(s => (s === 'smart' ? 'date' : s === 'date' ? 'price' : 'smart'))}
             className="px-3 py-1.5 rounded-xl text-[11px] font-black flex items-center gap-1.5 border bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-pointer" title="Change sort order">
             <ArrowUpDown className="w-3.5 h-3.5" />
@@ -214,16 +205,10 @@ export const EventsExplorer: React.FC<EventsExplorerProps> = ({
           <div className="w-10 h-10 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] mx-auto flex items-center justify-center"><Calendar className="w-5 h-5" /></div>
           <div className="space-y-1">
             <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{events.length === 0 ? 'No events loaded yet' : 'No events match these filters'}</h4>
-            <p className="text-[11px] text-slate-500 max-w-xs mx-auto leading-relaxed">{events.length === 0 ? 'Add your own event or check your connection.' : 'Try a different date, price or category.'}</p>
+            <p className="text-[11px] text-slate-500 max-w-xs mx-auto leading-relaxed">{events.length === 0 ? 'Check back soon or refresh your feed.' : 'Try a different date, price or category.'}</p>
           </div>
           <div className="flex items-center justify-center gap-2">
             {(activeFilterCount > 0 || query) && <button type="button" onClick={clearAll} className="px-4 py-2 bg-slate-900 dark:bg-white dark:text-slate-900 text-white font-black rounded-xl text-xs shadow-md transition cursor-pointer">Clear all filters</button>}
-            {onOpenCreateEvent && (
-              <button type="button" onClick={onOpenCreateEvent} className="px-4 py-2 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5 cursor-pointer">
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Event</span>
-              </button>
-            )}
           </div>
         </div>
       )}

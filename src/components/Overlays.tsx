@@ -100,7 +100,6 @@ interface OverlaysProps {
   onToggleGoing: (event: EventItem) => void;
   goingEventIds: Array<number | string>;
   onBuyEventTicket: (event: EventItem) => void;
-  onOpenCreateEvent?: () => void;
   /** People I chat with, for "Go with someone". */
   planFriends?: { handle: string }[];
   onPlanWithFriends?: (event: EventItem, opts: { handles: string[]; meetTime: string }) => Promise<string | null>;
@@ -184,7 +183,6 @@ export const Overlays: React.FC<OverlaysProps> = ({
   onToggleGoing,
   goingEventIds,
   onBuyEventTicket,
-  onOpenCreateEvent,
   planFriends = [],
   onPlanWithFriends,
   currentUserProfile,
@@ -219,6 +217,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
   // Admin Spot Deletion state
   const [spotToDelete, setSpotToDelete] = useState<SpotItem | null>(null);
   const [planEvent, setPlanEvent] = useState<EventItem | null>(null);
+  const [isLegalHelpOpen, setIsLegalHelpOpen] = useState(false);
 
   // Spot Active Photo Index
   const [activeSpotImgIndex, setActiveSpotImgIndex] = useState(0);
@@ -2246,20 +2245,25 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 </span>
                 <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden divide-y divide-slate-200/60 dark:divide-slate-800/80">
                   <button
-                    onClick={() => showToast('Opening RADA Nairobi Help Center & FAQ...')}
-                    className="w-full p-3.5 flex items-center justify-between text-left hover:bg-slate-100 dark:hover:bg-slate-800/50 transition"
+                    type="button"
+                    onClick={() => setIsLegalHelpOpen((v) => !v)}
+                    className="w-full p-3.5 flex items-center justify-between text-left hover:bg-slate-100 dark:hover:bg-slate-800/50 transition cursor-pointer"
                   >
                     <div className="flex items-center gap-2.5">
                       <HelpCircle className="w-4 h-4 text-slate-500" />
                       <span className="font-bold">Help Center & Safety Rules</span>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400" />
+                    <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${isLegalHelpOpen ? 'rotate-90' : ''}`} />
                   </button>
+                  {isLegalHelpOpen && (
+                    <div className="p-3.5 bg-white/70 dark:bg-black/20 text-[11px] text-slate-600 dark:text-slate-300 space-y-1.5 leading-relaxed">
+                      <p className="font-bold text-slate-800 dark:text-slate-100">Staying safe on RADA</p>
+                      <p>Meet at verified spots or public venues first, share live outings with trusted contacts from the SOS Hub, and report any suspicious accounts directly from their profile.</p>
+                      <p className="text-slate-500">Need support? Reach us at <span className="font-bold text-[#E0533C]">hello.rada.app@gmail.com</span>.</p>
+                    </div>
+                  )}
 
-                  <button
-                    onClick={() => showToast('RADA Nairobi Hangouts v2026.4.2')}
-                    className="w-full p-3.5 flex items-center justify-between text-left hover:bg-slate-100 dark:hover:bg-slate-800/50 transition"
-                  >
+                  <div className="w-full p-3.5 flex items-center justify-between text-left">
                     <div className="flex items-center gap-2.5">
                       <FileText className="w-4 h-4 text-slate-500" />
                       <div>
@@ -2268,7 +2272,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       </div>
                     </div>
                     <span className="text-[10px] font-mono text-slate-400">Up to date</span>
-                  </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2297,10 +2301,6 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   events={events}
                   savedItems={savedItems}
                   onToggleSave={onToggleSave}
-                  onOpenCreateEvent={() => {
-                    onCloseViewAll();
-                    onOpenCreateEvent?.();
-                  }}
                   onOpenEvent={(evt) => {
                     onCloseViewAll();
                     if (onOpenEventDetails) onOpenEventDetails(evt);
