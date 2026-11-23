@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, X, Play, MapPin, Calendar, Trash2, EyeOff, Pencil, Loader2, ChevronLeft, Users, ImagePlus, FileText, Camera, Images } from 'lucide-react';
+import { Plus, X, Play, MapPin, Calendar, Trash2, EyeOff, Pencil, Loader2, ChevronLeft, ImagePlus, FileText, Camera, Images } from 'lucide-react';
 import {
   Hangout,
   HangoutMedia,
@@ -16,9 +16,7 @@ import {
   addHangoutMedia,
   removeHangoutMedia,
   checkHangoutFile,
-  fetchJoinRequestsForMe,
 } from '../lib/hangouts';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 export interface HangoutSpotOption {
   id: number | string;
@@ -33,10 +31,9 @@ interface Props {
   spots?: HangoutSpotOption[];
 }
 
-type View = { kind: 'list' } | { kind: 'edit'; hangout: Hangout | null } | { kind: 'detail'; hangout: Hangout } | { kind: 'joins' };
+type View = { kind: 'list' } | { kind: 'edit'; hangout: Hangout | null } | { kind: 'detail'; hangout: Hangout };
 
 interface Pending { key: string; file: File; preview: string; isVideo: boolean }
-interface Requester { id: string; name: string; avatar?: string }
 
 const prettyDate = (d?: string | null) => {
   if (!d) return '';
@@ -70,18 +67,15 @@ export const HangoutsTab: React.FC<Props> = ({ userId, accent, showToast, spots 
   const [drafts, setDrafts] = useState<Hangout[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDrafts, setShowDrafts] = useState(false);
-  const [joinCount, setJoinCount] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [pub, dr, joins] = await Promise.all([
+    const [pub, dr] = await Promise.all([
       listHangouts(userId, { drafts: 'exclude' }),
       listHangouts(userId, { drafts: 'only' }),
-      fetchJoinRequestsForMe(userId),
     ]);
     setPublished(pub);
     setDrafts(dr);
-    setJoinCount(joins.length);
     setLoading(false);
   }, [userId]);
 
@@ -95,9 +89,6 @@ export const HangoutsTab: React.FC<Props> = ({ userId, accent, showToast, spots 
   if (view.kind === 'detail') {
     return <Detail h={view.hangout} accent={accent} showToast={showToast} onBack={back} onEdit={() => setView({ kind: 'edit', hangout: view.hangout })} />;
   }
-  if (view.kind === 'joins') {
-    return <Joins userId={userId} accent={accent} hangouts={[...published, ...drafts]} onBack={back} />;
-  }
 
   const list = showDrafts ? drafts : published;
   return (
@@ -109,23 +100,18 @@ export const HangoutsTab: React.FC<Props> = ({ userId, accent, showToast, spots 
               className={`px-3 py-1.5 rounded-full cursor-pointer ${showDrafts === v ? 'bg-white dark:bg-[#1C1A1E] shadow-sm' : 'text-slate-500'}`}>{label}</button>
           ))}
         </div>
-        <div className="flex-1" />
-        <button type="button" onClick={() => setView({ kind: 'joins' })}
-          className="inline-flex items-center gap-1.5 text-[12px] font-bold px-3 py-2 rounded-full bg-slate-100 dark:bg-slate-800 cursor-pointer">
-          <Users className="w-4 h-4" style={{ color: accent }} /> Join requests{joinCount > 0 ? ` (${joinCount})` : ''}
-        </button>
       </div>
 
       <button type="button" onClick={() => setView({ kind: 'edit', hangout: null })}
         className="mt-3 w-full py-3 rounded-2xl text-white text-[14px] font-black flex items-center justify-center gap-2 cursor-pointer" style={{ background: accent }}>
-        <Plus className="w-5 h-5" /> Add hangout
+        <Plus className="w-5 h-5" /> Add diary entry
       </button>
 
       {loading ? (
         <p className="text-[13px] text-slate-400 py-8 text-center">Loading…</p>
       ) : list.length === 0 ? (
         <p className="text-[13px] text-slate-400 py-10 text-center">
-          {showDrafts ? 'No drafts. Anything you save as a draft stays private to you.' : 'No hangouts yet. Add photos or videos from places you have been with friends.'}
+          {showDrafts ? 'No drafts. Anything you save as a draft stays private to you.' : 'No diary entries yet. Add photos or videos from places you have been.'}
         </p>
       ) : (
         <div className="mt-3 grid grid-cols-3 gap-1 rounded-xl overflow-hidden">
@@ -154,7 +140,7 @@ const Detail: React.FC<{ h: Hangout; accent: string; showToast: Props['showToast
   };
   return (
     <div className="pb-6">
-      <button type="button" onClick={onBack} className="m-2 inline-flex items-center gap-1 text-[13px] font-bold cursor-pointer"><ChevronLeft className="w-5 h-5" /> Hangouts</button>
+      <button type="button" onClick={onBack} className="m-2 inline-flex items-center gap-1 text-[13px] font-bold cursor-pointer"><ChevronLeft className="w-5 h-5" /> Diary</button>
       <div className="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar items-start">
         {h.media.map((m) => (
           <div key={m.id} className="snap-center shrink-0 w-full">
@@ -174,7 +160,7 @@ const Detail: React.FC<{ h: Hangout; accent: string; showToast: Props['showToast
         <div className="grid grid-cols-3 gap-2 pt-3">
           <button type="button" disabled={busy} onClick={onEdit} className="py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-[12px] font-bold flex items-center justify-center gap-1.5 cursor-pointer"><Pencil className="w-4 h-4" />Edit</button>
           <button type="button" disabled={busy} onClick={() => run(() => unpublishHangout(h.id), 'Moved to drafts.')} className="py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-[12px] font-bold flex items-center justify-center gap-1.5 cursor-pointer"><EyeOff className="w-4 h-4" />Unpublish</button>
-          <button type="button" disabled={busy} onClick={() => (confirmDel ? run(() => deleteHangout(h), 'Hangout deleted.') : setConfirmDel(true))}
+          <button type="button" disabled={busy} onClick={() => (confirmDel ? run(() => deleteHangout(h), 'Diary entry deleted.') : setConfirmDel(true))}
             className={`py-2.5 rounded-xl text-[12px] font-bold flex items-center justify-center gap-1.5 cursor-pointer ${confirmDel ? 'bg-red-600 text-white' : 'bg-red-500/10 text-red-600'}`}><Trash2 className="w-4 h-4" />{confirmDel ? 'Tap to confirm' : 'Delete'}</button>
         </div>
       </div>
@@ -258,7 +244,7 @@ const Editor: React.FC<{ userId: string; accent: string; showToast: Props['showT
       if (publish) {
         const err = await publishHangout(id);
         if (err) { showToast(err, { type: 'error' }); return; }
-        showToast(failed ? 'Shared (some files did not upload).' : 'Hangout shared.');
+        showToast(failed ? 'Published (some files did not upload).' : 'Diary entry published.');
       } else {
         showToast(failed ? 'Saved as draft (some files did not upload).' : 'Saved as draft.');
       }
@@ -286,7 +272,7 @@ const Editor: React.FC<{ userId: string; accent: string; showToast: Props['showT
           className="w-10 h-10 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center cursor-pointer">
           {step === 2 && !hangout ? <ChevronLeft className="w-6 h-6" /> : <X className="w-6 h-6" />}
         </button>
-        <p className="flex-1 text-center text-[16px] font-black">{hangout ? 'Edit hangout' : step === 1 ? 'New hangout' : 'Details'}</p>
+        <p className="flex-1 text-center text-[16px] font-black">{hangout ? 'Edit diary entry' : step === 1 ? 'New diary entry' : 'Details'}</p>
         {step === 1 ? (
           <button type="button" disabled={total === 0} onClick={() => setStep(2)} className="px-4 h-10 text-[14px] font-black disabled:opacity-30 cursor-pointer" style={{ color: accent }}>Next</button>
         ) : (
@@ -300,8 +286,8 @@ const Editor: React.FC<{ userId: string; accent: string; showToast: Props['showT
             <div className="px-5 pt-6">
               <div className="rounded-3xl p-6 text-center" style={{ background: `${accent}12` }}>
                 <ImagePlus className="w-10 h-10 mx-auto" style={{ color: accent }} />
-                <p className="mt-3 text-[17px] font-black">Share a hangout</p>
-                <p className="mt-1 text-[13px] text-slate-500 dark:text-slate-400">Photos or short videos from places you went with friends. Friends can then join you next time, plan a date there or save the spot.</p>
+                <p className="mt-3 text-[17px] font-black">Add a diary entry</p>
+                <p className="mt-1 text-[13px] text-slate-500 dark:text-slate-400">Photos or short videos from places you visited. Keep your personal RADA trail and link spots you loved.</p>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <button type="button" onClick={() => libRef.current?.click()} className="py-4 rounded-2xl text-white text-[14px] font-black flex flex-col items-center gap-1.5 cursor-pointer" style={{ background: accent }}>
@@ -358,7 +344,7 @@ const Editor: React.FC<{ userId: string; accent: string; showToast: Props['showT
                 {total === 0 && <ImagePlus className="w-6 h-6 m-auto text-slate-400" />}
               </button>
               <div className="flex-1 min-w-0">
-                <textarea value={caption} onChange={(e) => setCaption(e.target.value.slice(0, HANGOUT_LIMITS.maxCaption))} rows={4} placeholder="Tell friends about it. Who was there? What was the vibe?"
+                <textarea value={caption} onChange={(e) => setCaption(e.target.value.slice(0, HANGOUT_LIMITS.maxCaption))} rows={4} placeholder="Write about this moment. What was the vibe?"
                   className="w-full bg-transparent text-[15px] focus:outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 resize-none" />
                 <p className="text-right text-[11px] text-slate-400">{caption.length}/{HANGOUT_LIMITS.maxCaption}</p>
               </div>
@@ -371,8 +357,8 @@ const Editor: React.FC<{ userId: string; accent: string; showToast: Props['showT
               <p className="text-[13px] font-black flex items-center gap-1.5"><MapPin className="w-4 h-4" style={{ color: accent }} /> Where was it?</p>
               <input value={spotText} onChange={(e) => { setSpotText(e.target.value); setSpotId(null); setArea(null); }} placeholder="Search a RADA spot or type a place"
                 className="mt-2 w-full px-3.5 py-3 text-[14px] rounded-xl bg-slate-100 dark:bg-slate-800 focus:outline-none text-slate-900 dark:text-slate-100" />
-              {spotId && <p className="mt-1.5 text-[11px] font-bold text-emerald-600">Linked to a RADA spot{area ? ` in ${area}` : ''}. Friends can plan a date there or save it.</p>}
-              {!spotId && spotText.trim() && matches.length === 0 && <p className="mt-1.5 text-[11px] text-slate-400">Not linked to a RADA spot. Pick one from the list so friends can plan or save it.</p>}
+              {spotId && <p className="mt-1.5 text-[11px] font-bold text-emerald-600">Linked to a RADA spot{area ? ` in ${area}` : ''}.</p>}
+              {!spotId && spotText.trim() && matches.length === 0 && <p className="mt-1.5 text-[11px] text-slate-400">Not linked to a RADA spot yet. Pick one from the list to tag it.</p>}
               {matches.length > 0 && (
                 <div className="mt-1.5 rounded-xl bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-700 overflow-hidden">
                   {matches.map((sp) => (
@@ -396,7 +382,7 @@ const Editor: React.FC<{ userId: string; accent: string; showToast: Props['showT
               </div>
             </div>
 
-            <p className="px-4 mt-5 text-[11px] text-slate-400">No likes or comments here. Friends can join you next time, plan a date at the spot, save it or say hi.</p>
+            <p className="px-4 mt-5 text-[11px] text-slate-400">Your RADA diary entries have no likes, comments, or replies.</p>
           </div>
 
           {/* Bottom bar */}
@@ -404,7 +390,7 @@ const Editor: React.FC<{ userId: string; accent: string; showToast: Props['showT
             {busy && <p className="mb-2 text-center text-[12px] text-slate-500 flex items-center justify-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{busy}</p>}
             <div className="grid grid-cols-5 gap-2">
               <button type="button" disabled={!!busy} onClick={() => save(false)} className="col-span-2 py-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-[13px] font-black flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"><FileText className="w-4 h-4" />Save draft</button>
-              <button type="button" disabled={!!busy} onClick={() => save(true)} className="col-span-3 py-3.5 rounded-2xl text-white text-[14px] font-black cursor-pointer disabled:opacity-50" style={{ background: accent }}>Share hangout</button>
+              <button type="button" disabled={!!busy} onClick={() => save(true)} className="col-span-3 py-3.5 rounded-2xl text-white text-[14px] font-black cursor-pointer disabled:opacity-50" style={{ background: accent }}>Publish to diary</button>
             </div>
           </div>
         </>
@@ -414,71 +400,4 @@ const Editor: React.FC<{ userId: string; accent: string; showToast: Props['showT
   );
 
   return createPortal(ui, document.body);
-};
-
-// ---------------------------------------------------------------------------
-
-const Joins: React.FC<{ userId: string; accent: string; hangouts: Hangout[]; onBack: () => void }> = ({ userId, accent, hangouts, onBack }) => {
-  const [rows, setRows] = useState<{ hangoutId: string; fromUser: string; createdAt: string }[] | null>(null);
-  const [people, setPeople] = useState<Record<string, Requester>>({});
-
-  useEffect(() => {
-    let off = false;
-    (async () => {
-      const r = await fetchJoinRequestsForMe(userId);
-      if (off) return;
-      setRows(r);
-      const ids = Array.from(new Set(r.map((x) => x.fromUser)));
-      if (ids.length && isSupabaseConfigured && supabase) {
-        const { data } = await supabase.from('profiles').select('*').in('id', ids);
-        if (off) return;
-        const map: Record<string, Requester> = {};
-        (data || []).forEach((p: any) => { map[p.id] = { id: p.id, name: p.username ? `@${String(p.username).replace(/^@/, '')}` : 'Someone', avatar: p.avatar_url || p.avatar }; });
-        setPeople(map);
-      }
-    })();
-    return () => { off = true; };
-  }, [userId]);
-
-  const byHangout = new Map<string, { fromUser: string; createdAt: string }[]>();
-  (rows || []).forEach((r) => byHangout.set(r.hangoutId, [...(byHangout.get(r.hangoutId) || []), r]));
-
-  return (
-    <div className="pb-6">
-      <button type="button" onClick={onBack} className="m-2 inline-flex items-center gap-1 text-[13px] font-bold cursor-pointer"><ChevronLeft className="w-5 h-5" /> Hangouts</button>
-      <h3 className="px-4 text-[17px] font-black">Who wants to join next time</h3>
-      {rows === null ? (
-        <p className="text-[13px] text-slate-400 py-8 text-center">Loading…</p>
-      ) : rows.length === 0 ? (
-        <p className="text-[13px] text-slate-400 py-8 px-6 text-center">Nobody yet. When someone taps Join next time on a hangout, they show up here.</p>
-      ) : (
-        <div className="px-4 mt-3 space-y-3">
-          {hangouts.filter((h) => byHangout.has(h.id)).map((h) => (
-            <div key={h.id} className="rounded-2xl bg-slate-50 dark:bg-[#1C1A1E] p-3">
-              <div className="flex items-center gap-3">
-                <div className="w-14 shrink-0 rounded-lg overflow-hidden"><Thumb h={h} /></div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-black truncate">{h.spotTitle || h.caption || 'Hangout'}</p>
-                  <p className="text-[11px] text-slate-500">{byHangout.get(h.id)!.length} want to join</p>
-                </div>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {byHangout.get(h.id)!.map((r) => {
-                  const pr = people[r.fromUser];
-                  return (
-                    <span key={r.fromUser} className="inline-flex items-center gap-1.5 pl-1 pr-3 py-1 rounded-full bg-white dark:bg-slate-800 text-[12px] font-semibold">
-                      <span className="w-6 h-6 rounded-full overflow-hidden flex items-center justify-center text-white text-[11px] font-black" style={{ background: accent }}>
-                        {pr?.avatar ? <img src={pr.avatar} alt="" className="w-full h-full object-cover" /> : (pr?.name || 'S').replace('@', '').charAt(0).toUpperCase()}
-                      </span>
-                      {pr?.name || 'Someone'}
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
 };

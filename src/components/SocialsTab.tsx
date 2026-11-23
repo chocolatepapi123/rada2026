@@ -17,8 +17,7 @@ import {
   Paperclip,
   Camera,
   Plus,
-  Image as ImageIcon,
-  Receipt
+  Image as ImageIcon
 } from 'lucide-react';
 import { DatingProfile, ChatConversation, ChatMessage, UserProfile } from '../types.ts';
 import { EmojiPicker } from './EmojiPicker.tsx';
@@ -32,7 +31,6 @@ import { DISCOVER_VISIBLE } from '../lib/featureFlags.ts';
 import AsksSection from './AsksSection.tsx';
 import GroupsSection from './GroupsSection.tsx';
 import { parseUnlockMessage } from '../lib/systemMessage';
-import { BillSplitCard, StartBillSheet } from './BillSplitCard.tsx';
 import {
   CloudRequest,
   OutgoingMessage,
@@ -88,7 +86,6 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   events
 }) => {
   const [subtab, setSubtab] = useState<'discover' | 'queue' | 'chats' | 'groups' | 'asks' | 'search'>('asks');
-  const [showBillSheet, setShowBillSheet] = useState(false);
 
   // Active Chat Screen State
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -708,17 +705,6 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             </p>
           </div>
           </div>
-
-          {activeChat.type === 'group' && !isDemoMode() && (
-            <button
-              onClick={() => setShowBillSheet(true)}
-              className="h-9 px-3 bg-slate-100 dark:bg-white/10 text-slate-800 dark:text-slate-100 rounded-full text-xs font-extrabold flex items-center gap-1.5 active:scale-95 transition cursor-pointer shrink-0"
-              aria-label="Split the bill"
-            >
-              <Receipt className="w-4 h-4 text-[#E0533C]" />
-              <span className="hidden min-[400px]:inline">Split</span>
-            </button>
-          )}
           <button
             onClick={() => onOpenPlanDateModal(activeChat.id)}
             className="h-9 px-3 bg-[#E0533C] text-white rounded-full text-xs font-extrabold flex items-center gap-1.5 shadow-md shadow-[#E0533C]/25 active:scale-95 transition cursor-pointer shrink-0"
@@ -810,9 +796,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                     <div className="flex items-end gap-1 max-w-[88%]">
                       {mine && replyBtn}
 
-                      {msg.billSplitId ? (
-                        <BillSplitCard splitId={msg.billSplitId} myUserId={myUserId} showToast={showToast} />
-                      ) : msg.dateInvite ? (
+                      {msg.dateInvite ? (
                         <div className="w-72 max-w-full bg-gradient-to-br from-[#E0533C] to-[#EE8A47] text-white p-4 rounded-3xl shadow-lg shadow-[#E0533C]/25 space-y-2">
                           <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider bg-white/20 px-2.5 py-1 rounded-full">
                             <Calendar className="w-3 h-3" /> Date invitation
@@ -1161,23 +1145,6 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             </button>
             <img loading="lazy" decoding="async" src={viewerPhoto} alt="Photo" onClick={(e) => e.stopPropagation()} className="max-w-full max-h-full object-contain" />
           </div>
-        )}
-        {showBillSheet && (
-          <StartBillSheet
-            conversationId={activeChat.id}
-            memberCount={activeChat.members?.length || 2}
-            showToast={showToast}
-            onClose={() => setShowBillSheet(false)}
-            onCreated={async (splitId, title, total) => {
-              setShowBillSheet(false);
-              const err = await onSendMessage(activeChat.id, {
-                kind: 'text',
-                content: `Bill split: ${title}, KES ${total.toLocaleString('en-KE')}`,
-                media: { billSplitId: splitId },
-              });
-              if (err) showToast(friendlySendError(err), { type: 'error' });
-            }}
-          />
         )}
       </div>
     );

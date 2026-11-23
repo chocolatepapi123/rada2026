@@ -960,7 +960,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                   onClick={() => setIsFilterModalOpen(false)}
                   className="flex-1 py-2.5 bg-[#E0533C] text-white rounded-xl text-xs font-black shadow-md hover:bg-orange-700 transition cursor-pointer"
                 >
-                  Apply Filters ({filteredSpots.length} spots)
+                  Apply Filters
                 </button>
               </div>
             </div>
@@ -1068,7 +1068,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                   className="text-[11px] font-bold hover:underline"
                   style={{ color: acc.color }}
                 >
-                  View All ({list.length})
+                  View All
                 </button>
               </div>
 

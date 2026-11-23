@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, Clock, Loader2, Receipt, Users, X } from 'lucide-react';
+import { Check, Clock, Loader2, Users, X } from 'lucide-react';
 import type { EventItem } from '../types.ts';
 
 export interface PlanChoice { handle: string }
@@ -10,7 +10,7 @@ interface Props {
   friends: PlanChoice[];
   onClose: () => void;
   /** Creates the group chat. Resolves with an error message or null. */
-  onCreate: (opts: { handles: string[]; meetTime: string; splitBill: boolean }) => Promise<string | null>;
+  onCreate: (opts: { handles: string[]; meetTime: string }) => Promise<string | null>;
 }
 
 const input = 'w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-transparent px-4 py-3 text-[15px] font-semibold outline-none focus:border-[#E0533C]';
@@ -19,7 +19,6 @@ export const PlanFromEventSheet: React.FC<Props> = ({ event, friends, onClose, o
   const [picked, setPicked] = useState<string[]>([]);
   const [extra, setExtra] = useState('');
   const [meetTime, setMeetTime] = useState('');
-  const [splitBill, setSplitBill] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
@@ -30,7 +29,7 @@ export const PlanFromEventSheet: React.FC<Props> = ({ event, friends, onClose, o
   const go = async () => {
     if (all.length === 0) { setErr('Pick at least one person to go with.'); return; }
     setBusy(true); setErr('');
-    const e = await onCreate({ handles: all, meetTime, splitBill });
+    const e = await onCreate({ handles: all, meetTime });
     setBusy(false);
     if (e) setErr(e);
   };
@@ -68,11 +67,6 @@ export const PlanFromEventSheet: React.FC<Props> = ({ event, friends, onClose, o
         <label className="block space-y-1.5">
           <span className="text-[12px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Meet at (optional)</span>
           <input type="time" value={meetTime} onChange={(e) => setMeetTime(e.target.value)} className={input} />
-        </label>
-
-        <label className="flex items-center gap-3 rounded-2xl bg-slate-50 dark:bg-white/[0.05] px-4 py-3 cursor-pointer">
-          <input type="checkbox" checked={splitBill} onChange={(e) => setSplitBill(e.target.checked)} className="w-4 h-4 accent-[#E0533C]" />
-          <span className="flex-1 text-[13px] font-bold flex items-center gap-1.5"><Receipt className="w-4 h-4 text-[#E0533C]" /> Split the bill after</span>
         </label>
 
         {err && <p className="text-[12px] text-red-500">{err}</p>}

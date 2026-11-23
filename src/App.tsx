@@ -42,7 +42,6 @@ import { buildDemoVaultTickets } from './data/demoVault.ts';
 import { useUnclaimedSpots, mergeSpots, evictUnclaimedSpot } from './lib/spotsFeed.ts';
 import { resolveNearestNeighborhood } from './lib/geo.ts';
 import { buildPublicCollectionSnapshot, publishMyPublicCollections } from './lib/publicCollections.ts';
-import type { ProfileTab } from './components/ProfilePage.tsx';
 
 // One-time removal of the old demo content cached on this device
 purgeSeedData();
@@ -319,7 +318,6 @@ export default function App() {
   const [isSuggestSpotModalOpen, setIsSuggestSpotModalOpen] = useState(false);
   const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
   const [createEventInitialTitle, setCreateEventInitialTitle] = useState('');
-  const [profileInitialTab, setProfileInitialTab] = useState<ProfileTab>('hangouts');
   const [suspensionReason, setSuspensionReason] = useState<string | null>(null);
   const syncRef = useRef<(() => void) | null>(null);
 
@@ -2303,10 +2301,10 @@ export default function App() {
     setActiveTab('socials');
   };
 
-  // "Go with someone" on an event: group chat + opening message + a Vault entry (+ bill split prompt)
+  // "Go with someone" on an event: group chat + opening message + a Vault entry
   const handlePlanWithFriends = async (
     event: EventItem,
-    opts: { handles: string[]; meetTime: string; splitBill: boolean }
+    opts: { handles: string[]; meetTime: string }
   ): Promise<string | null> => {
     const res = await socials.createGroup(`${event.title} crew`.slice(0, 40), opts.handles);
     if (res.error || !res.id) return res.error || 'Could not start the plan.';
@@ -2316,7 +2314,6 @@ export default function App() {
       `Going to ${event.title}`,
       `${when}${event.location ? ` · ${event.location}` : ''}`,
       opts.meetTime ? `Meet at ${opts.meetTime}` : '',
-      opts.splitBill ? 'Tap Split at the top when the bill comes.' : '',
     ].filter(Boolean);
     const err = await socials.sendMessage(res.id, { kind: 'text', content: lines.join('\n') });
     if (err) showToast(err, { type: 'error' });
@@ -2502,10 +2499,6 @@ export default function App() {
                   setCreateEventInitialTitle(title || '');
                   setIsCreateEventOpen(true);
                 }}
-                onOpenMemories={() => {
-                  setProfileInitialTab('memories');
-                  setIsProfilePageOpen(true);
-                }}
                 onOpenSuggestSpot={() => setIsSuggestSpotModalOpen(true)}
                 onOpenBusinessProfile={handleOpenBusinessProfile}
                 showToast={showToast}
@@ -2615,7 +2608,6 @@ export default function App() {
               <VaultTab
                 tickets={tickets}
                 events={allEvents}
-                currentUserId={session?.user?.id || currentUserId || 'guest'}
                 onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
                 onExploreTrendingEvents={() => {
                   setActiveTab('home');
@@ -2839,11 +2831,7 @@ export default function App() {
 
           {isProfilePageOpen && (ProfilePageComp ? (
             <ProfilePageComp
-              initialTab={profileInitialTab}
-              onClose={() => {
-                setIsProfilePageOpen(false);
-                setProfileInitialTab('hangouts');
-              }}
+              onClose={() => setIsProfilePageOpen(false)}
               session={session}
               currentUserProfile={currentUserProfile}
               showToast={showToast}

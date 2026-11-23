@@ -11,8 +11,7 @@ import {
   ArrowRight,
   ChevronLeft,
   ChevronRight,
-  Flame,
-  Camera
+  Flame
 } from 'lucide-react';
 import { VaultTicket, EventItem } from '../types.ts';
 import { shareContent } from '../utils/shareUtils.ts';
@@ -25,7 +24,6 @@ import {
 } from '../utils/calendarUtils.ts';
 import type { ToastOptions } from './Toast.tsx';
 import { VaultQrUploads } from './VaultQrUploads.tsx';
-import { MemoryComposerModal } from './MemoriesSection.tsx';
 
 interface VaultTabProps {
   tickets: VaultTicket[];
@@ -34,7 +32,6 @@ interface VaultTabProps {
   onOpenEventDetails?: (event: EventItem) => void;
   onExploreTrendingEvents?: () => void;
   showToast?: (msg: string, options?: ToastOptions) => void;
-  currentUserId?: string;
 }
 
 export const VaultTab: React.FC<VaultTabProps> = ({ 
@@ -44,14 +41,11 @@ export const VaultTab: React.FC<VaultTabProps> = ({
   onOpenEventDetails,
   onExploreTrendingEvents,
   showToast,
-  currentUserId = 'guest',
 }) => {
   const today = new Date();
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
   const [selectedYear, setSelectedYear] = useState(today.getFullYear());
   const [selectedDay, setSelectedDay] = useState<number | null>(today.getDate());
-  const [memoryPromptOpen, setMemoryPromptOpen] = useState(false);
-  const [memoryPrefill, setMemoryPrefill] = useState<{ title?: string; spot?: string }>({});
 
   // Month navigation
   const handlePrevMonth = () => {
@@ -119,6 +113,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({
   // Clean formatted date header
   const dateHeader = useMemo(() => {
     if (selectedDay === null) return 'All Upcoming Events & Outings';
+    if (isSelectedDayToday) return 'Events for Today';
     return getCleanDateHeader(selectedYear, selectedMonth, selectedDay, isSelectedDayToday);
   }, [selectedYear, selectedMonth, selectedDay, isSelectedDayToday]);
 
@@ -261,7 +256,64 @@ export const VaultTab: React.FC<VaultTabProps> = ({
         </div>
       </div>
 
-      {/* Dynamic Date Header & Events for Selected Date */}
+      {/* 2. My Saved Plans */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-[#E05328] dark:text-[#D17A68]" />
+            <span>My Saved Plans</span>
+          </h2>
+        </div>
+        {savedPlans.length === 0 ? (
+          <div className="py-6 text-center text-xs text-slate-400 bg-[#F1F1EE] dark:bg-[#1C1A1E] rounded-2xl border border-dashed border-slate-300 dark:border-slate-800">
+            Nothing saved yet. Join an outing or plan a date and it shows up here.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {savedPlans.map((t) => (
+              <div key={t.id} className="w-full max-w-full min-w-0 overflow-hidden rounded-3xl p-4 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#E05328] dark:text-[#D17A68] flex items-center justify-center shrink-0">
+                  <CalendarIcon className="w-6 h-6" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="text-[9px] uppercase font-black tracking-wider text-[#E05328] dark:text-[#D17A68]">Saved plan</span>
+                  <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate">{t.title}</h4>
+                  <p className="text-[11px] text-slate-500 truncate">{t.dateStr}</p>
+                  <p className="text-[11px] text-slate-400 truncate flex items-center gap-1"><MapPin className="w-3 h-3 shrink-0" /><span className="truncate">{t.locationStr}</span></p>
+                </div>
+                <div className="flex flex-col gap-1.5 shrink-0">
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.locationStr || t.title)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="px-3 py-1.5 bg-[#E05328] dark:bg-[#A94F3E] text-white rounded-xl text-[11px] font-black text-center"
+                  >
+                    Directions
+                  </a>
+                  <button
+                    type="button"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      await shareContent({
+                        title: `Plan: ${t.title}`,
+                        text: `I have a plan: "${t.title}" on ${t.dateStr} at ${t.locationStr}. Join me on RADA!`,
+                        url: window.location.href,
+                        onError: (m: string) => showToast?.(m, { type: 'error' })
+                      });
+                    }}
+                    className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl text-[11px] font-black flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <Share2 className="w-3 h-3" /> Share
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 3. Events for Today / Selected Date */}
       <div className="space-y-3 w-full min-w-0">
         <div className="flex items-start justify-between gap-3 min-w-0">
           <div className="space-y-0.5 min-w-0 flex-1">
@@ -402,63 +454,6 @@ export const VaultTab: React.FC<VaultTabProps> = ({
         )}
       </div>
 
-      {/* My saved plans: first thing in the Vault. Plans need no QR, so they get their own card. */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xs font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-[#E05328] dark:text-[#D17A68]" />
-            <span>My Saved Plans ({savedPlans.length})</span>
-          </h2>
-        </div>
-        {savedPlans.length === 0 ? (
-          <div className="py-6 text-center text-xs text-slate-400 bg-[#F1F1EE] dark:bg-[#1C1A1E] rounded-2xl border border-dashed border-slate-300 dark:border-slate-800">
-            Nothing saved yet. Join an outing or plan a date and it shows up here.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {savedPlans.map((t) => (
-              <div key={t.id} className="w-full max-w-full min-w-0 overflow-hidden rounded-3xl p-4 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#E05328] dark:text-[#D17A68] flex items-center justify-center shrink-0">
-                  <CalendarIcon className="w-6 h-6" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <span className="text-[9px] uppercase font-black tracking-wider text-[#E05328] dark:text-[#D17A68]">Saved plan</span>
-                  <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate">{t.title}</h4>
-                  <p className="text-[11px] text-slate-500 truncate">{t.dateStr}</p>
-                  <p className="text-[11px] text-slate-400 truncate flex items-center gap-1"><MapPin className="w-3 h-3 shrink-0" /><span className="truncate">{t.locationStr}</span></p>
-                </div>
-                <div className="flex flex-col gap-1.5 shrink-0">
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.locationStr || t.title)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="px-3 py-1.5 bg-[#E05328] dark:bg-[#A94F3E] text-white rounded-xl text-[11px] font-black text-center"
-                  >
-                    Directions
-                  </a>
-                  <button
-                    type="button"
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      await shareContent({
-                        title: `Plan: ${t.title}`,
-                        text: `I have a plan: "${t.title}" on ${t.dateStr} at ${t.locationStr}. Join me on RADA!`,
-                        url: window.location.href,
-                        onError: (m: string) => showToast?.(m, { type: 'error' })
-                      });
-                    }}
-                    className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl text-[11px] font-black flex items-center justify-center gap-1 cursor-pointer"
-                  >
-                    <Share2 className="w-3 h-3" /> Share
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
       {/* Tickets & passes that need a QR */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -553,44 +548,8 @@ export const VaultTab: React.FC<VaultTabProps> = ({
       </div>
 
 
-      {/* Nostalgic Memory Keepsake Prompt */}
-      <div className="rounded-3xl p-4 bg-gradient-to-br from-amber-50 via-[#FAF5EC] to-orange-50 dark:from-[#231B16] dark:via-[#1C1A1E] dark:to-[#1F1614] border border-amber-200/70 dark:border-amber-900/40 flex items-center justify-between gap-3 shadow-xs">
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="w-11 h-11 rounded-2xl bg-[#E0533C]/12 text-[#E0533C] flex items-center justify-center shrink-0">
-            <Camera className="w-5 h-5" />
-          </span>
-          <div className="min-w-0">
-            <h4 className="font-black text-xs text-slate-900 dark:text-slate-100">Turn a Night Out into a RADA Memory</h4>
-            <p className="text-[11px] text-slate-600 dark:text-slate-300 truncate">
-              Save the story, song &amp; Polaroid from an event or move so you can look back later.
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            const first = tickets[0];
-            setMemoryPrefill({ title: first?.title || '', spot: first?.locationStr || '' });
-            setMemoryPromptOpen(true);
-          }}
-          className="px-3.5 py-2 rounded-xl bg-[#E0533C] text-white text-xs font-black shrink-0 cursor-pointer hover:bg-orange-700 transition"
-        >
-          Save Memory
-        </button>
-      </div>
-
       {/* Uploaded QR codes & tickets for events and cinema */}
       <VaultQrUploads showToast={showToast} />
-
-      <MemoryComposerModal
-        open={memoryPromptOpen}
-        onClose={() => setMemoryPromptOpen(false)}
-        userId={currentUserId}
-        initialTitle={memoryPrefill.title}
-        initialSpotTitle={memoryPrefill.spot}
-        onSaved={() => {}}
-        showToast={showToast}
-      />
     </section>
   );
 };

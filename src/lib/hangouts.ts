@@ -74,7 +74,6 @@ export async function loadMyHangoutLimits(): Promise<MyHangoutLimits | null> {
 
 const BUCKET = 'hangout-media';
 const LOCAL_HANGOUTS_KEY = 'rada_hangouts_local_v1';
-const LOCAL_JOINS_KEY = 'rada_hangout_joins_local_v1';
 const ready = () => Boolean(isSupabaseConfigured && supabase);
 
 function readLocalHangouts(): Hangout[] {
@@ -93,25 +92,6 @@ function writeLocalHangouts(items: Hangout[]): void {
     localStorage.setItem(LOCAL_HANGOUTS_KEY, JSON.stringify(items));
   } catch {
     // ignore storage quota errors
-  }
-}
-
-function readLocalJoins(): { hangoutId: string; fromUser: string; toUser: string; createdAt: string }[] {
-  try {
-    const raw = localStorage.getItem(LOCAL_JOINS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeLocalJoins(items: { hangoutId: string; fromUser: string; toUser: string; createdAt: string }[]): void {
-  try {
-    localStorage.setItem(LOCAL_JOINS_KEY, JSON.stringify(items));
-  } catch {
-    // ignore
   }
 }
 
@@ -438,77 +418,4 @@ export async function removeHangoutMedia(m: HangoutMedia): Promise<string | null
   await supabase.storage.from(BUCKET).remove([m.path]);
   const { error } = await supabase.from('hangout_media').delete().eq('id', m.id);
   return error ? error.message : null;
-}
-
-// ---------------------------------------------------------------------------
-// Actions other people can take on a hangout
-// ---------------------------------------------------------------------------
-
-/** "I'd come along next time". Tapping again takes it back. Returns the new state. */
-export async function toggleJoinNext(
-  hangout: Pick<Hangout, 'id' | 'userId'>,
-  myId: string
-): Promise<{ joined: boolean; error: string | null }> {
-  if (!ready()) {
-    const joins = readLocalJoins();
-    const exists = joins.some((j) => j.hangoutId === hangout.id && j.fromUser === myId);
-    if (exists) {
-      writeLocalJoins(joins.filter((j) => !(j.hangoutId === hangout.id && j.fromUser === myId)));
-      return { joined: false, error: null };
-    }
-    writeLocalJoins([
-      { hangoutId: hangout.id, fromUser: myId, toUser: hangout.userId, createdAt: new Date().toISOString() },
-      ...joins,
-    ]);
-    return { joined: true, error: null };
-  }
-  const { data: existing } = await supabase
-    .from('hangout_actions')
-    .select('id')
-    .eq('hangout_id', hangout.id)
-    .eq('from_user', myId)
-    .eq('action', 'join_next')
-    .maybeSingle();
-  if (existing) {
-    const { error } = await supabase.from('hangout_actions').delete().eq('id', existing.id);
-    return { joined: false, error: error ? error.message : null };
-  }
-  const { error } = await supabase
-    .from('hangout_actions')
-    .insert({ hangout_id: hangout.id, from_user: myId, to_user: hangout.userId, action: 'join_next' });
-  return { joined: !error, error: error ? error.message : null };
-}
-
-/** Which of these hangouts I already asked to join (so the button shows the right state). */
-export async function myJoinedHangoutIds(myId: string, hangoutIds: string[]): Promise<Set<string>> {
-  if (!myId || hangoutIds.length === 0) return new Set();
-  if (!ready()) {
-    const set = new Set(hangoutIds);
-    return new Set(readLocalJoins().filter((j) => j.fromUser === myId && set.has(j.hangoutId)).map((j) => j.hangoutId));
-  }
-  const { data } = await supabase
-    .from('hangout_actions')
-    .select('hangout_id')
-    .eq('from_user', myId)
-    .eq('action', 'join_next')
-    .in('hangout_id', hangoutIds);
-  return new Set((data || []).map((r: any) => r.hangout_id as string));
-}
-
-/** Owner only: who asked to join each of my hangouts. */
-export async function fetchJoinRequestsForMe(myId: string): Promise<{ hangoutId: string; fromUser: string; createdAt: string }[]> {
-  if (!myId) return [];
-  if (!ready()) {
-    return readLocalJoins()
-      .filter((j) => j.toUser === myId)
-      .map((j) => ({ hangoutId: j.hangoutId, fromUser: j.fromUser, createdAt: j.createdAt }));
-  }
-  const { data } = await supabase
-    .from('hangout_actions')
-    .select('hangout_id, from_user, created_at')
-    .eq('to_user', myId)
-    .eq('action', 'join_next')
-    .order('created_at', { ascending: false })
-    .limit(100);
-  return (data || []).map((r: any) => ({ hangoutId: r.hangout_id, fromUser: r.from_user, createdAt: r.created_at }));
 }

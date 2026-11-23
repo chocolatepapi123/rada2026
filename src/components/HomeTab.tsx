@@ -58,7 +58,6 @@ import { EventItem, OutingPlan, CinemaMovie, StatusPost, UserProfile, BusinessOf
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { EmojiPicker } from './EmojiPicker.tsx';
 import { WeatherChip } from './WeatherChip.tsx';
-import { MemoriesSection } from './MemoriesSection.tsx';
 import { searchSpots } from '../lib/searchTags.ts';
 import { recordInterest, categoriesForQuery, personalCategoryOrder } from '../lib/interests.ts';
 import { AdminConfirmModal, AdminActionType, AdminTargetAccount } from './AdminConfirmModal.tsx';
@@ -101,7 +100,6 @@ interface HomeTabProps {
   onViewUserProfile: (profile: UserProfile) => void;
   onOpenDedicatedViewAll: (title: string, category: string) => void;
   onOpenCreateEvent?: (initialTitle?: string) => void;
-  onOpenMemories?: () => void;
   onOpenSuggestSpot?: () => void;
   onOpenBusinessProfile?: (businessId: string) => void;
   showToast: (msg: string) => void;
@@ -135,7 +133,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   onViewUserProfile,
   onOpenDedicatedViewAll,
   onOpenCreateEvent,
-  onOpenMemories,
   onOpenSuggestSpot,
   onOpenBusinessProfile,
   showToast,
@@ -497,13 +494,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   const spotsByCat = useMemo(() => {
     const out: Record<string, SpotItem[]> = {};
     for (const c of SPOT_CATEGORIES) out[c.id] = homeFilteredSpots.filter(sp => spotInCategory(sp, c.id)).slice(0, HOME_MAX_PER_CATEGORY) as SpotItem[];
-    return out;
-  }, [homeFilteredSpots]);
-
-  // Uncapped counts, so "View All (N)" matches what the full list page shows.
-  const spotsByCatTotal = useMemo(() => {
-    const out: Record<string, number> = {};
-    for (const c of SPOT_CATEGORIES) out[c.id] = homeFilteredSpots.filter(sp => spotInCategory(sp, c.id)).length;
     return out;
   }, [homeFilteredSpots]);
 
@@ -1370,7 +1360,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               onClick={() => onOpenDedicatedViewAll('Running Offers & Promotions', 'offers')}
               className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
             >
-              View All ({filteredOffers.length})
+              View All
             </button>
           </div>
 
@@ -1587,7 +1577,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 onClick={() => onOpenDedicatedViewAll('Featured Trending Events', 'events')}
                 className="text-[11px] font-bold text-[#E0533C] hover:underline"
               >
-                View More ({events.length})
+                View More
               </button>
             </div>
           </div>
@@ -1811,7 +1801,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               onClick={() => onOpenDedicatedViewAll('In Cinemas', 'cinemas')}
               className="text-[11px] font-bold text-[#E0533C] hover:underline"
             >
-              All Movies ({filteredCinemaMovies.length})
+              All Movies
             </button>
           </div>
 
@@ -1903,7 +1893,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               onClick={() => onOpenDedicatedViewAll('Trending Spots', 'spots')}
               className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
             >
-              View All ({trendingSpots.length})
+              View All
             </button>
           </div>
 
@@ -2041,7 +2031,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   onClick={() => onOpenDedicatedViewAll(title, catKey)}
                   className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
                 >
-                  {t.viewAll} ({spotsByCatTotal[catKey] ?? spotsList.length})
+                  {t.viewAll}
                 </button>
               </div>
 
@@ -2160,17 +2150,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           </>
         );
       })()}
-
-      {/* Nostalgic RADA Memories Strip */}
-      {selectedHomeSection === 'all' && !searchQuery.trim() && (
-        <MemoriesSection
-          userId={currentUserId || 'guest'}
-          spots={spots.map((s) => ({ id: s.id, title: s.title, neighborhood: s.neighborhood }))}
-          showToast={showToast}
-          compactHome
-          onOpenAllMemories={onOpenMemories}
-        />
-      )}
 
       {/* ========================================================
           5. LIVE COMMUNITY STATUS FEED - "Where Are You At?" (Last bottom)

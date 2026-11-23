@@ -12,7 +12,6 @@ import {
   X,
   AlertCircle,
   Folder,
-  Camera,
 } from 'lucide-react';
 import { UserProfile, OutingPlan, BusinessAccount, SavedItem, CollectionFolder, SpotItem, EventItem, BusinessOffer } from '../types';
 import { useMySubscriptions } from '../lib/subscriptions';
@@ -39,7 +38,6 @@ import {
 } from '../lib/profileLook';
 import type { ToastOptions } from './Toast.tsx';
 import { HangoutsTab, type HangoutSpotOption } from './HangoutsTab';
-import { MemoriesSection } from './MemoriesSection';
 import { CategoryIcon } from './CategoryIcon';
 import { buildPublicCollectionSnapshot } from '../lib/publicCollections';
 
@@ -58,7 +56,7 @@ interface ProfilePageProps {
   ticketCount?: number;
   onOpenSaved?: () => void;
   isDarkMode: boolean;
-  /** Spots people can link a hangout or memory to. */
+  /** Spots people can link a diary entry to. */
   spots?: HangoutSpotOption[];
   /** Hydrated collections support for Collections tab (visible on public profile). */
   savedItems?: SavedItem[];
@@ -71,7 +69,7 @@ interface ProfilePageProps {
   initialTab?: Tab;
 }
 
-export type ProfileTab = 'hangouts' | 'memories' | 'collections' | 'creator' | 'settings';
+export type ProfileTab = 'diary' | 'collections' | 'creator' | 'settings';
 type Tab = ProfileTab;
 
 const cleanLoc = (loc?: string) =>
@@ -105,7 +103,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   offers = [],
   onOpenSpot,
   onOpenEvent,
-  initialTab = 'hangouts',
+  initialTab = 'diary',
 }) => {
   const user = session?.user;
   const isLoggedIn = !!user;
@@ -208,8 +206,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   };
 
   const tabs: [Tab, string][] = [
-    ['hangouts', 'Hangouts'],
-    ['memories', 'Memories'],
+    ['diary', 'Diary'],
     ['collections', 'Collections'],
     ['creator', 'Creator'],
     ['settings', 'Settings'],
@@ -266,7 +263,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             <AlertCircle className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm font-black text-amber-800 dark:text-amber-300">You&apos;re browsing as a guest</p>
-              <p className="text-xs mt-0.5 text-amber-700 dark:text-amber-300/80">Log in to build your profile, save collections, and capture RADA memories.</p>
+              <p className="text-xs mt-0.5 text-amber-700 dark:text-amber-300/80">Log in to build your profile, save collections, and keep your RADA diary.</p>
               {onOpenAuth && (
                 <button
                   type="button"
@@ -362,14 +359,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
               ))}
             </div>
 
-            {/* ===== Hangouts ===== */}
-            {tab === 'hangouts' && user?.id && (
+            {/* ===== Diary ===== */}
+            {tab === 'diary' && user?.id && (
               <HangoutsTab userId={user.id} accent={accent} showToast={showToast} spots={spots} />
-            )}
-
-            {/* ===== Nostalgic RADA Memories ===== */}
-            {tab === 'memories' && user?.id && (
-              <MemoriesSection userId={user.id} accent={accent} spots={spots} showToast={showToast} />
             )}
 
             {/* ===== Saved Collections (Public on Profile) ===== */}

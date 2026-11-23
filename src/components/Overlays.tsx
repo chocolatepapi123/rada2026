@@ -103,7 +103,7 @@ interface OverlaysProps {
   onOpenCreateEvent?: () => void;
   /** People I chat with, for "Go with someone". */
   planFriends?: { handle: string }[];
-  onPlanWithFriends?: (event: EventItem, opts: { handles: string[]; meetTime: string; splitBill: boolean }) => Promise<string | null>;
+  onPlanWithFriends?: (event: EventItem, opts: { handles: string[]; meetTime: string }) => Promise<string | null>;
 
   // Current User Profile
   currentUserProfile: UserProfile;

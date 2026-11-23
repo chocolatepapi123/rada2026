@@ -432,9 +432,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             isSpotSaved={(id) => !!isSpotSaved?.(id)}
             onSaveSpot={(id) => onSaveSpot?.(id)}
             onPlanDateAtSpot={(id) => onPlanDateAtSpot?.(id, viewedId)}
-            onSayHi={() => (isMutualMatch ? handleMessageClick() : handleMatchClick())}
-            showToast={showToast}
-            onNeedLogin={requireLogin}
           />
         )}
 
