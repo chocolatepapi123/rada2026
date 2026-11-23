@@ -2,13 +2,13 @@ import React from 'react';
 import {
   Sparkles, Music, Mic, Palette, Utensils, Dumbbell, Briefcase, Users, BookOpen, Clapperboard,
   Coffee, Wine, Heart, TreePine, Gamepad2, Trophy, Hotel, Sun, Folder, Cake, Gift, ShoppingBag,
-  Car, PartyPopper, MapPin, Camera, Tent, Pizza, type LucideIcon,
+  Car, PartyPopper, MapPin, Camera, Tent, Pizza, Globe, type LucideIcon,
 } from 'lucide-react';
 
 /** One place that maps short keys to line icons, so the app never shows emoji in its UI. */
 const ICONS: Record<string, LucideIcon> = {
   all: Sparkles, nightlife: Music, music: Mic, arts: Palette, food: Utensils, sports: Dumbbell,
-  tech: Briefcase, community: Users, learn: BookOpen, cinema: Clapperboard,
+  tech: Briefcase, community: Users, learn: BookOpen, cinema: Clapperboard, online: Globe,
   dining: Utensils, cafe: Coffee, bar: Wine, date: Heart, nature: TreePine, creative: Palette,
   gaming: Gamepad2, action: Trophy, hotel: Hotel, vacation: Sun,
   folder: Folder, cake: Cake, gift: Gift, shopping: ShoppingBag, car: Car, party: PartyPopper,

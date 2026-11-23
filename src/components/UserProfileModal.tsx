@@ -3,8 +3,6 @@ import { track } from '../lib/tracking';
 import {
   X,
   ChevronLeft,
-  PartyPopper,
-  Camera,
   Heart,
   MessageSquare,
   MapPin,
@@ -18,7 +16,7 @@ import {
   BellOff,
 } from 'lucide-react';
 import { ReportUserModal } from './ReportUserModal';
-import { UserProfile } from '../types';
+import { UserProfile, SpotItem, EventItem } from '../types';
 import { VerifiedBadge } from './VerifiedBadge';
 import { PublicTierBadges } from './BusinessBadge';
 import { usePublicTiers } from '../lib/subscriptions';
@@ -26,13 +24,14 @@ import { fetchMyBroadcastSubscriptions, setBroadcastSubscription } from '../lib/
 import { listHostVideos, type HostVideo } from '../lib/hostVideos';
 import { toHandle } from '../lib/cloudSync';
 import { fetchProfileLook, themeColor, DEFAULT_THEME, type ProfileLook } from '../lib/profileLook';
-import { fetchMilestones, MILESTONE_META, type MilestoneKind, type MilestoneData } from '../lib/milestones';
 import {
   AvatarHero,
   Section,
   useOwnProfile,
 } from './ProfileSettingsKit';
 import { UserHangouts } from './UserHangouts';
+import { CategoryIcon } from './CategoryIcon';
+import { fetchPublicCollections, type PublicUserCollections } from '../lib/publicCollections';
 import type { ToastOptions } from './Toast.tsx';
 
 interface ProfessionalStats {
@@ -64,10 +63,15 @@ interface UserProfileModalProps {
   /** Optional numbers from the app. Used only when the server has none. */
   professionalStats?: ProfessionalStats;
   onOpenAuth?: () => void;
-  /** Hangout actions: RADA spots, saved state, save and plan handlers (all by spot id). */
-  spots?: { id: number | string }[];
+  /** Hangout & Collection actions: RADA spots/events, saved state, save and plan handlers. */
+  spots?: SpotItem[];
+  events?: EventItem[];
   isSpotSaved?: (spotId: string) => boolean;
   onSaveSpot?: (spotId: string) => void;
+  onOpenSpot?: (spot: SpotItem) => void;
+  onOpenEvent?: (event: EventItem) => void;
+  onToggleSaveItem?: (item: any, kind: 'spot' | 'event' | 'offer') => void;
+  isItemSaved?: (id: string | number, kind: string) => boolean;
   onPlanDateAtSpot?: (spotId: string, withUserId: string) => void;
 }
 
@@ -117,8 +121,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   professionalStats,
   onOpenAuth,
   spots = [],
+  events = [],
   isSpotSaved,
   onSaveSpot,
+  onOpenSpot,
+  onOpenEvent,
+  onToggleSaveItem,
+  isItemSaved,
   onPlanDateAtSpot,
 }) => {
   const requireLogin = () => {
@@ -178,16 +187,18 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     }
   };
 
-  // Their public look (colour theme + tags) and milestone badges
+  // Their public look (colour theme + tags) and public saved collections
   const [look, setLook] = React.useState<ProfileLook | null>(null);
-  const [mData, setMData] = React.useState<MilestoneData | null>(null);
+  const [collections, setCollections] = React.useState<PublicUserCollections | null>(null);
+  const [activeColFolder, setActiveColFolder] = React.useState<string>('all');
   React.useEffect(() => {
     let off = false;
     setLook(null);
-    setMData(null);
+    setCollections(null);
+    setActiveColFolder('all');
     if (!viewedId) return;
     fetchProfileLook(viewedId).then((l) => { if (!off) setLook(l); });
-    fetchMilestones(viewedId).then((d) => { if (!off) setMData(d); }).catch(() => {});
+    fetchPublicCollections(viewedId).then((c) => { if (!off) setCollections(c); });
     return () => { off = true; };
   }, [viewedId]);
 
@@ -324,16 +335,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   const accent = themeColor(look?.theme || DEFAULT_THEME);
   const tags = look?.tags ?? [];
-  const thresholds = mData?.thresholds ?? [];
-  const KIND_COLOR: Record<MilestoneKind, string> = { outings: '#F9D6CE', spots: '#D9EFE3', photo_reviews: '#E4DAF7' };
-  const KIND_ICON: Record<string, React.ComponentType<{ className?: string }>> = { party: PartyPopper, pin: MapPin, camera: Camera };
-  const badges = (['outings', 'spots', 'photo_reviews'] as MilestoneKind[]).map((kind) => {
-    const meta = MILESTONE_META[kind];
-    const count = mData?.counts?.[kind] ?? 0;
-    const level = Math.min(meta.names.length, thresholds.filter((t) => count >= t).length);
-    return { kind, meta, count, level, name: level > 0 ? meta.names[level - 1] : null };
-  });
-  const hasAnyBadge = badges.some((b) => b.level > 0);
   const initial = String(handle || 'R').replace(/^@/, '').charAt(0).toUpperCase() || 'R';
 
   return (
@@ -421,27 +422,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           ))}
         </div>
 
-        {/* Milestones */}
-        {hasAnyBadge && (
-          <div className="mt-5 flex gap-4 overflow-x-auto hide-scrollbar px-4 pb-1">
-            {badges.filter((b) => b.level > 0).map((b) => {
-              const Icon = KIND_ICON[b.meta.icon] || PartyPopper;
-              return (
-                <div key={b.kind} className="shrink-0 w-[96px] flex flex-col items-center gap-1.5">
-                  <span className="relative w-[84px] h-[84px] rounded-full flex items-center justify-center" style={{ background: KIND_COLOR[b.kind] }}>
-                    <Icon className="w-9 h-9 text-slate-800" />
-                    <span className="absolute -bottom-0.5 -right-0.5 min-w-6 h-6 px-1.5 rounded-full text-white text-[11px] font-black shadow flex items-center justify-center" style={{ background: accent }}>
-                      {b.level}
-                    </span>
-                  </span>
-                  <span className="text-[12px] font-bold leading-tight text-center line-clamp-2">{b.name}</span>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 -mt-1">{b.meta.title}</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
         {viewedId && (
           <UserHangouts
             viewedId={viewedId}
@@ -456,6 +436,124 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             showToast={showToast}
             onNeedLogin={requireLogin}
           />
+        )}
+
+        {/* Public Saved Collections */}
+        {collections && collections.items.length > 0 && (
+          <div className="px-4 mt-5 space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <h4 className="text-[12px] font-black text-slate-500 flex items-center gap-1.5">
+                <Bookmark className="w-3.5 h-3.5" style={{ color: accent }} />
+                <span>Saved Collections ({collections.items.length})</span>
+              </h4>
+              <span className="text-[10px] font-semibold text-slate-400">Public picks</span>
+            </div>
+
+            {collections.folders.length > 0 && (
+              <div className="flex gap-1.5 overflow-x-auto hide-scrollbar pb-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveColFolder('all')}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 cursor-pointer ${
+                    activeColFolder === 'all'
+                      ? 'text-white'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                  }`}
+                  style={activeColFolder === 'all' ? { background: accent } : undefined}
+                >
+                  All
+                </button>
+                {collections.folders.map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setActiveColFolder(f.id)}
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 cursor-pointer flex items-center gap-1 ${
+                      activeColFolder === f.id
+                        ? 'text-white'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                    }`}
+                    style={activeColFolder === f.id ? { background: accent } : undefined}
+                  >
+                    <CategoryIcon name={f.emoji} className="w-3 h-3" />
+                    <span>{f.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2.5 overflow-x-auto hide-scrollbar pb-1">
+              {collections.items
+                .filter((it) => activeColFolder === 'all' || it.folderId === activeColFolder)
+                .map((it) => {
+                  const matchedSpot =
+                    it.kind === 'spot' ? spots.find((s) => String(s.id) === String(it.id)) : undefined;
+                  const matchedEvent =
+                    it.kind === 'event' ? events.find((e) => String(e.id) === String(it.id)) : undefined;
+                  const savedByMe = isItemSaved
+                    ? isItemSaved(it.id, it.kind)
+                    : it.kind === 'spot' && Boolean(isSpotSaved?.(String(it.id)));
+                  const folder = collections.folders.find((f) => f.id === it.folderId);
+
+                  return (
+                    <div
+                      key={`${it.kind}-${it.id}`}
+                      onClick={() => {
+                        if (matchedSpot && onOpenSpot) {
+                          onClose();
+                          onOpenSpot(matchedSpot);
+                        } else if (matchedEvent && onOpenEvent) {
+                          onClose();
+                          onOpenEvent(matchedEvent);
+                        } else {
+                          showToast(`${it.title} — ${it.subtitle}`);
+                        }
+                      }}
+                      className="w-44 shrink-0 rounded-2xl p-2 bg-slate-50 dark:bg-[#1C1A1E] border border-slate-200/80 dark:border-slate-800 hover:border-[#E0533C] transition cursor-pointer flex flex-col justify-between gap-1.5"
+                    >
+                      <div>
+                        <div
+                          className="h-24 rounded-xl bg-slate-200 dark:bg-slate-800 bg-cover bg-center relative overflow-hidden mb-1.5"
+                          style={it.image ? { backgroundImage: `url('${it.image}')` } : undefined}
+                        >
+                          <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-full bg-black/65 text-white text-[8px] font-black uppercase">
+                            {it.kind}
+                          </span>
+                          {(onToggleSaveItem || (it.kind === 'spot' && onSaveSpot)) && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (onToggleSaveItem && (matchedSpot || matchedEvent)) {
+                                  onToggleSaveItem(matchedSpot || matchedEvent, it.kind === 'event' ? 'event' : 'spot');
+                                  showToast(savedByMe ? 'Removed from your Saved' : `Saved "${it.title}" to your collection!`);
+                                } else if (it.kind === 'spot' && onSaveSpot) {
+                                  onSaveSpot(String(it.id));
+                                }
+                              }}
+                              className={`absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center transition cursor-pointer ${
+                                savedByMe ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
+                              }`}
+                              title={savedByMe ? 'In your collection' : 'Save to your collection'}
+                            >
+                              <Bookmark className={`w-3 h-3 ${savedByMe ? 'fill-white' : ''}`} />
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-xs font-black text-slate-900 dark:text-slate-100 line-clamp-1">{it.title}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{it.subtitle}</p>
+                      </div>
+                      {folder && (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full w-fit bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700">
+                          <CategoryIcon name={folder.emoji} className="w-2.5 h-2.5" />
+                          <span className="truncate">{folder.name}</span>
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
         )}
 
         <div className="px-4 mt-5 space-y-3.5">

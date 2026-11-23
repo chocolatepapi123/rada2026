@@ -260,7 +260,8 @@ export function buildShowcaseMovies(): CinemaMovie[] {
 // ───────────────────────── events & tickets ─────────────────────────
 interface EvSpec {
   slug: string; title: string; cat: string; genre: string; venue: string; host: string;
-  lat: number; lng: number; day: number; hour: number; durH: number;
+  lat?: number; lng?: number; day: number; hour: number; durH: number;
+  isOnline?: boolean; platform?: string; meetingUrl?: string;
   tiers: { name: string; price: number; left?: number; status?: string; note?: string }[];
   desc: string; going: number; colors: [string, string, string]; tag: string; tags: string[];
 }
@@ -274,6 +275,14 @@ const EVENTS: EvSpec[] = [
     colors: ['#3B1C5A', '#E0533C', '#FFC857'], tag: 'Nightlife', tags: ['rooftop', 'amapiano'],
   },
   {
+    slug: 'afrohouse-livestream', title: 'RADA Frequencies: Live DJ Set', cat: 'online', genre: 'Online · Music', venue: 'Online · YouTube Live', host: 'RADA Sounds',
+    isOnline: true, platform: 'YouTube Live', meetingUrl: 'https://www.youtube.com/live',
+    day: 1, hour: 20, durH: 3,
+    tiers: [{ name: 'Free Stream RSVP', price: 0, left: 500 }, { name: 'Backstage Chat Pass', price: 300, left: 80 }],
+    desc: 'Two Nairobi selectors spinning Afrohouse, Amapiano and soulful edits live from a Westlands studio. Tune in from anywhere.', going: 184,
+    colors: ['#101828', '#E0533C', '#38BDF8'], tag: 'Online Live', tags: ['online', 'livestream', 'music'],
+  },
+  {
     slug: 'jazz-in-the-park', title: 'Jazz in the Park', cat: 'concerts', genre: 'Live Music', venue: 'Karura Forest Picnic Lawn', host: 'Nairobi Jazz Society',
     lat: -1.2406, lng: 36.8352, day: 3, hour: 14, durH: 6,
     tiers: [{ name: 'General', price: 1500, left: 300 }, { name: 'Family Pack (4)', price: 4800, left: 40 }, { name: 'Under 12', price: 0, left: 100 }],
@@ -281,11 +290,27 @@ const EVENTS: EvSpec[] = [
     colors: ['#0F3D2E', '#2D6A4F', '#F4D35E'], tag: 'Live Music', tags: ['jazz', 'family'],
   },
   {
+    slug: 'founders-ama-online', title: 'Nairobi Builders Virtual AMA & Demo Hour', cat: 'online', genre: 'Online · Tech', venue: 'Online · Zoom', host: 'Nairobi Builders',
+    isOnline: true, platform: 'Zoom', meetingUrl: 'https://zoom.us',
+    day: 2, hour: 19, durH: 2,
+    tiers: [{ name: 'Free Entry', price: 0, left: 250 }],
+    desc: 'Rapid-fire product demos, honest founder Q&A and remote networking breakout rooms for East African builders.', going: 129,
+    colors: ['#0B1D3A', '#1B6CA8', '#7CF5C6'], tag: 'Online · Zoom', tags: ['online', 'tech', 'startups'],
+  },
+  {
     slug: 'nairobi-ai-night', title: 'Nairobi AI & Startup Night', cat: 'business', genre: 'Tech', venue: 'iHub, Ngong Road', host: 'Nairobi Builders',
     lat: -1.2995, lng: 36.7870, day: 2, hour: 18, durH: 4,
     tiers: [{ name: 'Community', price: 0, left: 80 }, { name: 'Founder Pass', price: 1000, left: 25, note: 'Includes dinner and investor mixer' }],
     desc: 'Demos, lightning talks and networking with founders, engineers and investors building in Kenya.', going: 163,
     colors: ['#0B1D3A', '#1B6CA8', '#7CF5C6'], tag: 'Tech', tags: ['startups', 'ai'],
+  },
+  {
+    slug: 'virtual-sip-sketch', title: 'Sunday Evening Sip & Sketch (Online)', cat: 'online', genre: 'Online · Creative', venue: 'Online · Google Meet', host: 'Kilimani Sketch Club',
+    isOnline: true, platform: 'Google Meet', meetingUrl: 'https://meet.google.com',
+    day: 4, hour: 17, durH: 2,
+    tiers: [{ name: 'Free RSVP', price: 0, left: 100 }, { name: 'Art Kit Delivery (Nairobi)', price: 1200, left: 20 }],
+    desc: 'Grab your sketchbook and a warm mug. Guided figure & cityscape sketching session from the comfort of home.', going: 74,
+    colors: ['#311B47', '#C05621', '#FBD38D'], tag: 'Online · Creative', tags: ['online', 'art', 'workshop'],
   },
   {
     slug: 'comedy-night', title: 'Laugh Factory: Stand-up Night', cat: 'art', genre: 'Comedy', venue: 'Alliance Française, Loita St', host: 'Laugh Factory KE',
@@ -331,7 +356,7 @@ function eventRow(e: EvSpec): ExternalEventRow {
   return {
     id: `showcase-ev-${e.slug}`,
     source: 'rada',
-    source_url: 'https://rada2026-omega.vercel.app',
+    source_url: e.meetingUrl || 'https://rada2026-omega.vercel.app',
     title: e.title,
     category: e.genre,
     rada_category: e.cat,
@@ -347,8 +372,8 @@ function eventRow(e: EvSpec): ExternalEventRow {
     tiers: e.tiers.map(t => ({ name: t.name, price: t.price, status: t.status || 'available', left: t.left, note: t.note })),
     description: e.desc,
     address: e.venue,
-    lat: e.lat,
-    lng: e.lng,
+    lat: typeof e.lat === 'number' ? e.lat : null,
+    lng: typeof e.lng === 'number' ? e.lng : null,
     gallery: null,
     tags: e.tags,
     place_id: null,
@@ -356,8 +381,13 @@ function eventRow(e: EvSpec): ExternalEventRow {
 }
 
 export function buildShowcaseEvents(): EventItem[] {
-  return EVENTS.map(e => ({ ...mapExternalRow(eventRow(e)), goingCount: e.going }))
-    .sort((a, b) => String(a.startAt).localeCompare(String(b.startAt)));
+  return EVENTS.map(e => ({
+    ...mapExternalRow(eventRow(e)),
+    goingCount: e.going,
+    isOnline: Boolean(e.isOnline),
+    platform: e.platform,
+    meetingUrl: e.meetingUrl,
+  })).sort((a, b) => String(a.startAt).localeCompare(String(b.startAt)));
 }
 
 /** Tickets that show up in "My Tickets" (valid, with QR codes, plus one already used). */

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, Play, MapPin, Calendar, Users, CalendarHeart, Bookmark, BookmarkCheck, Hand, Loader2 } from 'lucide-react';
 import { Hangout, listHangouts, toggleJoinNext, myJoinedHangoutIds } from '../lib/hangouts';
+import { getTimeAgoNostalgia } from '../lib/memories';
 import { getCachedBlockedIds, onBlockedChanged, fetchBlockedIds } from '../lib/safety';
 
 interface Props {
@@ -83,6 +84,11 @@ export const UserHangouts: React.FC<Props> = ({
                 ? <video src={first.url + '#t=0.1'} muted playsInline preload="metadata" className="w-full h-full object-cover" />
                 : <img src={first.url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />)}
               {first?.kind === 'video' && <Play className="absolute top-1.5 right-1.5 w-4 h-4 text-white drop-shadow" fill="white" />}
+              {h.happenedOn && (
+                <span className="absolute bottom-1.5 left-1.5 text-[9px] font-black text-amber-100 bg-black/60 backdrop-blur-xs rounded-full px-1.5 py-0.5">
+                  {getTimeAgoNostalgia(h.happenedOn)}
+                </span>
+              )}
               {h.media.length > 1 && <span className="absolute bottom-1.5 right-1.5 text-[10px] font-black text-white bg-black/50 rounded-full px-1.5 py-0.5">{h.media.length}</span>}
             </button>
           );
@@ -114,7 +120,10 @@ export const UserHangouts: React.FC<Props> = ({
                   <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800"><MapPin className="w-3.5 h-3.5" style={{ color: accent }} />{[open.spotTitle, open.area].filter(Boolean).join(' · ')}</span>
                 )}
                 {open.happenedOn && (
-                  <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800"><Calendar className="w-3.5 h-3.5" style={{ color: accent }} />{prettyDate(open.happenedOn)}</span>
+                  <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-800 dark:text-amber-300">
+                    <Calendar className="w-3.5 h-3.5" style={{ color: accent }} />
+                    {prettyDate(open.happenedOn)} · {getTimeAgoNostalgia(open.happenedOn)}
+                  </span>
                 )}
               </div>
 

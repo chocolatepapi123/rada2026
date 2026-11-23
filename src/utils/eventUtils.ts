@@ -120,14 +120,26 @@ function mapTiers(raw: any, fallbackCurrency: string): TicketTier[] {
 /** Maps the scraped category onto the legacy EventItem category union used by older components. */
 const TECH_RE = /\b(tech|gaming|game|gamer|esports?|hackathon|developer|startup|ai|coding|code|robotics|fintech|blockchain|web3)\b/i;
 
+const ONLINE_TEXT_RE = /\b(online|virtual|zoom|google meet|livestream|live stream|webinar|twitch|discord stage|youtube live|teams meeting)\b/i;
+
+export function isOnlineEvent(e?: Partial<EventItem> | null): boolean {
+  if (!e) return false;
+  if (e.isOnline) return true;
+  if (e.category === 'online') return true;
+  if ((e.radaCategory || '').toLowerCase() === 'online') return true;
+  if (e.meetingUrl) return true;
+  const hay = `${e.location || ''} ${e.platform || ''} ${e.address || ''}`;
+  return ONLINE_TEXT_RE.test(hay);
+}
+
 function legacyCategory(radaCategory: string | null, title: string): EventItem['category'] {
   switch ((radaCategory || '').toLowerCase()) {
     case 'nightlife': return 'nightlife';
     case 'concerts': return 'concerts';
     case 'sports': return 'sports';
     case 'cinemas': return 'cinemas';
-    case 'business':
-    case 'online': return 'tech';
+    case 'online': return 'online';
+    case 'business': return 'tech';
     default:
       return TECH_RE.test(title) ? 'tech' : 'art';
   }
@@ -344,10 +356,11 @@ export function compareByStart(a: EventItem, b: EventItem): number {
 /* ------------------------------------------------------------------ */
 
 export type EventCategoryFilter =
-  | 'all' | 'nightlife' | 'music' | 'arts' | 'food' | 'sports' | 'tech' | 'community' | 'learn' | 'cinema';
+  | 'all' | 'online' | 'nightlife' | 'music' | 'arts' | 'food' | 'sports' | 'tech' | 'community' | 'learn' | 'cinema';
 
 export const EVENT_CATEGORY_FILTERS: { id: EventCategoryFilter; label: string; icon: string }[] = [
   { id: 'all', label: 'All', icon: 'all' },
+  { id: 'online', label: 'Online Events', icon: 'online' },
   { id: 'nightlife', label: 'Parties & Nightlife', icon: 'nightlife' },
   { id: 'music', label: 'Live Music', icon: 'music' },
   { id: 'arts', label: 'Arts & Culture', icon: 'arts' },
@@ -361,9 +374,10 @@ export const EVENT_CATEGORY_FILTERS: { id: EventCategoryFilter; label: string; i
 
 export function eventMatchesCategory(e: EventItem, f: string): boolean {
   if (f === 'all') return true;
+  if (f === 'online') return isOnlineEvent(e);
   const rc = (e.radaCategory || '').toLowerCase();
   if (!rc) {
-    // merchant-created events only have the legacy category
+    // merchant- or user-created events only have the legacy category
     switch (f) {
       case 'nightlife': return e.category === 'nightlife';
       case 'music': return e.category === 'concerts';
@@ -381,7 +395,7 @@ export function eventMatchesCategory(e: EventItem, f: string): boolean {
     case 'arts': return rc === 'arts' || rc === 'fashion';
     case 'food': return rc === 'food';
     case 'sports': return rc === 'sports';
-    case 'tech': return rc === 'business' || rc === 'online' || (isTech && rc !== 'nightlife' && rc !== 'concerts');
+    case 'tech': return rc === 'business' || (isTech && rc !== 'nightlife' && rc !== 'concerts');
     case 'community': return ['community', 'faith', 'family', 'charity', 'outdoors'].includes(rc);
     case 'learn': return rc === 'education';
     case 'cinema': return rc === 'cinemas';
@@ -393,7 +407,8 @@ export function eventMatchesSearch(e: EventItem, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
   const hay = [
-    e.title, e.location, e.address, e.host, e.genre, e.description, e.date,
+    e.title, e.location, e.address, e.host, e.genre, e.description, e.date, e.platform,
+    isOnlineEvent(e) ? 'online virtual livestream remote' : '',
     ...(e.tags || []),
     ...(e.tiers || []).map(t => t.name),
     ...(e.artists || []).map(a => a.name)
@@ -494,6 +509,7 @@ function readGeoCache(): Record<string, { lat: number; lng: number } | null> {
 /** Resolves coordinates: stored lat/lng first, then a cached/OpenStreetMap lookup of the venue. */
 export async function resolveEventCoords(e: EventItem): Promise<{ lat: number; lng: number } | null> {
   if (hasEventCoords(e)) return { lat: e.lat, lng: e.lng };
+  if (isOnlineEvent(e)) return null;
   const query = eventVenueQuery(e);
   const cache = readGeoCache();
   if (query in cache) return cache[query];

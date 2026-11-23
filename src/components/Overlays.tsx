@@ -46,7 +46,9 @@ import {
   Instagram,
   Phone,
   Building2,
-  Gamepad2
+  Gamepad2,
+  Video,
+  Copy
 } from 'lucide-react';
 import { 
   SpotItem, 
@@ -67,7 +69,7 @@ import { CinemaExplorer } from './CinemaExplorer.tsx';
 import { SpotsExplorer } from './SpotsExplorer.tsx';
 import { useLocationPreference } from '../lib/geo.ts';
 import { pickTrendingSpots } from '../lib/trendingSpots.ts';
-import { getSourceLabel } from '../utils/eventUtils.ts';
+import { getSourceLabel, isOnlineEvent } from '../utils/eventUtils.ts';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 import { AdminConfirmModal } from './AdminConfirmModal.tsx';
 import { ClaimOfferButton, ReviewReplyBlock } from './RetentionBits';
@@ -98,6 +100,7 @@ interface OverlaysProps {
   onToggleGoing: (event: EventItem) => void;
   goingEventIds: Array<number | string>;
   onBuyEventTicket: (event: EventItem) => void;
+  onOpenCreateEvent?: () => void;
   /** People I chat with, for "Go with someone". */
   planFriends?: { handle: string }[];
   onPlanWithFriends?: (event: EventItem, opts: { handles: string[]; meetTime: string; splitBill: boolean }) => Promise<string | null>;
@@ -181,6 +184,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
   onToggleGoing,
   goingEventIds,
   onBuyEventTicket,
+  onOpenCreateEvent,
   planFriends = [],
   onPlanWithFriends,
   currentUserProfile,
@@ -1347,13 +1351,24 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   {selectedEvent.genre}
                 </div>
               )}
+              {isOnlineEvent(selectedEvent) && (
+                <div className="absolute bottom-3 right-3 bg-sky-600/95 text-white text-[10px] font-black px-3 py-1 rounded-full shadow flex items-center gap-1">
+                  <Globe className="w-3 h-3" />
+                  <span>Online Event</span>
+                </div>
+              )}
             </div>
 
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-xl font-black text-slate-900 dark:text-slate-100">
                   {selectedEvent.title}
                 </h2>
+                {selectedEvent.isUserCreated && (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[10px] font-black">
+                    Community Event
+                  </span>
+                )}
               </div>
               
               {/* When: same look as the place row below. Tap to see the date in the calendar. */}
@@ -1379,7 +1394,11 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
               <div className="flex items-start justify-between gap-2 pt-1">
                 <p className="text-xs text-slate-500 flex items-start gap-1 min-w-0">
-                  <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  {isOnlineEvent(selectedEvent) ? (
+                    <Globe className="w-3.5 h-3.5 mt-0.5 shrink-0 text-sky-500" />
+                  ) : (
+                    <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  )}
                   <span className="min-w-0">
                     <span className="block font-semibold text-slate-700 dark:text-slate-300">{selectedEvent.location}</span>
                     {selectedEvent.address && selectedEvent.address !== selectedEvent.location && (
@@ -1387,7 +1406,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     )}
                   </span>
                 </p>
-                {onOpenEventMap && (
+                {onOpenEventMap && !isOnlineEvent(selectedEvent) && (
                   <button
                     type="button"
                     onClick={() => onOpenEventMap(selectedEvent)}
@@ -1415,29 +1434,73 @@ export const Overlays: React.FC<OverlaysProps> = ({
               )}
             </div>
 
-            {/* Ride to Event */}
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => {
-                  showToast(`Opening Uber to ${selectedEvent.title}...`);
-                  window.open(`https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${encodeURIComponent(selectedEvent.address || selectedEvent.location)}`, '_blank');
-                }}
-                className="py-2.5 bg-black text-white hover:bg-slate-800 font-black rounded-2xl shadow-md transition flex items-center justify-center gap-2"
-              >
-                <Car className="w-4 h-4" />
-                <span>Uber to Event</span>
-              </button>
-              <button
-                onClick={() => {
-                  showToast(`Opening Bolt to ${selectedEvent.title}...`);
-                  window.open('https://bolt.eu/', '_blank');
-                }}
-                className="py-2.5 bg-emerald-600 text-white hover:bg-emerald-700 font-black rounded-2xl shadow-md transition flex items-center justify-center gap-2"
-              >
-                <Car className="w-4 h-4" />
-                <span>Bolt to Event</span>
-              </button>
-            </div>
+            {/* Online Event Access OR Ride to Event */}
+            {isOnlineEvent(selectedEvent) ? (
+              <div className="p-3.5 rounded-2xl bg-sky-50 dark:bg-sky-950/35 border border-sky-200 dark:border-sky-800/60 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center shrink-0">
+                      <Video className="w-4 h-4" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-black text-sky-900 dark:text-sky-100 truncate">
+                        {selectedEvent.platform ? `Live on ${selectedEvent.platform}` : 'Online Stream / Virtual Room'}
+                      </p>
+                      <p className="text-[11px] text-sky-700/80 dark:text-sky-300/80 truncate">
+                        {selectedEvent.meetingUrl || selectedEvent.url || 'Join from anywhere'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                {(selectedEvent.meetingUrl || selectedEvent.url) && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <a
+                      href={selectedEvent.meetingUrl || selectedEvent.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-xs transition"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Open Stream Link</span>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard?.writeText?.(selectedEvent.meetingUrl || selectedEvent.url);
+                        showToast('Stream / meeting link copied!');
+                      }}
+                      className="py-2.5 bg-white dark:bg-[#1C1A1E] text-slate-800 dark:text-slate-200 border border-sky-200 dark:border-sky-800 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer hover:bg-sky-100/60 transition"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copy Link</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => {
+                    showToast(`Opening Uber to ${selectedEvent.title}...`);
+                    window.open(`https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${encodeURIComponent(selectedEvent.address || selectedEvent.location)}`, '_blank');
+                  }}
+                  className="py-2.5 bg-black text-white hover:bg-slate-800 font-black rounded-2xl shadow-md transition flex items-center justify-center gap-2"
+                >
+                  <Car className="w-4 h-4" />
+                  <span>Uber to Event</span>
+                </button>
+                <button
+                  onClick={() => {
+                    showToast(`Opening Bolt to ${selectedEvent.title}...`);
+                    window.open('https://bolt.eu/', '_blank');
+                  }}
+                  className="py-2.5 bg-emerald-600 text-white hover:bg-emerald-700 font-black rounded-2xl shadow-md transition flex items-center justify-center gap-2"
+                >
+                  <Car className="w-4 h-4" />
+                  <span>Bolt to Event</span>
+                </button>
+              </div>
+            )}
 
             {/* Performing Artists Lineup */}
             {selectedEvent.artists && selectedEvent.artists.length > 0 && (
@@ -1498,16 +1561,18 @@ export const Overlays: React.FC<OverlaysProps> = ({
             )}
 
             <div className="pt-2 flex flex-col gap-2">
-              <div className="flex justify-start empty:hidden">
-                <WeatherChip
-                  variant="quiet"
-                  prefix="Forecast"
-                  date={selectedEvent.startAt || selectedEvent.date}
-                  at={selectedEvent.time ? selectedEvent.startAt : undefined}
-                  lat={selectedEvent.lat}
-                  lng={selectedEvent.lng}
-                />
-              </div>
+              {!isOnlineEvent(selectedEvent) && (
+                <div className="flex justify-start empty:hidden">
+                  <WeatherChip
+                    variant="quiet"
+                    prefix="Forecast"
+                    date={selectedEvent.startAt || selectedEvent.date}
+                    at={selectedEvent.time ? selectedEvent.startAt : undefined}
+                    lat={selectedEvent.lat}
+                    lng={selectedEvent.lng}
+                  />
+                </div>
+              )}
               <div className="flex gap-2">
                 <button
                   onClick={() => onToggleGoing(selectedEvent)}
@@ -1524,7 +1589,13 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   onClick={() => onBuyEventTicket(selectedEvent)}
                   className="flex-1 py-3 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-2xl shadow-md transition text-xs flex items-center justify-center gap-1.5"
                 >
-                  <span>{selectedEvent.source ? `Get Tickets on ${getSourceLabel(selectedEvent.source)}` : 'Get Primary Ticket'}</span>
+                  <span>
+                    {isOnlineEvent(selectedEvent)
+                      ? 'Join / Get Access'
+                      : selectedEvent.source
+                      ? `Get Tickets on ${getSourceLabel(selectedEvent.source)}`
+                      : 'Get Primary Ticket'}
+                  </span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -2226,6 +2297,10 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   events={events}
                   savedItems={savedItems}
                   onToggleSave={onToggleSave}
+                  onOpenCreateEvent={() => {
+                    onCloseViewAll();
+                    onOpenCreateEvent?.();
+                  }}
                   onOpenEvent={(evt) => {
                     onCloseViewAll();
                     if (onOpenEventDetails) onOpenEventDetails(evt);

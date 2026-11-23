@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { CategoryIcon } from './CategoryIcon';
-import { Search, X, Clock, MapPin, Bookmark, Calendar, Ticket, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
+import { Search, X, Clock, MapPin, Bookmark, Calendar, Ticket, SlidersHorizontal, ArrowUpDown, Globe, Plus } from 'lucide-react';
 import { EventItem, SavedItem } from '../types.ts';
 import {
   EVENT_CATEGORY_FILTERS,
@@ -10,6 +10,7 @@ import {
   filterEvents,
   getEventPriceLabel,
   isHappeningToday,
+  isOnlineEvent,
   sortEvents,
   type EventSort
 } from '../utils/eventUtils.ts';
@@ -18,6 +19,7 @@ import { pinFeaturedEvents } from '../lib/featuredEvents.ts';
 interface EventsExplorerProps {
   events: EventItem[];
   onOpenEvent: (event: EventItem) => void;
+  onOpenCreateEvent?: () => void;
   savedItems?: SavedItem[];
   onToggleSave?: (item: any, kind: 'event') => void;
   initialCategory?: string;
@@ -28,6 +30,7 @@ const PAGE_SIZE = 20;
 export const EventsExplorer: React.FC<EventsExplorerProps> = ({
   events,
   onOpenEvent,
+  onOpenCreateEvent,
   savedItems = [],
   onToggleSave,
   initialCategory = 'all'
@@ -99,7 +102,7 @@ export const EventsExplorer: React.FC<EventsExplorerProps> = ({
         ))}
       </div>
 
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <button type="button" onClick={() => setShowFilters(v => !v)}
           className={`px-3 py-1.5 rounded-xl text-[11px] font-black flex items-center gap-1.5 border transition cursor-pointer ${
             showFilters || price !== 'all' || date !== 'all' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-transparent' : 'bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800'
@@ -107,11 +110,20 @@ export const EventsExplorer: React.FC<EventsExplorerProps> = ({
           <SlidersHorizontal className="w-3.5 h-3.5" />
           <span>Date & Price{price !== 'all' || date !== 'all' ? ` (${(price !== 'all' ? 1 : 0) + (date !== 'all' ? 1 : 0)})` : ''}</span>
         </button>
-        <button type="button" onClick={() => setSortBy(s => (s === 'smart' ? 'date' : s === 'date' ? 'price' : 'smart'))}
-          className="px-3 py-1.5 rounded-xl text-[11px] font-black flex items-center gap-1.5 border bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-pointer" title="Change sort order">
-          <ArrowUpDown className="w-3.5 h-3.5" />
-          <span>{sortBy === 'smart' ? 'Relevance' : sortBy === 'date' ? 'Soonest first' : 'Cheapest first'}</span>
-        </button>
+        <div className="flex items-center gap-1.5">
+          {onOpenCreateEvent && (
+            <button type="button" onClick={onOpenCreateEvent}
+              className="px-3 py-1.5 rounded-xl text-[11px] font-black flex items-center gap-1 bg-[#E0533C] text-white hover:bg-orange-700 shadow-xs transition cursor-pointer">
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Event</span>
+            </button>
+          )}
+          <button type="button" onClick={() => setSortBy(s => (s === 'smart' ? 'date' : s === 'date' ? 'price' : 'smart'))}
+            className="px-3 py-1.5 rounded-xl text-[11px] font-black flex items-center gap-1.5 border bg-[#F8F8F6] dark:bg-[#1C1A1E] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-pointer" title="Change sort order">
+            <ArrowUpDown className="w-3.5 h-3.5" />
+            <span>{sortBy === 'smart' ? 'Relevance' : sortBy === 'date' ? 'Soonest first' : 'Cheapest first'}</span>
+          </button>
+        </div>
       </div>
 
       {showFilters && (
@@ -154,13 +166,22 @@ export const EventsExplorer: React.FC<EventsExplorerProps> = ({
             {results.slice(0, visible).map(evt => {
               const today = isHappeningToday(evt);
               const saved = isSaved(evt.id);
+              const online = isOnlineEvent(evt);
               return (
                 <div key={evt.id} onClick={() => onOpenEvent(evt)}
                   className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-2 flex flex-col justify-between shadow-xs cursor-pointer hover:border-[#E0533C] transition group min-w-0">
                   <div>
                     <div className="h-28 rounded-xl mb-2 bg-slate-200 dark:bg-slate-800 bg-cover bg-center relative overflow-hidden"
                       style={evt.img ? { backgroundImage: `url('${evt.img}')` } : undefined}>
-                      {today && <span className="absolute bottom-1.5 left-1.5 bg-emerald-600/90 text-white text-[8px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wide">Today</span>}
+                      <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1">
+                        {today && <span className="bg-emerald-600/90 text-white text-[8px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wide">Today</span>}
+                        {online && (
+                          <span className="bg-sky-600/90 text-white text-[8px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wide flex items-center gap-0.5">
+                            <Globe className="w-2.5 h-2.5" />
+                            <span>Online</span>
+                          </span>
+                        )}
+                      </div>
                       <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSave?.(evt, 'event'); }}
                         className={`absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs ${saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'}`}
                         title={saved ? 'Remove bookmark' : 'Bookmark this event'}>
@@ -170,7 +191,10 @@ export const EventsExplorer: React.FC<EventsExplorerProps> = ({
                     <div className="space-y-1">
                       <h4 className="font-black text-[13px] text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition line-clamp-2">{evt.title}</h4>
                       <p className="text-[10px] text-[#E0533C] font-semibold flex items-center gap-1"><Clock className="w-3 h-3 shrink-0" /><span className="truncate">{evt.date}{evt.time ? ` • ${evt.time}` : ''}</span></p>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1"><MapPin className="w-3 h-3 shrink-0" /><span className="truncate">{evt.location}</span></p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                        {online ? <Globe className="w-3 h-3 shrink-0 text-sky-500" /> : <MapPin className="w-3 h-3 shrink-0" />}
+                        <span className="truncate">{evt.location}</span>
+                      </p>
                     </div>
                   </div>
                   <div className="border-t border-slate-200 dark:border-slate-800/80 mt-2 pt-2">
@@ -190,9 +214,17 @@ export const EventsExplorer: React.FC<EventsExplorerProps> = ({
           <div className="w-10 h-10 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-[#E0533C] mx-auto flex items-center justify-center"><Calendar className="w-5 h-5" /></div>
           <div className="space-y-1">
             <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{events.length === 0 ? 'No events loaded yet' : 'No events match these filters'}</h4>
-            <p className="text-[11px] text-slate-500 max-w-xs mx-auto leading-relaxed">{events.length === 0 ? 'Pull the latest from the header refresh icon, or check your connection.' : 'Try a different date, price or category.'}</p>
+            <p className="text-[11px] text-slate-500 max-w-xs mx-auto leading-relaxed">{events.length === 0 ? 'Add your own event or check your connection.' : 'Try a different date, price or category.'}</p>
           </div>
-          {(activeFilterCount > 0 || query) && <button type="button" onClick={clearAll} className="px-4 py-2 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition cursor-pointer">Clear all filters</button>}
+          <div className="flex items-center justify-center gap-2">
+            {(activeFilterCount > 0 || query) && <button type="button" onClick={clearAll} className="px-4 py-2 bg-slate-900 dark:bg-white dark:text-slate-900 text-white font-black rounded-xl text-xs shadow-md transition cursor-pointer">Clear all filters</button>}
+            {onOpenCreateEvent && (
+              <button type="button" onClick={onOpenCreateEvent} className="px-4 py-2 bg-[#E0533C] hover:bg-orange-700 text-white font-black rounded-xl text-xs shadow-md transition inline-flex items-center gap-1.5 cursor-pointer">
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Event</span>
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

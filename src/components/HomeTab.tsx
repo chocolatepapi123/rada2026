@@ -51,12 +51,14 @@ import {
   Users,
   Ban,
   ShieldAlert,
-  AlertTriangle
+  AlertTriangle,
+  Globe
 } from 'lucide-react';
 import { EventItem, OutingPlan, CinemaMovie, StatusPost, UserProfile, BusinessOffer, OfferCategory, SpotItem, SavedItem, BusinessAccount, isOfficialAdmin } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
 import { EmojiPicker } from './EmojiPicker.tsx';
 import { WeatherChip } from './WeatherChip.tsx';
+import { MemoriesSection } from './MemoriesSection.tsx';
 import { searchSpots } from '../lib/searchTags.ts';
 import { recordInterest, categoriesForQuery, personalCategoryOrder } from '../lib/interests.ts';
 import { AdminConfirmModal, AdminActionType, AdminTargetAccount } from './AdminConfirmModal.tsx';
@@ -71,6 +73,7 @@ import {
   sortEvents,
   isHappeningToday,
   isUpcoming,
+  isOnlineEvent,
   matchesDateFilter,
   matchesPriceFilter,
   compareByStart
@@ -98,6 +101,7 @@ interface HomeTabProps {
   onViewUserProfile: (profile: UserProfile) => void;
   onOpenDedicatedViewAll: (title: string, category: string) => void;
   onOpenCreateEvent?: (initialTitle?: string) => void;
+  onOpenMemories?: () => void;
   onOpenSuggestSpot?: () => void;
   onOpenBusinessProfile?: (businessId: string) => void;
   showToast: (msg: string) => void;
@@ -131,6 +135,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   onViewUserProfile,
   onOpenDedicatedViewAll,
   onOpenCreateEvent,
+  onOpenMemories,
   onOpenSuggestSpot,
   onOpenBusinessProfile,
   showToast,
@@ -1559,6 +1564,16 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               <span>Featured Trending Events</span>
             </h2>
             <div className="flex items-center gap-2">
+              {onOpenCreateEvent && (
+                <button
+                  type="button"
+                  onClick={() => onOpenCreateEvent()}
+                  className="px-2.5 py-1 bg-[#E0533C]/10 hover:bg-[#E0533C]/20 text-[#E0533C] rounded-full text-[11px] font-black inline-flex items-center gap-1 transition cursor-pointer"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>Add Event</span>
+                </button>
+              )}
               {selectedEventCategory !== 'all' && (
                 <button
                   type="button"
@@ -1638,6 +1653,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
               {sortedEvents.slice(0, 12).map((evt) => {
                 const isToday = isHappeningToday(evt);
+                const online = isOnlineEvent(evt);
                 const priceDisplay = getEventPriceLabel(evt);
                 const badgeStyle = getCategoryBadgeStyle(evt.category, evt.genre);
 
@@ -1656,6 +1672,12 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         <span className="bg-black/60 text-white text-[9px] font-black px-2.5 py-1 rounded-md">
                           {evt.date.split(',')[0]}
                         </span>
+                        {online && (
+                          <span className="bg-sky-600/95 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs">
+                            <Globe className="w-2.5 h-2.5 shrink-0" />
+                            <span>Online</span>
+                          </span>
+                        )}
                         {isToday && (
                           <span className="bg-emerald-600/90 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs">
                             <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
@@ -1700,12 +1722,13 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                       <span>{evt.date} • {evt.time || 'Evening'}</span>
                     </p>
                     <p className="text-[10px] text-[#475569] dark:text-slate-300 mt-0.5 flex items-center gap-1">
-                      <MapPin className="w-3 h-3 shrink-0" />
+                      {online ? <Globe className="w-3 h-3 shrink-0 text-sky-600 dark:text-sky-400" /> : <MapPin className="w-3 h-3 shrink-0" />}
                       <span className="truncate">{evt.location}</span>
                     </p>
                   </div>
 
                   <div className="mt-3 pt-2 border-t border-slate-200 dark:border-slate-800">
+                  {!online && (
                   <div className="empty:hidden mb-2">
                     <WeatherChip
                       variant="quiet"
@@ -1716,6 +1739,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                       lng={evt.lng}
                     />
                   </div>
+                  )}
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold text-[#475569] dark:text-slate-300">
                       {evt.goingCount > 0 ? `${evt.goingCount} going` : (getSourceLabel(evt.source) ? `via ${getSourceLabel(evt.source)}` : '')}
@@ -1727,7 +1751,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                       }}
                       className="px-3 py-1.5 bg-[#E0533C] text-white rounded-xl text-xs font-bold shadow-xs hover:bg-orange-700 transition"
                     >
-                      Get Tickets
+                      {online ? 'Join / Access' : 'Get Tickets'}
                     </button>
                   </div>
                   </div>
@@ -2136,6 +2160,17 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           </>
         );
       })()}
+
+      {/* Nostalgic RADA Memories Strip */}
+      {selectedHomeSection === 'all' && !searchQuery.trim() && (
+        <MemoriesSection
+          userId={currentUserId || 'guest'}
+          spots={spots.map((s) => ({ id: s.id, title: s.title, neighborhood: s.neighborhood }))}
+          showToast={showToast}
+          compactHome
+          onOpenAllMemories={onOpenMemories}
+        />
+      )}
 
       {/* ========================================================
           5. LIVE COMMUNITY STATUS FEED - "Where Are You At?" (Last bottom)

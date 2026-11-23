@@ -41,6 +41,8 @@ import { buildDemoOutings } from './data/demoData.ts';
 import { buildDemoVaultTickets } from './data/demoVault.ts';
 import { useUnclaimedSpots, mergeSpots, evictUnclaimedSpot } from './lib/spotsFeed.ts';
 import { resolveNearestNeighborhood } from './lib/geo.ts';
+import { buildPublicCollectionSnapshot, publishMyPublicCollections } from './lib/publicCollections.ts';
+import type { ProfileTab } from './components/ProfilePage.tsx';
 
 // One-time removal of the old demo content cached on this device
 purgeSeedData();
@@ -164,6 +166,7 @@ const TicketBuySheet = lazyNamed(() => import('./components/TicketBuySheet.tsx')
 const MyTicketsSheet = lazyNamed(() => import('./components/MyTicketsSheet.tsx'), 'MyTicketsSheet');
 const SavedPlacesModal = lazyNamed(() => import('./components/SavedPlacesModal.tsx'), 'SavedPlacesModal');
 const SuggestSpotModal = lazyNamed(() => import('./components/SuggestSpotModal.tsx'), 'SuggestSpotModal');
+const CreateEventModal = lazyNamed(() => import('./components/CreateEventModal.tsx'), 'CreateEventModal');
 
 const TabFallback = () => {
   const [slow, setSlow] = useState(false);
@@ -314,6 +317,9 @@ export default function App() {
   const [userRole, setUserRole] = useState<'user' | 'merchant' | 'admin'>('user');
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isSuggestSpotModalOpen, setIsSuggestSpotModalOpen] = useState(false);
+  const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
+  const [createEventInitialTitle, setCreateEventInitialTitle] = useState('');
+  const [profileInitialTab, setProfileInitialTab] = useState<ProfileTab>('hangouts');
   const [suspensionReason, setSuspensionReason] = useState<string | null>(null);
   const syncRef = useRef<(() => void) | null>(null);
 
@@ -698,14 +704,22 @@ export default function App() {
     return initialSpots;
   });
 
-  // Events created by RADA merchants (rada_listings). Live ticketing events live in `externalEvents`.
+  // Events created by RADA users/merchants (rada_listings). Live ticketing events live in `externalEvents`.
   const [events, setEvents] = useState<EventItem[]>(() => {
     try { localStorage.removeItem('rada_events'); } catch (e) {} // old cache that still held the mock events
     const saved = localStorage.getItem('rada_events_v2');
+    const coverMap = readJSON<Record<string, string>>('rada_user_event_covers_v1', {});
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed.filter((e: any) => e && !e.source);
+        if (Array.isArray(parsed)) {
+          return parsed
+            .filter((e: any) => e && !e.source)
+            .map((e: any) => {
+              const savedCover = coverMap?.[String(e.id)];
+              return !e.img && savedCover ? { ...e, img: savedCover } : e;
+            });
+        }
       } catch (e) {}
     }
     return initialEvents;
@@ -1307,9 +1321,26 @@ export default function App() {
   }, [spots]);
 
   useEffect(() => {
-    // only merchant-created events are cached; live ticketing events always come from Supabase
+    // only user/merchant-created events are cached; live ticketing events always come from Supabase
     writeJSONDebounced('rada_events_v2', events.filter(e => !e.source), { stripImages: true });
   }, [events]);
+
+  // Publish public snapshot of user's saved collections so friends & community can browse them on profiles
+  useEffect(() => {
+    const uid = session?.user?.id || currentUserProfile?.id || 'guest';
+    const t = window.setTimeout(() => {
+      const snap = buildPublicCollectionSnapshot({
+        userId: uid,
+        savedItems,
+        savedFolders,
+        spots: allMergedSpots,
+        events: allEvents,
+        offers,
+      });
+      publishMyPublicCollections(snap).catch(() => {});
+    }, 450);
+    return () => window.clearTimeout(t);
+  }, [session?.user?.id, currentUserProfile?.id, savedItems, savedFolders, allMergedSpots, allEvents, offers]);
 
   // The old Luku/thrift cache is no longer used
   useEffect(() => {
@@ -1437,7 +1468,8 @@ export default function App() {
     selectedSpotModal ||
     selectedEventModal ||
     activeOverlay ||
-    isSuggestSpotModalOpen
+    isSuggestSpotModalOpen ||
+    isCreateEventOpen
   );
 
   // Swipe left/right on the main content to move between tabs (blocked while any modal / full-screen view is open).
@@ -1503,6 +1535,7 @@ export default function App() {
         }
         if (activeOverlay) setActiveOverlay(null);
         if (isSuggestSpotModalOpen) setIsSuggestSpotModalOpen(false);
+        if (isCreateEventOpen) setIsCreateEventOpen(false);
         return;
       }
 
@@ -1561,6 +1594,7 @@ export default function App() {
     selectedEventModal,
     activeOverlay,
     isSuggestSpotModalOpen,
+    isCreateEventOpen,
     activeTab,
     showToast
   ]);
@@ -2132,6 +2166,21 @@ export default function App() {
     });
   };
 
+  const handleCreateEvent = (newEv: EventItem) => {
+    if (newEv.img && newEv.img.startsWith('data:')) {
+      const coverMap = readJSON<Record<string, string>>('rada_user_event_covers_v1', {});
+      coverMap[String(newEv.id)] = newEv.img;
+      writeJSON('rada_user_event_covers_v1', coverMap);
+    }
+    setEvents(prev => [newEv, ...prev.filter(e => String(e.id) !== String(newEv.id))]);
+    if (currentUserId && !isGuestMode) {
+      cloudWrite(() => cloud.upsertListing('event', newEv, currentBusiness?.id, currentUserId));
+    }
+    setIsCreateEventOpen(false);
+    setSelectedEventModal(newEv);
+    showToast(`"${newEv.title}" is live on RADA!`, { type: 'success' });
+  };
+
   // Event "I'm Going" Toggle: clickable once to go; if clicked again, remove count
   const handleToggleGoing = (event: EventItem) => {
     const isAlreadyGoing = goingEventIds.includes(event.id);
@@ -2413,6 +2462,7 @@ export default function App() {
             showToast={showToast}
             isHome={activeTab === 'home'}
             onOpenSuggestSpot={() => setIsSuggestSpotModalOpen(true)}
+            onOpenCreateEvent={() => { setCreateEventInitialTitle(''); setIsCreateEventOpen(true); }}
             onRefresh={handleHeaderRefresh}
           />
 
@@ -2447,6 +2497,14 @@ export default function App() {
                 onOpenDedicatedViewAll={(title, cat) => {
                   setViewAllTitle(title);
                   setViewAllCategory(cat);
+                }}
+                onOpenCreateEvent={(title) => {
+                  setCreateEventInitialTitle(title || '');
+                  setIsCreateEventOpen(true);
+                }}
+                onOpenMemories={() => {
+                  setProfileInitialTab('memories');
+                  setIsProfilePageOpen(true);
                 }}
                 onOpenSuggestSpot={() => setIsSuggestSpotModalOpen(true)}
                 onOpenBusinessProfile={handleOpenBusinessProfile}
@@ -2557,6 +2615,7 @@ export default function App() {
               <VaultTab
                 tickets={tickets}
                 events={allEvents}
+                currentUserId={session?.user?.id || currentUserId || 'guest'}
                 onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
                 onExploreTrendingEvents={() => {
                   setActiveTab('home');
@@ -2578,6 +2637,10 @@ export default function App() {
                 initialDate={calendarTargetDate}
                 highlightEventId={calendarTargetEventId}
                 onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
+                onOpenCreateEvent={() => {
+                  setCreateEventInitialTitle('');
+                  setIsCreateEventOpen(true);
+                }}
                 onExploreTrendingEvents={() => {
                   setActiveTab('spots');
                 }}
@@ -2647,6 +2710,7 @@ export default function App() {
             onToggleGoing={handleToggleGoing}
             goingEventIds={goingEventIds}
             onBuyEventTicket={handleBuyEventTicket}
+            onOpenCreateEvent={() => { setCreateEventInitialTitle(''); setIsCreateEventOpen(true); }}
             planFriends={Array.from(new Set(socials.conversations.filter(c => c.type === 'direct' && c.name && c.name.startsWith('@')).map(c => c.name))).map(handle => ({ handle }))}
             onPlanWithFriends={(evt, opts) => handlePlanWithFriends(evt, opts)}
             onOpenEventMap={(evt) => setSelectedLocationMapEvent(evt)}
@@ -2728,11 +2792,22 @@ export default function App() {
             currentUserId={session?.user?.id}
             onOpenAuth={() => setIsAuthModalOpen(true)}
             spots={allMergedSpots}
+            events={allEvents}
             isSpotSaved={(id) => savedItems.some(s => String(s.id) === String(id) && s.kind === 'spot')}
             onSaveSpot={(id) => {
               const sp = allMergedSpots.find(x => String(x.id) === String(id));
               if (sp) requireAuth('save spots', () => handleToggleSave(sp, 'spot'));
             }}
+            onOpenSpot={(sp) => {
+              setViewingProfile(null);
+              setSelectedSpotModal(sp);
+            }}
+            onOpenEvent={(ev) => {
+              setViewingProfile(null);
+              setSelectedEventModal(ev);
+            }}
+            isItemSaved={(id, kind) => savedItems.some(s => String(s.id) === String(id) && s.kind === kind)}
+            onToggleSaveItem={(item, kind) => requireAuth('save items', () => handleToggleSave(item, kind))}
             onPlanDateAtSpot={(id, withUserId) => {
               const sp = allMergedSpots.find(x => String(x.id) === String(id));
               if (!sp) return;
@@ -2764,7 +2839,11 @@ export default function App() {
 
           {isProfilePageOpen && (ProfilePageComp ? (
             <ProfilePageComp
-              onClose={() => setIsProfilePageOpen(false)}
+              initialTab={profileInitialTab}
+              onClose={() => {
+                setIsProfilePageOpen(false);
+                setProfileInitialTab('hangouts');
+              }}
               session={session}
               currentUserProfile={currentUserProfile}
               showToast={showToast}
@@ -2776,7 +2855,20 @@ export default function App() {
               ticketCount={tickets.length}
               onOpenSaved={() => setIsSavedModalOpen(true)}
               isDarkMode={isDarkMode}
-                spots={spots.map(s => ({ id: s.id, title: s.title, neighborhood: s.neighborhood }))}
+              spots={spots.map(s => ({ id: s.id, title: s.title, neighborhood: s.neighborhood }))}
+              savedItems={savedItems}
+              savedFolders={savedFolders}
+              allSpots={allMergedSpots}
+              events={allEvents}
+              offers={offers}
+              onOpenSpot={(sp: SpotItem) => {
+                setIsProfilePageOpen(false);
+                setSelectedSpotModal(sp);
+              }}
+              onOpenEvent={(ev: EventItem) => {
+                setIsProfilePageOpen(false);
+                setSelectedEventModal(ev);
+              }}
             />
           ) : (
             <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex items-center justify-center">
@@ -2837,6 +2929,18 @@ export default function App() {
               showToast={showToast}
               currentUserId={session?.user?.id}
               currentUserProfile={currentUserProfile}
+            />
+          )}
+
+          {isCreateEventOpen && (
+            <CreateEventModal
+              open={isCreateEventOpen}
+              onClose={() => setIsCreateEventOpen(false)}
+              onCreateEvent={handleCreateEvent}
+              initialTitle={createEventInitialTitle}
+              hostName={currentUserProfile?.handle || currentUserProfile?.name}
+              currentUserId={session?.user?.id || currentUserProfile?.id}
+              showToast={showToast}
             />
           )}
 

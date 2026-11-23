@@ -6,7 +6,6 @@
 import type { BusinessAccount, BusinessOffer, Review, StatusPost, OutingPlan, OutingAttendee } from '../types.ts';
 import type { MyAnalytics } from './tracking';
 import { initialAvatar } from '../data/demoData.ts';
-import type { MilestoneData } from './milestones';
 
 export type DemoPersona = 'merchant' | 'host' | 'user';
 
@@ -158,7 +157,7 @@ export function demoPastOutings(persona: DemoPersona, me: { id: string; name: st
   });
 }
 
-// ---------------------------------------------------------------- posts and milestones
+// ---------------------------------------------------------------- posts
 export function demoPersonaStatuses(persona: DemoPersona, me: { id: string; name: string; handle: string; avatar: string }): StatusPost[] {
   const mk = (id: string, author: string, handle: string, avatar: string, text: string, media: string, loc: string, ago: string, userId?: string): StatusPost =>
     ({ id, userId, author, handle, avatar, timeAgo: ago, text, mediaUrl: media, mediaType: 'image', locationName: loc });
@@ -174,11 +173,4 @@ export function demoPersonaStatuses(persona: DemoPersona, me: { id: string; name
       ? mk('demo-st-me', me.name, me.handle, me.avatar, 'Sunday hike is full again. Next one opens Friday.', IMG.forest, 'Karura Forest', '30m ago', me.id)
       : mk('demo-st-me', me.name, me.handle, me.avatar, 'New happy hour is live at Skyline. 2 for 1 until 8pm.', IMG.cocktail, 'Skyline Rooftop Lounge', '30m ago', me.id);
   return [mine, ...crowd];
-}
-
-export function demoMilestones(persona: DemoPersona): MilestoneData {
-  const counts = persona === 'host' ? { outings: 26, spots: 31, photo_reviews: 9 } : persona === 'merchant' ? { outings: 8, spots: 44, photo_reviews: 21 } : { outings: 11, spots: 19, photo_reviews: 5 };
-  const thresholds = [3, 10, 25, 50, 100];
-  const level = (n: number) => thresholds.filter(t => n >= t).length;
-  return { thresholds, counts, levels: { outings: level(counts.outings), spots: level(counts.spots), photo_reviews: level(counts.photo_reviews) } };
 }

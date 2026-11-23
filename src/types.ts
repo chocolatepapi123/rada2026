@@ -331,7 +331,7 @@ export interface TicketTier {
 export interface EventItem {
   id: number | string;
   title: string;
-  category: 'concerts' | 'nightlife' | 'art' | 'cinemas' | 'tech' | 'sports';
+  category: 'concerts' | 'nightlife' | 'art' | 'cinemas' | 'tech' | 'sports' | 'online';
   genre?: string;
   date: string;
   time?: string;
@@ -347,6 +347,11 @@ export interface EventItem {
   tiers: TicketTier[];
   description?: string;
   businessId?: string;
+  isOnline?: boolean;
+  meetingUrl?: string;
+  platform?: string;
+  createdByUserId?: string;
+  isUserCreated?: boolean;
   // ---- live events from public.external_events (all optional) ----
   /** ISO timestamp (UTC) – drives date filters and sorting */
   startAt?: string;

@@ -6,16 +6,15 @@ import {
   Bookmark,
   Share2,
   MapPin,
-  Lock,
   Crown,
-  PartyPopper,
-  Camera,
   Briefcase,
   Loader2,
   X,
   AlertCircle,
+  Folder,
+  Camera,
 } from 'lucide-react';
-import { UserProfile, OutingPlan, BusinessAccount } from '../types';
+import { UserProfile, OutingPlan, BusinessAccount, SavedItem, CollectionFolder, SpotItem, EventItem, BusinessOffer } from '../types';
 import { useMySubscriptions } from '../lib/subscriptions';
 import { saveUnifiedProfile } from '../lib/cloudSync';
 import { NotificationBell } from './NotificationBell';
@@ -29,7 +28,6 @@ import {
   Section,
   useOwnProfile,
 } from './ProfileSettingsKit';
-import { fetchMilestones, MILESTONE_META, type MilestoneKind, type MilestoneData } from '../lib/milestones';
 import {
   DEFAULT_THEME,
   MAX_TAGS,
@@ -41,6 +39,9 @@ import {
 } from '../lib/profileLook';
 import type { ToastOptions } from './Toast.tsx';
 import { HangoutsTab, type HangoutSpotOption } from './HangoutsTab';
+import { MemoriesSection } from './MemoriesSection';
+import { CategoryIcon } from './CategoryIcon';
+import { buildPublicCollectionSnapshot } from '../lib/publicCollections';
 
 interface ProfilePageProps {
   onClose: () => void;
@@ -57,16 +58,21 @@ interface ProfilePageProps {
   ticketCount?: number;
   onOpenSaved?: () => void;
   isDarkMode: boolean;
-  /** Spots people can link a hangout to. */
+  /** Spots people can link a hangout or memory to. */
   spots?: HangoutSpotOption[];
+  /** Hydrated collections support for Collections tab (visible on public profile). */
+  savedItems?: SavedItem[];
+  savedFolders?: CollectionFolder[];
+  allSpots?: SpotItem[];
+  events?: EventItem[];
+  offers?: BusinessOffer[];
+  onOpenSpot?: (spot: SpotItem) => void;
+  onOpenEvent?: (event: EventItem) => void;
+  initialTab?: Tab;
 }
 
-type Tab = 'hangouts' | 'milestones' | 'creator' | 'settings';
-
-
-const KINDS: MilestoneKind[] = ['outings', 'spots', 'photo_reviews'];
-const KIND_COLOR: Record<MilestoneKind, string> = { outings: '#F9D6CE', spots: '#D9EFE3', photo_reviews: '#E4DAF7' };
-const KIND_ICON: Record<string, React.ComponentType<{ className?: string }>> = { party: PartyPopper, pin: MapPin, camera: Camera };
+export type ProfileTab = 'hangouts' | 'memories' | 'collections' | 'creator' | 'settings';
+type Tab = ProfileTab;
 
 const cleanLoc = (loc?: string) =>
   loc
@@ -92,13 +98,26 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   onOpenSaved,
   isDarkMode,
   spots = [],
+  savedItems = [],
+  savedFolders = [],
+  allSpots = [],
+  events = [],
+  offers = [],
+  onOpenSpot,
+  onOpenEvent,
+  initialTab = 'hangouts',
 }) => {
   const user = session?.user;
   const isLoggedIn = !!user;
-  const [tab, setTab] = useState<Tab>('hangouts');
+  const [tab, setTab] = useState<Tab>(initialTab);
+  const [selectedCollectionFolder, setSelectedCollectionFolder] = useState<string>('all');
   const [hubOpen, setHubOpen] = useState(false);
   const [proPageOpen, setProPageOpen] = useState(false);
   const tabsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab]);
 
   const requireLogin = () => {
     showToast('Please sign in first.', { type: 'error' });
@@ -171,38 +190,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     }
   };
 
-  // ---- Milestones: the app's real badges (outings, spots, photo reviews), from the database ----
-  const [mData, setMData] = useState<MilestoneData | null>(null);
-  const [mLoading, setMLoading] = useState(true);
-  useEffect(() => {
-    let off = false;
-    if (!isLoggedIn) { setMLoading(false); return; }
-    setMLoading(true);
-    // Never leave the spinner up forever if the request stalls on a cold start.
-    Promise.race([
-      fetchMilestones(),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('milestones timed out')), 8000)),
-    ])
-      .then((d) => { if (!off) { setMData(d); setMLoading(false); } })
-      .catch(() => { if (!off) setMLoading(false); });
-    return () => { off = true; };
-  }, [user?.id, isLoggedIn]);
-
   const p: any = currentUserProfile || {};
-  const thresholds = mData?.thresholds ?? [];
-  const progress = (kind: MilestoneKind) => {
-    const names = MILESTONE_META[kind].names;
-    const count = mData?.counts?.[kind] ?? 0;
-    const level = Math.min(names.length, thresholds.filter((t) => count >= t).length);
-    const next = level < names.length ? thresholds[level] : undefined;
-    const prev = level > 0 ? thresholds[level - 1] : 0;
-    const pct = next ? Math.max(0, Math.min(1, (count - prev) / (next - prev))) : 1;
-    return { kind, meta: MILESTONE_META[kind], count, level, next, pct, name: level > 0 ? names[level - 1] : null };
-  };
-  const kinds = KINDS.map(progress);
-  const earnedBadges = kinds.reduce((n, k) => n + k.level, 0);
-  const totalBadges = kinds.reduce((n, k) => n + k.meta.names.length, 0);
-
   const name = p.name || handle || 'Your profile';
   const initial = String(name).replace(/^@/, '').charAt(0).toUpperCase() || 'R';
 
@@ -221,10 +209,22 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
 
   const tabs: [Tab, string][] = [
     ['hangouts', 'Hangouts'],
-    ['milestones', 'Milestones'],
+    ['memories', 'Memories'],
+    ['collections', 'Collections'],
     ['creator', 'Creator'],
     ['settings', 'Settings'],
   ];
+
+  const myCollectionSnapshot = user?.id
+    ? buildPublicCollectionSnapshot({
+        userId: user.id,
+        savedItems,
+        savedFolders,
+        spots: allSpots,
+        events,
+        offers,
+      })
+    : null;
 
   return (
     <div
@@ -266,7 +266,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             <AlertCircle className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm font-black text-amber-800 dark:text-amber-300">You&apos;re browsing as a guest</p>
-              <p className="text-xs mt-0.5 text-amber-700 dark:text-amber-300/80">Log in to build your profile and earn milestones.</p>
+              <p className="text-xs mt-0.5 text-amber-700 dark:text-amber-300/80">Log in to build your profile, save collections, and capture RADA memories.</p>
               {onOpenAuth && (
                 <button
                   type="button"
@@ -347,57 +347,17 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
               </button>
             </div>
 
-            {/* Milestones row */}
-            <div className="mt-5 flex gap-4 overflow-x-auto hide-scrollbar px-4 pb-3">
-              {kinds.map((k) => {
-                const Icon = KIND_ICON[k.meta.icon] || PartyPopper;
-                const earned = k.level > 0;
-                return (
-                  <button
-                    key={k.kind}
-                    type="button"
-                    onClick={() =>
-                      showToast(
-                        earned
-                          ? `${k.name}: ${k.count} ${k.meta.unit}${k.next ? `, next badge at ${k.next}` : ', top badge!'}`
-                          : `${k.meta.title}: ${k.count}${k.next ? ` of ${k.next}` : ''} to unlock your first badge`
-                      )
-                    }
-                    className="shrink-0 w-[96px] flex flex-col items-center gap-1.5 cursor-pointer"
-                  >
-                    <span
-                      className="relative w-[84px] h-[84px] rounded-full flex items-center justify-center"
-                      style={{ background: KIND_COLOR[k.kind], opacity: earned ? 1 : 0.5, filter: earned ? 'none' : 'grayscale(0.7)' }}
-                    >
-                      <Icon className="w-9 h-9 text-slate-800" />
-                      {earned ? (
-                        <span className="absolute -bottom-0.5 -right-0.5 min-w-6 h-6 px-1.5 rounded-full text-white text-[11px] font-black shadow flex items-center justify-center" style={{ background: accent }}>
-                          {k.level}
-                        </span>
-                      ) : (
-                        <span className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full bg-white dark:bg-[#1C1A1E] shadow flex items-center justify-center">
-                          <Lock className="w-3 h-3 text-slate-500" />
-                        </span>
-                      )}
-                    </span>
-                    <span className="text-[12px] font-bold leading-tight text-center line-clamp-2">{k.name || 'Locked'}</span>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 -mt-1">{k.meta.title}</span>
-                  </button>
-                );
-              })}
-            </div>
-
             {/* Tabs */}
-            <div ref={tabsRef} className="mt-1 flex border-y border-slate-200 dark:border-slate-800 sticky top-0 bg-white/80 dark:bg-[#121113]/80 backdrop-blur-md z-10">
+            <div ref={tabsRef} className="mt-4 flex overflow-x-auto hide-scrollbar border-y border-slate-200 dark:border-slate-800 sticky top-0 bg-white/80 dark:bg-[#121113]/80 backdrop-blur-md z-10">
               {tabs.map(([id, label]) => (
                 <button
                   key={id}
                   type="button"
                   onClick={() => setTab(id)}
-                  className={`flex-1 py-3.5 text-[13px] font-bold relative cursor-pointer ${tab === id ? '' : 'text-slate-500 dark:text-slate-400'}`}
+                  className={`flex-1 min-w-[76px] py-3.5 px-2 text-[12.5px] font-bold relative cursor-pointer whitespace-nowrap ${tab === id ? '' : 'text-slate-500 dark:text-slate-400'}`}
                 >
                   {label}
-                  {tab === id && <span className="absolute left-6 right-6 bottom-0 h-[3px] rounded-full" style={{ background: accent }} />}
+                  {tab === id && <span className="absolute left-3 right-3 bottom-0 h-[3px] rounded-full" style={{ background: accent }} />}
                 </button>
               ))}
             </div>
@@ -407,56 +367,126 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
               <HangoutsTab userId={user.id} accent={accent} showToast={showToast} spots={spots} />
             )}
 
-            {/* ===== Milestones ===== */}
-            {tab === 'milestones' && (
-              <div className="px-4 pt-4 space-y-3">
-                {mLoading ? (
-                  <p className="text-[13px] text-slate-400 py-6 text-center">Loading your badges…</p>
-                ) : (
-                  <>
-                    <p className="text-[13px] font-bold text-slate-500 dark:text-slate-400">
-                      {earnedBadges} of {totalBadges} badges earned
+            {/* ===== Nostalgic RADA Memories ===== */}
+            {tab === 'memories' && user?.id && (
+              <MemoriesSection userId={user.id} accent={accent} spots={spots} showToast={showToast} />
+            )}
+
+            {/* ===== Saved Collections (Public on Profile) ===== */}
+            {tab === 'collections' && (
+              <div className="px-4 pt-4 pb-8 space-y-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                      <Bookmark className="w-3.5 h-3.5" style={{ color: accent }} />
+                      <span>My Saved Collections</span>
+                    </h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Other RADA users can see your saved places &amp; collections when they view your profile.
                     </p>
-                    {!mData && (
-                      <p className="text-[12px] text-slate-400">Could not load your progress right now. Pull down later to retry.</p>
-                    )}
-                    {kinds.map((k) => {
-                      const Icon = KIND_ICON[k.meta.icon] || PartyPopper;
-                      return (
-                        <div key={k.kind} className="p-3 rounded-2xl bg-slate-50 dark:bg-[#1C1A1E]">
-                          <div className="flex items-center gap-3">
-                            <span className="w-12 h-12 rounded-full flex items-center justify-center shrink-0" style={{ background: KIND_COLOR[k.kind], opacity: k.level > 0 ? 1 : 0.55 }}>
-                              <Icon className="w-6 h-6 text-slate-800" />
-                            </span>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="text-[14px] font-black truncate">{k.meta.title}</p>
-                                <span className="text-[11px] font-bold text-slate-500 shrink-0">Level {k.level}/{k.meta.names.length}</span>
-                              </div>
-                              <p className="text-[12px] text-slate-500 dark:text-slate-400 truncate">
-                                {k.count} {k.meta.unit}{k.next ? ` · next badge at ${k.next}` : ' · top badge reached'}
-                              </p>
-                              <div className="mt-1.5 h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                                <div className="h-full rounded-full" style={{ width: `${Math.round(k.pct * 100)}%`, background: accent }} />
-                              </div>
-                            </div>
-                          </div>
-                          <div className="mt-3 flex flex-wrap gap-1.5">
-                            {k.meta.names.map((n, idx) => (
-                              <span
-                                key={n}
-                                className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${idx < k.level ? 'text-white' : 'bg-slate-200/70 dark:bg-slate-800 text-slate-500'}`}
-                                style={idx < k.level ? { background: accent } : undefined}
-                              >
-                                {n}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </>
+                  </div>
+                  {onOpenSaved && (
+                    <button
+                      type="button"
+                      onClick={onOpenSaved}
+                      className="px-3 py-1.5 rounded-xl text-[11px] font-black text-white shrink-0 cursor-pointer"
+                      style={{ background: accent }}
+                    >
+                      Manage
+                    </button>
+                  )}
+                </div>
+
+                {savedFolders.length > 0 && (
+                  <div className="flex gap-1.5 overflow-x-auto hide-scrollbar pb-1">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCollectionFolder('all')}
+                      className={`px-3 py-1.5 rounded-full text-[11px] font-bold shrink-0 cursor-pointer border ${
+                        selectedCollectionFolder === 'all'
+                          ? 'text-white border-transparent'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-transparent'
+                      }`}
+                      style={selectedCollectionFolder === 'all' ? { background: accent } : undefined}
+                    >
+                      All ({myCollectionSnapshot?.items.length || 0})
+                    </button>
+                    {savedFolders.map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setSelectedCollectionFolder(f.id)}
+                        className={`px-3 py-1.5 rounded-full text-[11px] font-bold shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                          selectedCollectionFolder === f.id
+                            ? 'text-white'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                        }`}
+                        style={selectedCollectionFolder === f.id ? { background: accent } : undefined}
+                      >
+                        <CategoryIcon name={f.emoji} className="w-3 h-3" />
+                        <span>{f.name}</span>
+                      </button>
+                    ))}
+                  </div>
                 )}
+
+                {(() => {
+                  const list = (myCollectionSnapshot?.items || []).filter(
+                    (it) => selectedCollectionFolder === 'all' || it.folderId === selectedCollectionFolder
+                  );
+                  if (list.length === 0) {
+                    return (
+                      <div className="py-10 text-center space-y-2 bg-slate-50 dark:bg-[#1C1A1E] rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
+                        <Folder className="w-7 h-7 text-slate-400 mx-auto" />
+                        <p className="text-xs font-bold text-slate-500">
+                          Bookmark spots, events or deals to build a collection on your profile.
+                        </p>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {list.map((it) => {
+                        const folder = savedFolders.find((f) => f.id === it.folderId);
+                        return (
+                          <button
+                            key={`${it.kind}-${it.id}`}
+                            type="button"
+                            onClick={() => {
+                              if (it.kind === 'spot') {
+                                const spot = allSpots.find((s) => String(s.id) === String(it.id));
+                                if (spot && onOpenSpot) { onClose(); onOpenSpot(spot); }
+                              } else if (it.kind === 'event') {
+                                const ev = events.find((e) => String(e.id) === String(it.id));
+                                if (ev && onOpenEvent) { onClose(); onOpenEvent(ev); }
+                              } else {
+                                onOpenSaved?.();
+                              }
+                            }}
+                            className="text-left rounded-2xl p-2 bg-slate-50 dark:bg-[#1C1A1E] border border-slate-200/80 dark:border-slate-800 hover:border-[#E0533C] transition cursor-pointer flex flex-col gap-1.5"
+                          >
+                            <div
+                              className="h-24 rounded-xl bg-slate-200 dark:bg-slate-800 bg-cover bg-center relative overflow-hidden"
+                              style={it.image ? { backgroundImage: `url('${it.image}')` } : undefined}
+                            >
+                              <span className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-full bg-black/65 text-white text-[9px] font-black uppercase">
+                                {it.kind}
+                              </span>
+                            </div>
+                            <p className="text-xs font-black text-slate-900 dark:text-slate-100 line-clamp-1">{it.title}</p>
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{it.subtitle}</p>
+                            {folder && (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full w-fit bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                <CategoryIcon name={folder.emoji} className="w-2.5 h-2.5" />
+                                <span>{folder.name}</span>
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 

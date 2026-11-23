@@ -11,7 +11,8 @@ import {
   ShieldCheck,
   ChevronRight,
   ArrowLeft,
-  Ticket
+  Ticket,
+  CalendarPlus
 } from 'lucide-react';
 import { isPlatformAdmin } from '../types';
 import { useIntents } from '../lib/userIntent';
@@ -59,6 +60,7 @@ interface HeaderProps {
   /** @deprecated Account settings now live inside the 3-dot menu. Accepted so existing callers still compile. */
   onOpenAccountSettings?: () => void;
   onOpenSuggestSpot?: () => void;
+  onOpenCreateEvent?: () => void;
   /** Profile photo for the round button on the right. */
   avatar?: string;
   /** Used for the initial when there is no photo. */
@@ -91,6 +93,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenMyTickets,
   savedCount,
   onOpenSuggestSpot,
+  onOpenCreateEvent,
   avatar,
   displayName,
   onOpenProfile,
@@ -320,6 +323,28 @@ export const Header: React.FC<HeaderProps> = ({
                       </span>
                       <span className="text-[11px] font-black px-2.5 py-1 rounded-full bg-[#E0533C]/10 text-[#E0533C] shrink-0">
                         + Add
+                      </span>
+                    </button>
+                    )}
+
+                    {onOpenCreateEvent && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onOpenCreateEvent();
+                      }}
+                      className={MENU_ROW}
+                    >
+                      <span className={`${MENU_TILE} bg-sky-500/12 text-sky-600 dark:text-sky-400`}>
+                        <CalendarPlus className="w-4 h-4" />
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className={MENU_TITLE}>Add an Event</span>
+                        <span className={MENU_SUB}>Host an in-person or online event</span>
+                      </span>
+                      <span className="text-[11px] font-black px-2.5 py-1 rounded-full bg-sky-500/12 text-sky-600 dark:text-sky-400 shrink-0">
+                        + Event
                       </span>
                     </button>
                     )}

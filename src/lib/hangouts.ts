@@ -73,7 +73,95 @@ export async function loadMyHangoutLimits(): Promise<MyHangoutLimits | null> {
 }
 
 const BUCKET = 'hangout-media';
+const LOCAL_HANGOUTS_KEY = 'rada_hangouts_local_v1';
+const LOCAL_JOINS_KEY = 'rada_hangout_joins_local_v1';
 const ready = () => Boolean(isSupabaseConfigured && supabase);
+
+function readLocalHangouts(): Hangout[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_HANGOUTS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalHangouts(items: Hangout[]): void {
+  try {
+    localStorage.setItem(LOCAL_HANGOUTS_KEY, JSON.stringify(items));
+  } catch {
+    // ignore storage quota errors
+  }
+}
+
+function readLocalJoins(): { hangoutId: string; fromUser: string; toUser: string; createdAt: string }[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_JOINS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalJoins(items: { hangoutId: string; fromUser: string; toUser: string; createdAt: string }[]): void {
+  try {
+    localStorage.setItem(LOCAL_JOINS_KEY, JSON.stringify(items));
+  } catch {
+    // ignore
+  }
+}
+
+function seedDemoHangoutsFor(userId: string): Hangout[] {
+  if (!userId.startsWith('demo-') && !userId.startsWith('showcase-')) return [];
+  const d1 = new Date(Date.now() - 21 * 86400000).toISOString().slice(0, 10);
+  const d2 = new Date(Date.now() - 65 * 86400000).toISOString().slice(0, 10);
+  return [
+    {
+      id: `local-ho-${userId}-1`,
+      userId,
+      status: 'published',
+      caption: 'Sundowners and Afrobeats above Westlands. Best golden hour energy.',
+      spotTitle: 'Skyline Rooftop Lounge',
+      area: 'Westlands, Nairobi',
+      happenedOn: d1,
+      createdAt: new Date(Date.now() - 21 * 86400000).toISOString(),
+      publishedAt: new Date(Date.now() - 21 * 86400000).toISOString(),
+      media: [
+        {
+          id: `local-hm-${userId}-1`,
+          kind: 'photo',
+          url: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
+          path: 'local/1.jpg',
+          position: 0,
+        },
+      ],
+    },
+    {
+      id: `local-ho-${userId}-2`,
+      userId,
+      status: 'published',
+      caption: 'Morning hike through Karura and hot chai after.',
+      spotTitle: 'Karura Forest',
+      area: 'Limuru Road, Nairobi',
+      happenedOn: d2,
+      createdAt: new Date(Date.now() - 65 * 86400000).toISOString(),
+      publishedAt: new Date(Date.now() - 65 * 86400000).toISOString(),
+      media: [
+        {
+          id: `local-hm-${userId}-2`,
+          kind: 'photo',
+          url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&auto=format&fit=crop',
+          path: 'local/2.jpg',
+          position: 0,
+        },
+      ],
+    },
+  ];
+}
 
 const rowToHangout = (r: any): Hangout => ({
   id: r.id,
@@ -99,8 +187,15 @@ export async function listHangouts(
   userId: string,
   opts: { drafts?: 'include' | 'only' | 'exclude' } = {}
 ): Promise<Hangout[]> {
-  if (!ready() || !userId) return [];
+  if (!userId) return [];
   const mode = opts.drafts || 'exclude';
+  if (!ready()) {
+    const local = readLocalHangouts().filter((h) => h.userId === userId);
+    const all = local.length > 0 ? local : seedDemoHangoutsFor(userId);
+    return all
+      .filter((h) => (mode === 'only' ? h.status === 'draft' : mode === 'exclude' ? h.status === 'published' : true))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
   let q = supabase
     .from('hangouts')
     .select('*, hangout_media(*)')
@@ -118,7 +213,23 @@ export async function createHangout(
   userId: string,
   input: HangoutDraftInput & { status?: HangoutStatus }
 ): Promise<{ hangout: Hangout | null; error: string | null }> {
-  if (!ready()) return { hangout: null, error: 'Not connected' };
+  if (!ready()) {
+    const item: Hangout = {
+      id: `local-ho-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      userId,
+      status: input.status || 'draft',
+      caption: (input.caption || '').trim().slice(0, HANGOUT_LIMITS.maxCaption),
+      spotId: input.spotId ?? null,
+      spotTitle: input.spotTitle ?? null,
+      area: input.area ?? null,
+      happenedOn: input.happenedOn ?? null,
+      createdAt: new Date().toISOString(),
+      publishedAt: input.status === 'published' ? new Date().toISOString() : null,
+      media: [],
+    };
+    writeLocalHangouts([item, ...readLocalHangouts()]);
+    return { hangout: item, error: null };
+  }
   const { data, error } = await supabase
     .from('hangouts')
     .insert({
@@ -137,7 +248,22 @@ export async function createHangout(
 }
 
 export async function updateHangout(id: string, input: HangoutDraftInput): Promise<string | null> {
-  if (!ready()) return 'Not connected';
+  if (!ready()) {
+    const all = readLocalHangouts();
+    const idx = all.findIndex((h) => h.id === id);
+    if (idx === -1) return 'Hangout not found.';
+    const cur = all[idx];
+    all[idx] = {
+      ...cur,
+      caption: input.caption !== undefined ? input.caption.trim().slice(0, HANGOUT_LIMITS.maxCaption) : cur.caption,
+      spotId: input.spotId !== undefined ? input.spotId : cur.spotId,
+      spotTitle: input.spotTitle !== undefined ? input.spotTitle : cur.spotTitle,
+      area: input.area !== undefined ? input.area : cur.area,
+      happenedOn: input.happenedOn !== undefined ? input.happenedOn : cur.happenedOn,
+    };
+    writeLocalHangouts(all);
+    return null;
+  }
   const patch: Record<string, unknown> = {};
   if (input.caption !== undefined) patch.caption = input.caption.trim().slice(0, HANGOUT_LIMITS.maxCaption) || null;
   if (input.spotId !== undefined) patch.spot_id = input.spotId;
@@ -150,7 +276,15 @@ export async function updateHangout(id: string, input: HangoutDraftInput): Promi
 
 /** Publish a draft. A hangout needs at least one photo or video. */
 export async function publishHangout(id: string): Promise<string | null> {
-  if (!ready()) return 'Not connected';
+  if (!ready()) {
+    const all = readLocalHangouts();
+    const idx = all.findIndex((h) => h.id === id);
+    if (idx === -1) return 'Hangout not found.';
+    if (all[idx].media.length === 0) return 'Add at least one photo or video first.';
+    all[idx] = { ...all[idx], status: 'published', publishedAt: new Date().toISOString() };
+    writeLocalHangouts(all);
+    return null;
+  }
   const { count } = await supabase.from('hangout_media').select('id', { count: 'exact', head: true }).eq('hangout_id', id);
   if (!count) return 'Add at least one photo or video first.';
   const { error } = await supabase.from('hangouts').update({ status: 'published' }).eq('id', id);
@@ -159,13 +293,23 @@ export async function publishHangout(id: string): Promise<string | null> {
 
 /** Take a published hangout back to drafts (hides it from the profile without deleting it). */
 export async function unpublishHangout(id: string): Promise<string | null> {
-  if (!ready()) return 'Not connected';
+  if (!ready()) {
+    const all = readLocalHangouts();
+    const idx = all.findIndex((h) => h.id === id);
+    if (idx === -1) return null;
+    all[idx] = { ...all[idx], status: 'draft' };
+    writeLocalHangouts(all);
+    return null;
+  }
   const { error } = await supabase.from('hangouts').update({ status: 'draft' }).eq('id', id);
   return error ? error.message : null;
 }
 
 export async function deleteHangout(h: Hangout): Promise<string | null> {
-  if (!ready()) return 'Not connected';
+  if (!ready()) {
+    writeLocalHangouts(readLocalHangouts().filter((x) => x.id !== h.id));
+    return null;
+  }
   const paths = h.media.map((m) => m.path).filter(Boolean);
   if (paths.length) await supabase.storage.from(BUCKET).remove(paths);
   const { error } = await supabase.from('hangouts').delete().eq('id', h.id);
@@ -192,6 +336,15 @@ async function shrinkPhoto(file: File): Promise<Blob> {
   } catch {
     return file;
   }
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result || ''));
+    r.onerror = () => reject(new Error('Failed to read media'));
+    r.readAsDataURL(blob);
+  });
 }
 
 function videoSeconds(file: File): Promise<number> {
@@ -226,12 +379,31 @@ export async function addHangoutMedia(
   file: File,
   position: number
 ): Promise<{ media: HangoutMedia | null; error: string | null }> {
-  if (!ready()) return { media: null, error: 'Not connected' };
   const problem = await checkHangoutFile(file);
   if (problem) return { media: null, error: problem };
 
   const isVideo = file.type.startsWith('video/');
   const body: Blob = isVideo ? file : await shrinkPhoto(file);
+
+  if (!ready()) {
+    const url = await blobToDataUrl(body);
+    const media: HangoutMedia = {
+      id: `local-hm-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      kind: isVideo ? 'video' : 'photo',
+      url,
+      path: `local/${hangoutId}/${Date.now()}`,
+      position,
+      duration: isVideo ? Math.round(await videoSeconds(file)) : null,
+    };
+    const all = readLocalHangouts();
+    const idx = all.findIndex((h) => h.id === hangoutId);
+    if (idx !== -1) {
+      all[idx] = { ...all[idx], media: [...all[idx].media, media] };
+      writeLocalHangouts(all);
+    }
+    return { media, error: null };
+  }
+
   const type = isVideo ? (file.type || 'video/mp4') : (body.type || 'image/jpeg');
   const ext = isVideo ? (type.includes('quicktime') ? 'mov' : type.includes('webm') ? 'webm' : 'mp4')
                       : (type.includes('png') ? 'png' : type.includes('webp') ? 'webp' : 'jpg');
@@ -255,7 +427,14 @@ export async function addHangoutMedia(
 }
 
 export async function removeHangoutMedia(m: HangoutMedia): Promise<string | null> {
-  if (!ready()) return 'Not connected';
+  if (!ready()) {
+    const all = readLocalHangouts().map((h) => ({
+      ...h,
+      media: h.media.filter((x) => x.id !== m.id),
+    }));
+    writeLocalHangouts(all);
+    return null;
+  }
   await supabase.storage.from(BUCKET).remove([m.path]);
   const { error } = await supabase.from('hangout_media').delete().eq('id', m.id);
   return error ? error.message : null;
@@ -270,7 +449,19 @@ export async function toggleJoinNext(
   hangout: Pick<Hangout, 'id' | 'userId'>,
   myId: string
 ): Promise<{ joined: boolean; error: string | null }> {
-  if (!ready()) return { joined: false, error: 'Not connected' };
+  if (!ready()) {
+    const joins = readLocalJoins();
+    const exists = joins.some((j) => j.hangoutId === hangout.id && j.fromUser === myId);
+    if (exists) {
+      writeLocalJoins(joins.filter((j) => !(j.hangoutId === hangout.id && j.fromUser === myId)));
+      return { joined: false, error: null };
+    }
+    writeLocalJoins([
+      { hangoutId: hangout.id, fromUser: myId, toUser: hangout.userId, createdAt: new Date().toISOString() },
+      ...joins,
+    ]);
+    return { joined: true, error: null };
+  }
   const { data: existing } = await supabase
     .from('hangout_actions')
     .select('id')
@@ -290,7 +481,11 @@ export async function toggleJoinNext(
 
 /** Which of these hangouts I already asked to join (so the button shows the right state). */
 export async function myJoinedHangoutIds(myId: string, hangoutIds: string[]): Promise<Set<string>> {
-  if (!ready() || !myId || hangoutIds.length === 0) return new Set();
+  if (!myId || hangoutIds.length === 0) return new Set();
+  if (!ready()) {
+    const set = new Set(hangoutIds);
+    return new Set(readLocalJoins().filter((j) => j.fromUser === myId && set.has(j.hangoutId)).map((j) => j.hangoutId));
+  }
   const { data } = await supabase
     .from('hangout_actions')
     .select('hangout_id')
@@ -302,7 +497,12 @@ export async function myJoinedHangoutIds(myId: string, hangoutIds: string[]): Pr
 
 /** Owner only: who asked to join each of my hangouts. */
 export async function fetchJoinRequestsForMe(myId: string): Promise<{ hangoutId: string; fromUser: string; createdAt: string }[]> {
-  if (!ready() || !myId) return [];
+  if (!myId) return [];
+  if (!ready()) {
+    return readLocalJoins()
+      .filter((j) => j.toUser === myId)
+      .map((j) => ({ hangoutId: j.hangoutId, fromUser: j.fromUser, createdAt: j.createdAt }));
+  }
   const { data } = await supabase
     .from('hangout_actions')
     .select('hangout_id, from_user, created_at')

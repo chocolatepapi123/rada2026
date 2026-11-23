@@ -12,7 +12,9 @@ import {
   Flame,
   Users,
   ArrowLeft,
-  Bookmark
+  Bookmark,
+  Globe,
+  Plus
 } from 'lucide-react';
 import { EventItem, SavedItem } from '../types.ts';
 import { 
@@ -28,6 +30,7 @@ import {
   getEventPriceLabel,
   getSourceLabel,
   getTodayParts,
+  isOnlineEvent,
   isRealToday
 } from '../utils/eventUtils.ts';
 import { getCategoryAccent } from '../utils/categoryAccents.ts';
@@ -43,6 +46,7 @@ function eventOnDay(evt: EventItem, year: number, month: number, day: number): b
 interface LukuEventsTabProps {
   events: EventItem[];
   onOpenEventDetails: (event: EventItem) => void;
+  onOpenCreateEvent?: () => void;
   onExploreTrendingEvents?: () => void;
   onCategoryChange?: (category: string) => void;
   showToast?: (msg: string, options?: ToastOptions) => void;
@@ -56,6 +60,7 @@ interface LukuEventsTabProps {
 export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
   events = [],
   onOpenEventDetails,
+  onOpenCreateEvent,
   onExploreTrendingEvents,
   onCategoryChange,
   showToast,
@@ -398,15 +403,27 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
           )}
         </div>
 
-        {selectedDay !== null && (
-          <button
-            type="button"
-            onClick={() => setSelectedDay(null)}
-            className="text-xs font-bold text-[#FF5733] dark:text-[#D17A68] hover:underline cursor-pointer"
-          >
-            View All Dates
-          </button>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {onOpenCreateEvent && (
+            <button
+              type="button"
+              onClick={onOpenCreateEvent}
+              className="px-3 py-1.5 rounded-xl bg-[#E0533C] hover:bg-orange-700 text-white text-[11px] font-black shadow-xs transition flex items-center gap-1 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Event</span>
+            </button>
+          )}
+          {selectedDay !== null && (
+            <button
+              type="button"
+              onClick={() => setSelectedDay(null)}
+              className="text-xs font-bold text-[#FF5733] dark:text-[#D17A68] hover:underline cursor-pointer"
+            >
+              View All Dates
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Events Day View Cards */}
@@ -417,6 +434,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
             const priceDisplay = getEventPriceLabel(event);
             const isMatch = focusedEventId && String(event.id) === String(focusedEventId);
             const saved = isEventSaved(event.id);
+            const online = isOnlineEvent(event);
 
             return (
               <div
@@ -441,6 +459,12 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
                   <span className={`absolute top-2.5 left-2.5 text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider backdrop-blur-md ${accent.pillClass}`}>
                     {event.genre || accent.badge}
                   </span>
+                  {online && (
+                    <span className="absolute top-2.5 right-2.5 bg-sky-600/90 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-xs">
+                      <Globe className="w-2.5 h-2.5" />
+                      <span>Online</span>
+                    </span>
+                  )}
 
                   {/* Matching Event Focus Badge */}
                   {isMatch && (
@@ -473,20 +497,22 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
                         <p className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-slate-100">
                           <Clock className="w-3.5 h-3.5 text-[#FF5733] dark:text-[#D17A68] shrink-0" />
                           <span>{event.time}</span>
-                          <WeatherChip
-                            variant="quiet"
-                            date={(event as any).startAt || event.date}
-                            at={(event as any).startAt}
-                            lat={event.lat}
-                            lng={event.lng}
-                            className="ml-1.5"
-                          />
+                          {!online && (
+                            <WeatherChip
+                              variant="quiet"
+                              date={(event as any).startAt || event.date}
+                              at={(event as any).startAt}
+                              lat={event.lat}
+                              lng={event.lng}
+                              className="ml-1.5"
+                            />
+                          )}
                         </p>
                       )}
                       <p className="flex items-center gap-1.5 truncate text-slate-800 dark:text-slate-200">
-                        <MapPin className="w-3.5 h-3.5 text-[#FF5733] dark:text-[#D17A68] shrink-0" />
+                        {online ? <Globe className="w-3.5 h-3.5 text-sky-500 shrink-0" /> : <MapPin className="w-3.5 h-3.5 text-[#FF5733] dark:text-[#D17A68] shrink-0" />}
                         <span className="truncate">{event.location}</span>
-                        {!event.time && (
+                        {!event.time && !online && (
                           <WeatherChip
                             variant="quiet"
                             date={(event as any).startAt || event.date}
