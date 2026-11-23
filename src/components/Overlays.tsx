@@ -396,7 +396,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
     <>
       {/* SPOT DETAILS MODAL (SPEC 1: Multi-photos carousel & reviews photo upload only) */}
       {selectedSpot && (
-        <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] overflow-y-auto flex flex-col animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[70] bg-white dark:bg-[#121113] overflow-y-auto flex flex-col animate-in fade-in duration-200">
           <div className="sticky top-0 z-20 bg-white/95 dark:bg-[#121113]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
             <div className="max-w-lg mx-auto w-full px-4 py-3 flex items-center justify-between">
               <button
@@ -467,11 +467,12 @@ export const Overlays: React.FC<OverlaysProps> = ({
           <div className="max-w-lg mx-auto w-full p-4 space-y-5 flex-1 text-xs pb-20">
             {/* Multi-Photo Carousel Hero */}
             {(() => {
-              const allImages = (selectedSpot.images && selectedSpot.images.length > 0)
+              const rawImages = (selectedSpot.images && selectedSpot.images.length > 0)
                 ? selectedSpot.images
-                : [selectedSpot.img];
-              const safeIndex = activeSpotImgIndex % allImages.length;
-              const currentHeroImg = allImages[safeIndex] || selectedSpot.img;
+                : [selectedSpot.img].filter(Boolean);
+              const allImages = rawImages.filter(Boolean);
+              const safeIndex = allImages.length > 0 ? activeSpotImgIndex % allImages.length : 0;
+              const currentHeroImg = allImages[safeIndex] || selectedSpot.img || '';
               const isSpotSaved = savedItems.some(s => String(s.id) === String(selectedSpot.id) && s.kind === 'spot');
 
               return (
@@ -1264,7 +1265,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
       {/* 3. EVENT DETAILS MODAL (SPEC 3: Dresscode removed, primary ticket site) */}
       {selectedEvent && (
-        <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] overflow-y-auto flex flex-col animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[70] bg-white dark:bg-[#121113] overflow-y-auto flex flex-col animate-in fade-in duration-200">
           <div className="sticky top-0 z-20 bg-white/95 dark:bg-[#121113]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
             <div className="max-w-lg mx-auto w-full px-4 py-3 flex items-center justify-between">
               <button
@@ -1627,7 +1628,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
       {/* 4. PLAN A DATE MODAL (View All Spots style explorer) */}
       {isPlanDateModalOpen && !datePlanningSpot && (
-        <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[70] bg-white dark:bg-[#121113] flex flex-col p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
           <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
@@ -1666,7 +1667,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
       {/* 5. PLAN A DATE: DATE & TIME PICKER */}
       {datePlanningSpot && (
-        <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[70] bg-white dark:bg-[#121113] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
@@ -1724,7 +1725,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
       {/* 6. CREATE GROUP MODAL */}
       {isCreateGroupOpen && (
-        <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[70] bg-white dark:bg-[#121113] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
               <h3 className="font-black text-sm uppercase tracking-wider text-slate-900 dark:text-slate-100">
@@ -1832,7 +1833,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
       {/* 7. QR PASS MODAL */}
       {qrPassTitle && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#1C1A1E] w-full max-w-xs rounded-3xl p-5 text-center space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 border border-slate-200 dark:border-slate-800">
             <h3 className="font-black text-sm text-slate-900 dark:text-slate-100">{qrPassTitle}</h3>
             <div className="w-48 h-48 mx-auto bg-slate-100 dark:bg-[#121113] rounded-2xl flex flex-col items-center justify-center border-2 border-dashed border-slate-300 dark:border-slate-700">
@@ -1852,7 +1853,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
       {/* 8. EMERGENCY & SOS OVERLAY */}
       {activeOverlay === 'sosOverlay' && (
-        <div className="fixed inset-0 z-50 bg-white dark:bg-[#0C0A0E] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[70] bg-white dark:bg-[#0C0A0E] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
@@ -2068,7 +2069,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
       {/* 9. REDESIGNED SETTINGS (SPEC 6: Redesigned like Instagram / TikTok) */}
       {activeOverlay === 'settingsOverlay' && (
-        <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[70] bg-white dark:bg-[#121113] flex flex-col p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="max-w-lg mx-auto w-full flex-1 flex flex-col">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
@@ -2264,7 +2265,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
       )}
 
       {viewAllTitle && (
-        <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex flex-col p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[70] bg-white dark:bg-[#121113] flex flex-col p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
           <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
@@ -2349,11 +2350,13 @@ export const Overlays: React.FC<OverlaysProps> = ({
                               navigator.clipboard?.writeText?.(offer.claimCode);
                               showToast(`Copied promo code: "${offer.claimCode}"!`);
                             }
+                            const offerBiz = (offer.businessName || '').toLowerCase().trim();
                             const matched = spots.find(
-                              s => (s.businessId && s.businessId === offer.businessId) ||
-                                   s.title.toLowerCase().trim() === offer.businessName.toLowerCase().trim() ||
-                                   offer.businessName.toLowerCase().includes(s.title.toLowerCase()) ||
-                                   s.title.toLowerCase().includes(offer.businessName.toLowerCase())
+                              s => {
+                                const spotTitle = (s.title || '').toLowerCase().trim();
+                                return (s.businessId && s.businessId === offer.businessId) ||
+                                  (spotTitle && offerBiz && (spotTitle === offerBiz || offerBiz.includes(spotTitle) || spotTitle.includes(offerBiz)));
+                              }
                             );
                             if (matched) {
                               onCloseViewAll();

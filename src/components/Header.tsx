@@ -5,7 +5,6 @@ import {
   UserCheck, 
   MoreVertical, 
   MapPin,
-  LogIn,
   Crown,
   ShieldCheck,
   ChevronRight,
@@ -154,35 +153,23 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className={`${isHome ? "sticky top-0 transition-transform duration-200 " + (hidden && !menuOpen ? "-translate-y-full" : "") : "relative"} z-[45] rada-header bg-white dark:bg-[#121113] border-b border-slate-200 dark:border-slate-800 shadow-xs`}>
       <div className="max-w-lg min-[900px]:max-w-none mx-auto w-full px-3.5 sm:px-4 min-[900px]:px-8 py-2.5 min-h-[60px] sm:min-h-[64px] grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-        {/* Left: profile (or sign-in for guests) */}
+        {/* Left: profile */}
         <div className="justify-self-start">
-          {isGuestMode && onOpenAuth ? (
-            <button
-              type="button"
-              onClick={onOpenAuth}
-              className="w-10 h-10 shrink-0 flex items-center justify-center rounded-full bg-slate-100 dark:bg-[#1C1A1E] border border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-white active:scale-95 transition-all shadow-xs cursor-pointer focus:outline-none"
-              aria-label="Sign In"
-              title="Sign In"
-            >
-              <LogIn className="w-4.5 h-4.5 shrink-0" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={onOpenProfile}
-              className="relative w-10 h-10 rounded-full active:scale-95 transition-transform cursor-pointer focus:outline-none"
-              aria-label="Your profile"
-              title="Your profile"
-            >
-              <span className="block w-full h-full rounded-full overflow-hidden flex items-center justify-center">
-                {avatar ? (
-                  <img src={avatar} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
-                ) : (
-                  <span className="w-full h-full flex items-center justify-center rounded-full bg-[#E0533C]/12 text-[#E0533C] font-black text-base">{initial}</span>
-                )}
-              </span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onOpenProfile || onOpenAuth}
+            className="relative w-10 h-10 rounded-full active:scale-95 transition-transform cursor-pointer focus:outline-none"
+            aria-label="Your profile"
+            title="Your profile"
+          >
+            <span className="w-full h-full rounded-full overflow-hidden flex items-center justify-center">
+              {avatar ? (
+                <img src={avatar} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+              ) : (
+                <span className="w-full h-full flex items-center justify-center rounded-full bg-[#E0533C]/12 text-[#E0533C] font-black text-base">{initial}</span>
+              )}
+            </span>
+          </button>
         </div>
         {/* Middle: logo + name */}
         <button
@@ -217,7 +204,7 @@ export const Header: React.FC<HeaderProps> = ({
           {menuOpen && (
             <div
               role="menu"
-              className="absolute right-0 mt-2 w-[20rem] max-w-[calc(100vw-1.5rem)] max-h-[calc(100dvh-5.5rem)] overflow-y-auto overscroll-contain bg-white dark:bg-[#1C1A1E] border border-slate-200/80 dark:border-white/10 rounded-3xl shadow-[0_16px_40px_-12px_rgba(18,17,19,0.3)] z-50 origin-top-right animate-in fade-in zoom-in-95 duration-200"
+              className="absolute right-0 mt-2 w-[20rem] max-w-[calc(100vw-1.5rem)] max-h-[calc(100dvh-5.5rem)] overflow-y-auto overscroll-contain bg-white dark:bg-[#1C1A1E] border border-slate-200/80 dark:border-white/10 rounded-3xl shadow-[0_16px_40px_-12px_rgba(18,17,19,0.3)] z-[60] origin-top-right animate-in fade-in zoom-in-95 duration-200"
             >
               {menuView === 'account' && !isGuestMode ? (
                 <>

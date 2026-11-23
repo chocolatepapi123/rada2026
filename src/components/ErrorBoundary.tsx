@@ -6,6 +6,7 @@ interface Props {
   children: ReactNode;
   fallbackTitle?: string;
   onReset?: () => void;
+  overlay?: boolean;
 }
 
 interface State {
@@ -58,7 +59,15 @@ export class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-[#FDFBF7] dark:bg-[#121113] text-slate-900 dark:text-slate-100 flex flex-col items-center justify-center p-6 text-center select-none">
+        <div
+          role="alertdialog"
+          aria-modal={this.props.overlay ? 'true' : undefined}
+          className={
+            this.props.overlay
+              ? 'fixed inset-0 z-[300] bg-black/60 backdrop-blur-xs text-slate-900 dark:text-slate-100 flex flex-col items-center justify-center p-6 text-center select-none'
+              : 'min-h-screen bg-[#FDFBF7] dark:bg-[#121113] text-slate-900 dark:text-slate-100 flex flex-col items-center justify-center p-6 text-center select-none'
+          }
+        >
           <div className="w-full max-w-sm bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] text-white flex items-center justify-center mx-auto shadow-md">
               <svg viewBox="0 0 100 130" className="w-8 h-8 fill-none stroke-white" strokeLinejoin="round">
@@ -73,7 +82,9 @@ export class ErrorBoundary extends Component<Props, State> {
                 {this.props.fallbackTitle || 'Resuming RADA'}
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                The app was paused in the background. Your account, saved spots, and offline data are completely safe.
+                {this.props.overlay
+                  ? 'Something hiccuped opening this screen. Tap below to close and keep exploring.'
+                  : 'The app was paused in the background. Your account, saved spots, and offline data are completely safe.'}
               </p>
             </div>
 
@@ -84,7 +95,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 className="w-full py-2.5 px-4 bg-[#E0533C] hover:bg-[#c94530] text-white font-bold rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-95"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                <span>Resume App</span>
+                <span>{this.props.overlay ? 'Close & Continue' : 'Resume App'}</span>
               </button>
 
               <button

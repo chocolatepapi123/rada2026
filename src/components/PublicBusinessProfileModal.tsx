@@ -102,7 +102,7 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-[70] bg-white dark:bg-[#121113] animate-in fade-in duration-150">
       <div className="bg-white dark:bg-[#121113] text-slate-900 dark:text-slate-100 w-full h-full flex flex-col overflow-y-auto animate-in slide-in-from-bottom duration-200">
         
         {/* Cover Photo & Header Buttons */}

@@ -186,6 +186,15 @@ const TabFallback = () => {
   );
 };
 
+const OverlayFallback: React.FC<{ onClose?: () => void }> = ({ onClose }) => (
+  <div
+    className="fixed inset-0 z-[120] bg-black/35 backdrop-blur-[2px] flex items-center justify-center p-4"
+    onClick={onClose}
+  >
+    <div className="w-10 h-10 rounded-full border-[3px] border-white/30 border-t-[#E0533C] animate-spin bg-white/10" />
+  </div>
+);
+
 import {
   initialBusinesses,
   initialOffers,
@@ -1477,6 +1486,48 @@ export default function App() {
   const modalHistoryPushedRef = useRef<boolean>(false);
   const isProgrammaticBackRef = useRef<boolean>(false);
   const isExitingRef = useRef<boolean>(false);
+  const backStateRef = useRef({
+    isAnyModalOpen: false,
+    activeTab: 'home',
+    closeTopModals: () => {},
+    handleBackToSpots: () => {},
+    setActiveTab: (_t: string) => {},
+    showToast: (_m: string) => {},
+  });
+  backStateRef.current = {
+    isAnyModalOpen,
+    activeTab,
+    closeTopModals: () => {
+      if (isAuthModalOpen) setIsAuthModalOpen(false);
+      if (isProfilePageOpen) setIsProfilePageOpen(false);
+      if (isSavedModalOpen) setIsSavedModalOpen(false);
+      if (isAdminOpen) setIsAdminOpen(false);
+      if (viewingProfile) setViewingProfile(null);
+      if (selectedPublicBusiness) setSelectedPublicBusiness(null);
+      if (selectedLocationMapSpot) setSelectedLocationMapSpot(null);
+      if (selectedLocationMapEvent) setSelectedLocationMapEvent(null);
+      if (qrPassTitle) setQrPassTitle(null);
+      if (isPlanDateModalOpen) {
+        setIsPlanDateModalOpen(false);
+        setDatePlanningSpot(null);
+      }
+      if (isCreateGroupOpen) setIsCreateGroupOpen(false);
+      if (viewAllTitle) {
+        setViewAllTitle(null);
+        setViewAllCategory(null);
+      }
+      if (selectedSpotModal) handleCloseSpotModal();
+      if (selectedEventModal) handleCloseEventModal();
+      if (activeOverlay) setActiveOverlay(null);
+      if (isSuggestSpotModalOpen) setIsSuggestSpotModalOpen(false);
+      if (isCreateEventOpen) setIsCreateEventOpen(false);
+      if (isMyTicketsOpen) setIsMyTicketsOpen(false);
+      if (ticketLink) closeTicketLink();
+    },
+    handleBackToSpots,
+    setActiveTab,
+    showToast,
+  };
 
   useEffect(() => {
     // Anchor base history state on app startup
@@ -1491,7 +1542,7 @@ export default function App() {
       window.history.pushState({ radaApp: true, guard: true }, '');
     }
 
-    const handlePopState = (e: PopStateEvent) => {
+    const handlePopState = (_e: PopStateEvent) => {
       // If this pop was triggered programmatically to clean up a UI modal close, ignore it
       if (isProgrammaticBackRef.current) {
         isProgrammaticBackRef.current = false;
@@ -1502,51 +1553,25 @@ export default function App() {
         return;
       }
 
+      const cur = backStateRef.current;
+
       // 1. If any modal or overlay is open, dismiss it and stay inside app
-      if (isAnyModalOpen) {
+      if (cur.isAnyModalOpen) {
         // Modal is closed by browser hardware back button, so history entry is already popped
         modalHistoryPushedRef.current = false;
-        if (isAuthModalOpen) setIsAuthModalOpen(false);
-        if (isProfilePageOpen) setIsProfilePageOpen(false);
-        if (isSavedModalOpen) setIsSavedModalOpen(false);
-        if (isAdminOpen) setIsAdminOpen(false);
-        if (viewingProfile) setViewingProfile(null);
-        if (selectedPublicBusiness) setSelectedPublicBusiness(null);
-        if (selectedLocationMapSpot) setSelectedLocationMapSpot(null);
-        if (selectedLocationMapEvent) setSelectedLocationMapEvent(null);
-        if (qrPassTitle) setQrPassTitle(null);
-        if (isPlanDateModalOpen) {
-          setIsPlanDateModalOpen(false);
-          setDatePlanningSpot(null);
-        }
-        if (isCreateGroupOpen) setIsCreateGroupOpen(false);
-        if (viewAllTitle) {
-          setViewAllTitle(null);
-          setViewAllCategory(null);
-        }
-        if (selectedSpotModal) {
-          handleCloseSpotModal();
-        }
-        if (selectedEventModal) {
-          handleCloseEventModal();
-        }
-        if (activeOverlay) setActiveOverlay(null);
-        if (isSuggestSpotModalOpen) setIsSuggestSpotModalOpen(false);
-        if (isCreateEventOpen) setIsCreateEventOpen(false);
-        if (isMyTicketsOpen) setIsMyTicketsOpen(false);
-        if (ticketLink) closeTicketLink();
+        cur.closeTopModals();
         return;
       }
 
       // 2. If user navigated to Calendar from Spots, return smoothly to Spots feed
-      if (activeTab === 'calendar') {
-        handleBackToSpots();
+      if (cur.activeTab === 'calendar') {
+        cur.handleBackToSpots();
         return;
       }
 
       // If user is on an inner tab, navigate back to home feed first
-      if (activeTab !== 'home') {
-        setActiveTab('home');
+      if (cur.activeTab !== 'home') {
+        cur.setActiveTab('home');
         return;
       }
 
@@ -1568,35 +1593,14 @@ export default function App() {
       }
 
       lastBackPressRef.current = now;
-      showToast('Press Back again to exit RADA');
+      cur.showToast('Press Back again to exit RADA');
       // Re-anchor history state to keep the user safely inside the web app
       window.history.pushState({ radaApp: true, tab: 'home' }, '');
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [
-    isAnyModalOpen,
-    isAuthModalOpen,
-    isProfilePageOpen,
-    isSavedModalOpen,
-    isAdminOpen,
-    viewingProfile,
-    selectedPublicBusiness,
-    selectedLocationMapSpot,
-    selectedLocationMapEvent,
-    qrPassTitle,
-    isPlanDateModalOpen,
-    isCreateGroupOpen,
-    viewAllTitle,
-    selectedSpotModal,
-    selectedEventModal,
-    activeOverlay,
-    isSuggestSpotModalOpen,
-    isCreateEventOpen,
-    activeTab,
-    showToast
-  ]);
+  }, []);
 
   // Once the user leaves the Outings tab, clear the shared-link parameters from the address bar
   useEffect(() => {
@@ -1629,6 +1633,7 @@ export default function App() {
         modalHistoryPushedRef.current = false;
         isProgrammaticBackRef.current = true;
         window.history.back();
+        window.setTimeout(() => { isProgrammaticBackRef.current = false; }, 150);
       }
     }
     prevModalOpenRef.current = isAnyModalOpen;
@@ -2396,12 +2401,14 @@ export default function App() {
     showToast(`"${spotTitle || 'Spot'}" was permanently deleted.`, { type: 'success' });
   };
 
+  const handleSplashDismiss = useCallback(() => setShowSplash(false), []);
+
   return (
     <ToastProvider>
       <BusinessesProvider businesses={businesses}>
         <div className="min-h-screen text-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-200 antialiased overflow-x-clip">
           {/* Primary Application Splash Screen */}
-          {showSplash && <SplashScreen durationMs={1200} onDismiss={() => setShowSplash(false)} />}
+          {showSplash && <SplashScreen durationMs={1200} onDismiss={handleSplashDismiss} />}
 
       {authLoading ? (
         <div className="fixed inset-0 z-[9998]" style={{ background: '#E05328' }}>
@@ -2648,331 +2655,385 @@ export default function App() {
             onTabChange={changeTab}
           />
 
-          {/* Modals & Overlays */}
-          <ErrorBoundary fallbackTitle="Resuming View">
-          <Suspense fallback={null}>
-
+          {/* Modals & Overlays — each wrapped in its own boundary & suspense so one failure never blocks others */}
           {(selectedLocationMapSpot || selectedLocationMapEvent) && (
-            <LocationMapModal
-              spot={selectedLocationMapSpot}
-              event={selectedLocationMapEvent}
-              onClose={() => { setSelectedLocationMapSpot(null); setSelectedLocationMapEvent(null); }}
-              showToast={showToast}
-            />
+            <ErrorBoundary
+              overlay
+              fallbackTitle="Map unavailable"
+              onReset={() => { setSelectedLocationMapSpot(null); setSelectedLocationMapEvent(null); }}
+            >
+              <Suspense fallback={<OverlayFallback onClose={() => { setSelectedLocationMapSpot(null); setSelectedLocationMapEvent(null); }} />}>
+                <LocationMapModal
+                  spot={selectedLocationMapSpot}
+                  event={selectedLocationMapEvent}
+                  onClose={() => { setSelectedLocationMapSpot(null); setSelectedLocationMapEvent(null); }}
+                  showToast={showToast}
+                />
+              </Suspense>
+            </ErrorBoundary>
           )}
 
-          <Overlays
-            activeOverlay={activeOverlay}
-            onCloseOverlay={() => setActiveOverlay(null)}
-            selectedLocation={currentLocation}
-            activeCategory={viewAllCategory || undefined}
-            activeCategories={[
-              'Restaurants & Dining',
-              'Cafés & Bakeries',
-              'Clubs & Lounges',
-              'Date Spots',
-              'Nature Trails & Outdoors',
-              'Creative Leisure',
-              'Tech & Gaming',
-              'Action & Sports',
-              'Hotels & Luxury',
-              'Vacation Escapes'
-            ]}
-            spots={allMergedSpots}
-            events={allEvents}
-            cinemaMovies={cinemaMovies}
-            offers={offers}
-            onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
-            onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
-            onBookCinema={handleBookCinema}
-            selectedSpot={selectedSpotModal}
-            onCloseSpotModal={handleCloseSpotModal}
-            onPlanDateFromSpot={(spot) => requireAuth('send messages', () => handlePlanDateFromSpot(spot))}
-            onPostReview={handlePostReview}
-            onAddSpotImage={handleAddSpotImage}
-            selectedEvent={selectedEventModal}
-            onCloseEventModal={handleCloseEventModal}
-            onToggleGoing={handleToggleGoing}
-            goingEventIds={goingEventIds}
-            onBuyEventTicket={handleBuyEventTicket}
-            planFriends={Array.from(new Set(socials.conversations.filter(c => c.type === 'direct' && c.name && c.name.startsWith('@')).map(c => c.name))).map(handle => ({ handle }))}
-            onPlanWithFriends={(evt, opts) => handlePlanWithFriends(evt, opts)}
-            onOpenEventMap={(evt) => setSelectedLocationMapEvent(evt)}
-            currentUserProfile={currentUserProfile}
-            onUpdateCurrentUserProfile={handleUpdateCurrentUserProfile}
-            qrPassTitle={qrPassTitle}
-            onCloseQrModal={() => setQrPassTitle(null)}
-            isPlanDateModalOpen={isPlanDateModalOpen}
-            onClosePlanDateModal={() => {
-              setIsPlanDateModalOpen(false);
-              setDatePlanningSpot(null);
-            }}
-            onSelectSpotForDate={(spot) => setDatePlanningSpot(spot)}
-            datePlanningSpot={datePlanningSpot}
-            onConfirmDateInvite={handleConfirmDateInvite}
-            isCreateGroupOpen={isCreateGroupOpen}
-            onCloseCreateGroup={() => setIsCreateGroupOpen(false)}
-            discoveryProfiles={discoveryProfiles}
-            onCreateGroup={handleCreateGroup}
-            viewAllTitle={viewAllTitle}
-            viewAllCategory={viewAllCategory}
-            onCloseViewAll={() => {
+          <ErrorBoundary
+            overlay
+            fallbackTitle="Closing screen"
+            onReset={() => {
+              setActiveOverlay(null);
               setViewAllTitle(null);
               setViewAllCategory(null);
+              handleCloseSpotModal();
+              handleCloseEventModal();
+              setIsPlanDateModalOpen(false);
+              setDatePlanningSpot(null);
+              setIsCreateGroupOpen(false);
+              setQrPassTitle(null);
             }}
-            isGpsBroadcasting={isGpsBroadcasting}
-            onToggleGps={() => setIsGpsBroadcasting(!isGpsBroadcasting)}
-            emergencyContacts={emergencyContacts}
-            onAddEmergencyContact={(name, phone) => {
-              requireAuth('add emergency contacts', () => {
-                setEmergencyContacts(prev => [...prev, { id: `ec-${Date.now()}`, name, phone }]);
-              });
-            }}
-            onDeleteEmergencyContact={(id) => {
-              setEmergencyContacts(prev => prev.filter(c => c.id !== id));
-            }}
-            isDarkMode={isDarkMode}
-            showToast={showToast}
-            onOpenSaved={() => requireAuth('view saved collections', () => setIsSavedModalOpen(true))}
-            onOpenAccountSettings={() => setIsProfilePageOpen(true)}
-            savedCount={savedItems.length}
-            savedItems={savedItems}
-            onToggleSave={handleToggleSave}
-            onNavigateToCalendar={handleNavigateToCalendar}
-            isAdmin={isAdmin}
-            onDeleteSpot={handleDeleteSpot}
-          />
-
-          <UserProfileModal
-            user={viewingProfile}
-            isMutualMatch={Boolean(viewingProfile?.id && conversations.some(c => c.type === 'direct' && (c as any).otherUserId === viewingProfile.id))}
-            onClose={() => setViewingProfile(null)}
-            onSendMatchRequest={(u) => {
-              requireAuth('send messages', async () => {
-                if (!u.id) { showToast('This profile cannot receive requests yet.', { type: 'error' }); return; }
-                const res = await socials.sendRequest(u.id);
-                if (res.status === 'error') showToast(res.error || 'Could not send the request.', { type: 'error' });
-                else if (res.status === 'matched') {
-                  showToast(`It's a match with ${u.handle}!`, { category: 'match' });
-                  if (res.conversationId) setTargetChatId(res.conversationId);
-                  setActiveTab('socials');
-                } else if (res.status === 'already_sent') showToast(`You already sent ${u.handle} a request.`);
-                else showToast(`Hangout & Match request sent to ${u.handle}!`, { category: 'match' });
-                setViewingProfile(null);
-              });
-            }}
-            onSendMessage={(u) => {
-              requireAuth('send messages', () => {
-                const dm = conversations.find(c => c.type === 'direct' && (c as any).otherUserId === u.id);
-                if (dm) setTargetChatId(dm.id);
-                setActiveTab('socials');
-                setViewingProfile(null);
-              });
-            }}
-            showToast={showToast}
-            onOpenSavedItems={() => requireAuth('view saved collections', () => setIsSavedModalOpen(true))}
-            onOpenAccountSettings={() => setIsProfilePageOpen(true)}
-            currentUserId={session?.user?.id}
-            onOpenAuth={() => setIsAuthModalOpen(true)}
-            spots={allMergedSpots}
-            events={allEvents}
-            isSpotSaved={(id) => savedItems.some(s => String(s.id) === String(id) && s.kind === 'spot')}
-            onSaveSpot={(id) => {
-              const sp = allMergedSpots.find(x => String(x.id) === String(id));
-              if (sp) requireAuth('save spots', () => handleToggleSave(sp, 'spot'));
-            }}
-            onOpenSpot={(sp) => {
-              setViewingProfile(null);
-              setSelectedSpotModal(sp);
-            }}
-            onOpenEvent={(ev) => {
-              setViewingProfile(null);
-              setSelectedEventModal(ev);
-            }}
-            isItemSaved={(id, kind) => savedItems.some(s => String(s.id) === String(id) && s.kind === kind)}
-            onToggleSaveItem={(item, kind) => requireAuth('save items', () => handleToggleSave(item, kind))}
-            onPlanDateAtSpot={(id, withUserId) => {
-              const sp = allMergedSpots.find(x => String(x.id) === String(id));
-              if (!sp) return;
-              requireAuth('send messages', () => {
-                const dm = conversations.find(c => c.type === 'direct' && (c as any).otherUserId === withUserId);
-                if (!dm) {
-                  showToast('Match with them first, then you can plan a date here.', { type: 'error' });
-                  return;
-                }
-                setViewingProfile(null);
-                handlePlanDateFromSpot(sp);
-                setPlanDateChatId(dm.id);
-              });
-            }}
-          />
-
-          {selectedPublicBusiness && (
-            <PublicBusinessProfileModal
-              business={selectedPublicBusiness}
-              onClose={() => setSelectedPublicBusiness(null)}
-              offers={offers}
-              spots={spots}
-              events={allEvents}
-              onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
-              onOpenEventDetails={(event) => setSelectedEventModal(event)}
-              showToast={showToast}
-            />
-          )}
-
-          {isProfilePageOpen && (ProfilePageComp ? (
-            <ProfilePageComp
-              onClose={() => setIsProfilePageOpen(false)}
-              session={session}
-              currentUserProfile={currentUserProfile}
-              showToast={showToast}
-              onOpenAuth={() => setIsAuthModalOpen(true)}
-              onProfileChange={handleOwnProfileChange}
-              outings={allOutings}
-              myBusinesses={session?.user?.id ? businesses.filter(b => b.ownerId === session.user.id && !isDemoId(b.id)) : []}
-              savedCount={savedItems.length}
-              ticketCount={tickets.length}
-              onOpenSaved={() => setIsSavedModalOpen(true)}
-              isDarkMode={isDarkMode}
-              spots={spots.map(s => ({ id: s.id, title: s.title, neighborhood: s.neighborhood }))}
-              savedItems={savedItems}
-              savedFolders={savedFolders}
-              allSpots={allMergedSpots}
-              events={allEvents}
-              offers={offers}
-              onOpenSpot={(sp: SpotItem) => {
-                setIsProfilePageOpen(false);
-                setSelectedSpotModal(sp);
-              }}
-              onOpenEvent={(ev: EventItem) => {
-                setIsProfilePageOpen(false);
-                setSelectedEventModal(ev);
-              }}
-            />
-          ) : (
-            <div className="fixed inset-0 z-50 bg-white dark:bg-[#121113] flex items-center justify-center">
-              <div className="w-8 h-8 rounded-full border-4 border-slate-200 dark:border-slate-700 border-t-[#E0533C] animate-spin" />
-            </div>
-          ))}
-
-          {ticketLink && (
-            <div className={isAuthModalOpen ? 'hidden' : ''}>
-            <TicketBuySheet
-              kind={ticketLink.kind}
-              source={ticketLink.source}
-              signedIn={!!session && !isGuestMode}
-              onNeedSignIn={() => { setAuthModalMessage('Please log in or create an account to buy tickets.'); setIsAuthModalOpen(true); }}
-              onClose={closeTicketLink}
-              onOpenMyTickets={() => setIsMyTicketsOpen(true)}
-            />
-            </div>
-          )}
-          {isMyTicketsOpen && <MyTicketsSheet onClose={() => setIsMyTicketsOpen(false)} />}
-
-          {isSavedModalOpen && (
-            <SavedPlacesModal
-              isOpen={isSavedModalOpen}
-              onClose={() => setIsSavedModalOpen(false)}
-              savedItems={savedItems}
-              savedFolders={savedFolders}
-              onCreateFolder={handleCreateFolder}
-              onDeleteFolder={handleDeleteFolder}
-              onAssignItemFolder={handleAssignItemFolder}
+          >
+            <Overlays
+              activeOverlay={activeOverlay}
+              onCloseOverlay={() => setActiveOverlay(null)}
+              selectedLocation={currentLocation}
+              activeCategory={viewAllCategory || undefined}
+              activeCategories={[
+                'Restaurants & Dining',
+                'Cafés & Bakeries',
+                'Clubs & Lounges',
+                'Date Spots',
+                'Nature Trails & Outdoors',
+                'Creative Leisure',
+                'Tech & Gaming',
+                'Action & Sports',
+                'Hotels & Luxury',
+                'Vacation Escapes'
+              ]}
               spots={allMergedSpots}
               events={allEvents}
+              cinemaMovies={cinemaMovies}
               offers={offers}
-              outings={allOutings}
-              onOpenOuting={(o: any) => {
-                try { window.history.replaceState({}, '', `${window.location.pathname}?tab=outings&outing=${encodeURIComponent(String(o.id))}`); } catch (_) {}
-                window.dispatchEvent(new CustomEvent('rada:open-outing', { detail: { id: String(o.id) } }));
-                setActiveTab('outings');
+              onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
+              onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
+              onBookCinema={handleBookCinema}
+              selectedSpot={selectedSpotModal}
+              onCloseSpotModal={handleCloseSpotModal}
+              onPlanDateFromSpot={(spot) => requireAuth('send messages', () => handlePlanDateFromSpot(spot))}
+              onPostReview={handlePostReview}
+              onAddSpotImage={handleAddSpotImage}
+              selectedEvent={selectedEventModal}
+              onCloseEventModal={handleCloseEventModal}
+              onToggleGoing={handleToggleGoing}
+              goingEventIds={goingEventIds}
+              onBuyEventTicket={handleBuyEventTicket}
+              planFriends={Array.from(new Set(socials.conversations.filter(c => c.type === 'direct' && c.name && c.name.startsWith('@')).map(c => c.name))).map(handle => ({ handle }))}
+              onPlanWithFriends={(evt, opts) => handlePlanWithFriends(evt, opts)}
+              onOpenEventMap={(evt) => setSelectedLocationMapEvent(evt)}
+              currentUserProfile={currentUserProfile}
+              onUpdateCurrentUserProfile={handleUpdateCurrentUserProfile}
+              qrPassTitle={qrPassTitle}
+              onCloseQrModal={() => setQrPassTitle(null)}
+              isPlanDateModalOpen={isPlanDateModalOpen}
+              onClosePlanDateModal={() => {
+                setIsPlanDateModalOpen(false);
+                setDatePlanningSpot(null);
               }}
-              onToggleSave={handleToggleSave}
-              onOpenSpot={(spot) => setSelectedSpotModal(spot)}
-              onOpenEvent={(evt) => setSelectedEventModal(evt)}
+              onSelectSpotForDate={(spot) => setDatePlanningSpot(spot)}
+              datePlanningSpot={datePlanningSpot}
+              onConfirmDateInvite={handleConfirmDateInvite}
+              isCreateGroupOpen={isCreateGroupOpen}
+              onCloseCreateGroup={() => setIsCreateGroupOpen(false)}
+              discoveryProfiles={discoveryProfiles}
+              onCreateGroup={handleCreateGroup}
+              viewAllTitle={viewAllTitle}
+              viewAllCategory={viewAllCategory}
+              onCloseViewAll={() => {
+                setViewAllTitle(null);
+                setViewAllCategory(null);
+              }}
+              isGpsBroadcasting={isGpsBroadcasting}
+              onToggleGps={() => setIsGpsBroadcasting(!isGpsBroadcasting)}
+              emergencyContacts={emergencyContacts}
+              onAddEmergencyContact={(name, phone) => {
+                requireAuth('add emergency contacts', () => {
+                  setEmergencyContacts(prev => [...prev, { id: `ec-${Date.now()}`, name, phone }]);
+                });
+              }}
+              onDeleteEmergencyContact={(id) => {
+                setEmergencyContacts(prev => prev.filter(c => c.id !== id));
+              }}
+              isDarkMode={isDarkMode}
               showToast={showToast}
+              onOpenSaved={() => requireAuth('view saved collections', () => setIsSavedModalOpen(true))}
+              onOpenAccountSettings={() => setIsProfilePageOpen(true)}
+              savedCount={savedItems.length}
+              savedItems={savedItems}
+              onToggleSave={handleToggleSave}
+              onNavigateToCalendar={handleNavigateToCalendar}
+              isAdmin={isAdmin}
+              onDeleteSpot={handleDeleteSpot}
             />
+          </ErrorBoundary>
+
+          {viewingProfile && (
+            <ErrorBoundary overlay fallbackTitle="Profile unavailable" onReset={() => setViewingProfile(null)}>
+              <Suspense fallback={<OverlayFallback onClose={() => setViewingProfile(null)} />}>
+                <UserProfileModal
+                  user={viewingProfile}
+                  isMutualMatch={Boolean(viewingProfile?.id && conversations.some(c => c.type === 'direct' && (c as any).otherUserId === viewingProfile.id))}
+                  onClose={() => setViewingProfile(null)}
+                  onSendMatchRequest={(u) => {
+                    requireAuth('send messages', async () => {
+                      if (!u.id) { showToast('This profile cannot receive requests yet.', { type: 'error' }); return; }
+                      const res = await socials.sendRequest(u.id);
+                      if (res.status === 'error') showToast(res.error || 'Could not send the request.', { type: 'error' });
+                      else if (res.status === 'matched') {
+                        showToast(`It's a match with ${u.handle}!`, { category: 'match' });
+                        if (res.conversationId) setTargetChatId(res.conversationId);
+                        setActiveTab('socials');
+                      } else if (res.status === 'already_sent') showToast(`You already sent ${u.handle} a request.`);
+                      else showToast(`Hangout & Match request sent to ${u.handle}!`, { category: 'match' });
+                      setViewingProfile(null);
+                    });
+                  }}
+                  onSendMessage={(u) => {
+                    requireAuth('send messages', () => {
+                      const dm = conversations.find(c => c.type === 'direct' && (c as any).otherUserId === u.id);
+                      if (dm) setTargetChatId(dm.id);
+                      setActiveTab('socials');
+                      setViewingProfile(null);
+                    });
+                  }}
+                  showToast={showToast}
+                  onOpenSavedItems={() => requireAuth('view saved collections', () => setIsSavedModalOpen(true))}
+                  onOpenAccountSettings={() => setIsProfilePageOpen(true)}
+                  currentUserId={session?.user?.id}
+                  onOpenAuth={() => setIsAuthModalOpen(true)}
+                  spots={allMergedSpots}
+                  events={allEvents}
+                  isSpotSaved={(id) => savedItems.some(s => String(s.id) === String(id) && s.kind === 'spot')}
+                  onSaveSpot={(id) => {
+                    const sp = allMergedSpots.find(x => String(x.id) === String(id));
+                    if (sp) requireAuth('save spots', () => handleToggleSave(sp, 'spot'));
+                  }}
+                  onOpenSpot={(sp) => {
+                    setViewingProfile(null);
+                    setSelectedSpotModal(sp);
+                  }}
+                  onOpenEvent={(ev) => {
+                    setViewingProfile(null);
+                    setSelectedEventModal(ev);
+                  }}
+                  isItemSaved={(id, kind) => savedItems.some(s => String(s.id) === String(id) && s.kind === kind)}
+                  onToggleSaveItem={(item, kind) => requireAuth('save items', () => handleToggleSave(item, kind))}
+                  onPlanDateAtSpot={(id, withUserId) => {
+                    const sp = allMergedSpots.find(x => String(x.id) === String(id));
+                    if (!sp) return;
+                    requireAuth('send messages', () => {
+                      const dm = conversations.find(c => c.type === 'direct' && (c as any).otherUserId === withUserId);
+                      if (!dm) {
+                        showToast('Match with them first, then you can plan a date here.', { type: 'error' });
+                        return;
+                      }
+                      setViewingProfile(null);
+                      handlePlanDateFromSpot(sp);
+                      setPlanDateChatId(dm.id);
+                    });
+                  }}
+                />
+              </Suspense>
+            </ErrorBoundary>
+          )}
+
+          {selectedPublicBusiness && (
+            <ErrorBoundary overlay fallbackTitle="Venue profile unavailable" onReset={() => setSelectedPublicBusiness(null)}>
+              <Suspense fallback={<OverlayFallback onClose={() => setSelectedPublicBusiness(null)} />}>
+                <PublicBusinessProfileModal
+                  business={selectedPublicBusiness}
+                  onClose={() => setSelectedPublicBusiness(null)}
+                  offers={offers}
+                  spots={spots}
+                  events={allEvents}
+                  onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
+                  onOpenEventDetails={(event) => setSelectedEventModal(event)}
+                  showToast={showToast}
+                />
+              </Suspense>
+            </ErrorBoundary>
+          )}
+
+          {isProfilePageOpen && (
+            <ErrorBoundary overlay fallbackTitle="Profile unavailable" onReset={() => setIsProfilePageOpen(false)}>
+              {ProfilePageComp ? (
+                <ProfilePageComp
+                  onClose={() => setIsProfilePageOpen(false)}
+                  session={session}
+                  currentUserProfile={currentUserProfile}
+                  showToast={showToast}
+                  onOpenAuth={() => setIsAuthModalOpen(true)}
+                  onProfileChange={handleOwnProfileChange}
+                  outings={allOutings}
+                  myBusinesses={session?.user?.id ? businesses.filter(b => b.ownerId === session.user.id && !isDemoId(b.id)) : []}
+                  savedCount={savedItems.length}
+                  ticketCount={tickets.length}
+                  onOpenSaved={() => setIsSavedModalOpen(true)}
+                  isDarkMode={isDarkMode}
+                  spots={spots.map(s => ({ id: s.id, title: s.title, neighborhood: s.neighborhood }))}
+                  savedItems={savedItems}
+                  savedFolders={savedFolders}
+                  allSpots={allMergedSpots}
+                  events={allEvents}
+                  offers={offers}
+                  onOpenSpot={(sp: SpotItem) => {
+                    setIsProfilePageOpen(false);
+                    setSelectedSpotModal(sp);
+                  }}
+                  onOpenEvent={(ev: EventItem) => {
+                    setIsProfilePageOpen(false);
+                    setSelectedEventModal(ev);
+                  }}
+                />
+              ) : (
+                <div className="fixed inset-0 z-[70] bg-white dark:bg-[#121113] flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full border-4 border-slate-200 dark:border-slate-700 border-t-[#E0533C] animate-spin" />
+                </div>
+              )}
+            </ErrorBoundary>
+          )}
+
+          {ticketLink && (
+            <ErrorBoundary overlay fallbackTitle="Ticket checkout unavailable" onReset={closeTicketLink}>
+              <Suspense fallback={<OverlayFallback onClose={closeTicketLink} />}>
+                <div className={isAuthModalOpen ? 'hidden' : ''}>
+                  <TicketBuySheet
+                    kind={ticketLink.kind}
+                    source={ticketLink.source}
+                    signedIn={!!session && !isGuestMode}
+                    onNeedSignIn={() => { setAuthModalMessage('Please log in or create an account to buy tickets.'); setIsAuthModalOpen(true); }}
+                    onClose={closeTicketLink}
+                    onOpenMyTickets={() => setIsMyTicketsOpen(true)}
+                  />
+                </div>
+              </Suspense>
+            </ErrorBoundary>
+          )}
+
+          {isMyTicketsOpen && (
+            <ErrorBoundary overlay fallbackTitle="Tickets unavailable" onReset={() => setIsMyTicketsOpen(false)}>
+              <MyTicketsSheet onClose={() => setIsMyTicketsOpen(false)} />
+            </ErrorBoundary>
+          )}
+
+          {isSavedModalOpen && (
+            <ErrorBoundary overlay fallbackTitle="Saved items unavailable" onReset={() => setIsSavedModalOpen(false)}>
+              <SavedPlacesModal
+                isOpen={isSavedModalOpen}
+                onClose={() => setIsSavedModalOpen(false)}
+                savedItems={savedItems}
+                savedFolders={savedFolders}
+                onCreateFolder={handleCreateFolder}
+                onDeleteFolder={handleDeleteFolder}
+                onAssignItemFolder={handleAssignItemFolder}
+                spots={allMergedSpots}
+                events={allEvents}
+                offers={offers}
+                outings={allOutings}
+                onOpenOuting={(o: any) => {
+                  try { window.history.replaceState({}, '', `${window.location.pathname}?tab=outings&outing=${encodeURIComponent(String(o.id))}`); } catch (_) {}
+                  window.dispatchEvent(new CustomEvent('rada:open-outing', { detail: { id: String(o.id) } }));
+                  setActiveTab('outings');
+                }}
+                onToggleSave={handleToggleSave}
+                onOpenSpot={(spot) => setSelectedSpotModal(spot)}
+                onOpenEvent={(evt) => setSelectedEventModal(evt)}
+                showToast={showToast}
+              />
+            </ErrorBoundary>
           )}
 
           {isSuggestSpotModalOpen && (
-            <SuggestSpotModal
-              isOpen={isSuggestSpotModalOpen}
-              onClose={() => setIsSuggestSpotModalOpen(false)}
-              onSubmitSuccess={(spot) => {
-                // Suggested spots are live straight away (no badge, unclaimed); only a rejected one is hidden
-                if (spot.status !== 'rejected') {
-                  setSpots(prev => [spot, ...prev.filter(s => String(s.id) !== String(spot.id))]);
-                  syncRef.current?.();
-                }
-              }}
-              showToast={showToast}
-              currentUserId={session?.user?.id}
-              currentUserProfile={currentUserProfile}
-            />
+            <ErrorBoundary overlay fallbackTitle="Suggest a Spot unavailable" onReset={() => setIsSuggestSpotModalOpen(false)}>
+              <SuggestSpotModal
+                isOpen={isSuggestSpotModalOpen}
+                onClose={() => setIsSuggestSpotModalOpen(false)}
+                onSubmitSuccess={(spot) => {
+                  // Suggested spots are live straight away (no badge, unclaimed); only a rejected one is hidden
+                  if (spot.status !== 'rejected') {
+                    setSpots(prev => [spot, ...prev.filter(s => String(s.id) !== String(spot.id))]);
+                    syncRef.current?.();
+                  }
+                }}
+                showToast={showToast}
+                currentUserId={session?.user?.id}
+                currentUserProfile={currentUserProfile}
+              />
+            </ErrorBoundary>
           )}
 
           {isCreateEventOpen && (
-            <CreateEventModal
-              open={isCreateEventOpen}
-              onClose={() => setIsCreateEventOpen(false)}
-              onCreateEvent={handleCreateEvent}
-              initialTitle={createEventInitialTitle}
-              hostName={currentUserProfile?.handle || currentUserProfile?.name}
-              currentUserId={session?.user?.id || currentUserProfile?.id}
-              showToast={showToast}
-            />
+            <ErrorBoundary overlay fallbackTitle="Add Event unavailable" onReset={() => setIsCreateEventOpen(false)}>
+              <CreateEventModal
+                open={isCreateEventOpen}
+                onClose={() => setIsCreateEventOpen(false)}
+                onCreateEvent={handleCreateEvent}
+                initialTitle={createEventInitialTitle}
+                hostName={currentUserProfile?.handle || currentUserProfile?.name}
+                currentUserId={session?.user?.id || currentUserProfile?.id}
+                showToast={showToast}
+              />
+            </ErrorBoundary>
           )}
 
           {isAuthModalOpen && (
-            <AuthModal
-              isOpen={isAuthModalOpen}
-              onClose={() => { setIsAuthModalOpen(false); setIsGuestMode(true); }}
-              onSuccess={() => { setIsAuthModalOpen(false); setIsGuestMode(false); setAuthModalMessage(''); }}
-              onContinueAsGuest={() => { setIsGuestMode(true); setIsAuthModalOpen(false); setAuthModalMessage(''); }}
-              customMessage={authModalMessage}
-            />
+            <ErrorBoundary overlay fallbackTitle="Sign in unavailable" onReset={() => setIsAuthModalOpen(false)}>
+              <AuthModal
+                isOpen={isAuthModalOpen}
+                onClose={() => { setIsAuthModalOpen(false); setIsGuestMode(true); }}
+                onSuccess={() => { setIsAuthModalOpen(false); setIsGuestMode(false); setAuthModalMessage(''); }}
+                onContinueAsGuest={() => { setIsGuestMode(true); setIsAuthModalOpen(false); setAuthModalMessage(''); }}
+                customMessage={authModalMessage}
+              />
+            </ErrorBoundary>
           )}
+
           {isAdminOpen && userRole === 'admin' && (
-            <AdminDashboard
-              businesses={businesses}
-              onClose={() => setIsAdminOpen(false)}
-              onRefresh={() => syncRef.current?.()}
-              showToast={showToast}
-              spotClaims={spotClaims}
-              onApproveClaim={handleApproveClaim}
-              onRejectClaim={handleRejectClaim}
-              spotsCount={spots.length}
-              currentUserEmail={session?.user?.email || currentUserProfile?.email}
-              currentUserId={session?.user?.id || currentUserProfile?.id}
-              currentUserRole={userRole}
-              onSpotPublished={(spot) => {
-                setSpots(prev => [spot, ...prev.filter(s => String(s.id) !== String(spot.id))]);
-              }}
-              onSpotDeleted={(spotId) => {
-                handleDeleteSpot({ id: spotId });
-              }}
-              onUpdateBusiness={(businessId, updates) => {
-                const business = businesses.find(b => b.id === businessId);
+            <ErrorBoundary overlay fallbackTitle="Admin hub unavailable" onReset={() => setIsAdminOpen(false)}>
+              <Suspense fallback={<OverlayFallback onClose={() => setIsAdminOpen(false)} />}>
+                <AdminDashboard
+                  businesses={businesses}
+                  onClose={() => setIsAdminOpen(false)}
+                  onRefresh={() => syncRef.current?.()}
+                  showToast={showToast}
+                  spotClaims={spotClaims}
+                  onApproveClaim={handleApproveClaim}
+                  onRejectClaim={handleRejectClaim}
+                  spotsCount={spots.length}
+                  currentUserEmail={session?.user?.email || currentUserProfile?.email}
+                  currentUserId={session?.user?.id || currentUserProfile?.id}
+                  currentUserRole={userRole}
+                  onSpotPublished={(spot) => {
+                    setSpots(prev => [spot, ...prev.filter(s => String(s.id) !== String(spot.id))]);
+                  }}
+                  onSpotDeleted={(spotId) => {
+                    handleDeleteSpot({ id: spotId });
+                  }}
+                  onUpdateBusiness={(businessId, updates) => {
+                    const business = businesses.find(b => b.id === businessId);
 
-                if (!business) return;
+                    if (!business) return;
 
-                // update on screen right away
-                setBusinesses(prev => prev.map(b => b.id === businessId ? ({ ...b, ...updates } as BusinessAccount) : b));
+                    // update on screen right away
+                    setBusinesses(prev => prev.map(b => b.id === businessId ? ({ ...b, ...updates } as BusinessAccount) : b));
 
-                // save online: only the verification fields are changed
-                if (currentUserId && !initialBusinesses.some(b => b.id === businessId)) {
-                  cloudWrite(() => cloud.reviewBusiness(businessId, updates as Partial<BusinessAccount>));
-                }
-              }}
-            />
+                    // save online: only the verification fields are changed
+                    if (currentUserId && !initialBusinesses.some(b => b.id === businessId)) {
+                      cloudWrite(() => cloud.reviewBusiness(businessId, updates as Partial<BusinessAccount>));
+                    }
+                  }}
+                />
+              </Suspense>
+            </ErrorBoundary>
           )}
-
-          </Suspense>
-          </ErrorBoundary>
 
           {/* Account Suspended Modal */}
           {suspensionReason && (
-            <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-[250] bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
               <div className="bg-white dark:bg-[#1C1A1E] border border-red-500/40 rounded-3xl p-6 max-w-md w-full shadow-2xl text-center space-y-4">
                 <div className="w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-950/60 text-red-600 flex items-center justify-center mx-auto shadow-inner">
                   <BanIcon aria-hidden="true" className="w-7 h-7" />

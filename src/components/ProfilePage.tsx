@@ -199,7 +199,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-white dark:bg-[#121113] text-slate-900 dark:text-slate-100 flex flex-col animate-in fade-in duration-200"
+      className="fixed inset-0 z-[70] bg-white dark:bg-[#121113] text-slate-900 dark:text-slate-100 flex flex-col animate-in fade-in duration-200"
       style={{ ['--rp-accent' as any]: accent }}
     >
       {/* Theme wash over the whole page */}

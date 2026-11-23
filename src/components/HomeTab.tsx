@@ -14,6 +14,32 @@ import { CinemaMovieSheet } from './CinemaExplorer.tsx';
 import { localPosterFor } from '../lib/localPosters.ts';
 import React, { useState, useMemo, useEffect } from 'react';
 import { getStoredLanguage, translations, type AppLanguage } from '../utils/i18n.ts';
+import { supabase } from '../lib/supabase';
+import { 
+  Search, 
+  Calendar, 
+  Film, 
+  ArrowRight, 
+  Clock, 
+  MapPin, 
+  X, 
+  Ticket, 
+  Flame, 
+  Store, 
+  SlidersHorizontal, 
+  Bookmark, 
+  RefreshCw, 
+  Trash2, 
+  Compass, 
+  Star,
+  Crown,
+  Users,
+  ShieldAlert,
+  Globe
+} from 'lucide-react';
+import { EventItem, OutingPlan, CinemaMovie, StatusPost, UserProfile, BusinessOffer, OfferCategory, SpotItem, SavedItem, BusinessAccount, isOfficialAdmin } from '../types.ts';
+import { BusinessBadge } from './BusinessBadge.tsx';
+import { WeatherChip } from './WeatherChip.tsx';
 
 const getDisplayHours = (hours: any, fallback = 'Open Daily'): string => {
   if (typeof hours === 'string' && hours.trim()) return hours;
@@ -23,40 +49,6 @@ const getDisplayHours = (hours: any, fallback = 'Open Daily'): string => {
   }
   return fallback;
 };
-import { searchNairobiLocations } from '../data/nairobiLocations.ts';
-import { supabase } from '../lib/supabase';
-import { 
-  Search, 
-  Calendar, 
-  Film, 
-  Camera, 
-  ArrowRight, 
-  Clock, 
-  MapPin, 
-  X, 
-  Ticket, 
-  MessageCircle, 
-  Send, 
-  Flame, 
-  Store, 
-  SlidersHorizontal, 
-  Smile, 
-  Bookmark, 
-  RefreshCw, 
-  Trash2, 
-  Compass, 
-  Star,
-  Crown,
-  Users,
-  Ban,
-  ShieldAlert,
-  AlertTriangle,
-  Globe
-} from 'lucide-react';
-import { EventItem, OutingPlan, CinemaMovie, StatusPost, UserProfile, BusinessOffer, OfferCategory, SpotItem, SavedItem, BusinessAccount, isOfficialAdmin } from '../types.ts';
-import { BusinessBadge } from './BusinessBadge.tsx';
-import { EmojiPicker } from './EmojiPicker.tsx';
-import { WeatherChip } from './WeatherChip.tsx';
 import { searchSpots } from '../lib/searchTags.ts';
 import { recordInterest, categoriesForQuery, personalCategoryOrder } from '../lib/interests.ts';
 import { AdminConfirmModal, AdminActionType, AdminTargetAccount } from './AdminConfirmModal.tsx';
@@ -149,7 +141,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
   // Comprehensive Home Tab Modal Filters
   const [isHomeFilterModalOpen, setIsHomeFilterModalOpen] = useState(false);
-  const [selectedHomeSection, setSelectedHomeSection] = useState<'all' | 'events' | 'spots' | 'cinemas' | 'offers' | 'statuses'>('all');
+  const [selectedHomeSection, setSelectedHomeSection] = useState<'all' | 'events' | 'spots' | 'cinemas' | 'offers'>('all');
   const [selectedHomeCategory, setSelectedHomeCategory] = useState<string>('all');
   const [selectedHomeDate, setSelectedHomeDate] = useState<'all' | 'today' | 'tomorrow' | 'weekend' | 'week'>('all');
   const [selectedHomeArea, setSelectedHomeArea] = useState<string>('all');
@@ -288,7 +280,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   const [selectedEventPriceTier, setSelectedEventPriceTier] = useState('all');
   const [selectedEventDateRange, setSelectedEventDateRange] = useState('all');
   const [selectedEventCategory, setSelectedEventCategory] = useState<string>('all');
-  const [showStatusEmojiPicker, setShowStatusEmojiPicker] = useState(false);
 
   // Offers state
   const [selectedOfferCategory, setSelectedOfferCategory] = useState<'all' | OfferCategory>('all');
@@ -495,12 +486,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   }, [homeFilteredSpots]);
 
   const handleVisitSpot = (offer: BusinessOffer) => {
+    const offerBiz = (offer.businessName || '').toLowerCase().trim();
     // 1. Check if there is a corresponding spot in displaySpots
     const matchingSpot = displaySpots.find(
-      s => (s.businessId && s.businessId === offer.businessId) ||
-           s.title.toLowerCase().trim() === offer.businessName.toLowerCase().trim() ||
-           offer.businessName.toLowerCase().includes(s.title.toLowerCase()) ||
-           s.title.toLowerCase().includes(offer.businessName.toLowerCase())
+      s => {
+        const spotTitle = (s.title || '').toLowerCase().trim();
+        return (s.businessId && s.businessId === offer.businessId) ||
+          (spotTitle && offerBiz && (spotTitle === offerBiz || offerBiz.includes(spotTitle) || spotTitle.includes(offerBiz)));
+      }
     );
 
     if (matchingSpot && onOpenSpotDetails) {
@@ -510,89 +503,20 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     }
 
     // 2. Open merchant storefront profile (shows physical address, bus stop/directions, contact & catalog)
-    if (onOpenBusinessProfile) {
+    if (onOpenBusinessProfile && offer.businessId) {
       onOpenBusinessProfile(offer.businessId);
-      showToast(`Viewing venue details for ${offer.businessName}`);
+      showToast(`Viewing venue details for ${offer.businessName || 'this venue'}`);
       return;
     }
 
-    showToast(`Viewing details for ${offer.businessName}`);
+    showToast(`Viewing details for ${offer.businessName || 'this offer'}`);
   };
-
-  // Status creation state
-  const [statusText, setStatusText] = useState('');
-  const [statusMediaUrl, setStatusMediaUrl] = useState<string | null>(null);
-
-  // Exact location for "Where Are You At?" — user can search or type any exact spot, venue, or neighborhood
-  const [statusLocation, setStatusLocation] = useState<string>(() => currentLocation || '');
-  const [isStatusLocOpen, setIsStatusLocOpen] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (currentLocation && !statusLocation) {
-      setStatusLocation(currentLocation);
-    }
-  }, [currentLocation]);
-
-  // Fast suggestions for exact location searchbox in status feed
-  const statusLocSuggestions = useMemo(() => {
-    const popularAreas = ['Westlands', 'Kilimani', 'Karen', 'CBD', 'Lavington', 'Kileleshwa', 'Gigiri', 'Parklands', 'Ngong Road', 'Ruaka'];
-    const spotNames = (spots || []).slice(0, 8).map(s => `${s.title}, ${s.neighborhood}`);
-
-    if (!statusLocation.trim()) {
-      return Array.from(new Set([...spotNames, ...popularAreas])).slice(0, 8);
-    }
-
-    const q = statusLocation.toLowerCase();
-    const matchedSpots = (spots || [])
-      .filter(s => (s.title && s.title.toLowerCase().includes(q)) || (s.neighborhood && s.neighborhood.toLowerCase().includes(q)))
-      .map(s => `${s.title}, ${s.neighborhood}`);
-
-    const matchedPlaces = searchNairobiLocations(statusLocation).map(p => `${p.name}, ${p.neighborhood}`);
-    return Array.from(new Set([...matchedSpots, ...matchedPlaces])).slice(0, 8);
-  }, [spots, statusLocation]);
 
   // Daytime arrangement: 7:00 AM to 8:00 PM (7 <= hour < 20)
   const isDayTime = useMemo(() => {
     const hr = new Date().getHours();
     return hr >= 7 && hr < 20;
   }, []);
-
-  // Active status replies drawer
-  const [activeReplyStatusId, setActiveReplyStatusId] = useState<string | null>(null);
-  const [replyInputText, setReplyInputText] = useState('');
-
-  const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setStatusMediaUrl(event.target.result as string);
-          showToast('Photo attached to status!');
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handlePublishStatus = () => {
-    if (!statusText.trim() && !statusMediaUrl) {
-      showToast('Type a status or attach a photo.');
-      return;
-    }
-    const loc = statusLocation.trim() || currentLocation || 'Nairobi';
-    onPostStatus(statusText.trim(), statusMediaUrl || undefined, loc);
-    setStatusText('');
-    setStatusMediaUrl(null);
-    setShowStatusEmojiPicker(false);
-    setIsStatusLocOpen(false);
-  };
-
-  const handleSendReply = (statusId: string) => {
-    if (!replyInputText.trim()) return;
-    onReplyStatus(statusId, replyInputText.trim());
-    setReplyInputText('');
-  };
 
   // Filter live events with real-time query, vibe, genre, price tier, date, category and Home filters
   const homeEventCategoryId = selectedEventCategory;
@@ -606,7 +530,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       // Home filters
       if (selectedHomeDate !== 'all' && !matchesDateFilter(e, selectedHomeDate)) return false;
       if (selectedHomeBudget !== 'all' && !matchesPriceFilter(e, selectedHomeBudget.toLowerCase())) return false;
-      if (selectedHomeArea !== 'all' && !e.location.toLowerCase().includes(selectedHomeArea.toLowerCase())) return false;
+      if (selectedHomeArea !== 'all' && !(e.location || '').toLowerCase().includes(selectedHomeArea.toLowerCase())) return false;
       if (selectedHomeCategory !== 'all' && !eventMatchesCategory(e, selectedHomeCategory)) return false;
 
       return (
@@ -685,18 +609,18 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   // The section is kept on screen as long as this has anything, so tapping an empty chip never makes it vanish.
   const offersBeforeChip = useMemo(() => (offers || []).filter(o => {
     if (selectedHomeCategory !== 'all') {
-      const cat = o.category.toLowerCase();
+      const cat = (o.category || '').toLowerCase();
       const bCat = (o.businessCategory || '').toLowerCase();
       if (!cat.includes(selectedHomeCategory.toLowerCase()) && !bCat.includes(selectedHomeCategory.toLowerCase())) return false;
     }
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
     return (
-      o.title.toLowerCase().includes(q) ||
-      o.businessName.toLowerCase().includes(q) ||
-      o.description.toLowerCase().includes(q) ||
-      o.category.toLowerCase().includes(q) ||
-      o.discount.toLowerCase().includes(q)
+      (o.title || '').toLowerCase().includes(q) ||
+      (o.businessName || '').toLowerCase().includes(q) ||
+      (o.description || '').toLowerCase().includes(q) ||
+      (o.category || '').toLowerCase().includes(q) ||
+      (o.discount || '').toLowerCase().includes(q)
     );
   }), [offers, selectedHomeCategory, searchQuery]);
 
@@ -722,7 +646,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   // Long lists paint a first batch now and the rest in low-priority steps (keeps tab switches smooth).
   const offersShown = useProgressiveCount(filteredOffers.length, 6, 6, 80, selectedOfferCategory + '|' + searchQuery);
   const moviesShown = useProgressiveCount(filteredCinemaMovies.length, 8, 8, 100);
-  const statusesShown = useProgressiveCount(statuses.length, 6, 6, 120);
 
   const hasActiveHomeFilters = selectedHomeSection !== 'all' || selectedHomeCategory !== 'all' || selectedHomeDate !== 'all' || selectedHomeArea !== 'all' || selectedHomeBudget !== 'all' || selectedGenre !== 'all' || near.active;
 
@@ -889,7 +812,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           <div
             role="dialog"
             aria-modal="true"
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+            className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
             onClick={() => setIsHomeFilterModalOpen(false)}
           >
             <div
@@ -929,7 +852,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     { id: 'spots', label: 'Hangouts' },
                     { id: 'cinemas', label: 'Movies' },
                     { id: 'offers', label: 'Offers' },
-                    { id: 'statuses', label: 'Statuses' },
                   ].map((s) => (
                     <button
                       key={s.id}
@@ -1125,7 +1047,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           <div
             role="dialog"
             aria-modal="true"
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+            className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
             onClick={() => setIsAdminAccountModalOpen(false)}
           >
             <div
@@ -1345,6 +1267,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               </h2>
             </div>
             <button
+              type="button"
               onClick={() => onOpenDedicatedViewAll('Running Offers & Promotions', 'offers')}
               className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
             >
@@ -1552,8 +1475,9 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 </button>
               )}
               <button
+                type="button"
                 onClick={() => onOpenDedicatedViewAll('Featured Trending Events', 'events')}
-                className="text-[11px] font-bold text-[#E0533C] hover:underline"
+                className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
               >
                 View More
               </button>
@@ -1638,7 +1562,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     >
                       <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 flex-wrap max-w-[80%]">
                         <span className="bg-black/60 text-white text-[9px] font-black px-2.5 py-1 rounded-md">
-                          {evt.date.split(',')[0]}
+                          {(evt.date || '').split(',')[0]}
                         </span>
                         {online && (
                           <span className="bg-sky-600/95 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs">
@@ -1776,8 +1700,9 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               </h2>
             </div>
             <button
+              type="button"
               onClick={() => onOpenDedicatedViewAll('In Cinemas', 'cinemas')}
-              className="text-[11px] font-bold text-[#E0533C] hover:underline"
+              className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
             >
               All Movies
             </button>
@@ -1868,6 +1793,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               </div>
             </div>
             <button
+              type="button"
               onClick={() => onOpenDedicatedViewAll('Trending Spots', 'spots')}
               className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
             >
@@ -2129,327 +2055,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         );
       })()}
 
-      {/* ========================================================
-          5. LIVE COMMUNITY STATUS FEED - "Where Are You At?" (Last bottom)
-          ======================================================== */}
-      {(selectedHomeSection === 'all' || selectedHomeSection === 'statuses') && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
-              <span>Where Are You At?</span>
-            </h2>
-            <span className="text-[10px] text-slate-600 dark:text-slate-300 font-bold bg-white dark:bg-slate-800 px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-700/60 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-              <span>Community Feed</span>
-            </span>
-          </div>
-
-          {/* Post Creation Box - Compacted, Clean, No Cramped Phone GPS, Searchbox for Exact Location */}
-          <div className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-3 shadow-xs space-y-2.5">
-            <div className="flex items-start gap-2.5">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] text-white flex items-center justify-center font-black text-xs shrink-0 shadow-2xs mt-0.5">
-                W
-              </div>
-              <textarea
-                rows={2}
-                value={statusText}
-                onChange={(e) => setStatusText(e.target.value)}
-                placeholder="What spot are you at right now? Share vibes or tips..."
-                className="flex-1 bg-transparent border-none text-xs focus:outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 resize-none leading-relaxed"
-              />
-            </div>
-
-            {/* Exact Location Searchbox */}
-            <div className="relative">
-              <div className="relative flex items-center">
-                <MapPin className="w-3.5 h-3.5 text-[#E0533C] absolute left-2.5 pointer-events-none shrink-0" />
-                <input
-                  type="text"
-                  value={statusLocation}
-                  onChange={(e) => {
-                    setStatusLocation(e.target.value);
-                    setIsStatusLocOpen(true);
-                  }}
-                  onFocus={() => setIsStatusLocOpen(true)}
-                  placeholder="Search exact spot or location (e.g. Alchemist, Westlands)..."
-                  className="w-full pl-8 pr-7 py-2 bg-[#F8F8F6] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#E0533C]"
-                />
-                {statusLocation && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStatusLocation('');
-                      setIsStatusLocOpen(true);
-                    }}
-                    className="absolute right-2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                    title="Clear location"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-
-              {/* Exact Location Suggestions Popup */}
-              {isStatusLocOpen && (
-                <div className="absolute left-0 right-0 top-full mt-1 z-30 max-h-48 overflow-y-auto bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-1 space-y-0.5 animate-in fade-in duration-100">
-                  <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-                    <span>Suggested Exact Locations</span>
-                    <button
-                      type="button"
-                      onClick={() => setIsStatusLocOpen(false)}
-                      className="text-[#E0533C] hover:underline"
-                    >
-                      Done
-                    </button>
-                  </div>
-                  {statusLocSuggestions.map((loc) => (
-                    <button
-                      key={loc}
-                      type="button"
-                      onClick={() => {
-                        setStatusLocation(loc);
-                        setIsStatusLocOpen(false);
-                      }}
-                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-200 hover:bg-orange-50 dark:hover:bg-orange-950/30 hover:text-[#E0533C] flex items-center justify-between transition cursor-pointer"
-                    >
-                      <div className="flex items-center gap-1.5 truncate">
-                        <MapPin className="w-3 h-3 text-[#E0533C] shrink-0" />
-                        <span className="truncate">{loc}</span>
-                      </div>
-                      <span className="text-[10px] text-slate-400 shrink-0">Select</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {myStatusId && (
-              <p className="text-[10px] text-slate-500 font-medium">
-                Posting replaces your current live status. Statuses disappear after 12 hours.
-              </p>
-            )}
-
-            {statusMediaUrl && (
-              <div className="relative w-24 h-16 rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700">
-                <img loading="lazy" decoding="async" src={statusMediaUrl} alt="Status upload" className="w-full h-full object-cover" />
-                <button
-                  type="button"
-                  onClick={() => setStatusMediaUrl(null)}
-                  className="absolute top-1 right-1 w-4 h-4 bg-black/70 text-white rounded-full flex items-center justify-center text-[9px] cursor-pointer"
-                >
-                  ×
-                </button>
-              </div>
-            )}
-
-            {/* Compact Bottom Bar: Camera, Emoji on Left, Post on Right */}
-            <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 dark:border-slate-800/80">
-              <div className="flex items-center gap-1">
-                <label className="cursor-pointer p-1.5 text-slate-500 hover:text-[#E0533C] transition rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0" title="Attach Photo">
-                  <Camera className="w-4 h-4" />
-                  <input type="file" accept="image/*" className="hidden" onChange={handleMediaUpload} />
-                </label>
-
-                <button
-                  type="button"
-                  onClick={() => setShowStatusEmojiPicker(!showStatusEmojiPicker)}
-                  className={`p-1.5 rounded-lg transition cursor-pointer shrink-0 ${
-                    showStatusEmojiPicker ? 'text-[#E0533C] bg-orange-50 dark:bg-orange-950/40' : 'text-slate-500 hover:text-[#E0533C] hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                  title="Pick Emoji"
-                >
-                  <Smile className="w-4 h-4" />
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={handlePublishStatus}
-                className="px-4 py-1.5 bg-[#E0533C] hover:bg-orange-700 text-white font-bold rounded-xl text-xs transition shadow-2xs flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95"
-              >
-                <span>Post</span>
-                <Send className="w-3 h-3" />
-              </button>
-            </div>
-
-            {/* Expanded Emoji Picker for Status Updates */}
-            {showStatusEmojiPicker && (
-              <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                <EmojiPicker
-                  isOpen={showStatusEmojiPicker}
-                  onSelectEmoji={(emoji) => setStatusText(prev => prev + emoji)}
-                  onClose={() => setShowStatusEmojiPicker(false)}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Status Stream */}
-          <div className="space-y-3">
-            {statuses.slice(0, statusesShown).map((post) => (
-              <div
-                key={post.id}
-                className="bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-3.5 shadow-sm space-y-2.5"
-              >
-                <div className="flex items-center justify-between">
-                  <div 
-                    className="flex items-center gap-2.5 cursor-pointer group"
-                    onClick={() => onViewUserProfile({
-                      name: post.author,
-                      handle: post.handle,
-                      avatar: post.avatar,
-                      bio: 'Exploring nightlife, music events, and great culinary spots.',
-                      loc: post.locationName || 'Kenya',
-                    })}
-                  >
-                    <div
-                      className="w-9 h-9 rounded-full bg-cover bg-center shrink-0 border border-slate-300 dark:border-slate-700 group-hover:scale-105 transition"
-                      style={{ backgroundImage: `url('${post.avatar}')` }}
-                    />
-                    <div>
-                      <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition">
-                        {post.author}
-                      </h4>
-                      <span className="text-[10px] text-slate-500">
-                        {post.handle} • {post.timeAgo}
-                      </span>
-                    </div>
-                  </div>
-
-                  {post.locationName && (
-                    <span className="text-[10px] font-bold text-[#2D6A4F] bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md flex items-center gap-1">
-                      <MapPin className="w-2.5 h-2.5" />
-                      <span>{post.locationName}</span>
-                    </span>
-                  )}
-                </div>
-
-                <p className="text-xs text-slate-900 dark:text-slate-100 leading-relaxed font-normal">
-                  {post.text}
-                </p>
-
-                {post.mediaUrl && (
-                  <div className="rounded-2xl overflow-hidden max-h-64 border border-slate-200 dark:border-slate-800">
-                    <img loading="lazy" decoding="async" src={post.mediaUrl} alt="Status media" className="w-full h-full object-cover" />
-                  </div>
-                )}
-
-                {/* Action Buttons: Reply + Admin controls */}
-                <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800 text-xs">
-                  <button
-                    onClick={() => setActiveReplyStatusId(activeReplyStatusId === post.id ? null : post.id)}
-                    className="text-slate-500 hover:text-[#E0533C] font-bold text-[11px] flex items-center gap-1 transition"
-                  >
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    <span>{post.replies?.length || 0} Replies</span>
-                  </button>
-
-                  <div className="flex items-center gap-1.5">
-                    {/* Admin Moderation Shortcuts */}
-                    {isAdmin && (
-                      <div className="flex items-center gap-1 bg-purple-50 dark:bg-purple-950/40 px-2 py-0.5 rounded-xl border border-purple-200 dark:border-purple-900">
-                        <span className="text-[9px] font-black text-purple-700 dark:text-purple-300 uppercase tracking-wider">
-                          Admin
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleAdminTriggerAction('delete_status', {
-                            id: post.id,
-                            name: post.author,
-                            handle: post.handle
-                          })}
-                          className="p-1 text-slate-500 hover:text-red-600 rounded transition cursor-pointer"
-                          title="Admin: Delete Status Post"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleAdminTriggerAction('suspend_account', {
-                            id: (post as any).userId || post.author,
-                            name: post.author,
-                            handle: post.handle
-                          })}
-                          className="p-1 text-slate-500 hover:text-amber-600 rounded transition cursor-pointer"
-                          title="Admin: Suspend Author Account"
-                        >
-                          <Ban className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleAdminTriggerAction('delete_account', {
-                            id: (post as any).userId || post.author,
-                            name: post.author,
-                            handle: post.handle
-                          })}
-                          className="p-1 text-slate-500 hover:text-red-600 rounded transition cursor-pointer"
-                          title="Admin: Permanently Delete Author Account"
-                        >
-                          <AlertTriangle className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    )}
-
-                    {myStatusId === post.id && onDeleteStatus && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (window.confirm('Delete your status?')) onDeleteStatus(post.id);
-                        }}
-                        className="text-slate-500 hover:text-red-600 font-bold text-[11px] flex items-center gap-1 transition cursor-pointer"
-                        title="Delete Status"
-                        aria-label="Delete status"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Delete Status</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Replies Drawer */}
-                {activeReplyStatusId === post.id && (
-                  <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800 animate-in fade-in duration-150">
-                    {post.replies && post.replies.map((rep) => (
-                      <div key={rep.id} className="flex items-start gap-2 text-xs bg-white dark:bg-[#121113] p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
-                        <div
-                          className="w-6 h-6 rounded-full bg-cover bg-center shrink-0"
-                          style={{ backgroundImage: `url('${rep.avatar}')` }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-[11px] text-slate-800 dark:text-slate-200">{rep.author}</span>
-                            <span className="text-[9px] text-slate-400">{rep.timeAgo}</span>
-                          </div>
-                          <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5">{rep.text}</p>
-                        </div>
-                      </div>
-                    ))}
-
-                    <div className="flex gap-2 pt-1">
-                      <input
-                        type="text"
-                        value={replyInputText}
-                        onChange={(e) => setReplyInputText(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSendReply(post.id)}
-                        placeholder="Write a reply..."
-                        className="flex-1 p-2 bg-white dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none"
-                      />
-                      <button
-                        onClick={() => handleSendReply(post.id)}
-                        className="px-3 py-2 bg-[#E0533C] text-white rounded-xl text-xs font-bold"
-                      >
-                        Reply
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
       {sheetMovie && (
         <CinemaMovieSheet
           movie={sheetMovie}

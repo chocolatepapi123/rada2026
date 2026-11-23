@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import legal from '../data/legal.json';
 
@@ -34,7 +35,7 @@ export function LegalModal({ doc, onClose }: LegalModalProps) {
   if (!doc) return null;
   const content = (legal.docs as Record<string, DocShape>)[doc];
   if (!content) return null;
-  return (
+  const modal = (
     <div
       className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4"
       role="dialog"
@@ -92,4 +93,5 @@ export function LegalModal({ doc, onClose }: LegalModalProps) {
       </div>
     </div>
   );
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal;
 }

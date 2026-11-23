@@ -227,7 +227,7 @@ export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, custo
 
   return (
     <div
-      className="fixed inset-0 z-50 overflow-y-auto animate-in fade-in duration-150"
+      className="fixed inset-0 z-[180] overflow-y-auto animate-in fade-in duration-150"
       style={{ background: 'linear-gradient(180deg, #F9D8C7 0%, #FCEADF 38%, #FFF8F4 100%)' }}
     >
       <div

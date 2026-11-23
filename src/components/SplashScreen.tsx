@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { getTimeOfDayGreeting } from '../utils/greetingUtils';
 
 // Must stay equal to the phone-bar / theme-color colour (index.html, App.tsx, android.yml),
@@ -81,20 +81,22 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
 }) => {
   const [isFadingOut, setIsFadingOut] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
 
   useEffect(() => {
     const fadeTimer = setTimeout(() => setIsFadingOut(true), durationMs);
     // Fully unmount after the fade-out (450ms after it starts)
     const dismissTimer = setTimeout(() => {
       setIsVisible(false);
-      if (onDismiss) onDismiss();
+      onDismissRef.current?.();
     }, durationMs + 450);
 
     return () => {
       clearTimeout(fadeTimer);
       clearTimeout(dismissTimer);
     };
-  }, [durationMs, onDismiss]);
+  }, [durationMs]);
 
   if (!isVisible) return null;
 
