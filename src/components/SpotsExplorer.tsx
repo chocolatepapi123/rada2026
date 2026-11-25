@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { Search, X, MapPin, Bookmark, Star, Compass, Trash2, Navigation, ChevronDown, Check, LayoutGrid, Wallet } from 'lucide-react';
+import { Search, X, MapPin, Bookmark, Star, Compass, Trash2, Navigation, ChevronDown, Check, LayoutGrid, Wallet, ArrowUpRight } from 'lucide-react';
 import { SpotItem, SavedItem } from '../types.ts';
 import { spotInCategory, getSpotCategoryIds, isAllKey, resolveSpotCategory, SPOT_CATEGORIES } from '../lib/spotCategories.ts';
 import { getSpotCategoryAccent, accentVars } from '../lib/spotAccentTheme.ts';
@@ -10,6 +10,8 @@ import type { LatLng } from '../lib/geo.ts';
 import { spotMatchesSearchWithTags } from '../utils/spotTags.ts';
 import { useActivePromotions, sortSpotsByCategoryPromotion } from '../lib/promotions.ts';
 import { isStockSpotImage } from '../lib/spotsFeed.ts';
+import { pickSessionTopTen } from '../lib/topTen.ts';
+import { SpotsTop10Carousel } from './SpotsTop10Carousel.tsx';
 
 interface SpotsExplorerProps {
   categoryKey?: string | null;
@@ -177,6 +179,12 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
     return featured;
   }, [spots, categorySlotPromos, categoryKey, showCategoryDropdown, pickedCat, selectedBudget, query]);
 
+  const effectiveCatId = showCategoryDropdown ? pickedCat : (categoryKey || 'all');
+  const topTenSpots = useMemo(
+    () => (forDate ? [] : pickSessionTopTen('spots-explorer-top10', filteredSpots, (s) => String(s.id), 10)),
+    [forDate, filteredSpots],
+  );
+
   return (
     <div className="space-y-4">
       {/* Category accent strip (single-category screens) */}
@@ -234,6 +242,17 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
         )}
       </div>
 
+      {/* RADA TOP 10 this week */}
+      {!forDate && topTenSpots.length > 0 && (
+        <SpotsTop10Carousel
+          spots={topTenSpots}
+          savedItems={savedItems}
+          onToggleSave={onToggleSave}
+          onVisitSpot={onOpenSpot}
+          subtitle={!isAllKey(effectiveCatId) ? getSpotCategoryAccent(effectiveCatId).label : undefined}
+        />
+      )}
+
       {/* Spots Grid */}
       {filteredSpots.length === 0 ? (
         <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-dashed border-slate-300 dark:border-slate-800 rounded-3xl p-8 text-center space-y-3">
@@ -255,121 +274,153 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-2.5">
-          {filteredSpots.slice(0, visibleCount).map((spot) => {
-            const saved = isSaved(spot.id);
-            const reviewCount = spot.reviews?.length ?? (spot.reviewCount || 0);
-            const hasReviews = reviewCount > 0;
-            const budgetText = budgetBadge(resolveSpotBudget(spot)) || plainPriceLabel(spot.price);
-            const catIds = getSpotCategoryIds(spot);
-            const primary = getSpotCategoryAccent(catIds[0] || spot.category);
-            const dist = (spot as any).distanceKm as number | undefined;
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+            <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: screenAccent.color }} />
+              <span>All Spots ({filteredSpots.length})</span>
+            </h4>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {filteredSpots.slice(0, visibleCount).map((spot) => {
+              const saved = isSaved(spot.id);
+              const reviewCount = spot.reviews?.length ?? (spot.reviewCount || 0);
+              const hasReviews = reviewCount > 0 && Boolean(spot.rating);
+              const budgetText = budgetBadge(resolveSpotBudget(spot)) || plainPriceLabel(spot.price);
+              const catIds = getSpotCategoryIds(spot);
+              const primary = getSpotCategoryAccent(catIds[0] || spot.category);
+              const dist = (spot as any).distanceKm as number | undefined;
+              const coverImg = (spot.images && spot.images[0]) || spot.img;
+              const locationLine = [spot.neighborhood, spot.address?.split(',')[0]].filter(Boolean).join(' · ') || 'Nairobi';
+              const shortDesc = spot.description?.trim() || `${primary.label} spot in ${spot.neighborhood || 'Nairobi'}.`;
 
-            return (
-              <div
-                key={String(spot.id)}
-                onClick={() => onOpenSpot(spot)}
-                className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 shadow-xs cursor-pointer transition flex flex-col justify-between group min-w-0 rounded-2xl p-2"
-                style={accentVars(primary)}
-              >
-                <div>
-                  <div
-                    className="h-28 rounded-xl mb-2 bg-cover bg-center relative overflow-hidden bg-slate-200 dark:bg-slate-800"
-                    style={{ backgroundImage: `url('${spot.img}')` }}
-                  >
-                    {/* Admin Delete shortcut */}
-                    {isAdmin && (
+              return (
+                <article
+                  key={String(spot.id)}
+                  onClick={() => onOpenSpot(spot)}
+                  className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 shadow-xs cursor-pointer hover:border-[#E0533C] transition flex flex-col justify-between group min-w-0 rounded-2xl p-2"
+                  style={accentVars(primary)}
+                >
+                  <div>
+                    <div className="aspect-video w-full rounded-xl mb-2 relative overflow-hidden bg-slate-200 dark:bg-slate-800">
+                      {coverImg && (
+                        <img
+                          src={coverImg}
+                          alt={spot.title}
+                          loading="lazy"
+                          decoding="async"
+                          className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/15 pointer-events-none" />
+
+                      {/* Admin Delete shortcut */}
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteSpot?.(spot);
+                          }}
+                          className="absolute top-2 right-10 w-7 h-7 rounded-full bg-red-600/90 hover:bg-red-700 text-white flex items-center justify-center transition shadow-xs z-10 cursor-pointer"
+                          title="Delete Spot (Admin)"
+                          aria-label={`Delete ${spot.title}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          onDeleteSpot?.(spot);
+                          onToggleSave?.(spot, 'spot');
                         }}
-                        className="absolute top-2.5 right-11 w-7 h-7 rounded-full bg-red-600/90 hover:bg-red-700 text-white flex items-center justify-center transition shadow-xs z-10 cursor-pointer hover:scale-105 active:scale-95"
-                        title="Delete Spot (Admin)"
-                        aria-label={`Delete ${spot.title}`}
+                        className={`absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs z-10 ${
+                          saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
+                        }`}
+                        title={saved ? 'Remove from saved' : 'Save experience'}
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
                       </button>
-                    )}
 
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onToggleSave?.(spot, 'spot');
-                      }}
-                      className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs z-10 ${
-                        saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
-                      }`}
-                      title={saved ? 'Remove from saved' : 'Save experience'}
-                    >
-                      <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
-                    </button>
-
-                    {dist != null && (
-                      <span className="absolute bottom-2.5 left-2.5 bg-black/75 backdrop-blur-xs text-white text-[10px] font-black px-2.5 py-1 rounded-lg flex items-center gap-1">
-                        <Navigation className="w-2.5 h-2.5" /> {formatKm(dist)}
-                      </span>
-                    )}
-
-                    <span className="absolute bottom-2.5 right-2.5 bg-black/75 backdrop-blur-xs text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
-                      {budgetText}
-                    </span>
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="flex flex-col items-start gap-1">
-                      <h4 className="font-black text-slate-900 dark:text-slate-100 truncate transition max-w-full text-[13px]">
-                        {spot.title}
-                      </h4>
-                      {hasReviews && (
-                        <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 font-black px-2 py-0.5 rounded-lg text-[10px] shrink-0">
-                          <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
-                          <span>{spot.rating}</span>
-                        </div>
-                      )}
+                      <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between gap-1 pointer-events-none">
+                        {dist != null ? (
+                          <span className="bg-[#2D6A4F]/95 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                            <Navigation className="w-2.5 h-2.5" /> {formatKm(dist)}
+                          </span>
+                        ) : (
+                          <span />
+                        )}
+                        {hasReviews && (
+                          <span className="bg-black/70 backdrop-blur-xs text-white text-[9px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                            <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                            {spot.rating}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate">
-                      <MapPin className="w-3 h-3 shrink-0 text-[color:var(--accent-text)] dark:text-[color:var(--accent-ink)]" />
-                      <span className="truncate">{spot.address || spot.neighborhood}</span>
-                    </p>
+                    <div className="space-y-1 px-0.5">
+                      <h4 className="font-black text-slate-900 dark:text-slate-100 truncate transition max-w-full text-[13px] group-hover:text-[#E0533C]">
+                        {spot.title}
+                      </h4>
 
+                      <p className="text-[11px] text-[#475569] dark:text-slate-300 flex items-center gap-1 truncate font-medium">
+                        <MapPin className="w-3 h-3 shrink-0 text-[color:var(--accent-text)] dark:text-[color:var(--accent-ink)]" />
+                        <span className="truncate">{locationLine}</span>
+                      </p>
+
+                      <p className="text-[11px] leading-snug text-slate-500 dark:text-slate-400 line-clamp-2">
+                        {shortDesc}
+                      </p>
+
+                      <div className="flex items-center justify-between gap-1 pt-0.5 text-[10px] font-bold">
+                        <span className="inline-flex items-center gap-1 text-[color:var(--accent-text)] dark:text-[color:var(--accent-ink)] truncate">
+                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: primary.color }} />
+                          <span className="truncate">{primary.label}</span>
+                        </span>
+                        {budgetText && (
+                          <span className="text-slate-600 dark:text-slate-300 shrink-0 tabular-nums">
+                            {budgetText}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                <div className="border-t border-slate-200 dark:border-slate-800/80 mt-2 pt-2 flex flex-col gap-1.5">
-                  <div className="flex items-center gap-1.5 w-full">
-                    {isAdmin && (
+                  <div className="border-t border-slate-200 dark:border-slate-800/80 mt-2 pt-2 flex flex-col gap-1.5">
+                    <div className="flex items-center gap-1.5 w-full">
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteSpot?.(spot);
+                          }}
+                          className="px-2 py-1.5 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/60 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 rounded-xl text-[11px] font-bold transition flex items-center gap-1 cursor-pointer shrink-0"
+                          title="Delete Spot (Admin)"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          onDeleteSpot?.(spot);
+                          onOpenSpot(spot);
                         }}
-                        className="px-2.5 py-1.5 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/60 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 rounded-xl text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
-                        title="Delete Spot (Admin)"
+                        className="w-full px-2 py-2 rounded-xl text-[11px] font-black transition shadow-xs cursor-pointer hover:opacity-90 bg-[var(--accent)] dark:bg-[var(--accent-deep)] text-[color:var(--accent-on)] dark:text-[color:var(--accent-ink)] border border-transparent dark:border-[color:var(--accent-line)] flex items-center justify-center gap-1 whitespace-nowrap"
                       >
-                        <Trash2 className="w-3 h-3" />
-                        <span>Delete</span>
+                        <span>{forDate ? 'Pick venue' : 'Visit / View Details'}</span>
+                        <ArrowUpRight className="w-3 h-3 shrink-0" />
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenSpot(spot);
-                      }}
-                      className={`w-full px-2 py-2 rounded-xl text-[11px] font-bold transition shadow-xs cursor-pointer hover:opacity-90 bg-[var(--accent)] dark:bg-[var(--accent-deep)] text-[color:var(--accent-on)] dark:text-[color:var(--accent-ink)] border border-transparent dark:border-[color:var(--accent-line)]`}
-                    >
-                      {forDate ? 'Pick venue' : 'View Details'}
-                    </button>
+                    </div>
                   </div>
-                </div>
-              </div>
-            );
-          })}
+                </article>
+              );
+            })}
+          </div>
         </div>
       )}
 
