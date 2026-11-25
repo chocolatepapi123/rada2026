@@ -158,18 +158,31 @@ export const EventsExplorer: React.FC<EventsExplorerProps> = ({
               const today = isHappeningToday(evt);
               const saved = isSaved(evt.id);
               const online = isOnlineEvent(evt);
+              const priceLabel = getEventPriceLabel(evt);
+              const dateShort = (evt.date || '').split(',')[0];
               return (
                 <div key={evt.id} onClick={() => onOpenEvent(evt)}
-                  className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-2xl p-2 flex flex-col justify-between shadow-xs cursor-pointer hover:border-[#E0533C] transition group min-w-0">
+                  className="bg-white dark:bg-[#1C1A1E] border border-slate-200/90 dark:border-slate-800 rounded-3xl p-2.5 flex flex-col justify-between shadow-sm cursor-pointer hover:border-[#E0533C] transition group min-w-0">
                   <div>
-                    <div className="h-28 rounded-xl mb-2 bg-slate-200 dark:bg-slate-800 bg-cover bg-center relative overflow-hidden"
+                    <div className="h-32 rounded-2xl mb-2.5 bg-slate-200 dark:bg-slate-800 bg-cover bg-center relative overflow-hidden"
                       style={evt.img ? { backgroundImage: `url('${evt.img}')` } : undefined}>
-                      <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1">
-                        {today && <span className="bg-emerald-600/90 text-white text-[8px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wide">Today</span>}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/15 pointer-events-none" />
+                      {dateShort && (
+                        <span className="absolute top-2 left-2 bg-black/65 backdrop-blur-xs text-white text-[9px] font-black px-2 py-0.5 rounded-md">
+                          {dateShort}
+                        </span>
+                      )}
+                      <div className="absolute bottom-2 left-2 right-2 flex items-center gap-1 flex-wrap">
+                        {today && <span className="bg-[#2D6A4F]/95 text-white text-[8px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wide shadow-xs">Today</span>}
                         {online && (
-                          <span className="bg-sky-600/90 text-white text-[8px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wide flex items-center gap-0.5">
+                          <span className="bg-sky-600/95 text-white text-[8px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wide flex items-center gap-0.5 shadow-xs">
                             <Globe className="w-2.5 h-2.5" />
                             <span>Online</span>
+                          </span>
+                        )}
+                        {(evt.genre || evt.category) && (
+                          <span className="bg-black/60 backdrop-blur-xs text-white/95 text-[9px] font-bold px-2 py-0.5 rounded-md truncate max-w-full">
+                            {evt.genre || evt.category}
                           </span>
                         )}
                       </div>
@@ -179,8 +192,8 @@ export const EventsExplorer: React.FC<EventsExplorerProps> = ({
                         <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
                       </button>
                     </div>
-                    <div className="space-y-1">
-                      <h4 className="font-black text-[13px] text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition line-clamp-2">{evt.title}</h4>
+                    <div className="space-y-1 px-0.5">
+                      <h4 className="font-black text-[13px] leading-snug text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition line-clamp-2">{evt.title}</h4>
                       <p className="text-[10px] text-[#E0533C] font-semibold flex items-center gap-1"><Clock className="w-3 h-3 shrink-0" /><span className="truncate">{evt.date}{evt.time ? ` • ${evt.time}` : ''}</span></p>
                       <p className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
                         {online ? <Globe className="w-3 h-3 shrink-0 text-sky-500" /> : <MapPin className="w-3 h-3 shrink-0" />}
@@ -188,8 +201,27 @@ export const EventsExplorer: React.FC<EventsExplorerProps> = ({
                       </p>
                     </div>
                   </div>
-                  <div className="border-t border-slate-200 dark:border-slate-800/80 mt-2 pt-2">
-                    <span className="block text-center text-[10px] font-black px-2 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 truncate">{getEventPriceLabel(evt)}</span>
+                  <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-white/10">
+                    <div className="flex items-center justify-between gap-1.5 rounded-2xl px-2 py-1.5 bg-[#E0533C]/[0.07] dark:bg-[#E0533C]/[0.14] border border-[#E0533C]/15 group-hover:bg-[#E0533C]/[0.12] transition">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="w-6 h-6 rounded-xl bg-[#E0533C]/12 text-[#E0533C] flex items-center justify-center shrink-0">
+                          <Ticket className="w-3.5 h-3.5" />
+                        </span>
+                        <div className="min-w-0 leading-tight">
+                          <span className="block text-[10px] font-black text-slate-900 dark:text-slate-100 truncate">
+                            {priceLabel}
+                          </span>
+                          {evt.host && (
+                            <span className="block text-[9px] font-semibold text-slate-500 dark:text-slate-400 truncate">
+                              {evt.host}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="px-2 py-1 rounded-xl bg-gradient-to-br from-[#E0533C] to-[#EE8A47] text-white text-[9px] font-black shadow-xs shrink-0">
+                        {online ? 'Access' : 'Tickets'}
+                      </span>
+                    </div>
                   </div>
                 </div>
               );

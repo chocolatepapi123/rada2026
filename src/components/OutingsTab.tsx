@@ -26,7 +26,8 @@ import {
   MessageSquare,
   ImagePlus,
   Loader2,
-  Bookmark
+  Bookmark,
+  Navigation
 } from 'lucide-react';
 import { OutingPlan, OutingAttendee, SpotItem, UserProfile } from '../types.ts';
 import { shareContent } from '../utils/shareUtils.ts';
@@ -34,11 +35,14 @@ import OutingShareCard from './OutingShareCard';
 import HostTicketsPanel from './HostTicketsPanel';
 import TicketBuySheet from './TicketBuySheet';
 import MyTicketsSheet from './MyTicketsSheet';
+import { NearYouControl } from './NearYouControl';
 import { fetchTicketSummaries, type TicketSummary } from '../lib/ticketsBuyer';
 import { optimizedUrl } from '../lib/imageOptimizer';
 import { WaitlistButton, TemplatePicker } from './OutingExtras';
 import { uploadCoverImage } from '../lib/cloudSync.ts';
 import { useUnclaimedSpots, mergeSpots, sortTrending } from '../lib/spotsFeed.ts';
+import { resolveLocationTextCoords } from '../lib/geo.ts';
+import { formatKm, hasRealCoords, haversineKm, useNearYou } from '../lib/spotRanking.ts';
 import { VerifiedBadge } from './VerifiedBadge.tsx';
 import { RadaAreaCombobox, RadaDatePicker, RadaSelect, RadaTimePicker } from './RadaPickers.tsx';
 import { fetchMySavedOutingIds, toggleOutingSave, fetchOutingSaveCounts } from '../lib/outingSaves';
@@ -598,13 +602,35 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   }, [spots, outings]);
 
   // Real-Time Feed Filtering
+  const near = useNearYou();
   const outingPromos = useActivePromotions('event_boost');
   const outingRanks = useMemo(() => outingRankMap(outingPromos), [outingPromos]);
+
+  const distanceByOutingId = useMemo(() => {
+    const map: Record<string, number> = {};
+    if (!near.active || !near.origin) return map;
+    for (const plan of outings) {
+      const spot = spots.find(s => s.id === plan.spotId);
+      const coords =
+        spot && hasRealCoords(spot)
+          ? { lat: Number(spot.lat), lng: Number(spot.lng) }
+          : resolveLocationTextCoords(`${plan.spotAddress || ''} ${plan.spotTitle || ''}`);
+      if (coords) map[String(plan.id)] = haversineKm(near.origin, coords);
+    }
+    return map;
+  }, [outings, spots, near.active, near.origin]);
+
   const filteredOutings = useMemo(() => {
     const list = outings.filter(plan => {
       const spot = spots.find(s => s.id === plan.spotId);
 
       if (savedOnly && !savedIds.has(plan.id)) return false;
+
+      if (near.active && near.origin) {
+        const d = distanceByOutingId[String(plan.id)];
+        if (d == null) return false;
+        if (near.radiusKm != null && d > near.radiusKm) return false;
+      }
 
       // Location Filter (e.g. "All Locations", "Westlands", "Kilimani", "Karen", "Nairobi CBD", "Kiambu Road")
       if (!matchOutingLocation(plan, selectedLocation, spot)) {
@@ -633,12 +659,19 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
 
       return true;
     }).map((plan, i) => ({ plan, i }))
-      // Early-registered hosts' outings are listed first; otherwise the original (newest first) order is kept
-      .sort((a, b) => (Number(Boolean((b.plan as any).isEarlyHost)) - Number(Boolean((a.plan as any).isEarlyHost))) || (a.i - b.i))
+      // When Near You is active, sort nearest first; otherwise keep early-host + original order
+      .sort((a, b) => {
+        if (near.active && near.origin) {
+          const da = distanceByOutingId[String(a.plan.id)] ?? Infinity;
+          const db = distanceByOutingId[String(b.plan.id)] ?? Infinity;
+          if (da !== db) return da - db;
+        }
+        return (Number(Boolean((b.plan as any).isEarlyHost)) - Number(Boolean((a.plan as any).isEarlyHost))) || (a.i - b.i);
+      })
       .map(x => x.plan);
-    // Boosted outings first, in the order RADA chose; everything else keeps its order.
-    return sortOutingsByPromotion(list, (p) => p.id, outingRanks);
-  }, [outings, spots, selectedLocation, selectedCategory, searchQuery, outingRanks, savedOnly, savedIds]);
+    // Boosted outings first when browsing normally; distance-first when Near You is active.
+    return near.active ? list : sortOutingsByPromotion(list, (p) => p.id, outingRanks);
+  }, [outings, spots, selectedLocation, selectedCategory, searchQuery, outingRanks, savedOnly, savedIds, near.active, near.origin, near.radiusKm, distanceByOutingId]);
 
   // Spots search inside Host modal
   const filteredSpotsForHosting = useMemo(() => {
@@ -976,6 +1009,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
             )}
           </div>
         </div>
+        <NearYouControl className="pt-0.5" />
       </div>
 
       {/* Outings Count & Active Status */}
@@ -985,7 +1019,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
           <span>{filteredOutings.length === 1 ? '1 outing' : `${filteredOutings.length} outings`}</span>
         </span>
         <div className="flex items-center gap-2">
-          {(Boolean(selectedLocation && selectedLocation !== 'All Locations') || selectedCategory !== 'all' || searchQuery.trim() !== '' || savedOnly) && (
+          {(Boolean(selectedLocation && selectedLocation !== 'All Locations') || selectedCategory !== 'all' || searchQuery.trim() !== '' || savedOnly || near.active) && (
             <button
               type="button"
               onClick={() => {
@@ -993,6 +1027,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                 setSelectedCategory('all');
                 setSearchQuery('');
                 setSavedOnly(false);
+                near.clear();
               }}
               className="text-[11px] text-[#E0533C] hover:underline font-bold flex items-center gap-1 cursor-pointer"
             >
@@ -1001,7 +1036,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
             </button>
           )}
           <span className="text-[11px] text-slate-400 font-medium truncate max-w-[200px]">
-            {[selectedLocation && selectedLocation !== 'All Locations' ? selectedLocation : '', selectedCategory !== 'all' ? RADA_10_CATEGORIES.find(c => c.id === selectedCategory)?.label : ''].filter(Boolean).join(' • ')}
+            {[near.active ? (near.radiusKm ? `Within ${near.radiusKm} km` : 'Near You') : '', selectedLocation && selectedLocation !== 'All Locations' ? selectedLocation : '', selectedCategory !== 'all' ? RADA_10_CATEGORIES.find(c => c.id === selectedCategory)?.label : ''].filter(Boolean).join(' • ')}
           </span>
         </div>
       </div>
@@ -1077,12 +1112,18 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                       </p>
                     </div>
 
-                    {/* Date & Time Tag */}
-                    <div className="flex items-center gap-2 mt-1">
+                    {/* Date & Time Tag + Distance */}
+                    <div className="flex items-center gap-1.5 flex-wrap mt-1">
                       <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center gap-1 shadow-2xs">
                         <Calendar className="w-3 h-3 text-[#E0533C]" />
                         <span>{formatOutingDate(plan.date, plan.time)}</span>
                       </span>
+                      {near.active && distanceByOutingId[String(plan.id)] != null && (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-[#2D6A4F] text-white flex items-center gap-1 shadow-2xs">
+                          <Navigation className="w-2.5 h-2.5" />
+                          <span>{formatKm(distanceByOutingId[String(plan.id)])}</span>
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

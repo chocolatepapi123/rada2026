@@ -1543,20 +1543,29 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   Ticket Tier Options
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {selectedEvent.tiers.map((t, idx) => (
+                  {selectedEvent.tiers.map((t, idx) => {
+                    const soldOut = t.status === 'sold_out' || t.status === 'soldout';
+                    return (
                     <div
                       key={idx}
                       className={`bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 p-2.5 rounded-xl flex items-center justify-between gap-2 ${
-                        t.status === 'sold_out' || t.status === 'soldout' ? 'opacity-50' : ''
+                        soldOut ? 'opacity-65' : ''
                       }`}
                     >
                       <div className="min-w-0">
-                        <span className="font-bold text-xs block">{t.name}</span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-xs">{t.name}</span>
+                          {soldOut && (
+                            <span className="px-1.5 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/70 text-rose-600 dark:text-rose-300 text-[9px] font-black uppercase tracking-wide">
+                              Sold out
+                            </span>
+                          )}
+                        </div>
                         {t.perks && <span className="text-[9px] text-slate-400 block">{t.perks}</span>}
                       </div>
-                      <span className="font-black text-xs text-[#E0533C] shrink-0">{t.price}</span>
+                      <span className={`font-black text-xs shrink-0 ${soldOut ? 'text-slate-400 line-through' : 'text-[#E0533C]'}`}>{t.price}</span>
                     </div>
-                  ))}
+                  );})}
                 </div>
               </div>
             )}

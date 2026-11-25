@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { BadgeCheck, Check, ChevronsUp, Loader2, MapPin, Send, ShieldCheck, Ticket, X } from 'lucide-react';
+import { BadgeCheck, Check, Loader2, MapPin, Reply, Send, ShieldCheck, Ticket, X } from 'lucide-react';
 import { pullUpLineProblem, replyToAsk, timeLeft, type Ask } from '../lib/asks.ts';
 
 /**
- * "Pull up" on a rada: a short line to the person who posted it.
+ * Reply to a rada: a short line to the person who posted it.
  * If they let you in, a chat opens with this line as the first message.
  */
 export const PullUpSheet: React.FC<{ ask: Ask; onClose: () => void; onSent: (ask: Ask) => void; showToast: (m: string) => void }> = ({ ask, onClose, onSent, showToast }) => {
@@ -25,12 +25,12 @@ export const PullUpSheet: React.FC<{ ask: Ask; onClose: () => void; onSent: (ask
   const done = () => { onSent(ask); };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black/60 flex items-end sm:items-center justify-center" onClick={sent ? done : onClose} role="dialog" aria-modal="true" aria-label={`Pull up on @${handle}`}>
+    <div className="fixed inset-0 z-[200] bg-black/60 flex items-end sm:items-center justify-center" onClick={sent ? done : onClose} role="dialog" aria-modal="true" aria-label={`Reply to @${handle}`}>
       <div className="w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl bg-white dark:bg-[#1C1A1E] shadow-2xl border border-slate-200/80 dark:border-white/10 overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {sent ? (
           <div className="p-7 text-center space-y-3">
             <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-[#E0533C] to-[#EE8A47] text-white flex items-center justify-center shadow-lg shadow-[#E0533C]/30"><Check className="w-8 h-8" strokeWidth={3} /></div>
-            <p className="text-xl font-black tracking-tight">You pulled up</p>
+            <p className="text-xl font-black tracking-tight">Reply sent</p>
             <p className="text-[13px] text-slate-500 dark:text-slate-400 leading-relaxed">@{handle} will see your line. If they let you in, a chat opens in Chats with your message at the top.</p>
             <button type="button" onClick={done} className="w-full py-3.5 rounded-2xl bg-[#E0533C] hover:bg-orange-700 text-white text-[13px] font-black cursor-pointer active:scale-[0.98] transition">Keep browsing</button>
           </div>
@@ -40,7 +40,7 @@ export const PullUpSheet: React.FC<{ ask: Ask; onClose: () => void; onSent: (ask
             <div className="flex items-start gap-3">
               <div className="w-11 h-11 rounded-full bg-cover bg-center bg-slate-200 dark:bg-slate-700 shrink-0 border-2 border-white dark:border-[#1C1A1E] shadow-sm" style={ask.avatar ? { backgroundImage: `url('${ask.avatar}')` } : undefined} />
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-extrabold uppercase tracking-wider text-[#E0533C] flex items-center gap-1"><ChevronsUp className="w-3.5 h-3.5" /> Pull up on</p>
+                <p className="text-[11px] font-extrabold uppercase tracking-wider text-[#E0533C] flex items-center gap-1"><Reply className="w-3.5 h-3.5" /> Reply to</p>
                 <p className="text-[16px] font-black tracking-tight flex items-center gap-1.5 truncate">
                   @{handle}
                   {ask.verified && <BadgeCheck className="w-4 h-4 text-[#2D6A4F] shrink-0" aria-label="Verified" />}

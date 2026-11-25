@@ -1,8 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { BadgeCheck, ChevronsUp, Flag, Heart, MapPin, Plus, ShieldCheck, Ticket, X } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { BadgeCheck, Flag, Heart, MapPin, Navigation, Plus, Reply, ShieldCheck, Ticket, X } from 'lucide-react';
 import AskComposer from './AskComposer.tsx';
 import PullUpSheet from './PullUpSheet.tsx';
+import { NearYouControl } from './NearYouControl.tsx';
 import { acceptReply, blockUser, closeAsk, declineReply, fetchAsks, fetchReplies, getMyArea, likeAsk, passAsk, reportAsk, setMyArea, timeLeft, type Ask, type AskReply } from '../lib/asks.ts';
+import { resolveLocationTextCoords } from '../lib/geo.ts';
+import { formatKm, hasRealCoords, haversineKm, useNearYou } from '../lib/spotRanking.ts';
 
 const CARD = 'bg-white dark:bg-[#1C1A1E] border border-slate-200/80 dark:border-white/10';
 const REPORT_REASONS: [string, string][] = [['spam', 'Spam or selling'], ['harassment', 'Harassment'], ['unsafe_meetup', 'Unsafe plan'], ['inappropriate_content', 'Inappropriate photo or video'], ['fake_profile', 'Fake profile']];
@@ -10,8 +13,8 @@ const THRESHOLD = 110;
 
 interface Props { signedIn: boolean; showToast: (m: string) => void; onNeedSignIn?: () => void; onChatOpened?: (chatId: string) => void; spots?: any[]; events?: any[] }
 
-/** One swipeable card. Right = like, left = pass. Pull up is a button. */
-const SwipeCard: React.FC<{ ask: Ask; top: boolean; depth: number; onSwipe: (dir: 'left' | 'right') => void; onReport: () => void }> = ({ ask, top, depth, onSwipe, onReport }) => {
+/** One swipeable card. Right = like, left = pass. Reply is a button. */
+const SwipeCard: React.FC<{ ask: Ask; distanceKm?: number | null; top: boolean; depth: number; onSwipe: (dir: 'left' | 'right') => void; onReport: () => void }> = ({ ask, distanceKm, top, depth, onSwipe, onReport }) => {
   const [dx, setDx] = useState(0);
   const [fly, setFly] = useState<null | 'left' | 'right'>(null);
   const start = useRef<number | null>(null);
@@ -50,7 +53,17 @@ const SwipeCard: React.FC<{ ask: Ask; top: boolean; depth: number; onSwipe: (dir
           {ask.verified && <BadgeCheck className="w-4 h-4 text-green-300" aria-label="Verified" />}
           {ask.trusted && <span className="inline-flex items-center gap-0.5 text-green-300"><ShieldCheck className="w-4 h-4" />Trusted</span>}
         </p>
-        <p className="text-[12px] font-semibold text-white/80 flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{ask.area} · {timeLeft(ask.expires_at)}</p>
+        <p className="text-[12px] font-semibold text-white/80 flex items-center gap-1 flex-wrap">
+          <MapPin className="w-3.5 h-3.5 shrink-0" />
+          <span>{ask.area}</span>
+          {distanceKm != null && (
+            <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-[#2D6A4F]/90 text-white text-[10px] font-black">
+              <Navigation className="w-2.5 h-2.5" />
+              {formatKm(distanceKm)}
+            </span>
+          )}
+          <span>· {timeLeft(ask.expires_at)}</span>
+        </p>
       </div>
     </div>
   );
@@ -83,7 +96,37 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
   useEffect(() => { if (!burst) return; const t = setTimeout(() => setBurst(0), 650); return () => clearTimeout(t); }, [burst]);
   useEffect(() => { if (viewing) void fetchReplies(viewing).then(setReplies); }, [viewing]);
 
-  const deck = (asks || []).filter((a) => !a.mine && !a.replied);
+  const near = useNearYou();
+
+  const resolveAskCoords = useCallback((a: Ask) => {
+    if (a.plan_kind === 'spot' && a.plan_ref && Array.isArray(spots)) {
+      const sp = spots.find((s) => String(s.id) === String(a.plan_ref));
+      if (sp && hasRealCoords(sp)) return { lat: Number(sp.lat), lng: Number(sp.lng) };
+    }
+    if (a.plan_kind === 'event' && a.plan_ref && Array.isArray(events)) {
+      const ev = events.find((e) => String(e.id) === String(a.plan_ref));
+      if (ev && hasRealCoords(ev)) return { lat: Number(ev.lat), lng: Number(ev.lng) };
+    }
+    return resolveLocationTextCoords(`${a.area || ''} ${a.plan_title || ''}`);
+  }, [spots, events]);
+
+  const deckEntries = useMemo(() => {
+    const base = (asks || []).filter((a) => !a.mine && !a.replied);
+    if (!near.active || !near.origin) {
+      return base.map((ask) => ({ ask, distanceKm: null as number | null }));
+    }
+    const origin = near.origin;
+    return base
+      .map((ask) => {
+        const coords = resolveAskCoords(ask);
+        const distanceKm = coords ? haversineKm(origin, coords) : null;
+        return { ask, distanceKm };
+      })
+      .filter((item) => item.distanceKm != null && (!near.radiusKm || item.distanceKm <= near.radiusKm))
+      .sort((a, b) => (a.distanceKm as number) - (b.distanceKm as number));
+  }, [asks, near.active, near.origin, near.radiusKm, resolveAskCoords]);
+
+  const deck = useMemo(() => deckEntries.map((x) => x.ask), [deckEntries]);
   const mine = (asks || []).filter((a) => a.mine);
   const drop = (id: string) => setAsks((p) => (p || []).filter((a) => a.id !== id));
 
@@ -134,6 +177,7 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
           <button key={id} onClick={() => setView(id)} className={`flex-1 py-1.5 rounded-full cursor-pointer ${view === id ? 'font-extrabold bg-white dark:bg-[#1C1A1E] text-[#E0533C] shadow-sm' : 'font-semibold text-slate-500'}`}>{label}</button>
         ))}
       </div>
+      {view === 'swipe' && <NearYouControl />}
       {composing && <AskComposer defaultArea={area} onClose={() => setComposing(false)} onPosted={() => { setComposing(false); void load(); }} showToast={showToast} spots={spots} events={events} />}
 
       {offline && (
@@ -145,18 +189,18 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
       {asks === null && <p className="text-[13px] text-slate-500 text-center py-10">Loading…</p>}
 
       {asks && view === 'swipe' && (deck.length === 0
-        ? <p className="text-[13px] text-slate-500 text-center py-12">You're all caught up{area ? ` near ${area}` : ''}. Post a rada or check back soon.</p>
+        ? <p className="text-[13px] text-slate-500 text-center py-12">You're all caught up{near.active ? ' near you' : area ? ` near ${area}` : ''}. Post a rada or check back soon.</p>
         : (
           <>
             <div className="relative w-full aspect-[4/5] max-h-[62vh] mx-auto">
               {burst > 0 && <Heart key={burst} className="absolute left-1/2 top-1/2 -ml-10 -mt-10 w-20 h-20 text-[#E0533C] fill-[#E0533C] z-20 pointer-events-none animate-ping" aria-hidden="true" />}
-              {deck.slice(0, 3).map((a, i) => ({ a, i })).reverse().map(({ a, i }) => (
-                <SwipeCard key={a.id} ask={a} top={i === 0} depth={i} onSwipe={(d) => swiped(a, d)} onReport={() => setReporting(a)} />
+              {deckEntries.slice(0, 3).map(({ ask: a, distanceKm }, i) => ({ a, distanceKm, i })).reverse().map(({ a, distanceKm, i }) => (
+                <SwipeCard key={a.id} ask={a} distanceKm={distanceKm} top={i === 0} depth={i} onSwipe={(d) => swiped(a, d)} onReport={() => setReporting(a)} />
               ))}
             </div>
             <div className="flex items-center justify-center gap-3 pt-1">
               <button onClick={() => buttonSwipe('left')} aria-label="Pass, next" className="w-14 h-14 shrink-0 rounded-full bg-white dark:bg-[#1C1A1E] border border-slate-200/80 dark:border-white/10 shadow-md flex items-center justify-center text-slate-500 dark:text-slate-300 cursor-pointer active:scale-90 transition"><X className="w-6 h-6" /></button>
-              <button onClick={() => deck[0] && setPullingUp(deck[0])} aria-label="Pull up" className="h-14 flex-1 max-w-[180px] rounded-full bg-gradient-to-br from-[#E0533C] to-[#EE8A47] shadow-lg shadow-[#E0533C]/30 flex items-center justify-center gap-1.5 text-white text-[14px] font-black cursor-pointer active:scale-95 transition"><ChevronsUp className="w-5 h-5" />Pull up</button>
+              <button onClick={() => deck[0] && setPullingUp(deck[0])} aria-label="Reply" className="h-14 flex-1 max-w-[180px] rounded-full bg-gradient-to-br from-[#E0533C] to-[#EE8A47] shadow-lg shadow-[#E0533C]/30 flex items-center justify-center gap-1.5 text-white text-[14px] font-black cursor-pointer active:scale-95 transition"><Reply className="w-5 h-5" />Reply</button>
               <button onClick={() => buttonSwipe('right')} aria-label="Like, next" className="w-14 h-14 shrink-0 rounded-full bg-white dark:bg-[#1C1A1E] border border-slate-200/80 dark:border-white/10 shadow-md flex items-center justify-center text-[#E0533C] cursor-pointer active:scale-90 transition"><Heart className="w-6 h-6" /></button>
             </div>
           </>
@@ -171,12 +215,12 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
             <p className="text-[14px] font-semibold leading-snug">{a.body}</p>
             <p className="text-[11px] text-slate-400 font-bold">{a.area} · {timeLeft(a.expires_at)}</p>
             <div className="flex gap-2">
-              <button onClick={() => setViewing(viewing === a.id ? null : a.id)} className="flex-1 py-2 rounded-full bg-slate-100 dark:bg-white/[0.08] text-xs font-extrabold cursor-pointer inline-flex items-center justify-center gap-1"><ChevronsUp className="w-3.5 h-3.5 text-[#E0533C]" />Pull-ups ({a.replies})</button>
+              <button onClick={() => setViewing(viewing === a.id ? null : a.id)} className="flex-1 py-2 rounded-full bg-slate-100 dark:bg-white/[0.08] text-xs font-extrabold cursor-pointer inline-flex items-center justify-center gap-1"><Reply className="w-3.5 h-3.5 text-[#E0533C]" />Reply ({a.replies})</button>
               <button onClick={() => close(a)} className="px-4 py-2 rounded-full text-xs font-extrabold text-slate-500 cursor-pointer">Close</button>
             </div>
             {viewing === a.id && (
               <div className="space-y-2 pt-1">
-                {replies.length === 0 && <p className="text-[12px] text-slate-400">No pull-ups yet.</p>}
+                {replies.length === 0 && <p className="text-[12px] text-slate-400">No replies yet.</p>}
                 {replies.map((r) => (
                   <div key={r.id} className="rounded-2xl bg-slate-50 dark:bg-white/[0.04] px-3 py-2 space-y-1.5">
                     <p className="text-[12px]"><b>@{r.handle || 'someone'}</b>{r.verified && <BadgeCheck className="inline w-3.5 h-3.5 ml-1 text-[#2D6A4F]" />} {r.message}</p>

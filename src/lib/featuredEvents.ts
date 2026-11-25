@@ -19,34 +19,143 @@ const featured = (raw: EventItem): EventItem => {
 interface Extra {
   id: string; title: string; match: RegExp; cat: 'concerts' | 'nightlife' | 'arts' | 'food' | 'community' | 'sports';
   genre: string; start: string; end?: string; label: string; time?: string; location: string;
-  url: string; host?: string; description: string; tags: string[];
+  lat?: number; lng?: number;
+  url: string; host?: string; source?: string; description: string; tags: string[];
   /** exact start/end (ISO, +03:00) when the real times are known; otherwise the whole day(s) */
   at?: [string, string];
   img?: string;
-  /** [name, price label, numeric price] */
-  tiers?: Array<[string, string, number | null]>;
+  /** [name, price label, numeric price, optional status, optional note] */
+  tiers?: Array<[string, string, number | null, ('available' | 'sold_out' | 'upcoming')?, string?]>;
 }
 
 /** Builds a featured card from compact data. Without exact times, events run 00:00-23:59 Nairobi time. */
 const extra = (x: Extra): EventItem => {
   const legacy = x.cat === 'concerts' ? 'concerts' : x.cat === 'nightlife' ? 'nightlife' : x.cat === 'sports' ? 'sports' : 'art';
-  const priced = (x.tiers || []).map(t => t[2]).filter((n): n is number => typeof n === 'number');
+  const availablePriced = (x.tiers || [])
+    .filter(t => (t[3] || 'available') !== 'sold_out')
+    .map(t => t[2])
+    .filter((n): n is number => typeof n === 'number');
+  const anyPriced = (x.tiers || []).map(t => t[2]).filter((n): n is number => typeof n === 'number');
+  const minPrices = availablePriced.length ? availablePriced : anyPriced;
   return featured({
     id: x.id, title: x.title, category: legacy, genre: x.genre, date: x.label, time: x.time,
-    location: x.location, lat: Number.NaN, lng: Number.NaN, img: x.img || '', goingCount: 0, url: x.url,
+    location: x.location, lat: x.lat ?? Number.NaN, lng: x.lng ?? Number.NaN, img: x.img || '', goingCount: 0, url: x.url,
     artists: [],
-    tiers: (x.tiers || []).map(([name, price, value]) => ({ name, price, priceValue: value, currency: 'KES' })),
+    tiers: (x.tiers || []).map(([name, price, value, status, note]) => {
+      const st = status || 'available';
+      const perks = [st === 'sold_out' ? 'Sold Out' : st === 'upcoming' ? 'Opens soon' : null, note].filter(Boolean).join(' · ') || undefined;
+      return { name, price, priceValue: value, currency: 'KES', status: st, perks };
+    }),
     description: x.description,
     startAt: x.at ? x.at[0] : `${x.start}T00:00:00+03:00`,
     endAt: x.at ? x.at[1] : `${x.end || x.start}T23:59:00+03:00`,
-    source: 'manual', host: x.host, currency: 'KES', country: 'KE', radaCategory: x.cat,
-    priceMin: priced.length ? Math.min(...priced) : null, tags: ['trending', ...x.tags],
+    source: x.source || 'manual', host: x.host, currency: 'KES', country: 'KE', radaCategory: x.cat,
+    priceMin: minPrices.length ? Math.min(...minPrices) : null, tags: ['trending', ...x.tags],
   });
 };
 
 const EXTRA_EVENTS: Extra[] = [
+  {
+    id: 'rada-featured-rong-experience-2026',
+    title: 'The Rong Experience 2026 • Wakadinali Live',
+    match: /rong\s*experience|wakadinali/i,
+    cat: 'concerts',
+    genre: 'Hip-Hop & Gengetone',
+    start: '2026-11-28',
+    at: ['2026-11-28T16:20:00+03:00', '2026-11-29T04:20:00+03:00'],
+    label: 'Sat, 28 Nov 2026',
+    time: '04:20 PM – 04:20 AM',
+    location: 'Kastemill Gardens, Seasons Road, Kasarani',
+    lat: -1.2210,
+    lng: 36.8970,
+    url: 'https://zozanation.hustlesasa.shop/',
+    host: 'Zozanation / Rong Rende',
+    img: '/posters/rong-experience-wakadinali.jpg',
+    tiers: [['Regular Ticket', 'KES 1,500', 1500, 'available', 'Admits 1']],
+    description: 'The Rong Experience 2026 featuring Wakadinali live at Kastemill Gardens, Seasons Road, Kasarani. A celebration of Kenyan urban hip-hop culture.',
+    tags: ['hip-hop', 'gengetone', 'wakadinali', 'kasarani'],
+  },
+  {
+    id: 'rada-featured-black-coffee-2026',
+    title: 'Black Coffee LIVE • MUZE Open Air',
+    match: /black\s*coffee/i,
+    cat: 'concerts',
+    genre: 'Afro House & Electronic',
+    start: '2026-12-04',
+    at: ['2026-12-04T21:00:00+03:00', '2026-12-05T05:00:00+03:00'],
+    label: 'Fri, 4 Dec 2026',
+    time: '09:00 PM – 05:00 AM',
+    location: 'Muze Club Nairobi (MUZE Open Air)',
+    lat: -1.2647,
+    lng: 36.8035,
+    url: 'https://muze.hustlesasa.shop/',
+    host: 'Muze Club',
+    img: '/posters/black-coffee-muze.jpg',
+    tiers: [
+      ['Regular · Early Bird', 'KES 5,000', 5000, 'sold_out', 'Admits 1'],
+      ['Regular · Phase 1', 'KES 6,500', 6500, 'sold_out', 'Admits 1'],
+      ['Regular · Phase 2', 'KES 7,500', 7500, 'sold_out', 'Admits 1'],
+      ['Regular · Phase 3', 'KES 8,500', 8500, 'available', 'Admits 1'],
+      ['VIP Standing · Tier 1', 'KES 15,000', 15000, 'sold_out', 'Admits 1'],
+      ['VIP Standing · Tier 2', 'KES 20,000', 20000, 'sold_out', 'Admits 1'],
+      ['VIP Standing · Tier 3', 'KES 25,000', 25000, 'sold_out', 'Admits 1'],
+      ['VIP Standing · Tier 4', 'KES 30,000', 30000, 'available', 'Admits 1'],
+    ],
+    description: 'NAIROBI. THIS IS YOUR MOMENT. Join BLACK COFFEE on Friday, 4th Dec in Nairobi and witness a global icon. An African powerhouse. A Grammy Award winner and one of the most influential artists in electronic music history! #TwendeOpenAir',
+    tags: ['afro house', 'electronic', 'black coffee', 'muze', 'nightlife'],
+  },
+  {
+    id: 'rada-featured-ferre-gola-2026',
+    title: 'Ferre Gola LIVE | Dala Festival',
+    match: /ferre\s*gol+a|dala\s*festival/i,
+    cat: 'concerts',
+    genre: 'Congolese Rhumba',
+    start: '2026-12-12',
+    at: ['2026-12-12T15:00:00+03:00', '2026-12-13T04:00:00+03:00'],
+    label: 'Sat, 12 Dec 2026',
+    time: '03:00 PM – 04:00 AM',
+    location: 'ASK Arena (Nairobi Showground), Nairobi',
+    lat: -1.3005,
+    lng: 36.7590,
+    url: 'https://mookh.com/ferregolaliveinnairobi/',
+    host: 'Dala Festival',
+    source: 'mookh',
+    img: '/posters/ferre-gola-dala.jpg',
+    tiers: [
+      ['Die Hard', 'KES 3,500', 3500, 'available', 'Admits 1'],
+      ['VIP Ticket', 'KES 8,000', 8000, 'available', 'Admits 1'],
+      ['VVIP Ticket', 'KES 25,000', 25000, 'available', 'Admits 1'],
+      ['Table of 4', 'KES 100,000', 100000, 'available', 'Admits 4'],
+      ['Table of 8', 'KES 200,000', 200000, 'available', 'Admits 8'],
+    ],
+    description: 'The legendary Congolese rhumba maestro Ferre Gola headlines the Dala Festival live in Nairobi on Jamhuri Day for an unforgettable night of music and culture.',
+    tags: ['rhumba', 'ferre gola', 'dala festival'],
+  },
+  {
+    id: 'rada-featured-konshens-2026',
+    title: 'Dancehall Detention – Konshens LIVE',
+    match: /konshens|dancehall\s*detention/i,
+    cat: 'concerts',
+    genre: 'Dancehall & Reggae',
+    start: '2026-12-18',
+    at: ['2026-12-18T15:00:00+03:00', '2026-12-19T03:00:00+03:00'],
+    label: 'Fri, 18 Dec 2026',
+    time: '03:00 PM – 03:00 AM',
+    location: 'Sarit Expo Centre, Westlands, Nairobi',
+    lat: -1.2610,
+    lng: 36.8020,
+    url: 'https://tikiti.co.ke/e/dancehall-detention-with-konshens',
+    host: 'Talent Africa Group & Homeboyz Entertainment',
+    source: 'tikiti',
+    img: '/posters/dancehall-detention-konshens.jpg',
+    tiers: [
+      ['Detention Pass (Regular)', 'KES 5,000', 5000, 'available', 'First Bell · Admits 1 · 18+'],
+      ['Honour Roll (VIP)', 'KES 10,000', 10000, 'available', 'Admits 1 · 18+'],
+    ],
+    description: 'Dancehall Detention with Konshens – The Highschool Reunion is on Friday, 18 December 2026 at Sarit Expo Centre, Nairobi. Talent Africa Group Kenya and Homeboyz Entertainment present Konshens live in Nairobi. Strictly 18+ • Each ticket admits one person • Tickets are non-refundable • No outside food or drink permitted.',
+    tags: ['dancehall', 'reggae', 'konshens', 'westlands'],
+  },
   { id: 'rada-featured-amapianoland-2026', title: 'AMAPIANOLAND in Nairobi | Detty December Festival', match: /amapiano\s*land/i, cat: 'concerts', genre: 'Amapiano & Afrobeats', start: '2026-12-05', at: ['2026-12-05T16:00:00+03:00', '2026-12-06T01:00:00+03:00'], label: 'Sat, 5 Dec 2026', time: '04:00 PM – 01:00 AM', location: 'MASSHOUSE, Ngong Racecourse, Nairobi', url: 'https://www.eventbrite.com/e/amapianoland-in-nairobi-detty-december-afrobeats-amapiano-festival-tickets-2003667266732', host: 'WhatsTheMotiveAFRICA', img: 'https://www.eventbrite.com/_next/image?url=https%3A%2F%2Fimg.evbuc.com%2Fhttps%253A%252F%252Fcdn.evbuc.com%252Fimages%252F1196195361%252F232855692231%252F1%252Foriginal.20261020-151655%3Fcrop%3Dfocalpoint%26fit%3Dcrop%26w%3D940%26auto%3Dformat%252Ccompress%26q%3D75%26sharp%3D10%26fp-x%3D0.504%26fp-y%3D0.097%26s%3Dbe357e28aa61796ff3f7bc3c7cee029a&w=940&q=75', description: 'Outdoor Amapiano and Afrobeats day festival with Kabza De Small, Uncle Waffles, DJ Maphorisa and Groove. No refunds. Ticket prices are on the Eventbrite page.', tags: ['amapiano', 'afrobeats'] },
-  { id: 'rada-featured-ferre-gola-2026', title: 'Ferre Gola LIVE | Dala Festival', match: /ferre\s*gola|dala\s*festival/i, cat: 'concerts', genre: 'Congolese Rhumba', start: '2026-12-12', label: 'Sat, 12 Dec 2026', location: 'ASK Arena (Nairobi Showground), Nairobi', url: 'https://nation.africa/kenya/life-and-style/weekend/rhumba-star-ferre-gola-to-headline-nairobi-s-dala-festival-5669716', description: 'Ferre Gola headlines the Dala Festival on Jamhuri Day. Ticket prices and times are not published in the sources we found, so confirm with the organiser.', tags: ['rhumba', 'ferre gola', 'dala festival'] },
   { id: 'rada-featured-fatboy-slim-2026', title: 'Fatboy Slim LIVE | MUZE Open Air', match: /fat\s*boy\s*slim/i, cat: 'nightlife', genre: 'Big Beat & Electronic', start: '2026-12-11', at: ['2026-12-11T20:00:00+03:00', '2026-12-12T05:00:00+03:00'], label: 'Fri, 11 Dec 2026', time: '08:00 PM – 05:00 AM', location: 'MUZE Open Air, Hangar 16, Wilson Airport, Nairobi', url: 'https://mookh.com/muzeclubpresfatboyslimliveinnairobi/', host: 'MUZE Club', tiers: [['Phase 5', 'KES 5,000', 5000]], description: 'Fatboy Slim moved from the MUZE club to an open-air hangar at Wilson Airport. Earlier phases (KES 1,000 to 4,000) had sold out when last checked; Phase 5 at KES 5,000 was the open tier. No support acts announced.', tags: ['electronic', 'dj', 'muze'] },
   { id: 'rada-featured-sondela-2026', title: 'Sondela Nairobi 2026', match: /sondela/i, cat: 'nightlife', genre: 'Afro House', start: '2026-12-04', at: ['2026-12-04T21:00:00+03:00', '2026-12-05T06:00:00+03:00'], label: 'Fri, 4 Dec 2026', time: '09:00 PM – 06:00 AM', location: 'KODA, Kenrail Towers, Westlands', url: 'https://ra.co/events/2576975', img: 'https://images.ra.co/6a28bcd7898c4e42200d8fdf6ed99dc4e7bb2e28.jpg', description: 'AfroKillerz, Argento Dust, CLEIDO, Ghedi, Hiribae, Tina Ardor and Vidza. 21+ only. Check ticket prices on the RA page.', tags: ['afro house', 'koda', 'sondela'] },
   { id: 'rada-featured-solfest-safari-2026', title: 'SolFest 2026 | Safari Oontz', match: /sol\s*fest.*safari|safari\s*oontz/i, cat: 'concerts', genre: 'Music Festival', start: '2026-12-18', label: 'Fri, 18 Dec 2026', location: 'Uhuru Gardens, Nairobi', url: 'https://www.weareafr0.co.ke/events/solfest-safari', host: 'SolFest', img: 'https://weareafr0.co.ke/solfestpics/solfestsafari.png', tiers: [['Safari Oontz', 'KES 1,500', 1500]], description: 'Day two of SolFest 2026 at Uhuru Gardens. Check the ticket page for gate times.', tags: ['music festival', 'solfest'] },
@@ -187,7 +296,16 @@ export const FEATURED_EVENTS: EventItem[] = [
   ...EXTRA_EVENTS.map(extra),
 ];
 
-const CORE_MATCHERS: RegExp[] = [/sol\s*fest.*vip|vip.*sol\s*fest/i, /all hands on deck|house of kodong/i, /detty\s*dezemba/i, /keinemusik/i];
+const CORE_MATCHERS: RegExp[] = [
+  /black\s*coffee/i,
+  /rong\s*experience|wakadinali/i,
+  /ferre\s*gol+a|dala\s*festival/i,
+  /konshens|dancehall\s*detention/i,
+  /sol\s*fest.*vip|vip.*sol\s*fest/i,
+  /all hands on deck|house of kodong/i,
+  /detty\s*dezemba/i,
+  /keinemusik/i,
+];
 const FEATURED_MATCHERS: RegExp[] = [...CORE_MATCHERS, ...EXTRA_EVENTS.map(x => x.match)];
 
 /** 0.. = pinned position (our featured list, in order); 1000 = not featured. */

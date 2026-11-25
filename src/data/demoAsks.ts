@@ -177,6 +177,10 @@ export async function demoDeclineReply(replyId: string): Promise<void> {
 // "Link a plan" search in the ask composer
 // ---------------------------------------------------------------------------
 const PLAN_HITS: PlanHit[] = [
+  { kind: 'event', ref: 'rada-featured-black-coffee-2026', title: 'Black Coffee LIVE • MUZE Open Air', subtitle: 'Muze Club Nairobi (MUZE Open Air)' },
+  { kind: 'event', ref: 'rada-featured-ferre-gola-2026', title: 'Ferre Gola LIVE | Dala Festival', subtitle: 'ASK Arena (Nairobi Showground), Nairobi' },
+  { kind: 'event', ref: 'rada-featured-rong-experience-2026', title: 'The Rong Experience 2026 • Wakadinali Live', subtitle: 'Kastemill Gardens, Seasons Road, Kasarani' },
+  { kind: 'event', ref: 'rada-featured-konshens-2026', title: 'Dancehall Detention – Konshens LIVE', subtitle: 'Sarit Expo Centre, Westlands, Nairobi' },
   { kind: 'event', ref: 'showcase-ev-sunset-rooftop', title: 'Sunset Rooftop Sessions', subtitle: 'The Alchemist, Westlands' },
   { kind: 'event', ref: 'showcase-ev-jazz-in-the-park', title: 'Jazz in the Park', subtitle: 'Karura Forest Picnic Lawn' },
   { kind: 'event', ref: 'showcase-ev-comedy-night', title: 'Laugh Factory: Stand-up Night', subtitle: 'Alliance Française, Loita St' },

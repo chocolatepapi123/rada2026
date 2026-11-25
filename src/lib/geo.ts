@@ -61,6 +61,39 @@ export function resolveNearestNeighborhood(lat: number, lng: number): string {
   return 'Nairobi';
 }
 
+const LOCATION_ALIASES: Array<[RegExp, LatLng]> = [
+  [/\bkarura\b/i, { lat: -1.2406, lng: 36.8352 }],
+  [/\bngong\s*hills?\b|\bkajiado\b/i, { lat: -1.3990, lng: 36.6440 }],
+  [/\buhuru\s*gardens\b/i, { lat: -1.3243, lng: 36.8010 }],
+  [/\bngong\s*racecourse\b|\bmasshouse\b/i, { lat: -1.3125, lng: 36.7428 }],
+  [/\bask\s*(arena|dome|showground)\b|\bjamhuri\b/i, { lat: -1.3005, lng: 36.7590 }],
+  [/\bwilson\s*airport\b|\bhangar\b/i, { lat: -1.3217, lng: 36.8148 }],
+  [/\bsarit\b|\bkoda\b|\bmuze\b|\balchemist\b|\bbrew\s*bistro\b/i, NEIGHBORHOOD_COORDS['Westlands']],
+  [/\btwo\s*rivers\b/i, NEIGHBORHOOD_COORDS['Ruaka']],
+  [/\bkiambu\b/i, { lat: -1.1714, lng: 36.8356 }],
+  [/\bruiru\b/i, { lat: -1.1459, lng: 36.9585 }],
+  [/\broysambu\b|\bmirema\b|\bkastemill\b/i, NEIGHBORHOOD_COORDS['Kasarani']],
+  [/\bloresho\b/i, NEIGHBORHOOD_COORDS['Westlands']],
+  [/\blang['’]?ata\b/i, NEIGHBORHOOD_COORDS['Langata']],
+  [/\bnairobi\s*cbd\b|\balliance\s*fran|\bkicc\b|\bloita\b/i, NEIGHBORHOOD_COORDS['CBD']],
+  [/\bihub\b|\badams\s*arcade\b|\bjunction\b/i, NEIGHBORHOOD_COORDS['Ngong Road']],
+  [/\bhurlingham\b/i, NEIGHBORHOOD_COORDS['Kilimani']],
+];
+
+/** Resolves coordinates from a free-form neighborhood, venue, or address string. */
+export function resolveLocationTextCoords(text?: string | null): LatLng | null {
+  const raw = String(text || '').trim();
+  if (!raw) return null;
+  const lower = raw.toLowerCase();
+  for (const [name, coords] of Object.entries(NEIGHBORHOOD_COORDS)) {
+    if (lower.includes(name.toLowerCase())) return coords;
+  }
+  for (const [pattern, coords] of LOCATION_ALIASES) {
+    if (pattern.test(raw)) return coords;
+  }
+  return null;
+}
+
 function coordsOf(spot: any): LatLng | null {
   if (spot?.hasCoords === false) return null;
   const lat = Number(spot?.lat ?? spot?.latitude);

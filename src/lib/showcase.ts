@@ -259,14 +259,78 @@ export function buildShowcaseMovies(): CinemaMovie[] {
 
 // ───────────────────────── events & tickets ─────────────────────────
 interface EvSpec {
-  slug: string; title: string; cat: string; genre: string; venue: string; host: string;
+  slug: string; id?: string; source?: string; url?: string; img?: string;
+  title: string; cat: string; genre: string; venue: string; host: string;
   lat?: number; lng?: number; day: number; hour: number; durH: number;
+  fixedStart?: string; fixedEnd?: string;
   isOnline?: boolean; platform?: string; meetingUrl?: string;
   tiers: { name: string; price: number; left?: number; status?: string; note?: string }[];
   desc: string; going: number; colors: [string, string, string]; tag: string; tags: string[];
 }
 
 const EVENTS: EvSpec[] = [
+  {
+    id: 'rada-featured-rong-experience-2026', slug: 'rong-experience-2026', source: 'manual', url: 'https://zozanation.hustlesasa.shop/',
+    img: '/posters/rong-experience-wakadinali.jpg',
+    title: 'The Rong Experience 2026 • Wakadinali Live', cat: 'concerts', genre: 'Hip-Hop & Gengetone',
+    venue: 'Kastemill Gardens, Seasons Road, Kasarani', host: 'Zozanation / Rong Rende',
+    lat: -1.2210, lng: 36.8970, day: 3, hour: 16, durH: 12,
+    fixedStart: '2026-11-28T16:20:00+03:00', fixedEnd: '2026-11-29T04:20:00+03:00',
+    tiers: [{ name: 'Regular Ticket', price: 1500, note: 'Admits 1' }],
+    desc: 'The Rong Experience 2026 featuring Wakadinali live at Kastemill Gardens, Seasons Road, Kasarani. A celebration of Kenyan urban hip-hop culture.',
+    going: 412, colors: ['#0B0B0D', '#B91C1C', '#F59E0B'], tag: 'Hip-Hop', tags: ['hip-hop', 'gengetone', 'wakadinali', 'kasarani'],
+  },
+  {
+    id: 'rada-featured-black-coffee-2026', slug: 'black-coffee-muze', source: 'manual', url: 'https://muze.hustlesasa.shop/',
+    img: '/posters/black-coffee-muze.jpg',
+    title: 'Black Coffee LIVE • MUZE Open Air', cat: 'concerts', genre: 'Afro House & Electronic',
+    venue: 'Muze Club Nairobi (MUZE Open Air)', host: 'Muze Club',
+    lat: -1.2647, lng: 36.8035, day: 9, hour: 21, durH: 8,
+    fixedStart: '2026-12-04T21:00:00+03:00', fixedEnd: '2026-12-05T05:00:00+03:00',
+    tiers: [
+      { name: 'Regular · Early Bird', price: 5000, status: 'sold_out', note: 'Admits 1' },
+      { name: 'Regular · Phase 1', price: 6500, status: 'sold_out', note: 'Admits 1' },
+      { name: 'Regular · Phase 2', price: 7500, status: 'sold_out', note: 'Admits 1' },
+      { name: 'Regular · Phase 3', price: 8500, status: 'available', note: 'Admits 1' },
+      { name: 'VIP Standing · Tier 1', price: 15000, status: 'sold_out', note: 'Admits 1' },
+      { name: 'VIP Standing · Tier 2', price: 20000, status: 'sold_out', note: 'Admits 1' },
+      { name: 'VIP Standing · Tier 3', price: 25000, status: 'sold_out', note: 'Admits 1' },
+      { name: 'VIP Standing · Tier 4', price: 30000, status: 'available', note: 'Admits 1' },
+    ],
+    desc: 'NAIROBI. THIS IS YOUR MOMENT. Join BLACK COFFEE on Friday, 4th Dec in Nairobi and witness a global icon. An African powerhouse. A Grammy Award winner and one of the most influential artists in electronic music history! #TwendeOpenAir',
+    going: 647, colors: ['#9A3412', '#EA580C', '#FDBA74'], tag: 'Afro House', tags: ['afro house', 'electronic', 'black coffee', 'muze', 'nightlife'],
+  },
+  {
+    id: 'rada-featured-ferre-gola-2026', slug: 'ferre-gola-dala', source: 'mookh', url: 'https://mookh.com/ferregolaliveinnairobi/',
+    img: '/posters/ferre-gola-dala.jpg',
+    title: 'Ferre Gola LIVE | Dala Festival', cat: 'concerts', genre: 'Congolese Rhumba',
+    venue: 'ASK Arena (Nairobi Showground), Nairobi', host: 'Dala Festival',
+    lat: -1.3005, lng: 36.7590, day: 17, hour: 15, durH: 13,
+    fixedStart: '2026-12-12T15:00:00+03:00', fixedEnd: '2026-12-13T04:00:00+03:00',
+    tiers: [
+      { name: 'Die Hard', price: 3500, note: 'Admits 1' },
+      { name: 'VIP Ticket', price: 8000, note: 'Admits 1' },
+      { name: 'VVIP Ticket', price: 25000, note: 'Admits 1' },
+      { name: 'Table of 4', price: 100000, note: 'Admits 4' },
+      { name: 'Table of 8', price: 200000, note: 'Admits 8' },
+    ],
+    desc: 'The legendary Congolese rhumba maestro Ferre Gola headlines the Dala Festival live in Nairobi on Jamhuri Day for an unforgettable night of music and culture.',
+    going: 518, colors: ['#111827', '#B45309', '#FDE68A'], tag: 'Rhumba', tags: ['rhumba', 'ferre gola', 'dala festival'],
+  },
+  {
+    id: 'rada-featured-konshens-2026', slug: 'dancehall-detention-konshens', source: 'tikiti', url: 'https://tikiti.co.ke/e/dancehall-detention-with-konshens',
+    img: '/posters/dancehall-detention-konshens.jpg',
+    title: 'Dancehall Detention – Konshens LIVE', cat: 'concerts', genre: 'Dancehall & Reggae',
+    venue: 'Sarit Expo Centre, Westlands, Nairobi', host: 'Talent Africa Group & Homeboyz Entertainment',
+    lat: -1.2610, lng: 36.8020, day: 23, hour: 15, durH: 12,
+    fixedStart: '2026-12-18T15:00:00+03:00', fixedEnd: '2026-12-19T03:00:00+03:00',
+    tiers: [
+      { name: 'Detention Pass (Regular)', price: 5000, note: 'First Bell · Admits 1 · 18+' },
+      { name: 'Honour Roll (VIP)', price: 10000, note: 'Admits 1 · 18+' },
+    ],
+    desc: 'Dancehall Detention with Konshens – The Highschool Reunion is on Friday, 18 December 2026 at Sarit Expo Centre, Nairobi. Talent Africa Group Kenya and Homeboyz Entertainment present Konshens live in Nairobi. Strictly 18+ • Each ticket admits one person • Tickets are non-refundable • No outside food or drink permitted.',
+    going: 389, colors: ['#18181B', '#E0533C', '#FACC15'], tag: 'Dancehall', tags: ['dancehall', 'reggae', 'konshens', 'westlands'],
+  },
   {
     slug: 'sunset-rooftop', title: 'Sunset Rooftop Sessions', cat: 'nightlife', genre: 'Nightlife', venue: 'The Alchemist, Westlands', host: 'Rooftop Collective',
     lat: -1.2641, lng: 36.8030, day: 1, hour: 17, durH: 7,
@@ -351,12 +415,14 @@ const EVENTS: EvSpec[] = [
 
 function eventRow(e: EvSpec): ExternalEventRow {
   const date = isoDay(e.day);
-  const start = `${date}T${pad(e.hour)}:00:00+03:00`;
-  const endDate = new Date(new Date(start).getTime() + e.durH * 3600 * 1000).toISOString();
+  const start = e.fixedStart || `${date}T${pad(e.hour)}:00:00+03:00`;
+  const endDate = e.fixedEnd || new Date(new Date(start).getTime() + e.durH * 3600 * 1000).toISOString();
+  const availPrices = e.tiers.filter(t => t.status !== 'sold_out').map(t => t.price);
+  const priceMin = availPrices.length ? Math.min(...availPrices) : (e.tiers.length ? Math.min(...e.tiers.map(t => t.price)) : null);
   return {
-    id: `showcase-ev-${e.slug}`,
-    source: 'rada',
-    source_url: e.meetingUrl || 'https://rada2026-omega.vercel.app',
+    id: e.id || `showcase-ev-${e.slug}`,
+    source: e.source || 'rada',
+    source_url: e.url || e.meetingUrl || 'https://rada2026-omega.vercel.app',
     title: e.title,
     category: e.genre,
     rada_category: e.cat,
@@ -365,8 +431,8 @@ function eventRow(e: EvSpec): ExternalEventRow {
     has_time: true,
     venue: e.venue,
     host: e.host,
-    image_url: banner(e.title, e.tag, e.colors[0], e.colors[1], e.colors[2]),
-    price_min: Math.min(...e.tiers.filter(t => t.status !== 'sold_out').map(t => t.price)),
+    image_url: e.img || banner(e.title, e.tag, e.colors[0], e.colors[1], e.colors[2]),
+    price_min: priceMin,
     currency: 'KES',
     country: 'KE',
     tiers: e.tiers.map(t => ({ name: t.name, price: t.price, status: t.status || 'available', left: t.left, note: t.note })),
