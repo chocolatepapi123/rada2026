@@ -37,6 +37,24 @@ import { logPlatformEvent } from '../lib/platformAnalytics';
 import { recordInterest, categoriesForQuery } from '../lib/interests.ts';
 import { SpotCategoryTile } from './SpotCategoryBadge.tsx';
 
+function spotGoogleMapsUrl(spot: SpotItem): string {
+  const hasCoords =
+    typeof spot.lat === 'number' &&
+    typeof spot.lng === 'number' &&
+    Number.isFinite(spot.lat) &&
+    Number.isFinite(spot.lng) &&
+    (spot.lat !== 0 || spot.lng !== 0);
+  const query = hasCoords
+    ? `${spot.lat},${spot.lng}`
+    : encodeURIComponent(
+        [spot.title, spot.address || spot.neighborhood, 'Kenya'].filter(Boolean).join(', ')
+      );
+  const placeId = (spot as any).placeId;
+  return `https://www.google.com/maps/search/?api=1&query=${query}${
+    placeId ? `&query_place_id=${encodeURIComponent(String(placeId))}` : ''
+  }`;
+}
+
 interface SpotsTabProps {
   spots: SpotItem[];
   savedItems?: SavedItem[];
@@ -580,16 +598,6 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                   {spot.title}
                 </h4>
                 <BusinessBadge businessId={spot.businessId} category="hospitality" size="xs" unclaimedVerified={!spot.isUserUploaded && spot.is_claimed !== false} />
-                {spot.isUserUploaded && !spot.businessId && (
-                  <span className="shrink-0 bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 text-[8px] font-black px-1.5 py-0.5 rounded-full">
-                    Pending Claim
-                  </span>
-                )}
-                {!spot.isUserUploaded && spot.is_claimed === false && (
-                  <span className="shrink-0 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[8px] font-bold px-1.5 py-0.5 rounded-full">
-                    Unclaimed
-                  </span>
-                )}
               </div>
               {hasReviews && (
                 <div className="flex items-center gap-0.5 text-[11px] font-black bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded-lg shrink-0">
@@ -644,18 +652,17 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         {/* Footer Actions */}
         <div className="pt-3 mt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onViewLocation(spot);
-              }}
+            <a
+              href={spotGoogleMapsUrl(spot)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
               className="px-2.5 py-1.5 bg-[#F8F8F6] dark:bg-[#121113] hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-[11px] font-bold transition flex items-center gap-1"
-              title="View on Map"
+              title="Open in Google Maps"
             >
               <MapPin className="w-3 h-3 text-[color:var(--accent-text)] dark:text-[color:var(--accent-ink)]" />
               <span>Map</span>
-            </button>
+            </a>
             <button
               type="button"
               onClick={(e) => {
