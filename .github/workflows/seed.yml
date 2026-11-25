@@ -1,0 +1,65 @@
+name: Campus Spot Seeder
+
+# Each run seeds for ~45 min, then starts the next run itself (chain=true).
+# Stop it: run this workflow with action=stop, or set feature_switches.seeder_enabled=false.
+# The cron below is a safety net: it restarts the chain only if the switch is still on.
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "start = turn on and run, continue = run if on, stop = turn off"
+        type: choice
+        options: [start, continue, stop]
+        default: start
+  schedule:
+    - cron: "17 */6 * * *"
+
+concurrency:
+  group: rada-seeder
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: seeder/requirements.txt
+
+      - run: pip install -r seeder/requirements.txt
+
+      - name: Run seeder
+        id: run
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+        run: |
+          ACTION="${{ inputs.action || 'continue' }}"
+          case "$ACTION" in
+            start) FLAG="--enable" ;;
+            stop)  FLAG="--stop" ;;
+            *)     FLAG="" ;;
+          esac
+          python seeder/seed.py $FLAG
+
+      - name: Start next run
+        if: steps.run.outputs.chain == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run seed.yml -R "${{ github.repository }}" --ref "${{ github.ref_name }}" -f action=continue
