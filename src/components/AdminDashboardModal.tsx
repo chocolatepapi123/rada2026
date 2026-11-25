@@ -560,7 +560,7 @@ export function AdminDashboardModal({
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="text-xs font-bold text-purple-600">RADA Admin</p>
+                  <p className="text-xs font-bold text-purple-600">RADA PULSE Admin</p>
                   {isOfficial ? (
                     <span className="text-[10px] bg-gradient-to-r from-amber-500 to-purple-600 text-white font-extrabold px-1.5 py-0.5 rounded shadow-xs">
                       Official Super Admin

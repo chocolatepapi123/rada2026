@@ -72,7 +72,7 @@ export const ReportUserModal: React.FC<ReportUserModalProps> = ({
     showToast(
       alsoBlock
         ? `Thanks. Your report was sent and ${targetHandle} is blocked.`
-        : 'Thanks. Your report was sent to the RADA team.'
+        : 'Thanks. Your report was sent to the RADA PULSE team.'
     );
     onClose();
     if (alsoBlock) onBlocked?.();
@@ -112,7 +112,7 @@ export const ReportUserModal: React.FC<ReportUserModalProps> = ({
               <span className="truncate">Report {targetHandle}</span>
             </h3>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-              Reports go to the RADA team. The person is not told who reported them.
+              Reports go to the RADA PULSE team. The person is not told who reported them.
             </p>
           </div>
           <button

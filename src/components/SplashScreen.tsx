@@ -41,8 +41,8 @@ export const SplashFace: React.FC<{ progressMs?: number }> = ({ progressMs = 160
       {/* the mark, drawn straight on the screen: no box. Same size and spot as the Android launch screen (250dp, centred). */}
       <div className="absolute left-1/2 top-1/2 pointer-events-none" style={{ transform: 'translate(-50%, -50%)' }}>
         <img
-          src="/rada-mark.png"
-          alt="RADA"
+          src="/assets/aistudio/RADAPULSE_Logo_Transparent_9a9a4145.png"
+          alt="RADA PULSE"
           draggable={false}
           className="rada-anim block h-auto"
           style={{ width: 250, maxWidth: '70vw', animation: 'radaMarkIn 700ms ease-out both' }}
@@ -103,7 +103,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
   return (
     <div
       role="status"
-      aria-label="RADA is loading"
+      aria-label="RADA PULSE is loading"
       className={`fixed inset-0 z-[9999] transition-opacity duration-500 ease-out ${
         isFadingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}

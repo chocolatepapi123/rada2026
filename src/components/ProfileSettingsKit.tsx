@@ -549,8 +549,8 @@ export const ProfessionalSwitchCard: React.FC<{ p: OwnProfile }> = ({ p }) => (
       </p>
       <p className="text-[12px] text-slate-600 dark:text-slate-300 mt-0.5">
         {p.isPro
-          ? 'Active. Your RADA host badge is live.'
-          : 'Get the RADA host badge, analytics and priority listing. It switches on instantly, no approval needed.'}
+          ? 'Active. Your RADA PULSE host badge is live.'
+          : 'Get the RADA PULSE host badge, analytics and priority listing. It switches on instantly, no approval needed.'}
       </p>
     </div>
     <Toggle
@@ -586,7 +586,7 @@ export const ProfessionalHub: React.FC<{ p: OwnProfile }> = ({ p }) => {
         <p className="text-[12px] font-semibold text-slate-600 dark:text-slate-300 mb-2">Host benefits & badges</p>
         <div className="rounded-xl bg-[#E0533C]/10 dark:bg-[#A94F3E]/10 p-3 space-y-2">
           {[
-            'RADA host badge on your profile and every outing you host',
+            'RADA PULSE host badge on your profile and every outing you host',
             'Outing analytics in this hub',
             'Featured spots and priority listing controls',
           ].map((t) => (
@@ -667,7 +667,7 @@ export const ProfessionalDashboard: React.FC<{ p: OwnProfile }> = ({ p }) => (
         <div className="px-4 pb-4 pt-1 space-y-2">
           <p className="text-[12px] font-semibold text-slate-600 dark:text-slate-300">What you unlock</p>
           {[
-            'RADA host badge on your profile and outings',
+            'RADA PULSE host badge on your profile and outings',
             'Outing analytics: impressions, saves, views and RSVPs',
             'Featured outing spots and priority event listing',
           ].map((t) => (

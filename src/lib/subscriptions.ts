@@ -51,7 +51,7 @@ export const PLAN_META: Record<PlanId, { name: string; tagline: Record<SubKind, 
     name: 'Free',
     tagline: {
       creator: 'Everything you need to start hosting.',
-      merchant: 'A simple storefront on RADA.',
+      merchant: 'A simple storefront on RADA PULSE.',
     },
   },
   pro: {
@@ -65,7 +65,7 @@ export const PLAN_META: Record<PlanId, { name: string; tagline: Record<SubKind, 
     name: 'Elite',
     tagline: {
       creator: 'No limits, plus the Golden Creator badge.',
-      merchant: 'Golden Featured status across RADA.',
+      merchant: 'Golden Featured status across RADA PULSE.',
     },
   },
 };

@@ -15,7 +15,7 @@ const RecapCard: React.FC<{ onClose: () => void; showToast: (m: string) => void 
     c.width = W; c.height = H;
     const g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, '#0F172A'); g.addColorStop(1, '#3B2A5C');
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#F4B860'; ctx.font = `900 44px ${F}`; ctx.fillText('RADA', 90, 130);
+    ctx.fillStyle = '#F4B860'; ctx.font = `900 44px ${F}`; ctx.fillText('RADAPULSE', 90, 130);
     ctx.fillStyle = '#FFFFFF'; ctx.font = `900 84px ${F}`;
     ctx.fillText(new Date().toLocaleString('en-KE', { month: 'long' }) + ' recap', 90, 280);
     const uniq = Array.from(new Set(places));
@@ -34,7 +34,7 @@ const RecapCard: React.FC<{ onClose: () => void; showToast: (m: string) => void 
     const b = await blob(); if (!b) return;
     const file = new File([b], 'rada-recap.png', { type: 'image/png' });
     try {
-      if ((navigator as any).canShare?.({ files: [file] })) await navigator.share({ files: [file], title: 'My RADA month' });
+      if ((navigator as any).canShare?.({ files: [file] })) await navigator.share({ files: [file], title: 'My RADA PULSE month' });
       else save(b);
     } catch { /* cancelled */ }
   };

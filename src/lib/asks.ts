@@ -96,7 +96,7 @@ export function pullUpLineProblem(text: string): string | null {
   const m = text.trim();
   if (m.length < 1) return 'Write a short line.';
   if (m.length > 140) return 'Keep it under 140 characters.';
-  if (/(https?:\/\/|www\.)/i.test(m) || /(\+?\d[\s-]?){9,}/.test(m)) return 'No phone numbers or links. You can chat in RADA once they let you in.';
+  if (/(https?:\/\/|www\.)/i.test(m) || /(\+?\d[\s-]?){9,}/.test(m)) return 'No phone numbers or links. You can chat in RADA PULSE once they let you in.';
   return null;
 }
 export async function closeAsk(id: string): Promise<string | null> {

@@ -90,7 +90,7 @@ export const AdminTicketsPanel: React.FC<{ toast: (m: string, o?: ToastOptions) 
         {data.payouts_due.map((d) => (
           <div key={d.owner_id} className="rounded-2xl border border-slate-200 dark:border-white/10 p-3 space-y-2">
             <div className="flex justify-between gap-2"><p className="font-bold text-sm truncate">{d.name || d.email}</p><p className="font-extrabold text-sm shrink-0">{kes(d.net_due_kes)}</p></div>
-            <p className="text-[11px] text-slate-500">{d.orders} sales · RADA commission {kes(d.commission_kes)}</p>
+            <p className="text-[11px] text-slate-500">{d.orders} sales · RADA PULSE commission {kes(d.commission_kes)}</p>
             <div className="flex gap-2">
               <input className={input} placeholder="Reference, if you paid by hand" value={refs[d.owner_id] || ''} onChange={(e) => setRefs({ ...refs, [d.owner_id]: e.target.value })} />
               <button className={btn} disabled={busy === d.owner_id} onClick={() => act(d.owner_id, () => adminMarkPayoutsPaid(d.owner_id, refs[d.owner_id] || ''), 'Marked as paid')}>Paid by hand</button>

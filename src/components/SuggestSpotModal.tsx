@@ -473,7 +473,7 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
           <div className="p-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-start gap-2.5 text-xs text-slate-600 dark:text-slate-400">
             <MapPin className="w-4 h-4 text-[#E0533C] shrink-0 mt-0.5" />
             <p>
-              Your spot goes live right away as a community suggestion. RADA removes anything that does not belong.
+              Your spot goes live right away as a community suggestion. RADA PULSE removes anything that does not belong.
             </p>
           </div>
 

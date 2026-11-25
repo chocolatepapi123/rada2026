@@ -69,17 +69,18 @@ export class ErrorBoundary extends Component<Props, State> {
           }
         >
           <div className="w-full max-w-sm bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#E0533C] to-[#E9C46A] text-white flex items-center justify-center mx-auto shadow-md">
-              <svg viewBox="0 0 100 130" className="w-8 h-8 fill-none stroke-white" strokeLinejoin="round">
-                <path d="M50 6 C26 6 10 26 10 50 C10 76 45 116 48.5 120 C49.3 121 50.7 121 51.5 120 C55 116 90 76 90 50 C90 26 74 6 50 6 Z" strokeWidth="8" />
-                <path d="M22 35 C15 45 16 58 25 74 C34 90 46 106 50 112" strokeWidth="6" strokeLinecap="round" />
-                <circle cx="50" cy="48" r="17" strokeWidth="8" />
-              </svg>
+            <div className="px-4 py-2 rounded-2xl bg-[#E05328] inline-flex items-center justify-center mx-auto shadow-md">
+              <img
+                src="/assets/aistudio/RADAPULSE_Logo_Transparent_9a9a4145.png"
+                alt="RADA PULSE"
+                className="h-9 w-auto object-contain block"
+                draggable={false}
+              />
             </div>
 
             <div className="space-y-1.5">
               <h2 className="text-base font-black text-slate-900 dark:text-slate-100">
-                {this.props.fallbackTitle || 'Resuming RADA'}
+                {this.props.fallbackTitle || 'Resuming RADA PULSE'}
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
                 {this.props.overlay

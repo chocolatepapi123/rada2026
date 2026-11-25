@@ -491,8 +491,8 @@ export const EventsExplorer: React.FC<EventsExplorerProps> = ({
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="bg-white/95 rounded-xl px-2.5 py-1 shadow-xs shrink-0 flex items-center">
                 <img
-                  src="/rada-mark.png"
-                  alt="RADA"
+                  src="/assets/aistudio/RADAPULSE_Logo_Transparent_9a9a4145.png"
+                  alt="RADA PULSE"
                   className="h-5 w-auto object-contain"
                 />
               </div>

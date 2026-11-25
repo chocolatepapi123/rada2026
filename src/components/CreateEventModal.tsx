@@ -381,8 +381,8 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
       description:
         eventDescription.trim() ||
         (isOnline
-          ? `Hosted live on ${platform}. Join from anywhere and connect with the RADA community.`
-          : `Hosted at ${finalLocation}. Join in and vibe with the RADA community.`),
+          ? `Hosted live on ${platform}. Join from anywhere and connect with the RADA PULSE community.`
+          : `Hosted at ${finalLocation}. Join in and vibe with the RADA PULSE community.`),
       artists: eventArtists,
       currency: 'KES',
       priceMin,
@@ -420,7 +420,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
               </h2>
             </div>
             <p className="text-[11px] text-slate-400 truncate">
-              Host: <strong className="text-slate-700 dark:text-slate-300">{host.trim() || hostName || 'Community Host'}</strong> • Live RADA Events Feed
+              Host: <strong className="text-slate-700 dark:text-slate-300">{host.trim() || hostName || 'Community Host'}</strong> • Live RADA PULSE Events Feed
             </p>
           </div>
         </div>
@@ -677,7 +677,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
                   required
                 />
                 <p className="text-[10px] text-slate-400 mt-1">
-                  Attendees can join straight from RADA using this link.
+                  Attendees can join straight from RADA PULSE using this link.
                 </p>
               </div>
             </div>
@@ -1222,7 +1222,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
               className="w-full flex-1 bg-purple-600 hover:bg-purple-700 text-white font-black text-sm py-4 rounded-2xl shadow-xl shadow-purple-500/20 active:scale-[0.99] transition cursor-pointer flex items-center justify-center gap-2 order-1 sm:order-2"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>{isOnline ? 'Publish Online Event to RADA' : 'Publish Event to RADA'}</span>
+              <span>{isOnline ? 'Publish Online Event to RADA PULSE' : 'Publish Event to RADA PULSE'}</span>
             </button>
           </div>
         </form>

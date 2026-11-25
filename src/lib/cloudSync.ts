@@ -148,7 +148,7 @@ function rowToBusiness(row: any): BusinessAccount {
   const category = (row.category || d.category || 'hospitality') as any;
   const neighborhood = row.neighborhood || d.neighborhood || 'Westlands';
   const address = row.address || d.address || `${neighborhood}, Nairobi`;
-  const bio = row.bio || d.bio || `Official ${category} verified on RADA.`;
+  const bio = row.bio || d.bio || `Official ${category} verified on RADA PULSE.`;
   const logo = row.logo || d.logo || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=200&auto=format&fit=crop';
   const coverImage = row.cover_image || row.coverImage || d.coverImage || d.cover_image || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop';
   const ownerId = row.owner_id || row.ownerId || d.ownerId;

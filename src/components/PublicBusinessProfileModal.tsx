@@ -94,7 +94,7 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
 
   const handleShareProfile = () => {
     shareContent({
-      title: `${business.name} on RADA`,
+      title: `${business.name} on RADA PULSE`,
       text: `Check out ${business.name} in ${business.neighborhood}, Nairobi! ${business.bio}`,
       url: window.location.href,
       onError: (m: string) => showToast?.(m, { type: 'error' })
@@ -161,7 +161,7 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
               </div>
               {!isBusinessApproved(business) && business.verificationStatus !== 'rejected' && (
                 <p className="mt-1.5 inline-flex items-center text-[11px] font-black px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                  New · awaiting RADA verification
+                  New · awaiting RADA PULSE verification
                 </p>
               )}
               <PublicTierBadges

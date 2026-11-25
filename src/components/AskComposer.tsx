@@ -149,7 +149,7 @@ const AskComposer: React.FC<Props> = ({ defaultArea, onClose, onPosted, showToas
             <input type="datetime-local" value={expires} min={minNow} onChange={(e) => setExpires(e.target.value)} className={INPUT} />
           </label>
 
-          <p className="text-[11px] text-slate-400">No phone numbers or links; chat in RADA once someone replies.</p>
+          <p className="text-[11px] text-slate-400">No phone numbers or links; chat in RADA PULSE once someone replies.</p>
           <button disabled={busy || !file} onClick={post} className="w-full py-3.5 rounded-full bg-[#E0533C] text-white text-[14px] font-extrabold cursor-pointer active:scale-95 disabled:opacity-60">{busy ? 'Posting…' : !file ? 'Add a photo or video to post' : 'Post to Rada'}</button>
         </div>
       </div>

@@ -152,7 +152,7 @@ export const UserHangouts: React.FC<Props> = ({
                   </button>
                 </div>
               )}
-              {!spotKnown(open) && open.spotTitle && <p className="text-[11px] text-slate-400">This place is not a RADA spot yet, so it can&apos;t be saved or planned.</p>}
+              {!spotKnown(open) && open.spotTitle && <p className="text-[11px] text-slate-400">This place is not a RADA PULSE spot yet, so it can&apos;t be saved or planned.</p>}
             </div>
           </div>
         </div>

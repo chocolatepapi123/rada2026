@@ -284,7 +284,7 @@ const hostLabel = (p: { hostHandle?: string; hostName?: string }): string => {
   const h = String(p.hostHandle || '').trim().replace(/^@+/, '');
   if (h) return `@${h}`;
   const n = String(p.hostName || '').trim();
-  return n.startsWith('@') ? n : 'RADA member';
+  return n.startsWith('@') ? n : 'RADA PULSE member';
 };
 
 interface OutingsTabProps {
@@ -413,8 +413,8 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
     track('share', 'outing', plan.id);
     const link = buildOutingLink(plan);
     shareContent({
-      title: `RADA Outing: ${plan.spotTitle}`,
-      text: `${hostLabel(plan)} is hosting a plan at ${plan.spotTitle} (${plan.date}). Join on RADA:`,
+      title: `RADA PULSE Outing: ${plan.spotTitle}`,
+      text: `${hostLabel(plan)} is hosting a plan at ${plan.spotTitle} (${plan.date}). Join on RADA PULSE:`,
       url: link,
       onSuccess: showToast,
       onError: async () => {
@@ -809,7 +809,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       const newPlan: OutingPlan = {
         id: `out-${Date.now()}`,
         hostId: currentUserId || `host-${Date.now()}`,
-        hostName: currentUserProfile.handle || 'RADA member',
+        hostName: currentUserProfile.handle || 'RADA PULSE member',
         hostAvatar: currentUserProfile.avatar || '',
         hostHandle: currentUserProfile.handle || '@host',
         isHostVerified: currentUserProfile.is_verified === true, // RADA-approved only; the database re-checks this on save
@@ -936,7 +936,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
             </div>
             <button
               type="button"
-              aria-label="Filter by RADA Category"
+              aria-label="Filter by RADA PULSE Category"
               aria-haspopup="listbox"
               aria-expanded={catOpen}
               onClick={() => setCatOpen((v) => !v)}
@@ -948,7 +948,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
             {catOpen && (
               <ul
                 role="listbox"
-                aria-label="RADA categories"
+                aria-label="RADA PULSE categories"
                 className="absolute left-0 right-0 top-full mt-1.5 z-30 max-h-72 overflow-y-auto p-1.5 bg-white dark:bg-[#1C1A1E] border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-lg shadow-black/10"
               >
                 {RADA_10_CATEGORIES.map((cat) => {

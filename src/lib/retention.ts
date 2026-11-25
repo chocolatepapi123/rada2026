@@ -43,7 +43,7 @@ export interface ReviewReply {
 }
 
 const need = () => {
-  if (!isSupabaseConfigured) throw new Error('This needs a connection to RADA. Try again online.');
+  if (!isSupabaseConfigured) throw new Error('This needs a connection to RADA PULSE. Try again online.');
 };
 
 export async function claimOffer(offerId: string): Promise<Redemption> {

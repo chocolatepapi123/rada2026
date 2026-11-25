@@ -31,8 +31,8 @@ function page(key) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(doc.title)} | RADA</title>
-<meta name="description" content="${esc(doc.title)} for RADA, the Nairobi app for spots, events and outings.">
+<title>${esc(doc.title)} | RADA PULSE</title>
+<meta name="description" content="${esc(doc.title)} for RADA PULSE, the Nairobi app for spots, events and outings.">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/png" href="/favicon.png">
 <style>
@@ -51,7 +51,7 @@ a{color:var(--brand)}
 </head>
 <body>
 <main>
-<header><a class="logo" href="/">RADA</a></header>
+<header><a class="logo" href="/">RADA PULSE</a></header>
 <h1>${esc(doc.title)}</h1>
 <p class="meta">Version ${esc(legal.version)} · Questions: <a href="mailto:${esc(legal.support_email)}">${esc(legal.support_email)}</a></p>
 ${body}

@@ -67,7 +67,7 @@ export const AdminConfirmModal: React.FC<AdminConfirmModalProps> = ({
           icon: Trash2,
           iconBg: 'bg-red-100 text-red-600 dark:bg-red-950/60 dark:text-red-400',
           confirmBtn: 'bg-red-600 hover:bg-red-700 text-white',
-          description: 'This will permanently delete this account, along with all associated spots, listings, reviews, and profile data from RADA. This action is irreversible.',
+          description: 'This will permanently delete this account, along with all associated spots, listings, reviews, and profile data from RADA PULSE. This action is irreversible.',
           requiresReason: false,
           requiresTypeDelete: true,
         };

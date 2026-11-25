@@ -1,5 +1,5 @@
 {
-  "name": "RADA: Spots, Events & Outings in Nairobi",
+  "name": "RADA PULSE: Spots, Events & Outings in Nairobi",
   "description": "Discover Nairobi's best spots, events and movies, plan outings with new people, keep your tickets in one place and go out safely.",
   "requestFramePermissions": [
     "geolocation",

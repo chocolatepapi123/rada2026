@@ -286,7 +286,7 @@ export const VaultTab: React.FC<VaultTabProps> = ({
                       e.stopPropagation();
                       await shareContent({
                         title: `Plan: ${t.title}`,
-                        text: `I have a plan: "${t.title}" on ${t.dateStr} at ${t.locationStr}. Join me on RADA!`,
+                        text: `I have a plan: "${t.title}" on ${t.dateStr} at ${t.locationStr}. Join me on RADA PULSE!`,
                         url: window.location.href,
                         onError: (m: string) => showToast?.(m, { type: 'error' })
                       });

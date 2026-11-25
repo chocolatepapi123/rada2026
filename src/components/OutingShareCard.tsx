@@ -74,7 +74,7 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, max
 /** Public host label: the @username, never the real name. */
 const hostTag = (p: { hostHandle?: string; hostName?: string }) => {
   const h = String(p.hostHandle || '').trim().replace(/^@+/, '');
-  return h ? `@${h}` : 'RADA member';
+  return h ? `@${h}` : 'RADA PULSE member';
 };
 
 async function drawCard(canvas: HTMLCanvasElement, plan: OutingPlan, edits: ShareCardEdits) {
@@ -112,7 +112,7 @@ async function drawCard(canvas: HTMLCanvasElement, plan: OutingPlan, edits: Shar
 
   // brand pill
   ctx.font = `800 34px ${FONT}`;
-  const brand = 'RADA';
+  const brand = 'RADAPULSE';
   const bw = ctx.measureText(brand).width + 56;
   rr(ctx, 56, 56, bw, 66, 33);
   ctx.fillStyle = t.panel;
@@ -195,7 +195,7 @@ async function drawCard(canvas: HTMLCanvasElement, plan: OutingPlan, edits: Shar
   ctx.fillStyle = t.id === 'clean' ? '#FFFFFF' : t.from === '#FFFFFF' ? '#111' : '#111827';
   ctx.font = `800 38px ${FONT}`;
   ctx.textAlign = 'center';
-  ctx.fillText('Join this outing on RADA', W / 2, H - 150 + 61);
+  ctx.fillText('Join this outing on RADA PULSE', W / 2, H - 150 + 61);
   ctx.textAlign = 'left';
 }
 
@@ -239,7 +239,7 @@ export const OutingShareCard: React.FC<Props> = ({ plan, tier, link, onClose, on
     []
   );
 
-  const text = `${hostTag(plan)} is hosting a plan at ${plan.spotTitle} (${plan.date}). Join on RADA:`;
+  const text = `${hostTag(plan)} is hosting a plan at ${plan.spotTitle} (${plan.date}). Join on RADA PULSE:`;
 
   const share = async () => {
     setBusy(true);
@@ -250,7 +250,7 @@ export const OutingShareCard: React.FC<Props> = ({ plan, tier, link, onClose, on
         const nav: any = navigator;
         if (nav.canShare?.({ files: [file] }) && nav.share) {
           try {
-            await nav.share({ files: [file], title: `RADA Outing: ${plan.spotTitle}`, text: `${text} ${link}` });
+            await nav.share({ files: [file], title: `RADA PULSE Outing: ${plan.spotTitle}`, text: `${text} ${link}` });
             onShared?.();
             return;
           } catch (e: any) {

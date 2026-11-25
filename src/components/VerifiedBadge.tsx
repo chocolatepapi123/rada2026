@@ -50,14 +50,14 @@ export const VerifiedBadge: React.FC<VerifiedBadgeProps> = ({
   return (
     <span
       className={`inline-flex items-center gap-1 shrink-0 align-middle ${className}`}
-      title={golden ? 'Golden verified RADA host' : 'Verified RADA host'}
+      title={golden ? 'Golden verified RADA PULSE host' : 'Verified RADA PULSE host'}
     >
       <svg
         width={px}
         height={px}
         viewBox="0 0 24 24"
         role="img"
-        aria-label={golden ? 'Golden verified RADA host' : 'Verified RADA host'}
+        aria-label={golden ? 'Golden verified RADA PULSE host' : 'Verified RADA PULSE host'}
         className="shrink-0 bg-transparent"
       >
         {/* shield */}

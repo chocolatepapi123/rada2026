@@ -16,7 +16,7 @@ export const REPORT_REASONS: { id: ReportReason; label: string; hint: string }[]
   { id: 'unsafe_meetup', label: 'Made me feel unsafe', hint: 'Pressure to meet privately, or behaviour at an outing' },
   { id: 'fake_profile', label: 'Fake profile or scam', hint: 'Pretending to be someone else, asking for money' },
   { id: 'inappropriate_content', label: 'Inappropriate content', hint: 'Sexual, violent or hateful photos or text' },
-  { id: 'underage', label: 'Might be under 18', hint: 'RADA is for adults only' },
+  { id: 'underage', label: 'Might be under 18', hint: 'RADA PULSE is for adults only' },
   { id: 'spam', label: 'Spam', hint: 'Ads or repeated unwanted messages' },
   { id: 'other', label: 'Something else', hint: 'Tell us more below' },
 ];

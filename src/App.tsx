@@ -246,7 +246,7 @@ const GUEST_PROFILE: UserProfile = {
   username: defaultGuestName,
   handle: `@${defaultGuestName}`,
   avatar: '',
-  bio: 'Discovering local spots near you on RADA. Log in or create an account to customize your profile & connect with spots!',
+  bio: 'Discovering local spots near you on RADA PULSE. Log in or create an account to customize your profile & connect with spots!',
   loc: 'Westlands',
   vibes: ['Nightlife', 'Cocktails', 'Amapiano', 'Art', 'Thrifting']
 };
@@ -328,7 +328,7 @@ export default function App() {
 
   // App-level suspension enforcement helper
   const enforceUserSuspension = async (reason?: string) => {
-    const finalReason = reason || 'Violation of RADA community terms and platform safety guidelines';
+    const finalReason = reason || 'Violation of RADA PULSE community terms and platform safety guidelines';
     setSuspensionReason(finalReason);
     try {
       if (isSupabaseConfigured && supabase?.auth) {
@@ -1654,7 +1654,7 @@ export default function App() {
       }
 
       lastBackPressRef.current = now;
-      cur.showToast('Press Back again to exit RADA');
+      cur.showToast('Press Back again to exit RADA PULSE');
       // Re-anchor history state to keep the user safely inside the web app
       window.history.pushState({ radaApp: true, tab: 'home' }, '');
     };
@@ -2235,7 +2235,7 @@ export default function App() {
     }
     setIsCreateEventOpen(false);
     setSelectedEventModal(newEv);
-    showToast(`"${newEv.title}" is live on RADA!`, { type: 'success' });
+    showToast(`"${newEv.title}" is live on RADA PULSE!`, { type: 'success' });
   };
 
   // Event "I'm Going" Toggle: clickable once to go; if clicked again, remove count

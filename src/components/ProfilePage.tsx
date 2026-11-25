@@ -168,7 +168,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const share = async () => {
     const url = siteOrigin();
     try {
-      if ((navigator as any).share) await (navigator as any).share({ title: 'RADA', text: `${handle || name} on RADA`, url });
+      if ((navigator as any).share) await (navigator as any).share({ title: 'RADA PULSE', text: `${handle || name} on RADA PULSE`, url });
       else { await navigator.clipboard.writeText(url); showToast('Link copied.'); }
     } catch {}
   };
@@ -235,7 +235,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             <AlertCircle className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm font-black text-amber-800 dark:text-amber-300">You&apos;re browsing as a guest</p>
-              <p className="text-xs mt-0.5 text-amber-700 dark:text-amber-300/80">Log in to build your profile, save collections, and keep your RADA diary.</p>
+              <p className="text-xs mt-0.5 text-amber-700 dark:text-amber-300/80">Log in to build your profile, save collections, and keep your RADA PULSE diary.</p>
               {onOpenAuth && (
                 <button
                   type="button"
@@ -349,7 +349,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                       <span>My Saved Collections</span>
                     </h4>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      Other RADA users can see your saved places &amp; collections when they view your profile.
+                      Other RADA PULSE users can see your saved places &amp; collections when they view your profile.
                     </p>
                   </div>
                   {onOpenSaved && (

@@ -168,21 +168,19 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </button>
         </div>
-        {/* Middle: logo + name */}
+        {/* Middle: logo */}
         <button
           type="button"
           onClick={() => onSwitchTab('home')}
-          className="justify-self-center flex items-center gap-2 cursor-pointer hover:opacity-90 active:scale-95 transition-all focus:outline-none"
-          title="RADA Home"
+          className="justify-self-center flex items-center cursor-pointer hover:opacity-90 active:scale-95 transition-all focus:outline-none dark:bg-[#E05328] dark:px-2.5 dark:py-1 dark:rounded-xl"
+          title="RADA PULSE Home"
         >
-          <div className="w-8 h-8 rounded-xl bg-[#E0533C] text-white flex items-center justify-center shadow-xs shrink-0">
-            <svg viewBox="0 0 100 130" className="w-5 h-5 fill-none stroke-white" strokeLinejoin="round">
-              <path d="M50 6 C26 6 10 26 10 50 C10 76 45 116 48.5 120 C49.3 121 50.7 121 51.5 120 C55 116 90 76 90 50 C90 26 74 6 50 6 Z" strokeWidth="8" />
-              <path d="M22 35 C15 45 16 58 25 74 C34 90 46 106 50 112" strokeWidth="6" strokeLinecap="round" />
-              <circle cx="50" cy="48" r="17" strokeWidth="8" />
-            </svg>
-          </div>
-          <span className="text-2xl font-black tracking-tight text-[#E0533C] leading-none">RADA</span>
+          <img
+            src="/assets/aistudio/RADAPULSE_Logo_Transparent_9a9a4145.png"
+            alt="RADA PULSE"
+            className="h-9 sm:h-10 w-auto object-contain block"
+            draggable={false}
+          />
         </button>
 
         {/* Right: 3-dot menu */}

@@ -1,6 +1,6 @@
-/* RADA service worker: makes repeat launches fast and gives an offline shell.
+/* RADA PULSE service worker: makes repeat launches fast and gives an offline shell.
  * No build step needed. Bump VERSION to force every device to drop old caches. */
-const VERSION = 'rada-v10';
+const VERSION = 'rada-v11';
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
 const RUNTIME = `${VERSION}-runtime`;

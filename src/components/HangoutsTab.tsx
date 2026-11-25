@@ -288,7 +288,7 @@ const Editor: React.FC<{ userId: string; accent: string; showToast: Props['showT
               <div className="rounded-3xl p-6 text-center" style={{ background: `${accent}12` }}>
                 <ImagePlus className="w-10 h-10 mx-auto" style={{ color: accent }} />
                 <p className="mt-3 text-[17px] font-black">Add a diary entry</p>
-                <p className="mt-1 text-[13px] text-slate-500 dark:text-slate-400">Photos or short videos from places you visited. Keep your personal RADA trail and link spots you loved.</p>
+                <p className="mt-1 text-[13px] text-slate-500 dark:text-slate-400">Photos or short videos from places you visited. Keep your personal RADA PULSE trail and link spots you loved.</p>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <button type="button" onClick={() => libRef.current?.click()} className="py-4 rounded-2xl text-white text-[14px] font-black flex flex-col items-center gap-1.5 cursor-pointer" style={{ background: accent }}>
@@ -356,10 +356,10 @@ const Editor: React.FC<{ userId: string; accent: string; showToast: Props['showT
             {/* Spot */}
             <div className="px-4 pt-4 relative">
               <p className="text-[13px] font-black flex items-center gap-1.5"><MapPin className="w-4 h-4" style={{ color: accent }} /> Where was it?</p>
-              <input value={spotText} onChange={(e) => { setSpotText(e.target.value); setSpotId(null); setArea(null); }} placeholder="Search a RADA spot or type a place"
+              <input value={spotText} onChange={(e) => { setSpotText(e.target.value); setSpotId(null); setArea(null); }} placeholder="Search a RADA PULSE spot or type a place"
                 className="mt-2 w-full px-3.5 py-3 text-[14px] rounded-xl bg-slate-100 dark:bg-slate-800 focus:outline-none text-slate-900 dark:text-slate-100" />
-              {spotId && <p className="mt-1.5 text-[11px] font-bold text-emerald-600">Linked to a RADA spot{area ? ` in ${area}` : ''}.</p>}
-              {!spotId && spotText.trim() && matches.length === 0 && <p className="mt-1.5 text-[11px] text-slate-400">Not linked to a RADA spot yet. Pick one from the list to tag it.</p>}
+              {spotId && <p className="mt-1.5 text-[11px] font-bold text-emerald-600">Linked to a RADA PULSE spot{area ? ` in ${area}` : ''}.</p>}
+              {!spotId && spotText.trim() && matches.length === 0 && <p className="mt-1.5 text-[11px] text-slate-400">Not linked to a RADA PULSE spot yet. Pick one from the list to tag it.</p>}
               {matches.length > 0 && (
                 <div className="mt-1.5 rounded-xl bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-700 overflow-hidden">
                   {matches.map((sp) => (
@@ -389,7 +389,7 @@ const Editor: React.FC<{ userId: string; accent: string; showToast: Props['showT
               </div>
             </div>
 
-            <p className="px-4 mt-5 text-[11px] text-slate-400">Your RADA diary entries have no likes, comments, or replies.</p>
+            <p className="px-4 mt-5 text-[11px] text-slate-400">Your RADA PULSE diary entries have no likes, comments, or replies.</p>
           </div>
 
           {/* Bottom bar */}

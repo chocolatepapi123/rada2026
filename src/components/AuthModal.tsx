@@ -14,7 +14,7 @@ import {
   resetPasswordWithCode,
   type VerifyKind,
 } from '../lib/supabase';
-import { Lock, Mail, User, ArrowRight, ArrowLeft, MapPin, X, Loader2, KeyRound } from 'lucide-react';
+import { Lock, Mail, User, ArrowRight, ArrowLeft, X, Loader2, KeyRound } from 'lucide-react';
 import { LegalModal, LEGAL_VERSION, type LegalDoc } from './LegalModal';
 import { logPlatformEvent } from '../lib/platformAnalytics';
 
@@ -121,7 +121,7 @@ export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, custo
           throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
         }
         // The name becomes the private display name. Blank = the database assigns new_user_NN.
-        if (!ageConfirmed) throw new Error('You must be 18 or older to use RADA.');
+        if (!ageConfirmed) throw new Error('You must be 18 or older to use RADA PULSE.');
         if (!termsAccepted) throw new Error('Please agree to the Terms, Privacy Policy and Community Guidelines to continue.');
         const { signedIn } = await signUpWithEmail(em, password, fullName.trim() || undefined, {
           ageConfirmed,
@@ -202,7 +202,7 @@ export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, custo
       ? (view === 'reset' ? 'Check your email' : 'Reset your password')
       : view === 'verify'
       ? 'Check your email'
-      : 'Welcome to RADA';
+      : 'Welcome to RADA PULSE';
 
   const subline =
     view === 'forgot'
@@ -214,7 +214,7 @@ export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, custo
       : customMessage ||
         (isSignUp
           ? 'Create your account to discover local spots near you & find experiences in your city'
-          : 'Log in to continue to your RADA account');
+          : 'Log in to continue to your RADA PULSE account');
 
   const submitLabel =
     !isSignUp && useCode
@@ -234,12 +234,14 @@ export function AuthModal({ isOpen, onSuccess, onClose, onContinueAsGuest, custo
         className="min-h-full flex flex-col items-center justify-center px-4"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.25rem)', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.25rem)' }}
       >
-      {/* The RADA mark, same as the app header */}
-      <div className="flex items-center gap-2.5 mb-5 select-none">
-        <div className="w-11 h-11 rounded-2xl bg-[#E0533C] flex items-center justify-center shadow-md shadow-[#E0533C]/30">
-          <MapPin className="w-6 h-6 text-white" strokeWidth={2.5} />
-        </div>
-        <span className="text-[32px] leading-none font-black tracking-tight text-[#E0533C]">RADA</span>
+      {/* The RADA PULSE mark */}
+      <div className="flex items-center justify-center mb-5 select-none">
+        <img
+          src="/assets/aistudio/RADAPULSE_Logo_Transparent_9a9a4145.png"
+          alt="RADA PULSE"
+          className="h-14 w-auto object-contain block"
+          draggable={false}
+        />
       </div>
       <div className="w-full max-w-md bg-white/90 backdrop-blur border border-white rounded-[28px] p-6 shadow-xl shadow-[#E0533C]/10 text-slate-900 relative">
         {/* Optional Close Button */}

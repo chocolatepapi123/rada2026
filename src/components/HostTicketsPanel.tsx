@@ -82,7 +82,7 @@ export const HostTicketsPanel: React.FC<Props> = ({ kind, source, title, onClose
   const share = () =>
     shareContent({
       title,
-      text: `Get your ticket for ${title} on RADA`,
+      text: `Get your ticket for ${title} on RADA PULSE`,
       url: link,
       onSuccess: (m) => toast(m),
     });

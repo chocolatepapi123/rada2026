@@ -216,16 +216,16 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
         )}
       </div>
 
-      {/* RADA TOP 10 Banner + Single-Card Swipe Carousel */}
+      {/* RADA PULSE TOP 10 Banner + Single-Card Swipe Carousel */}
       {!forDate && topTenSpots.length > 0 && (
-        <section className="space-y-2.5" aria-label="RADA Top 10 this week">
-          {/* Clear RADA Logo Banner */}
+        <section className="space-y-2.5" aria-label="RADA PULSE Top 10 this week">
+          {/* Clear RADA PULSE Logo Banner */}
           <div className="rounded-2xl px-3.5 py-2.5 bg-gradient-to-r from-[#E05328] via-[#E0533C] to-[#EE8A47] text-white shadow-sm flex items-center justify-between gap-2.5">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="bg-white/95 rounded-xl px-2.5 py-1 shadow-xs shrink-0 flex items-center">
                 <img
-                  src="/rada-mark.png"
-                  alt="RADA"
+                  src="/assets/aistudio/RADAPULSE_Logo_Transparent_9a9a4145.png"
+                  alt="RADA PULSE"
                   className="h-5 w-auto object-contain"
                 />
               </div>
@@ -245,7 +245,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
             </span>
           </div>
 
-          <SingleSlideCarousel ariaLabel="RADA Top 10 spots carousel">
+          <SingleSlideCarousel ariaLabel="RADA PULSE Top 10 spots carousel">
             {topTenSpots.map((spot, idx) => {
               const rank = idx + 1;
               const saved = isSaved(spot.id);

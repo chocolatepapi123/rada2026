@@ -283,7 +283,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
 
     const review: Review = {
       id: `rev-${Date.now()}`,
-      userName: currentUserProfile?.name || 'RADA member',
+      userName: currentUserProfile?.name || 'RADA PULSE member',
       userHandle: currentUserProfile?.handle || '@explorer',
       userAvatar: currentUserProfile?.avatar || '',
       rating: newReviewRating,
@@ -433,8 +433,8 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   type="button"
                   onClick={() => {
                     shareContent({
-                      title: `RADA Spot: ${selectedSpot.title}`,
-                      text: `Check out ${selectedSpot.title} (${selectedSpot.category}) in ${selectedSpot.address} on RADA Nairobi! ${Number(selectedSpot.rating) > 0 ? ` Rating: ${selectedSpot.rating}/5.` : ''}`,
+                      title: `RADA PULSE Spot: ${selectedSpot.title}`,
+                      text: `Check out ${selectedSpot.title} (${selectedSpot.category}) in ${selectedSpot.address} on RADA PULSE Nairobi! ${Number(selectedSpot.rating) > 0 ? ` Rating: ${selectedSpot.rating}/5.` : ''}`,
                       url: window.location.href,
                       onSuccess: showToast,
                       onError: showToast
@@ -1240,7 +1240,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                         No reviews yet
                       </h5>
                       <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
-                        Be the first to review this spot! Share your experience, rating, and photos with the RADA community.
+                        Be the first to review this spot! Share your experience, rating, and photos with the RADA PULSE community.
                       </p>
                     </div>
                     <button
@@ -1294,8 +1294,8 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   type="button"
                   onClick={() => {
                     shareContent({
-                      title: `RADA Event: ${selectedEvent.title}`,
-                      text: `Check out ${selectedEvent.title} on ${selectedEvent.date} at ${selectedEvent.location} on RADA Nairobi!`,
+                      title: `RADA PULSE Event: ${selectedEvent.title}`,
+                      text: `Check out ${selectedEvent.title} on ${selectedEvent.date} at ${selectedEvent.location} on RADA PULSE Nairobi!`,
                       url: window.location.href,
                       onSuccess: showToast,
                       onError: showToast
@@ -1846,7 +1846,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   </p>
                 </div>
                 <a
-                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`EMERGENCY SOS (RADA): Urgent help needed! ${sosLocationText}`)}`}
+                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`EMERGENCY SOS (RADA PULSE): Urgent help needed! ${sosLocationText}`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs text-center transition flex items-center justify-center gap-1.5 shrink-0"
@@ -1944,7 +1944,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   ) : (
                     emergencyContacts.map((c) => {
                       const cleanPhone = c.phone.replace(/[^0-9+]/g, '');
-                      const emergencyDraftMsg = `EMERGENCY SOS (RADA): Urgent assistance needed! ${sosLocationText} Please check on me immediately.`;
+                      const emergencyDraftMsg = `EMERGENCY SOS (RADA PULSE): Urgent assistance needed! ${sosLocationText} Please check on me immediately.`;
                       return (
                         <div key={c.id} className="p-3 bg-[#F8F8F6] dark:bg-[#151319] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between gap-2">
                           <div className="min-w-0 flex-1">
@@ -2109,7 +2109,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       <Eye className="w-4 h-4 text-blue-500" />
                       <div>
                         <h4 className="font-bold">Discoverable in Socials</h4>
-                        <p className="text-[10px] text-slate-400">Show card to RADA community</p>
+                        <p className="text-[10px] text-slate-400">Show card to RADA PULSE community</p>
                       </div>
                     </div>
                     <button
@@ -2202,7 +2202,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   </button>
                   {isLegalHelpOpen && (
                     <div className="p-3.5 bg-white/70 dark:bg-black/20 text-[11px] text-slate-600 dark:text-slate-300 space-y-1.5 leading-relaxed">
-                      <p className="font-bold text-slate-800 dark:text-slate-100">Staying safe on RADA</p>
+                      <p className="font-bold text-slate-800 dark:text-slate-100">Staying safe on RADA PULSE</p>
                       <p>Meet at verified spots or public venues first, share live outings with trusted contacts from the SOS Hub, and report any suspicious accounts directly from their profile.</p>
                       <p className="text-slate-500">Need support? Reach us at <span className="font-bold text-[#E0533C]">hello.rada.app@gmail.com</span>.</p>
                     </div>
@@ -2213,7 +2213,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       <FileText className="w-4 h-4 text-slate-500" />
                       <div>
                         <span className="font-bold">App Version</span>
-                        <p className="text-[10px] text-slate-400">RADA 2026.4.2 (Production Build)</p>
+                        <p className="text-[10px] text-slate-400">RADA PULSE 2026.4.2 (Production Build)</p>
                       </div>
                     </div>
                     <span className="text-[10px] font-mono text-slate-400">Up to date</span>

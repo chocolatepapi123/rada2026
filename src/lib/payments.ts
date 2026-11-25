@@ -56,7 +56,7 @@ export async function startPlanPayment(
   phone: string,
   period: BillingPeriod = 'monthly'
 ): Promise<StkStarted> {
-  if (!isSupabaseConfigured) throw new Error('Payments need a connection to RADA. Try again online.');
+  if (!isSupabaseConfigured) throw new Error('Payments need a connection to RADA PULSE. Try again online.');
   const normalized = normalizeKenyanPhone(phone);
   if (!normalized) throw new Error('Enter a valid Safaricom number, like 0712 345 678.');
   return invokeStk({ kind, plan, period, phone: normalized });
@@ -64,7 +64,7 @@ export async function startPlanPayment(
 
 /** Pay for an APPROVED promotion. The amount comes from the promotion row on the server. */
 export async function startPromotionPayment(promotionId: string, phone: string): Promise<StkStarted> {
-  if (!isSupabaseConfigured) throw new Error('Payments need a connection to RADA. Try again online.');
+  if (!isSupabaseConfigured) throw new Error('Payments need a connection to RADA PULSE. Try again online.');
   const normalized = normalizeKenyanPhone(phone);
   if (!normalized) throw new Error('Enter a valid Safaricom number, like 0712 345 678.');
   return invokeStk({ kind: 'promotion', promotion_id: promotionId, phone: normalized });

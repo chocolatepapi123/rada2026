@@ -257,7 +257,7 @@ const EditorSheet: React.FC<SheetProps> = ({ user, initialKind, onClose, onChang
               <p className={`text-[15px] font-black ${st.tone}`}>{st.text}</p>
               {rec && (
                 <div className="text-[13px] text-slate-500 leading-relaxed space-y-1">
-                  <p>{rec.origin === 'admin' ? 'Set by a RADA admin.' : 'Started automatically at onboarding.'}</p>
+                  <p>{rec.origin === 'admin' ? 'Set by a RADA PULSE admin.' : 'Started automatically at onboarding.'}</p>
                   {rec.trial_started_at && <p>Trial began {formatDate(rec.trial_started_at)}.</p>}
                   {rec.terminated_reason && (
                     <p className="text-red-500">
