@@ -9,6 +9,7 @@ import {
   Mic, 
   Send, 
   Calendar, 
+  Check,
   ArrowLeft,
   Reply,
   Video,
@@ -577,6 +578,15 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
       m => m.text?.includes('Date accepted') && m.text.includes(msg.dateInvite?.spotTitle || '\u0000')
     );
 
+  const parseDateAccepted = (text?: string): { spotTitle: string; date?: string; time?: string } | null => {
+    if (!text) return null;
+    const m = text.trim().match(/^Date accepted:\s*(.+?)\s+on\s+(.+?)\s+at\s+(.+)$/i);
+    if (m) return { spotTitle: m[1].trim(), date: m[2].trim(), time: m[3].trim() };
+    const simple = text.trim().match(/^Date accepted:\s*(.+)$/i);
+    if (simple) return { spotTitle: simple[1].trim() };
+    return null;
+  };
+
   const handleAcceptDateInvite = async (msg: ChatMessage) => {
     if (!msg.dateInvite || !activeChat) return;
     const d = msg.dateInvite;
@@ -746,6 +756,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
               const sameAsNext = !!next && next.sender === msg.sender && (next as any).senderHandle === handle;
               const tail = sameAsNext ? '' : mine ? 'rounded-br-md' : 'rounded-bl-md';
               const flash = flashId !== null && String(flashId) === String(msg.id);
+              const dateAccepted = !msg.dateInvite ? parseDateAccepted(msg.text) : null;
 
               const replyBtn = (
                 <button
@@ -792,6 +803,26 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                           >
                             {isInviteAccepted(msg) ? 'Date accepted' : mine ? 'Invitation sent' : 'Accept date'}
                           </button>
+                        </div>
+                      ) : dateAccepted ? (
+                        <div
+                          className={`w-56 max-w-full bg-gradient-to-br from-[#E0533C] to-[#EE8A47] text-white p-3 rounded-2xl shadow-md shadow-[#E0533C]/20 space-y-1.5 transition-shadow ${
+                            flash ? 'ring-2 ring-[#E0533C]/70 ring-offset-2 ring-offset-white dark:ring-offset-[#121113]' : ''
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-emerald-700/90 px-2 py-0.5 rounded-full">
+                              <Check className="w-2.5 h-2.5" strokeWidth={3} /> Date accepted
+                            </span>
+                            <span className="text-[10px] text-white/75 shrink-0">{msg.time}</span>
+                          </div>
+                          <h4 className="font-black text-[13px] leading-tight truncate">{dateAccepted.spotTitle}</h4>
+                          {dateAccepted.date && dateAccepted.time && (
+                            <p className="inline-flex items-center gap-1 text-[11px] font-bold bg-white/20 px-2.5 py-1 rounded-full">
+                              <Calendar className="w-2.5 h-2.5 shrink-0" />
+                              <span>{dateAccepted.date} at {dateAccepted.time}</span>
+                            </p>
+                          )}
                         </div>
                       ) : msg.videoNoteUrl ? (
                         <VideoMessagePlayer
