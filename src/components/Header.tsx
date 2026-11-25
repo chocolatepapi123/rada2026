@@ -9,7 +9,6 @@ import {
   ShieldCheck,
   ChevronRight,
   ArrowLeft,
-  Ticket,
   CalendarPlus
 } from 'lucide-react';
 import { isPlatformAdmin } from '../types';
@@ -49,7 +48,6 @@ interface HeaderProps {
   userId?: string | null;
   onLogout?: () => void;
   onOpenSaved?: () => void;
-  onOpenMyTickets?: () => void;
   savedCount?: number;
   /** @deprecated Account settings now live inside the 3-dot menu. Accepted so existing callers still compile. */
   onOpenAccountSettings?: () => void;
@@ -83,7 +81,6 @@ export const Header: React.FC<HeaderProps> = ({
   userEmail,
   userId,
   onLogout,
-  onOpenMyTickets,
   onOpenSuggestSpot,
   onOpenCreateEvent,
   avatar,
@@ -249,21 +246,6 @@ export const Header: React.FC<HeaderProps> = ({
 
                   {/* Everyday actions */}
                   <div className={MENU_GROUP}>
-                    {onOpenMyTickets && (
-                      <button
-                        type="button"
-                        onClick={() => { setMenuOpen(false); onOpenMyTickets(); }}
-                        className={MENU_ROW}
-                      >
-                        <span className={`${MENU_TILE} bg-purple-500/10 text-purple-600`}>
-                          <Ticket className="w-4 h-4" />
-                        </span>
-                        <span className="flex-1 min-w-0">
-                          <span className={MENU_TITLE}>My Tickets</span>
-                        </span>
-                      </button>
-                    )}
-
                     {showSuggestSpot && (
                     <button
                       type="button"

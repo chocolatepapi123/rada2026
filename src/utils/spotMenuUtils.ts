@@ -81,7 +81,7 @@ export function getSpotMenuHeading(spot: Partial<SpotItem>): SpotMenuHeading {
   if (cat === 'social_activities') {
     return {
       title: 'Popular Experiences & Group Packages',
-      subtitle: 'Squad sessions, tickets & group rates',
+      subtitle: 'Squad sessions, bookings & group rates',
       badge: 'Experiences',
       itemFallbackName: 'Experience Package'
     };

@@ -56,58 +56,54 @@ export interface DemoPerson {
   name: string;
   avatar: string;
   bio: string;
-  /** Swiping right on this person is an instant match. */
-  instantMatch?: boolean;
 }
 
-const P = (key: string, username: string, name: string, avatar: string, bio: string, instantMatch = false): DemoPerson => ({
+const P = (key: string, username: string, name: string, _avatar: string, bio: string): DemoPerson => ({
   id: `demo-u-${key}`,
   key,
   username,
   name,
   avatar: avatarFor(key),
   bio,
-  instantMatch,
 });
 
 export const DEMO_PEOPLE: DemoPerson[] = [
-  // sent me a request
   P('wanjiru', 'wanjiru_k', 'Wanjiru Kamau', '', 'Rooftop sundowners, nyama choma Sundays and anything with live music 🎶'),
   P('brian', 'brian_otieno', 'Brian Otieno', '', 'Karura trails by morning, Kilimani brunch by noon 🌲☕'),
   P('achieng', 'achieng_a', 'Achieng Akinyi', '', 'Art, coffee and spontaneous road trips. Always down for a gallery night 🎨'),
   P('kevo', 'kevo254', 'Kevin Mutua', '', 'Gaming, bowling and late-night mutura. Challenge me 🎮'),
-  // I sent them a request
-  P('zawadi', 'zawadi_m', 'Zawadi Mwangi', '', 'Brunch snob. Sunday market regular. Looking for a plus-one for Nairobi adventures ✨'),
+  P('zawadi', 'zawadi_m', 'Zawadi Mwangi', '', 'Brunch snob. Sunday market regular. Always hunting the best croissants in Nairobi ✨'),
   P('ian', 'ian_mwangi', 'Ian Mwangi', '', 'Foodie first, everything else second. Will travel for good chips masala 🍟'),
   P('njeri', 'njeri_wa', 'Njeri Wairimu', '', 'Dancer. Amapiano on repeat. Ask me about my playlist 💃'),
-  // matched: direct chats
   P('mwende', 'mwende_k', 'Mwende Kioko', '', 'Weekend explorer. Cafes, bookshops and sunsets 🌅'),
   P('tito', 'tito_ke', 'Tito Odhiambo', '', 'Football, nyama choma and terrible puns ⚽'),
   P('farida', 'farida_h', 'Farida Hassan', '', 'Paint and sip regular. Beach person stuck in Nairobi 🎨🍷'),
-  // group + hosting chat members
   P('otis', 'otis_ke', 'Otieno Ouma', '', 'DJ on weekends, accountant on weekdays 🎧'),
   P('shiko', 'shiko_n', 'Shiko Njoroge', '', 'Hiking, photography and strong coffee 📸'),
   P('dan', 'dan_kamau', 'Daniel Kamau', '', 'Trail runner. Karura is my office 🏃🏾'),
-  // Rada feed posters + people who reply to my asks
-  P('nina', 'nina_w', 'Nina Wanjiku', '', 'Pottery on Saturdays, Java on Sundays. Looking for someone to explore new spots with ☕', true),
+  P('nina', 'nina_w', 'Nina Wanjiku', '', 'Pottery on Saturdays, Java on Sundays. Always down to explore new spots ☕'),
   P('dennis', 'dennis_m', 'Dennis Maina', '', 'Sports bar regular and part-time chef. I make a mean pilau 🍛'),
   P('caro', 'caro_a', 'Caroline Atieno', '', 'Live music, rooftops and long drives to Naivasha 🚗'),
   P('jabali', 'jabali_k', 'Jabali Kariuki', '', 'Photographer. Golden hour chaser. Will take your portrait for free 📷'),
-  P('lulu', 'lulu_n', 'Lulu Nyambura', '', 'Foodie, bookworm and board game champion 🎲', true),
+  P('lulu', 'lulu_n', 'Lulu Nyambura', '', 'Foodie, bookworm and board game champion 🎲'),
   P('sam', 'sam_oduor', 'Samuel Oduor', '', 'Climbing Ngong Hills every other weekend. Come keep up ⛰️'),
-  P('amani', 'amani_j', 'Amani Juma', '', 'Karaoke queen. Yes, I will sing Sauti Sol 🎤', true),
+  P('amani', 'amani_j', 'Amani Juma', '', 'Karaoke queen. Yes, I will sing Sauti Sol 🎤'),
   P('vee', 'vee_ke', 'Valentine Chebet', '', 'Cocktails, comedy nights and spontaneous plans 🍸'),
 ];
 
-/** The user's own Rada Discover post in Demo Mode (used by demoAsks.ts and by the accepted-reply chat below). */
+/** The user's own Rada Discover posts in Demo Mode (used by demoAsks.ts and by the accepted-reply chats below). */
 export const DEMO_MY_ASK_BODY = 'Hii pekee yangu itanimaliza, nani ako free😂';
 export const DEMO_MY_ASK_ACCEPTED_REPLY = 'Niko free bro 😂 Nakuja na chaser na nyama. Ni wapi?';
+export const DEMO_MY_ASK_2_BODY = 'Anyone down for Sunday brunch & board games in Kilimani?';
+export const DEMO_MY_ASK_2_ACCEPTED_REPLY = 'Count me in! I bring Catan & Monopoly Deal, which spot? 🎲';
+export const DEMO_MY_ASK_3_BODY = 'Heading to Karura Gate A for coffee + trail walk, 2 spots open ☕🌲';
+export const DEMO_MY_ASK_3_ACCEPTED_REPLY = 'Niko Karura side already! Meet at Rivers Cafe in 20?';
 
 const byKey = (key: string): DemoPerson => DEMO_PEOPLE.find(p => p.key === key) as DemoPerson;
 export const getDemoPerson = (id: string): DemoPerson | undefined => DEMO_PEOPLE.find(p => p.id === id);
 const handleOf = (p: DemoPerson) => `@${p.username}`;
 
-/** Shape returned by search_profiles; powers Search and the Discover deck. */
+/** Shape returned by search_profiles; powers Search. */
 export const DEMO_PROFILE_HITS: CloudProfileHit[] = DEMO_PEOPLE.map(p => ({
   id: p.id,
   username: p.username,
@@ -115,25 +111,7 @@ export const DEMO_PROFILE_HITS: CloudProfileHit[] = DEMO_PEOPLE.map(p => ({
   bio: p.bio,
 }));
 
-// ---------------------------------------------------------------------------
-// match requests
-// ---------------------------------------------------------------------------
-export function buildDemoRequests(myId: string, myHandle: string, myAvatar: string = DEFAULT_ME_AVATAR): CloudRequest[] {
-  const me = myHandle.startsWith('@') ? myHandle : `@${myHandle || 'you'}`;
-  const received = (key: string, minsAgo: number): CloudRequest => {
-    const p = byKey(key);
-    return { id: `demo-req-in-${key}`, fromUser: p.id, toUser: myId, fromHandle: handleOf(p), fromAvatar: p.avatar, toHandle: me, toAvatar: myAvatar, status: 'pending', createdAt: agoIso(minsAgo) };
-  };
-  const sent = (key: string, minsAgo: number): CloudRequest => {
-    const p = byKey(key);
-    return { id: `demo-req-out-${key}`, fromUser: myId, toUser: p.id, fromHandle: me, fromAvatar: myAvatar, toHandle: handleOf(p), toAvatar: p.avatar, status: 'pending', createdAt: agoIso(minsAgo) };
-  };
-  const accepted = (key: string, minsAgo: number): CloudRequest => {
-    const p = byKey(key);
-    return { id: `demo-req-ok-${key}`, fromUser: p.id, toUser: myId, fromHandle: handleOf(p), fromAvatar: p.avatar, toHandle: me, toAvatar: myAvatar, status: 'accepted', conversationId: `demo-dm-${key}`, createdAt: agoIso(minsAgo) };
-  };
-  // Demo Mode no longer shows hangout requests (likes you / sent).
-  void received; void sent; void accepted;
+export function buildDemoRequests(_myId: string, _myHandle: string, _myAvatar: string = DEFAULT_ME_AVATAR): CloudRequest[] {
   return [];
 }
 
@@ -172,6 +150,11 @@ export function buildDemoConversations(myId: string, myHandle: string): ChatConv
   const mwende = byKey('mwende');
   const tito = byKey('tito');
   const farida = byKey('farida');
+  const wanjiru = byKey('wanjiru');
+  const njeri = byKey('njeri');
+  const brian = byKey('brian');
+  const lulu = byKey('lulu');
+  const amani = byKey('amani');
   const otis = byKey('otis');
   const shiko = byKey('shiko');
   const dan = byKey('dan');
@@ -255,7 +238,7 @@ export function buildDemoConversations(myId: string, myHandle: string): ChatConv
     ]
   );
 
-  // Planning a date: the invite card at the bottom is waiting for you to accept.
+  // 1. Date invite RECEIVED from @mwende_k (waiting for you to tap Accept date)
   const dmMwende = makeConv(
     { id: 'demo-dm-mwende', name: handleOf(mwende), avatar: mwende.avatar, type: 'direct', theme: 'sunset' },
     [
@@ -274,27 +257,122 @@ export function buildDemoConversations(myId: string, myHandle: string): ChatConv
     mwende.id
   );
 
-  // Chat that opened after you accepted a reply on your Rada Discover post (see demoAsks.ts).
-  const dennis = byKey('dennis');
-  const askChatId = `demo-dm-ask-${dennis.key}`;
-  const dmAskDennis = makeConv(
-    { id: askChatId, name: handleOf(dennis), avatar: dennis.avatar, type: 'direct' },
+  // 2. Date invite SENT by me to @wanjiru_k (pending response)
+  const dmWanjiru = makeConv(
+    { id: 'demo-dm-wanjiru', name: handleOf(wanjiru), avatar: wanjiru.avatar, type: 'direct', theme: 'sunset' },
     [
-      { who: 'system', text: `Chat opened from your ask: “${DEMO_MY_ASK_BODY}”`, ago: 33 },
-      { who: 'them', text: DEMO_MY_ASK_ACCEPTED_REPLY, ago: 32 },
-      { who: 'me', text: 'Kasarani bro, Mwiki side. Uje na njaa 😂', ago: 28 },
-      { who: 'them', text: 'Sawa! Drop pin, nafika around 7', ago: 25 },
-      { who: 'me', text: 'Pin imefika 📍 Na tuweke FIFA pia', ago: 20 },
-      { who: 'them', text: 'Unajua unataka kuchapwa 😂 See you!', ago: 18 },
+      { who: 'them', text: 'Saw your review on The Alchemist! Is the rooftop DJ good on Fridays? 🎶', ago: 620 },
+      { who: 'me', text: '10/10 vibe especially around sunset. Want us to check it out this Friday?', ago: 590 },
+      { who: 'them', text: 'Wait yes!! Lock in a time and send me the invite 👀', ago: 310 },
+      {
+        who: 'me',
+        text: 'Date Invite: The Alchemist Bar',
+        ago: 22,
+        extra: { dateInvite: { spotTitle: 'The Alchemist Bar', address: 'Parklands Rd, Westlands', date: ymd(5), time: '6:30 PM', accepted: false } },
+      },
+      { who: 'me', text: 'Sent! Let me know if 6:30 works or if we push to 7 🍸', ago: 21 },
+    ],
+    wanjiru.id
+  );
+
+  // 3. Date invite SENT by me to @njeri_wa & ACCEPTED + follow-up chat
+  const dmNjeri = makeConv(
+    { id: 'demo-dm-njeri', name: handleOf(njeri), avatar: njeri.avatar, type: 'direct', theme: 'emerald' },
+    [
+      { who: 'me', text: 'Still craving that smoked brisket from Ankole Grill 😂', ago: 2400 },
+      { who: 'them', text: 'Do not tempt me on a weekday 😩 When are we going?', ago: 2380 },
+      {
+        who: 'me',
+        text: 'Date Invite: Ankole Grill Kilimani',
+        ago: 940,
+        extra: { dateInvite: { spotTitle: 'Ankole Grill Kilimani', address: 'Galana Rd, Kilimani', date: ymd(4), time: '7:30 PM', accepted: true } },
+      },
+      { who: 'them', text: `Date accepted: Ankole Grill Kilimani on ${ymd(4)} at 7:30 PM`, ago: 880 },
+      { who: 'them', text: 'Booked it in my calendar 💚 Cannot wait for Friday!', ago: 878 },
+      { who: 'me', text: 'Asked for the garden booth by the lanterns 🔥 See you at 7:30', ago: 720 },
+    ],
+    njeri.id
+  );
+
+  // 4. Met up + texting AFTER the meetup (@brian_otieno)
+  const dmBrian = makeConv(
+    { id: 'demo-dm-brian', name: handleOf(brian), avatar: brian.avatar, type: 'direct', theme: 'emerald' },
+    [
+      { who: 'me', text: 'Still on for Karura Gate A at 8am sharp? 🌲', ago: 480 },
+      { who: 'them', text: 'Yes sir! Just entered Limuru Rd now', ago: 420 },
+      { who: 'them', text: "I'm by the main barrier in a forest green cap 👋", ago: 390 },
+      { who: 'me', text: 'Spot you! Walking right up', ago: 388 },
+      { who: 'system', text: 'Met up at Karura Forest', ago: 360 },
+      { who: 'them', text: 'Just got home — that 10km loop felt way easier with the chai after 😂', ago: 165 },
+      { who: 'me', text: 'Haha for real! Best post-hike breakfast at Rivers Cafe too', ago: 140 },
+      { who: 'them', text: 'Here is that waterfall shot we took 📸', ago: 135, extra: { photos: [IMG.forest] } },
+      { who: 'me', text: 'Clean shot 🔥 Next Sunday we tackle Ngong Hills?', ago: 55 },
+      { who: 'them', text: 'Booked! I will bring the electrolytes this time 😂', ago: 48 },
+    ],
+    brian.id
+  );
+
+  // 5. My Discover Ask #1 (@dennis_m) -> accepted reply -> met up -> texting after meetup
+  const dennis = byKey('dennis');
+  const dmAskDennis = makeConv(
+    { id: `demo-dm-ask-${dennis.key}`, name: handleOf(dennis), avatar: dennis.avatar, type: 'direct' },
+    [
+      { who: 'system', text: `Chat opened from your Discover post: “${DEMO_MY_ASK_BODY}”`, ago: 420 },
+      { who: 'them', text: DEMO_MY_ASK_ACCEPTED_REPLY, ago: 418 },
+      { who: 'me', text: 'Kasarani bro, Mwiki side. Uje na njaa 😂', ago: 405 },
+      { who: 'them', text: 'Sawa! Drop pin, nafika around 7', ago: 390 },
+      { who: 'me', text: 'Pin imefika 📍 Nimefika nje kwa gate', ago: 310 },
+      { who: 'them', text: 'Nakuona! Ndio huyo mimi na chaser 😂', ago: 308 },
+      { who: 'system', text: 'Met up from your Discover post', ago: 290 },
+      { who: 'them', text: 'Bro just reached home, that mbuzi + FIFA session was undefeated 🔥😂', ago: 34 },
+      { who: 'me', text: 'Haha 4-1 in the final match was disrespectful 😂 Run it back next weekend?', ago: 26 },
+      { who: 'them', text: 'Lazima! Next time my place, naweka pilau', ago: 19 },
     ],
     dennis.id
   );
 
+  // 6. My Discover Ask #2 (@lulu_n) -> accepted reply -> met up for brunch -> texting after meetup
+  const dmAskLulu = makeConv(
+    { id: `demo-dm-ask-${lulu.key}`, name: handleOf(lulu), avatar: lulu.avatar, type: 'direct', theme: 'sunset' },
+    [
+      { who: 'system', text: `Chat opened from your Discover post: “${DEMO_MY_ASK_2_BODY}”`, ago: 1440 },
+      { who: 'them', text: DEMO_MY_ASK_2_ACCEPTED_REPLY, ago: 1435 },
+      { who: 'me', text: 'Let us do Asmara Kilimani at 12:30! Quiet garden table', ago: 1400 },
+      { who: 'them', text: 'Perfect 🙌 Just got a Bolt, 10 mins away', ago: 1210 },
+      { who: 'me', text: 'Already grabbed the shaded table near the back 🌿', ago: 1205 },
+      { who: 'system', text: 'Met up from your Discover post', ago: 1180 },
+      { who: 'them', text: 'Got home safely! Still mad you beat me at Catan twice in a row 😂🎲', ago: 840 },
+      { who: 'me', text: 'Beginner luck 😅 Thank you for bringing the games, that brunch was 10/10', ago: 825 },
+      { who: 'them', text: 'Pottery & coffee next Saturday? Found a studio in Lavington!', ago: 110 },
+    ],
+    lulu.id
+  );
+
+  // 7. My Discover Ask #3 (@amani_j) -> accepted reply -> met up -> texting after meetup
+  const dmAskAmani = makeConv(
+    { id: `demo-dm-ask-${amani.key}`, name: handleOf(amani), avatar: amani.avatar, type: 'direct', theme: 'emerald' },
+    [
+      { who: 'system', text: `Chat opened from your Discover post: “${DEMO_MY_ASK_3_BODY}”`, ago: 2880 },
+      { who: 'them', text: DEMO_MY_ASK_3_ACCEPTED_REPLY, ago: 2870 },
+      { who: 'me', text: 'Yes! Grabbing iced lattes first then we hit the bamboo trail ☕', ago: 2850 },
+      { who: 'them', text: 'See you outside Rivers Cafe in 15!', ago: 2830 },
+      { who: 'system', text: 'Met up from your Discover post', ago: 2780 },
+      { who: 'them', text: 'Still laughing at how loud we were after 12km 😂 Thanks for the lift back!', ago: 2450 },
+      { who: 'me', text: 'Anytime!! Sent you the trail clips too 🌲', ago: 2410 },
+      { who: 'them', text: 'Next time karaoke night, you owe me one Sauti Sol duet 🎤', ago: 490 },
+    ],
+    amani.id
+  );
+
+  // 8. Met up + texting after meetup (@tito_ke)
   const dmTito = makeConv(
     { id: 'demo-dm-tito', name: handleOf(tito), avatar: tito.avatar, type: 'direct' },
     [
-      { who: 'them', text: 'Bro that nyama choma place was unreal 🔥', ago: 400 },
-      { who: 'me', text: 'Told you! Next time we try the one in Karen', ago: 380 },
+      { who: 'me', text: 'Just parked outside! Wearing the black hoodie', ago: 560 },
+      { who: 'them', text: 'Come straight to the patio, already ordered the platter 🔥', ago: 556 },
+      { who: 'system', text: 'Met up at K1 Klub House', ago: 520 },
+      { who: 'them', text: 'Bro that nyama choma place was unreal 🔥 Just got home', ago: 320 },
+      { who: 'me', text: 'Told you! Next time we try the one in Karen', ago: 300 },
       { who: 'them', text: 'Deal. Also I found this rooftop for the weekend', ago: 120 },
       { who: 'them', text: 'Look at this view 😍', ago: 118, extra: { photos: [IMG.rooftop] } },
       { who: 'me', text: 'Okay that is actually crazy. Book it!', ago: 90 },
@@ -302,6 +380,7 @@ export function buildDemoConversations(myId: string, myHandle: string): ChatConv
     tito.id
   );
 
+  // 9. Post-meetup banter (@farida_h)
   const dmFarida = makeConv(
     { id: 'demo-dm-farida', name: handleOf(farida), avatar: farida.avatar, type: 'direct', theme: 'emerald' },
     [
@@ -336,28 +415,48 @@ export function buildDemoConversations(myId: string, myHandle: string): ChatConv
       avatar: IMG.concert,
       type: 'group',
       theme: 'sunset',
-      members: [me, handleOf(byKey('njeri')), handleOf(byKey('vee')), handleOf(byKey('amani')), handleOf(farida)],
+      members: [me, handleOf(njeri), handleOf(byKey('vee')), handleOf(amani), handleOf(farida)],
     },
     [
-      { who: 'them', by: handleOf(byKey('njeri')), text: 'New playlist is up. Friday we dance till the lights come on 🎶', ago: 1500 },
+      { who: 'them', by: handleOf(njeri), text: 'New playlist is up. Friday we dance till the lights come on 🎶', ago: 1500 },
       { who: 'them', by: handleOf(byKey('vee')), text: 'Which club though? Westlands or Kilimani?', ago: 1490 },
       { who: 'me', text: 'Kilimani. Entry is cheaper before 10pm 😄', ago: 1470 },
-      { who: 'them', by: handleOf(byKey('amani')), text: 'I will be the one singing off-key in the corner 🎤', ago: 300 },
+      { who: 'them', by: handleOf(amani), text: 'I will be the one singing off-key in the corner 🎤', ago: 300 },
       { who: 'them', by: handleOf(farida), text: 'We love you anyway 😂', ago: 290 },
     ]
   );
 
-  return [hostingMine, dmAskDennis, dmMwende, nyama, dmTito, derby, hostingJoined, dmFarida, amapiano, karura];
+  void myId;
+  return [
+    hostingMine,
+    dmMwende,
+    dmAskDennis,
+    dmWanjiru,
+    dmBrian,
+    dmTito,
+    dmAskLulu,
+    dmAskAmani,
+    dmNjeri,
+    nyama,
+    derby,
+    hostingJoined,
+    dmFarida,
+    amapiano,
+    karura,
+  ];
 }
 
-/** A fresh direct chat opened from a profile (no match wording: the match feature is gone). */
-export function buildMatchConversation(person: DemoPerson): ChatConversation {
+/** A fresh direct chat opened from a profile. */
+export function buildDirectConversation(person: DemoPerson): ChatConversation {
   return makeConv(
     { id: `demo-dm-${person.key}`, name: handleOf(person), avatar: person.avatar, type: 'direct' },
     [{ who: 'them', text: `Hey 👋 ${person.bio.split('.')[0]}. What are you up to this weekend?`, ago: 0 }],
     person.id
   );
 }
+
+/** Backwards-compatible alias while refactoring callers. */
+export const buildMatchConversation = buildDirectConversation;
 
 /** A new group created from the app while Demo Mode is on. */
 export function buildGroupConversation(name: string, handles: string[], myHandle: string): ChatConversation {

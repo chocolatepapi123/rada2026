@@ -68,8 +68,8 @@ export function demoMerchantOffers(): BusinessOffer[] {
     o(2, 'demo-biz-1', 'Skyline Rooftop Lounge', 'hospitality', 'Sundowner Platter', 'Grill platter for four with a bottle of house wine.', 'Food', '20% off', IMG.rooftop, 30),
     o(3, 'demo-biz-2', 'Mama Pima Kitchen', 'hospitality', 'Lunch Combo', 'Nyama choma, ugali and kachumbari with a soda.', 'Food', 'KES 700', IMG.restaurant, 14),
     o(4, 'demo-biz-2', 'Mama Pima Kitchen', 'hospitality', 'Family Sunday Feast', 'Feeds five. Book ahead.', 'Special Deals', '15% off', IMG.burger, 45),
-    o(5, 'demo-biz-3', 'Pulse Nights Events', 'event_organizer', 'Early Bird: Amapiano Rooftop', 'First 100 tickets only.', 'Tickets', 'KES 1,000', IMG.crowd, 12),
-    o(6, 'demo-biz-3', 'Pulse Nights Events', 'event_organizer', 'Group of 5 Ticket Deal', 'Bring four friends, the fifth enters free.', 'Tickets', '1 free', IMG.concert, 25),
+    o(5, 'demo-biz-3', 'Pulse Nights Events', 'event_organizer', 'Early Bird: Amapiano Rooftop', 'First 100 spots only.', 'Special Deals', 'KES 1,000', IMG.crowd, 12),
+    o(6, 'demo-biz-3', 'Pulse Nights Events', 'event_organizer', 'Group of 5 Deal', 'Bring four friends, the fifth enters free.', 'Special Deals', '1 free', IMG.concert, 25),
   ];
 }
 

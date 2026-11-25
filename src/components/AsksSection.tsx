@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BadgeCheck, Flag, Heart, MapPin, Navigation, Plus, Reply, ShieldCheck, Ticket, X } from 'lucide-react';
+import { BadgeCheck, Calendar, Flag, Heart, MapPin, Navigation, Plus, Reply, ShieldCheck, X } from 'lucide-react';
 import AskComposer from './AskComposer.tsx';
 import PullUpSheet from './PullUpSheet.tsx';
 import { NearYouControl } from './NearYouControl.tsx';
@@ -46,7 +46,7 @@ const SwipeCard: React.FC<{ ask: Ask; distanceKm?: number | null; top: boolean; 
       {top && dx < -30 && <span className="absolute top-8 right-6 px-3 py-1 rounded-xl border-4 border-red-400 text-red-300 font-black text-2xl rotate-12" style={{ opacity: Math.min(1, -dx / THRESHOLD) }}>PASS</span>}
       <button onPointerDown={(e) => e.stopPropagation()} onClick={onReport} aria-label="Report" className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 text-white/90 flex items-center justify-center cursor-pointer"><Flag className="w-4 h-4" /></button>
       <div className="absolute inset-x-0 bottom-0 p-5 text-white space-y-2 pointer-events-none">
-        {ask.plan_title && <p className="inline-flex items-center gap-1 max-w-full px-2.5 py-1 rounded-full bg-white/20 backdrop-blur text-[11px] font-extrabold"><Ticket className="w-3.5 h-3.5 shrink-0" /><span className="truncate">{ask.plan_title}</span></p>}
+        {ask.plan_title && <p className="inline-flex items-center gap-1 max-w-full px-2.5 py-1 rounded-full bg-white/20 backdrop-blur text-[11px] font-extrabold"><Calendar className="w-3.5 h-3.5 shrink-0" /><span className="truncate">{ask.plan_title}</span></p>}
         <p className="text-[20px] font-extrabold leading-tight">{ask.body}</p>
         <p className="text-[12px] font-bold flex items-center gap-1.5 flex-wrap text-white/90">
           <span>@{ask.handle || 'someone'}</span>
@@ -211,7 +211,7 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
         : mine.map((a) => (
           <div key={a.id} className={`${CARD} rounded-3xl p-4 space-y-2`}>
             {a.media_url && (a.media_type === 'video' ? <video src={a.media_url} className="w-full max-h-56 rounded-2xl object-cover" controls playsInline preload="metadata" /> : <img src={a.media_url} alt="" loading="lazy" className="w-full max-h-56 rounded-2xl object-cover" />)}
-            {a.plan_title && <p className="inline-flex items-center gap-1 max-w-full px-2.5 py-1 rounded-full bg-[#E0533C]/10 text-[#E0533C] text-[11px] font-extrabold"><Ticket className="w-3.5 h-3.5 shrink-0" /><span className="truncate">{a.plan_title}</span></p>}
+            {a.plan_title && <p className="inline-flex items-center gap-1 max-w-full px-2.5 py-1 rounded-full bg-[#E0533C]/10 text-[#E0533C] text-[11px] font-extrabold"><Calendar className="w-3.5 h-3.5 shrink-0" /><span className="truncate">{a.plan_title}</span></p>}
             <p className="text-[14px] font-semibold leading-snug">{a.body}</p>
             <p className="text-[11px] text-slate-400 font-bold">{a.area} · {timeLeft(a.expires_at)}</p>
             <div className="flex gap-2">

@@ -37,8 +37,8 @@ export const PROVIDERS: Record<string, ProviderInfo> = {
   unseen: {
     id: 'unseen', label: 'Unseen Nairobi', short: 'Unseen',
     color: '#111827', textColor: '#FFFFFF',
-    bookLabel: 'Tickets & times (Mookh)',
-    hint: 'Independent rooftop cinema. Tickets are sold on Mookh.',
+    bookLabel: 'Showtimes (Mookh)',
+    hint: 'Independent rooftop cinema. Details and booking are on Mookh.',
     hasShowtimes: false,
   },
 };
@@ -46,7 +46,7 @@ export const PROVIDERS: Record<string, ProviderInfo> = {
 export const GENERIC_PROVIDER: ProviderInfo = {
   id: 'other', label: 'Cinema', short: 'Cinema',
   color: '#2D6A4F', textColor: '#FFFFFF',
-  bookLabel: 'Book tickets', hint: 'Opens the booking page.', hasShowtimes: false,
+  bookLabel: 'View showtimes', hint: 'Opens the cinema page.', hasShowtimes: false,
 };
 
 export const providerOf = (id?: string): ProviderInfo =>

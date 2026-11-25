@@ -3,7 +3,7 @@ import {
   X,
   Upload,
   MapPin,
-  Sparkles,
+  Compass,
   Check,
   Loader2
 } from 'lucide-react';
@@ -216,7 +216,7 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
         <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/30">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-orange-500/10 dark:bg-orange-500/20 text-[#E0533C] dark:text-[#D17A68] flex items-center justify-center">
-              <Sparkles className="w-5 h-5" />
+              <Compass className="w-5 h-5" />
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-black tracking-tight leading-tight">
@@ -471,7 +471,7 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
 
           {/* Submission Notice */}
           <div className="p-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-start gap-2.5 text-xs text-slate-600 dark:text-slate-400">
-            <Sparkles className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
+            <MapPin className="w-4 h-4 text-[#E0533C] shrink-0 mt-0.5" />
             <p>
               Your spot goes live right away as a community suggestion. RADA removes anything that does not belong.
             </p>
@@ -491,7 +491,7 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-4 h-4" />
+                  <Check className="w-4 h-4" />
                   <span>Add Spot</span>
                 </>
               )}

@@ -82,7 +82,7 @@ export const PlanFromEventSheet: React.FC<Props> = ({ event, friends, onClose, o
           className="w-full py-3.5 rounded-2xl bg-[#E0533C] hover:bg-orange-700 text-white text-[13px] font-black flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60">
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />} Start the plan
         </button>
-        <p className="text-[11px] text-slate-400 leading-relaxed">This opens a group chat with them and saves the plan in your Vault. Buy tickets from the event page as usual.</p>
+        <p className="text-[11px] text-slate-400 leading-relaxed">This opens a group chat with them and saves the plan in your Vault. Check the event page for full details.</p>
       </div>
     </div>
   );

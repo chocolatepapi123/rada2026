@@ -147,7 +147,93 @@ function fallbackCollectionForUser(userId: string): PublicUserCollections | null
   const lower = userId.toLowerCase();
   const now = new Date().toISOString();
 
-  if (lower.includes('amani') || lower.includes('showcase')) {
+  if (lower.includes('mwende') || lower.includes('wanjiru')) {
+    return {
+      userId,
+      folders: [
+        { id: 'f-coffee', name: 'Quiet Coffee & Walks', emoji: 'cafe', createdAt: now },
+        { id: 'f-sun', name: 'Sunset Spots', emoji: 'sun', createdAt: now },
+      ],
+      items: [
+        {
+          id: 2,
+          kind: 'spot',
+          title: 'Karura Forest Cafe',
+          subtitle: 'Karura · Nature & Coffee',
+          image: IMG.forest,
+          category: 'Outdoors & Nature',
+          folderId: 'f-coffee',
+          savedAt: now,
+        },
+        {
+          id: 1,
+          kind: 'spot',
+          title: 'The Alchemist Bar',
+          subtitle: 'Westlands · Music & Nightlife',
+          image: IMG.rooftop,
+          category: 'Clubs & Lounges',
+          folderId: 'f-sun',
+          savedAt: now,
+        },
+        {
+          id: 'showcase-ev-paint-sip',
+          kind: 'event',
+          title: 'Paint & Sip Terrace',
+          subtitle: 'Kilimani · Creative Social',
+          image: IMG.art,
+          category: 'Arts & Culture',
+          folderId: 'f-coffee',
+          savedAt: now,
+        },
+      ],
+      updatedAt: now,
+    };
+  }
+
+  if (lower.includes('tito') || lower.includes('brian') || lower.includes('dennis')) {
+    return {
+      userId,
+      folders: [
+        { id: 'f-food', name: 'Street Food & Brunch', emoji: 'food', createdAt: now },
+        { id: 'f-late', name: 'Late Night Sets', emoji: 'music', createdAt: now },
+      ],
+      items: [
+        {
+          id: 4,
+          kind: 'spot',
+          title: 'Nairobi Street Kitchen',
+          subtitle: 'Westlands · Food & Vibes',
+          image: IMG.cafe,
+          category: 'Restaurants',
+          folderId: 'f-food',
+          savedAt: now,
+        },
+        {
+          id: 3,
+          kind: 'spot',
+          title: 'K1 Klub House',
+          subtitle: 'Parklands · Brunch & Live Music',
+          image: IMG.food,
+          category: 'Restaurants',
+          folderId: 'f-food',
+          savedAt: now,
+        },
+        {
+          id: 'showcase-ev-sunset-rooftop',
+          kind: 'event',
+          title: 'Sunset Rooftop Sessions',
+          subtitle: 'Westlands · Nightlife',
+          image: IMG.cocktail,
+          category: 'Nightlife',
+          folderId: 'f-late',
+          savedAt: now,
+        },
+      ],
+      updatedAt: now,
+    };
+  }
+
+  if (lower.includes('amani') || lower.includes('showcase') || lower.includes('farida')) {
     return {
       userId,
       folders: [
@@ -176,12 +262,12 @@ function fallbackCollectionForUser(userId: string): PublicUserCollections | null
           savedAt: now,
         },
         {
-          id: 'showcase-ev-sunset-rooftop',
+          id: 'showcase-ev-jazz-in-the-park',
           kind: 'event',
-          title: 'Sunset Rooftop Sessions',
-          subtitle: 'Westlands · Nightlife',
-          image: IMG.cocktail,
-          category: 'Nightlife',
+          title: 'Jazz in the Park',
+          subtitle: 'Karura Forest · Live Music',
+          image: IMG.concert,
+          category: 'Live Music',
           folderId: 'f-sun',
           savedAt: now,
         },

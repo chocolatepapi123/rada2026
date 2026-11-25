@@ -3,14 +3,13 @@ import { track } from '../lib/tracking';
 import {
   X,
   ChevronLeft,
-  Heart,
   MessageSquare,
-  CheckCircle2,
-  Lock,
   Bookmark,
   ChevronRight,
   UserCog,
   Flag,
+  Calendar,
+  Folder,
 } from 'lucide-react';
 import { ReportUserModal } from './ReportUserModal';
 import { UserProfile, SpotItem, EventItem } from '../types';
@@ -35,9 +34,7 @@ interface ProfessionalStats {
 interface UserProfileModalProps {
   /** The single user object. Own profile: user.username, user.name, user.avatar, user.is_creator. */
   user: UserProfile | null;
-  isMutualMatch?: boolean;
   onClose: () => void;
-  onSendMatchRequest?: (user: UserProfile) => void;
   onSendMessage?: (user: UserProfile) => void;
   showToast: (msg: string, options?: ToastOptions) => void;
   onOpenSavedItems?: () => void;
@@ -91,9 +88,7 @@ const NavRow: React.FC<{
 
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   user,
-  isMutualMatch = false,
   onClose,
-  onSendMatchRequest,
   onSendMessage,
   showToast,
   onOpenSavedItems,
@@ -142,11 +137,15 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [look, setLook] = React.useState<ProfileLook | null>(null);
   const [collections, setCollections] = React.useState<PublicUserCollections | null>(null);
   const [activeColFolder, setActiveColFolder] = React.useState<string>('all');
+  const [profileSection, setProfileSection] = React.useState<'diary' | 'collections'>('diary');
+  const [diaryCount, setDiaryCount] = React.useState<number>(0);
   React.useEffect(() => {
     let off = false;
     setLook(null);
     setCollections(null);
     setActiveColFolder('all');
+    setProfileSection('diary');
+    setDiaryCount(0);
     if (!viewedId) return;
     fetchProfileLook(viewedId).then((l) => { if (!off) setLook(l); });
     fetchPublicCollections(viewedId).then((c) => { if (!off) setCollections(c); });
@@ -238,19 +237,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   // ===================== SOMEONE ELSE'S PROFILE =====================
 
-  const handleMatchClick = () => {
-    if (onSendMatchRequest) {
-      onSendMatchRequest(user);
-    } else {
-      showToast(`Hangout & Match request sent to ${handle}!`, { category: 'match' });
-    }
-  };
-
   const handleMessageClick = () => {
-    if (!isMutualMatch) {
-      showToast(`Direct messaging requires a mutual match acceptance. Send a match request first!`, { type: 'error' });
-      return;
-    }
     if (onSendMessage) {
       onSendMessage(user);
     }
@@ -338,174 +325,209 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           </div>
         )}
 
+        {/* Segmented Switcher: Diary | Collections */}
+        <div className="px-4 mt-5">
+          <div className="grid grid-cols-2 gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-[#1C1A1E] border border-slate-200/70 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={() => setProfileSection('diary')}
+              className={`min-h-[44px] rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                profileSection === 'diary'
+                  ? 'bg-white dark:bg-[#2A272D] text-slate-900 dark:text-white shadow-xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5" style={profileSection === 'diary' ? { color: accent } : undefined} />
+              <span>Diary</span>
+              {diaryCount > 0 && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                  {diaryCount}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setProfileSection('collections')}
+              className={`min-h-[44px] rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                profileSection === 'collections'
+                  ? 'bg-white dark:bg-[#2A272D] text-slate-900 dark:text-white shadow-xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              <Bookmark className="w-3.5 h-3.5" style={profileSection === 'collections' ? { color: accent } : undefined} />
+              <span>Collections</span>
+              {(collections?.items.length || 0) > 0 && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                  {collections?.items.length}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Diary Section */}
         {viewedId && (
-          <UserHangouts
-            viewedId={viewedId}
-            currentUserId={currentUserId}
-            accent={accent}
-            handle={handle}
-            spots={spots}
-            isSpotSaved={(id) => !!isSpotSaved?.(id)}
-            onSaveSpot={(id) => onSaveSpot?.(id)}
-            onPlanDateAtSpot={(id) => onPlanDateAtSpot?.(id, viewedId)}
-          />
+          <div className={profileSection === 'diary' ? 'block' : 'hidden'}>
+            <UserHangouts
+              viewedId={viewedId}
+              currentUserId={currentUserId}
+              accent={accent}
+              handle={handle}
+              spots={spots}
+              isSpotSaved={(id) => !!isSpotSaved?.(id)}
+              onSaveSpot={(id) => onSaveSpot?.(id)}
+              onPlanDateAtSpot={(id) => onPlanDateAtSpot?.(id, viewedId)}
+              hideHeading
+              showEmptyState
+              onCountChange={setDiaryCount}
+            />
+          </div>
         )}
 
-        {/* Public Saved Collections */}
-        {collections && collections.items.length > 0 && (
-          <div className="px-4 mt-5 space-y-2.5">
-            <div className="flex items-center justify-between gap-2">
-              <h4 className="text-[12px] font-black text-slate-500 flex items-center gap-1.5">
-                <Bookmark className="w-3.5 h-3.5" style={{ color: accent }} />
-                <span>Saved Collections ({collections.items.length})</span>
-              </h4>
-              <span className="text-[10px] font-semibold text-slate-400">Public picks</span>
-            </div>
+        {/* Public Saved Collections Section */}
+        {profileSection === 'collections' && (
+          collections && collections.items.length > 0 ? (
+            <div className="px-4 mt-4 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                  {collections.items.length} public {collections.items.length === 1 ? 'pick' : 'picks'}
+                </span>
+                {collections.folders.length > 0 && (
+                  <span className="text-[11px] font-semibold text-slate-400">
+                    {collections.folders.length} {collections.folders.length === 1 ? 'folder' : 'folders'}
+                  </span>
+                )}
+              </div>
 
-            {collections.folders.length > 0 && (
-              <div className="flex gap-1.5 overflow-x-auto hide-scrollbar pb-1">
-                <button
-                  type="button"
-                  onClick={() => setActiveColFolder('all')}
-                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 cursor-pointer ${
-                    activeColFolder === 'all'
-                      ? 'text-white'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-                  }`}
-                  style={activeColFolder === 'all' ? { background: accent } : undefined}
-                >
-                  All
-                </button>
-                {collections.folders.map((f) => (
+              {collections.folders.length > 0 && (
+                <div className="flex gap-1.5 overflow-x-auto hide-scrollbar pb-1">
                   <button
-                    key={f.id}
                     type="button"
-                    onClick={() => setActiveColFolder(f.id)}
-                    className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 cursor-pointer flex items-center gap-1 ${
-                      activeColFolder === f.id
+                    onClick={() => setActiveColFolder('all')}
+                    className={`px-3 py-1.5 rounded-full text-[11px] font-bold shrink-0 cursor-pointer ${
+                      activeColFolder === 'all'
                         ? 'text-white'
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                     }`}
-                    style={activeColFolder === f.id ? { background: accent } : undefined}
+                    style={activeColFolder === 'all' ? { background: accent } : undefined}
                   >
-                    <CategoryIcon name={f.emoji} className="w-3 h-3" />
-                    <span>{f.name}</span>
+                    All
                   </button>
-                ))}
-              </div>
-            )}
-
-            <div className="flex gap-2.5 overflow-x-auto hide-scrollbar pb-1">
-              {collections.items
-                .filter((it) => activeColFolder === 'all' || it.folderId === activeColFolder)
-                .map((it) => {
-                  const matchedSpot =
-                    it.kind === 'spot' ? spots.find((s) => String(s.id) === String(it.id)) : undefined;
-                  const matchedEvent =
-                    it.kind === 'event' ? events.find((e) => String(e.id) === String(it.id)) : undefined;
-                  const savedByMe = isItemSaved
-                    ? isItemSaved(it.id, it.kind)
-                    : it.kind === 'spot' && Boolean(isSpotSaved?.(String(it.id)));
-                  const folder = collections.folders.find((f) => f.id === it.folderId);
-
-                  return (
-                    <div
-                      key={`${it.kind}-${it.id}`}
-                      onClick={() => {
-                        if (matchedSpot && onOpenSpot) {
-                          onClose();
-                          onOpenSpot(matchedSpot);
-                        } else if (matchedEvent && onOpenEvent) {
-                          onClose();
-                          onOpenEvent(matchedEvent);
-                        } else {
-                          showToast(`${it.title} — ${it.subtitle}`);
-                        }
-                      }}
-                      className="w-44 shrink-0 rounded-2xl p-2 bg-slate-50 dark:bg-[#1C1A1E] border border-slate-200/80 dark:border-slate-800 hover:border-[#E0533C] transition cursor-pointer flex flex-col justify-between gap-1.5"
+                  {collections.folders.map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => setActiveColFolder(f.id)}
+                      className={`px-3 py-1.5 rounded-full text-[11px] font-bold shrink-0 cursor-pointer flex items-center gap-1 ${
+                        activeColFolder === f.id
+                          ? 'text-white'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                      }`}
+                      style={activeColFolder === f.id ? { background: accent } : undefined}
                     >
-                      <div>
-                        <div
-                          className="h-24 rounded-xl bg-slate-200 dark:bg-slate-800 bg-cover bg-center relative overflow-hidden mb-1.5"
-                          style={it.image ? { backgroundImage: `url('${it.image}')` } : undefined}
-                        >
-                          <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-full bg-black/65 text-white text-[8px] font-black uppercase">
-                            {it.kind}
-                          </span>
-                          {(onToggleSaveItem || (it.kind === 'spot' && onSaveSpot)) && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (onToggleSaveItem && (matchedSpot || matchedEvent)) {
-                                  onToggleSaveItem(matchedSpot || matchedEvent, it.kind === 'event' ? 'event' : 'spot');
-                                  showToast(savedByMe ? 'Removed from your Saved' : `Saved "${it.title}" to your collection!`);
-                                } else if (it.kind === 'spot' && onSaveSpot) {
-                                  onSaveSpot(String(it.id));
-                                }
-                              }}
-                              className={`absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center transition cursor-pointer ${
-                                savedByMe ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
-                              }`}
-                              title={savedByMe ? 'In your collection' : 'Save to your collection'}
-                            >
-                              <Bookmark className={`w-3 h-3 ${savedByMe ? 'fill-white' : ''}`} />
-                            </button>
-                          )}
+                      <CategoryIcon name={f.emoji} className="w-3 h-3" />
+                      <span>{f.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2.5">
+                {collections.items
+                  .filter((it) => activeColFolder === 'all' || it.folderId === activeColFolder)
+                  .map((it) => {
+                    const matchedSpot =
+                      it.kind === 'spot' ? spots.find((s) => String(s.id) === String(it.id)) : undefined;
+                    const matchedEvent =
+                      it.kind === 'event' ? events.find((e) => String(e.id) === String(it.id)) : undefined;
+                    const savedByMe = isItemSaved
+                      ? isItemSaved(it.id, it.kind)
+                      : it.kind === 'spot' && Boolean(isSpotSaved?.(String(it.id)));
+                    const folder = collections.folders.find((f) => f.id === it.folderId);
+
+                    return (
+                      <div
+                        key={`${it.kind}-${it.id}`}
+                        onClick={() => {
+                          if (matchedSpot && onOpenSpot) {
+                            onClose();
+                            onOpenSpot(matchedSpot);
+                          } else if (matchedEvent && onOpenEvent) {
+                            onClose();
+                            onOpenEvent(matchedEvent);
+                          } else {
+                            showToast(`${it.title} — ${it.subtitle}`);
+                          }
+                        }}
+                        className="rounded-2xl p-2 bg-slate-50 dark:bg-[#1C1A1E] border border-slate-200/80 dark:border-slate-800 hover:border-[#E0533C] transition cursor-pointer flex flex-col justify-between gap-1.5"
+                      >
+                        <div>
+                          <div
+                            className="h-24 rounded-xl bg-slate-200 dark:bg-slate-800 bg-cover bg-center relative overflow-hidden mb-1.5"
+                            style={it.image ? { backgroundImage: `url('${it.image}')` } : undefined}
+                          >
+                            <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-full bg-black/65 text-white text-[8px] font-black uppercase">
+                              {it.kind}
+                            </span>
+                            {(onToggleSaveItem || (it.kind === 'spot' && onSaveSpot)) && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (onToggleSaveItem && (matchedSpot || matchedEvent)) {
+                                    onToggleSaveItem(matchedSpot || matchedEvent, it.kind === 'event' ? 'event' : 'spot');
+                                  } else if (it.kind === 'spot' && onSaveSpot) {
+                                    onSaveSpot(String(it.id));
+                                  }
+                                }}
+                                className={`absolute top-1.5 right-1.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer ${
+                                  savedByMe ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
+                                }`}
+                                title={savedByMe ? 'In your collection' : 'Save to your collection'}
+                              >
+                                <Bookmark className={`w-3.5 h-3.5 ${savedByMe ? 'fill-white' : ''}`} />
+                              </button>
+                            )}
+                          </div>
+                          <p className="text-xs font-black text-slate-900 dark:text-slate-100 line-clamp-1">{it.title}</p>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{it.subtitle}</p>
                         </div>
-                        <p className="text-xs font-black text-slate-900 dark:text-slate-100 line-clamp-1">{it.title}</p>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{it.subtitle}</p>
+                        {folder && (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full w-fit bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700">
+                            <CategoryIcon name={folder.emoji} className="w-2.5 h-2.5" />
+                            <span className="truncate">{folder.name}</span>
+                          </span>
+                        )}
                       </div>
-                      {folder && (
-                        <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full w-fit bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700">
-                          <CategoryIcon name={folder.emoji} className="w-2.5 h-2.5" />
-                          <span className="truncate">{folder.name}</span>
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="px-4 mt-4">
+              <div className="py-10 px-4 text-center rounded-3xl bg-slate-50 dark:bg-[#1C1A1E] border border-dashed border-slate-200 dark:border-slate-800 space-y-1.5">
+                <Folder className="w-6 h-6 text-slate-400 mx-auto" />
+                <p className="text-xs font-black text-slate-700 dark:text-slate-200">No public collections yet</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  {handle} hasn&apos;t shared any saved spots or collections yet.
+                </p>
+              </div>
+            </div>
+          )
         )}
-
-        <div className="px-4 mt-5 space-y-3.5">
-
-          <div className="p-3 rounded-2xl text-[11px] bg-slate-50/80 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400">
-            {isMutualMatch ? (
-              <p className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-semibold">
-                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-                <span>You and <strong>{handle}</strong> are mutual matches. Direct messaging is unlocked!</span>
-              </p>
-            ) : (
-              <p className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                <Lock className="w-4 h-4 shrink-0" style={{ color: accent }} />
-                <span>Direct messaging requires mutual match acceptance. Send a request to connect!</span>
-              </p>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* Actions */}
-      <div className="absolute inset-x-0 bottom-0 px-3 py-3 bg-white/90 dark:bg-[#121113]/90 backdrop-blur-md flex gap-2" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.75rem)' }}>
-        {isMutualMatch ? (
-          <button type="button" onClick={handleMessageClick} className="w-full py-3 text-white font-black rounded-2xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer" style={{ background: accent }}>
-            <MessageSquare className="w-4 h-4" />
-            <span>Open direct message</span>
-          </button>
-        ) : (
-          <>
-            <button type="button" onClick={handleMatchClick} className="flex-1 py-3 text-white font-black rounded-2xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer" style={{ background: accent }}>
-              <Heart className="w-4 h-4 fill-white" />
-              <span>Send match request</span>
-            </button>
-            <button type="button" onClick={handleMessageClick} className="py-3 px-3.5 bg-slate-100 dark:bg-[#1C1A1E] text-slate-600 dark:text-slate-300 font-bold rounded-2xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer" title="Direct message">
-              <Lock className="w-3.5 h-3.5 text-slate-400" />
-              <span>Message</span>
-            </button>
-          </>
-        )}
+      <div className="absolute inset-x-0 bottom-0 px-3 py-3 bg-white/90 dark:bg-[#121113]/90 backdrop-blur-md flex gap-2 border-t border-slate-100 dark:border-slate-800/70" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.75rem)' }}>
+        <button
+          type="button"
+          onClick={handleMessageClick}
+          className="w-full min-h-[44px] py-3 text-white font-black rounded-2xl text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+          style={{ background: accent }}
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span>Message {handle}</span>
+        </button>
       </div>
       <ReportUserModal
         open={reportOpen}

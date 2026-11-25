@@ -1,7 +1,6 @@
 import React, { useState, useRef, useLayoutEffect } from 'react';
 import { markChatRead, isChatUnread, useUnreadChatCount } from '../lib/unreadChats.ts';
 import { 
-  Heart, 
   X, 
   Users, 
   MessageSquare, 
@@ -13,7 +12,6 @@ import {
   ArrowLeft,
   Reply,
   Video,
-  Sparkles,
   Paperclip,
   Camera,
   Plus,
@@ -48,9 +46,9 @@ interface SocialsTabProps {
   conversations: ChatConversation[];
   currentUserProfile: UserProfile;
   myUserId?: string;
-  requests: CloudRequest[];
-  onSendMatchRequest: (toUserId: string) => Promise<{ status: 'sent' | 'already_sent' | 'matched' | 'error'; conversationId?: string; error?: string }>;
-  onRespondRequest: (requestId: string, accept: boolean) => Promise<{ conversationId: string | null; error: string | null }>;
+  requests?: CloudRequest[];
+  onSendMatchRequest?: (toUserId: string) => Promise<{ status: 'sent' | 'already_sent' | 'matched' | 'error'; conversationId?: string; error?: string }>;
+  onRespondRequest?: (requestId: string, accept: boolean) => Promise<{ conversationId: string | null; error: string | null }>;
   onSendMessage: (conversationId: string, msg: OutgoingMessage) => Promise<string | null>;
   onLoadHistory: (conversationId: string) => Promise<void>;
   onRefreshSocials: () => Promise<void>;
@@ -66,13 +64,10 @@ interface SocialsTabProps {
 }
 
 export const SocialsTab: React.FC<SocialsTabProps> = ({
-  discoveryProfiles,
+  discoveryProfiles: _discoveryProfiles,
   conversations,
   currentUserProfile,
   myUserId,
-  requests,
-  onSendMatchRequest,
-  onRespondRequest,
   onSendMessage,
   onLoadHistory,
   onRefreshSocials,
@@ -85,7 +80,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   spots,
   events
 }) => {
-  const [subtab, setSubtab] = useState<'discover' | 'queue' | 'chats' | 'groups' | 'asks' | 'search'>('asks');
+  const [subtab, setSubtab] = useState<'chats' | 'groups' | 'asks' | 'search'>('asks');
 
   // Active Chat Screen State
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -163,16 +158,6 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   const videoFileInputRef = useRef<HTMLInputElement | null>(null);
   const photoFileInputRef = useRef<HTMLInputElement | null>(null);
   const [attachedPhotos, setAttachedPhotos] = useState<string[]>([]);
-
-  // Match requests come from the database: what others sent me, and what I sent
-  const pendingRequests = React.useMemo(
-    () => requests.filter(r => r.status === 'pending' && r.toUser === myUserId),
-    [requests, myUserId]
-  );
-  const sentRequests = React.useMemo(
-    () => requests.filter(r => r.status === 'pending' && r.fromUser === myUserId),
-    [requests, myUserId]
-  );
 
   // Stop mic/camera streams and timers on unmount or when backgrounded to prevent memory leaks
   React.useEffect(() => {
@@ -257,17 +242,6 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
       .catch(() => { if (!cancelled) setCommunitySingles([]); });
     return () => { cancelled = true; };
   }, [myUserId]);
-
-  const handleAcceptPending = async (req: CloudRequest) => {
-    const res = await onRespondRequest(req.id, true);
-    if (res.error) { showToast(res.error, { type: 'error' }); return; }
-    if (res.conversationId) { setSubtab('chats'); setActiveChatId(res.conversationId); }
-  };
-
-  const handleDeclinePending = async (req: CloudRequest) => {
-    const res = await onRespondRequest(req.id, false);
-    if (res.error) showToast(res.error, { type: 'error' });
-  };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -694,7 +668,6 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                 style={{ backgroundImage: `url('${activeChat.avatar}')` }}
               />
             </div>
-            <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#121113]" />
           </div>
 
           <div className="min-w-0 flex-1">
@@ -723,7 +696,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
               <div className="mb-3 p-3 bg-gradient-to-br from-[#E0533C]/15 to-amber-400/15 border border-[#E0533C]/25 rounded-2xl text-xs space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E0533C] text-white text-[10px] font-black uppercase tracking-wider">
-                    <Sparkles className="w-3 h-3" />
+                    <Users className="w-3 h-3" />
                     <span>Temporary outing squad</span>
                   </span>
                   {activeChat.members && (
@@ -1158,11 +1131,10 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
       <div className="flex gap-1 bg-slate-100 dark:bg-white/[0.06] p-1 rounded-full text-center text-[13px]">
         {[
           { id: 'asks', label: 'Rada' },
-          { id: 'queue', label: 'Requests' },
           { id: 'chats', label: 'Chats' },
           { id: 'groups', label: 'Groups' },
           { id: 'search', label: 'Search' }
-        ].filter((tab) => !(isDemoMode() && tab.id === 'queue')).map((tab) => (
+        ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => {
@@ -1175,81 +1147,9 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             }`}
           >
             <span>{tab.label}</span>
-            {tab.id === 'queue' && pendingRequests.length > 0 && (
-              <span className="min-w-4 h-4 px-1 rounded-full bg-[#E0533C] text-white text-[10px] font-black inline-flex items-center justify-center">
-                {pendingRequests.length}
-              </span>
-            )}
           </button>
         ))}
       </div>
-
-      {/* REQUESTS */}
-      {subtab === 'queue' && (
-        <div className="space-y-4">
-          <div className="space-y-2.5">
-            <h3 className={HEADING}>Pending requests (likes you)</h3>
-            {pendingRequests.length === 0 ? (
-              <div className={`${CARD} border-dashed rounded-3xl py-8 text-center space-y-2`}>
-                <div className="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-white/[0.06] text-slate-400 flex items-center justify-center mx-auto">
-                  <Heart className="w-5 h-5" />
-                </div>
-                <p className="text-[13px] text-slate-500 dark:text-slate-400">No pending requests right now.</p>
-              </div>
-            ) : (
-              pendingRequests.map((req) => (
-                <div key={req.id} className={`p-3 ${CARD} rounded-2xl flex items-center justify-between gap-3 shadow-xs`}>
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={avatarRing}>
-                      <div
-                        className="w-11 h-11 rounded-full bg-cover bg-center border-2 border-white dark:border-[#1C1A1E]"
-                        style={{ backgroundImage: `url('${req.fromAvatar}')` }}
-                      />
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="font-extrabold text-[13px] truncate text-slate-900 dark:text-slate-100">{req.fromHandle}</h4>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">Wants to hang out</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      onClick={() => handleDeclinePending(req)}
-                      className="px-3.5 py-2 bg-slate-100 dark:bg-white/[0.07] text-slate-600 dark:text-slate-300 font-bold rounded-full text-xs active:scale-95 transition cursor-pointer"
-                    >
-                      Decline
-                    </button>
-                    <button
-                      onClick={() => handleAcceptPending(req)}
-                      className="px-4 py-2 bg-[#E0533C] text-white font-extrabold rounded-full text-xs shadow-md shadow-[#E0533C]/25 active:scale-95 transition cursor-pointer"
-                    >
-                      Accept
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {sentRequests.length > 0 && (
-            <div className="space-y-2.5 pt-1">
-              <h3 className={HEADING}>Sent hangout requests ({sentRequests.length})</h3>
-              <div className="space-y-2">
-                {sentRequests.map((req) => (
-                  <div key={req.id} className={`p-2.5 ${CARD} rounded-2xl flex items-center justify-between`}>
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-10 h-10 rounded-full bg-cover bg-center shrink-0" style={{ backgroundImage: `url('${req.toAvatar}')` }} />
-                      <span className="font-bold text-[13px] truncate text-slate-900 dark:text-slate-100">{req.toHandle}</span>
-                    </div>
-                    <span className="text-[11px] text-amber-700 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/50 px-2.5 py-1 rounded-full shrink-0">
-                      Pending
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* CHATS */}
       {subtab === 'asks' && (
@@ -1319,7 +1219,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                   <MessageSquare className="w-5 h-5" />
                 </div>
                 <p className="text-[13px] text-slate-500 dark:text-slate-400">
-                  No chats yet. Match with someone, or start a group with the New group button.
+                  No chats yet. Reply on Rada, open someone&apos;s profile to message them, or start a group.
                 </p>
               </div>
             )}
@@ -1347,7 +1247,6 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                         style={{ backgroundImage: `url('${conv.avatar}')` }}
                       />
                     </div>
-                    <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#1C1A1E]" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">

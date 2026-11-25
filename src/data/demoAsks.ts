@@ -8,7 +8,16 @@
  */
 import type { Ask, AskReply, PlanHit } from '../lib/asks.ts';
 import type { ChatConversation, ChatMessage } from '../types.ts';
-import { DEMO_PEOPLE, DEMO_MY_ASK_BODY, DEMO_MY_ASK_ACCEPTED_REPLY, type DemoPerson } from './demoData.ts';
+import {
+  DEMO_PEOPLE,
+  DEMO_MY_ASK_BODY,
+  DEMO_MY_ASK_ACCEPTED_REPLY,
+  DEMO_MY_ASK_2_BODY,
+  DEMO_MY_ASK_2_ACCEPTED_REPLY,
+  DEMO_MY_ASK_3_BODY,
+  DEMO_MY_ASK_3_ACCEPTED_REPLY,
+  type DemoPerson,
+} from './demoData.ts';
 
 const person = (key: string): DemoPerson => DEMO_PEOPLE.find(p => p.key === key) as DemoPerson;
 const hoursFromNow = (h: number) => new Date(Date.now() + h * 3600000).toISOString();
@@ -33,10 +42,9 @@ interface DeckSpec {
   plan?: { kind: 'event' | 'spot'; ref: string; title: string };
 }
 
-// The three sample posts used in the commercial (Socials, Shot 2).
 const DECK: DeckSpec[] = [
   { n: 1, by: 'otis', body: 'Nani ako kasa?', area: 'Kasarani', img: 'mzinga-kasarani', hours: 9, replies: 7, trusted: true },
-  { n: 2, by: 'caro', body: 'Got an extra ticket for tonight. Who’s coming?', area: 'Westlands', img: 'extra-ticket', hours: 5, replies: 4,
+  { n: 2, by: 'caro', body: 'Sunset Rooftop tonight, pulling up around 8. Who’s coming?', area: 'Westlands', img: 'extra-ticket', hours: 5, replies: 4,
     plan: { kind: 'event', ref: 'showcase-ev-sunset-rooftop', title: 'Sunset Rooftop Sessions' } },
   { n: 3, by: 'dennis', body: 'Looking for people to catch the game with.', area: 'Kilimani', img: 'catch-the-game', hours: 7, replies: 9 },
 ];
@@ -48,6 +56,16 @@ const MINE_REPLIES: { key: string; msg: string; ago: number; status?: AskReply['
   { key: 'tito', msg: 'Hio Kenya Cane peke yako? Wacha nikusaidie 😂 Niko Kasarani, nakuja sasa hivi', ago: 22 },
   { key: 'vee', msg: 'Niko free after 6 😄 Nitaleta ice na juice ya nanasi', ago: 12 },
   { key: 'kevo', msg: 'Niko na FIFA, tunapiga mechi kadhaa 🎮', ago: 6 },
+];
+
+const MINE_2_REPLIES: { key: string; msg: string; ago: number; status?: AskReply['status'] }[] = [
+  { key: 'lulu', msg: DEMO_MY_ASK_2_ACCEPTED_REPLY, ago: 120, status: 'accepted' },
+  { key: 'zawadi', msg: 'Love board games!! Which spot in Kilimani?', ago: 95 },
+];
+
+const MINE_3_REPLIES: { key: string; msg: string; ago: number; status?: AskReply['status'] }[] = [
+  { key: 'amani', msg: DEMO_MY_ASK_3_ACCEPTED_REPLY, ago: 240, status: 'accepted' },
+  { key: 'dan', msg: 'Already doing the long loop, catch you guys at the cafe ☕', ago: 210 },
 ];
 
 interface State {
@@ -85,11 +103,17 @@ async function init(): Promise<State> {
       plan_kind: d.plan?.kind ?? null, plan_ref: d.plan?.ref ?? null, plan_title: d.plan?.title ?? null,
     } as Ask;
   });
-  const mine = buildMine('demo-ask-mine-1', MINE_BODY, 'Kasarani', mineImg ? photo(MINE_IMG) : null, mineImg ? 'image' : null, 12, null, MINE_REPLIES.length);
-  asks.push(mine);
+  const mine1 = buildMine('demo-ask-mine-1', MINE_BODY, 'Kasarani', mineImg ? photo(MINE_IMG) : null, mineImg ? 'image' : null, 12, null, MINE_REPLIES.length);
+  const mine2 = buildMine('demo-ask-mine-2', DEMO_MY_ASK_2_BODY, 'Kilimani', null, null, 16, { kind: 'spot', ref: '3', title: 'Asmara Kilimani' }, MINE_2_REPLIES.length);
+  const mine3 = buildMine('demo-ask-mine-3', DEMO_MY_ASK_3_BODY, 'Karura', null, null, 20, { kind: 'spot', ref: '2', title: 'Karura Forest Cafe' }, MINE_3_REPLIES.length);
+  asks.push(mine1, mine2, mine3);
   return {
     asks,
-    replies: { [mine.id]: MINE_REPLIES.map(r => toReply(mine.id, r.key, r.msg, r.ago, r.status)) },
+    replies: {
+      [mine1.id]: MINE_REPLIES.map(r => toReply(mine1.id, r.key, r.msg, r.ago, r.status)),
+      [mine2.id]: MINE_2_REPLIES.map(r => toReply(mine2.id, r.key, r.msg, r.ago, r.status)),
+      [mine3.id]: MINE_3_REPLIES.map(r => toReply(mine3.id, r.key, r.msg, r.ago, r.status)),
+    },
     passed: new Set(), replied: new Set(), myId: 'demo-guest-me',
   };
 }

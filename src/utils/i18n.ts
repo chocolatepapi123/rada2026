@@ -156,7 +156,7 @@ export const translations: Record<AppLanguage, Translations> = {
     darkAppearance: 'Dark Appearance',
     darkAppearanceDesc: 'Toggle between Light and Dark mode',
     pushNotifications: 'Push Notifications',
-    pushNotificationsDesc: 'Match alerts, event drops & ticket passes',
+    pushNotificationsDesc: 'Chat messages, event drops & hangout reminders',
     languageSelect: 'Language / Lugha',
     privacyTitle: 'Privacy & Interactions',
     discoverableSocials: 'Discoverable in Socials',

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UtensilsCrossed, Wallet, CalendarCheck, Sparkles, Wrench, Phone, MessageCircle, ExternalLink, Info } from 'lucide-react';
+import { UtensilsCrossed, Wallet, CalendarCheck, Compass, Wrench, Phone, MessageCircle, ExternalLink, Info } from 'lucide-react';
 import { useSpotDetails } from '../lib/spotDetails';
 import { getBlockTitle } from '../lib/spotDetailFields';
 
@@ -102,7 +102,7 @@ export const SpotDetailSections: React.FC<{ spot: any }> = ({ spot }) => {
 
       {activities.length > 0 && (
         <div className={card}>
-          <span className={head}><Sparkles className="w-3.5 h-3.5 text-[#E0533C]" />{getBlockTitle(cat, 'activities', 'Activities')}</span>
+          <span className={head}><Compass className="w-3.5 h-3.5 text-[#E0533C]" />{getBlockTitle(cat, 'activities', 'Activities')}</span>
           {activities.map((a, i) => (
             <div key={i} className="flex items-start justify-between gap-3">
               <div className="min-w-0">

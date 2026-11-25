@@ -97,48 +97,112 @@ function writeLocalHangouts(items: Hangout[]): void {
 
 function seedDemoHangoutsFor(userId: string): Hangout[] {
   if (!userId.startsWith('demo-') && !userId.startsWith('showcase-')) return [];
-  const d1 = new Date(Date.now() - 21 * 86400000).toISOString().slice(0, 10);
-  const d2 = new Date(Date.now() - 65 * 86400000).toISOString().slice(0, 10);
+  const d1 = new Date(Date.now() - 8 * 86400000).toISOString().slice(0, 10);
+  const d2 = new Date(Date.now() - 24 * 86400000).toISOString().slice(0, 10);
+  const d3 = new Date(Date.now() - 48 * 86400000).toISOString().slice(0, 10);
+  const lower = userId.toLowerCase();
+
+  if (lower.includes('mwende')) {
+    return [
+      {
+        id: `local-ho-${userId}-1`,
+        userId,
+        status: 'published',
+        caption: 'Early Saturday loops in Karura followed by iced matcha on the deck.',
+        spotId: '2',
+        spotTitle: 'Karura Forest Cafe',
+        area: 'Karura, Nairobi',
+        happenedOn: d1,
+        createdAt: new Date(Date.now() - 8 * 86400000).toISOString(),
+        publishedAt: new Date(Date.now() - 8 * 86400000).toISOString(),
+        media: [{ id: `local-hm-${userId}-1`, kind: 'photo', url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&auto=format&fit=crop', path: 'local/mw1.jpg', position: 0 }],
+      },
+      {
+        id: `local-ho-${userId}-2`,
+        userId,
+        status: 'published',
+        caption: 'Golden hour cocktails before the live DJ set picked up.',
+        spotId: '1',
+        spotTitle: 'The Alchemist Bar',
+        area: 'Westlands, Nairobi',
+        happenedOn: d2,
+        createdAt: new Date(Date.now() - 24 * 86400000).toISOString(),
+        publishedAt: new Date(Date.now() - 24 * 86400000).toISOString(),
+        media: [{ id: `local-hm-${userId}-2`, kind: 'photo', url: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop', path: 'local/mw2.jpg', position: 0 }],
+      },
+    ];
+  }
+
+  if (lower.includes('tito') || lower.includes('brian') || lower.includes('dennis')) {
+    return [
+      {
+        id: `local-ho-${userId}-1`,
+        userId,
+        status: 'published',
+        caption: 'Sunday brunch platters and acoustic covers out on the courtyard.',
+        spotId: '3',
+        spotTitle: 'K1 Klub House',
+        area: 'Parklands, Nairobi',
+        happenedOn: d1,
+        createdAt: new Date(Date.now() - 10 * 86400000).toISOString(),
+        publishedAt: new Date(Date.now() - 10 * 86400000).toISOString(),
+        media: [{ id: `local-hm-${userId}-1`, kind: 'photo', url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop', path: 'local/tb1.jpg', position: 0 }],
+      },
+      {
+        id: `local-ho-${userId}-2`,
+        userId,
+        status: 'published',
+        caption: 'Taco runs and street market plates with the crew on Friday night.',
+        spotId: '4',
+        spotTitle: 'Nairobi Street Kitchen',
+        area: 'Westlands, Nairobi',
+        happenedOn: d3,
+        createdAt: new Date(Date.now() - 32 * 86400000).toISOString(),
+        publishedAt: new Date(Date.now() - 32 * 86400000).toISOString(),
+        media: [{ id: `local-hm-${userId}-2`, kind: 'photo', url: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop', path: 'local/tb2.jpg', position: 0 }],
+      },
+    ];
+  }
+
   return [
     {
       id: `local-ho-${userId}-1`,
       userId,
       status: 'published',
       caption: 'Sundowners and Afrobeats above Westlands. Best golden hour energy.',
-      spotTitle: 'Skyline Rooftop Lounge',
+      spotId: '1',
+      spotTitle: 'The Alchemist Bar',
       area: 'Westlands, Nairobi',
       happenedOn: d1,
-      createdAt: new Date(Date.now() - 21 * 86400000).toISOString(),
-      publishedAt: new Date(Date.now() - 21 * 86400000).toISOString(),
-      media: [
-        {
-          id: `local-hm-${userId}-1`,
-          kind: 'photo',
-          url: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop',
-          path: 'local/1.jpg',
-          position: 0,
-        },
-      ],
+      createdAt: new Date(Date.now() - 14 * 86400000).toISOString(),
+      publishedAt: new Date(Date.now() - 14 * 86400000).toISOString(),
+      media: [{ id: `local-hm-${userId}-1`, kind: 'photo', url: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop', path: 'local/1.jpg', position: 0 }],
     },
     {
       id: `local-ho-${userId}-2`,
       userId,
       status: 'published',
       caption: 'Morning hike through Karura and hot chai after.',
-      spotTitle: 'Karura Forest',
+      spotId: '2',
+      spotTitle: 'Karura Forest Cafe',
       area: 'Limuru Road, Nairobi',
       happenedOn: d2,
-      createdAt: new Date(Date.now() - 65 * 86400000).toISOString(),
-      publishedAt: new Date(Date.now() - 65 * 86400000).toISOString(),
-      media: [
-        {
-          id: `local-hm-${userId}-2`,
-          kind: 'photo',
-          url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&auto=format&fit=crop',
-          path: 'local/2.jpg',
-          position: 0,
-        },
-      ],
+      createdAt: new Date(Date.now() - 40 * 86400000).toISOString(),
+      publishedAt: new Date(Date.now() - 40 * 86400000).toISOString(),
+      media: [{ id: `local-hm-${userId}-2`, kind: 'photo', url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&auto=format&fit=crop', path: 'local/2.jpg', position: 0 }],
+    },
+    {
+      id: `local-ho-${userId}-3`,
+      userId,
+      status: 'published',
+      caption: 'Slow coffee and courtyard bites before heading home.',
+      spotId: '4',
+      spotTitle: 'Nairobi Street Kitchen',
+      area: 'Westlands, Nairobi',
+      happenedOn: d3,
+      createdAt: new Date(Date.now() - 55 * 86400000).toISOString(),
+      publishedAt: new Date(Date.now() - 55 * 86400000).toISOString(),
+      media: [{ id: `local-hm-${userId}-3`, kind: 'photo', url: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800&auto=format&fit=crop', path: 'local/3.jpg', position: 0 }],
     },
   ];
 }

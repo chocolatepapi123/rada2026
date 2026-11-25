@@ -179,7 +179,7 @@ export function mapExternalRow(row: ExternalEventRow): EventItem {
     genre: row.category || undefined,
     date: formatEventDate(startIso),
     time,
-    location: row.venue || row.address || 'Venue on ticket page',
+    location: row.venue || row.address || 'Venue on event page',
     lat: hasCoords ? (row.lat as number) : Number.NaN,
     lng: hasCoords ? (row.lng as number) : Number.NaN,
     img: row.image_url || images[0] || '',
@@ -217,7 +217,7 @@ export function getEventMinPrice(e: EventItem): number | null {
   return null;
 }
 
-/** Label for badges: "Free", "From KES 500", "KES 500" or "See ticket page". */
+/** Label for badges: "Free", "From KES 500", "KES 500" or "See event page". */
 export function getEventPriceLabel(e: EventItem): string {
   const min = getEventMinPrice(e);
   const currency = e.currency || 'KES';
@@ -226,7 +226,7 @@ export function getEventPriceLabel(e: EventItem): string {
     if (e.tiers && e.tiers.length > 0 && e.tiers[0].price) {
       return e.tiers.length > 1 ? `From ${e.tiers[0].price}` : e.tiers[0].price;
     }
-    return 'See ticket page';
+    return 'See event page';
   }
   if (min === 0) return 'Free';
   const priced = (e.tiers || []).filter(t => typeof t.priceValue === 'number');

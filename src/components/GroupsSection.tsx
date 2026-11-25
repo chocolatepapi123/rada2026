@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { CalendarPlus, MapPin, Sparkles } from 'lucide-react';
+import { Calendar, CalendarPlus, MapPin } from 'lucide-react';
 import { fetchGroups, fetchMeetups, postMeetup, setGroupMembership, type InterestGroup, type Meetup } from '../lib/interestGroups.ts';
 import RecapCard from './RecapCard.tsx';
 
@@ -45,7 +45,7 @@ const GroupsSection: React.FC<{ signedIn: boolean; showToast: (m: string) => voi
         <h3 className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Interest groups</h3>
         {signedIn && (
           <button onClick={() => setRecap(true)} className="px-3 py-1.5 rounded-full bg-[#E0533C]/10 text-[#E0533C] font-extrabold text-xs inline-flex items-center gap-1.5 active:scale-95 cursor-pointer">
-            <Sparkles className="w-3.5 h-3.5" /> My month
+            <Calendar className="w-3.5 h-3.5" /> My month
           </button>
         )}
       </div>

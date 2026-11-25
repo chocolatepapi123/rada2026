@@ -13,6 +13,9 @@ interface Props {
   isSpotSaved: (spotId: string) => boolean;
   onSaveSpot: (spotId: string) => void;
   onPlanDateAtSpot: (spotId: string) => void;
+  hideHeading?: boolean;
+  showEmptyState?: boolean;
+  onCountChange?: (count: number) => void;
 }
 
 const prettyDate = (d?: string | null) => {
@@ -22,9 +25,20 @@ const prettyDate = (d?: string | null) => {
 };
 
 export const UserHangouts: React.FC<Props> = ({
-  viewedId, currentUserId, accent, handle, spots, isSpotSaved, onSaveSpot, onPlanDateAtSpot,
+  viewedId,
+  currentUserId,
+  accent,
+  handle,
+  spots,
+  isSpotSaved,
+  onSaveSpot,
+  onPlanDateAtSpot,
+  hideHeading = false,
+  showEmptyState = false,
+  onCountChange,
 }) => {
   const [items, setItems] = useState<Hangout[]>([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState<Hangout | null>(null);
   const [blocked, setBlocked] = useState<boolean>(() => getCachedBlockedIds().includes(viewedId));
 
@@ -41,23 +55,45 @@ export const UserHangouts: React.FC<Props> = ({
     let off = false;
     setItems([]);
     setOpen(null);
-    if (!currentUserId || blocked) return;
+    if (blocked) {
+      setLoading(false);
+      onCountChange?.(0);
+      return;
+    }
+    setLoading(true);
     listHangouts(viewedId, { drafts: 'exclude' }).then((list) => {
       if (off) return;
       setItems(list);
+      setLoading(false);
+      onCountChange?.(list.length);
     });
     return () => { off = true; };
-  }, [viewedId, currentUserId, blocked]);
+  }, [viewedId, blocked, onCountChange]);
 
-  if (!currentUserId || blocked || items.length === 0) return null;
+  if (blocked) return null;
+  if (!loading && items.length === 0) {
+    if (!showEmptyState) return null;
+    return (
+      <div className="px-4 mt-4">
+        <div className="py-10 px-4 text-center rounded-3xl bg-slate-50 dark:bg-[#1C1A1E] border border-dashed border-slate-200 dark:border-slate-800 space-y-1.5">
+          <Calendar className="w-6 h-6 text-slate-400 mx-auto" />
+          <p className="text-xs font-black text-slate-700 dark:text-slate-200">No diary entries yet</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            When {handle} shares spots and hangouts in their diary, they will appear here.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  if (items.length === 0) return null;
 
   const spotKnown = (h: Hangout) => !!h.spotId && spots.some((s) => String(s.id) === String(h.spotId));
 
   const btn = 'py-3 rounded-xl text-[12px] font-black flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 transition active:scale-[0.98]';
 
   return (
-    <div className="px-4 mt-5">
-      <h4 className="text-[12px] font-black text-slate-500 mb-1.5">Diary</h4>
+    <div className={hideHeading ? 'px-4 mt-3' : 'px-4 mt-5'}>
+      {!hideHeading && <h4 className="text-[12px] font-black text-slate-500 mb-1.5">Diary</h4>}
       <div className="grid grid-cols-3 gap-1 rounded-xl overflow-hidden">
         {items.map((h) => {
           const first = h.media[0];

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChatConversation, ChatMessage } from '../types.ts';
 import { logPlatformEvent } from './platformAnalytics';
 import {
+  PLACEHOLDER_AVATAR,
   CloudRequest,
   OutgoingMessage,
   createGroupChat,
@@ -24,7 +25,7 @@ import {
   buildDemoOutings,
   buildDemoRequests,
   buildGroupConversation,
-  buildMatchConversation,
+  buildDirectConversation,
   buildOutingConversation,
   demoReplyFor,
   getDemoPerson,
@@ -48,7 +49,7 @@ const previewOf = (m: OutgoingMessage): string => {
 };
 
 /**
- * Real chats + match requests for the signed-in user.
+ * Real chats for the signed-in user.
  * Pass userId = undefined for guests (everything stays empty).
  */
 export function useSocialsCloud(userId: string | undefined, myHandle: string) {
@@ -194,13 +195,13 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
     setConversations(buildDemoConversations(userId, myHandle));
     setRequests(buildDemoRequests(userId, myHandle));
     setLoaded(true);
-  }, [userId, myHandle]);
+  }, [demo, userId, myHandle]);
 
   // Demo Mode: accepting a reply on the Rada feed opens a private chat
   useEffect(() => {
     if (!demo) return;
     return onDemoAskChat(conv => setConversations(prev => [conv, ...prev.filter(c => c.id !== conv.id)]));
-  }, []);
+  }, [demo]);
 
   /** Full history when a chat is opened (the list only carries the most recent messages). */
   const loadHistory = useCallback(async (conversationId: string) => {
@@ -307,6 +308,42 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
     return null;
   }, []);
 
+  const openDirectChat = useCallback(
+    async (person: { id: string; handle: string; avatar?: string }): Promise<{ id: string | null; error: string | null }> => {
+      const existing = conversations.find(
+        c => c.type === 'direct' && ((c as any).otherUserId === person.id || c.name.toLowerCase() === `@${person.handle.replace(/^@/, '').toLowerCase()}`)
+      );
+      if (existing) return { id: existing.id, error: null };
+
+      if (demo || !isCloudReady()) {
+        const cleanHandle = person.handle.startsWith('@') ? person.handle : `@${person.handle}`;
+        const known = getDemoPerson(person.id);
+        const conv: ChatConversation = known
+          ? buildDirectConversation(known)
+          : {
+              id: `dm-${person.id}`,
+              name: cleanHandle,
+              avatar: person.avatar || PLACEHOLDER_AVATAR,
+              type: 'direct',
+              lastMessage: 'Start planning a hangout or say hi!',
+              messages: [],
+            };
+        (conv as any).otherUserId = person.id;
+        (conv as any).lastMessageAt = new Date().toISOString();
+        setConversations(prev => [conv, ...prev.filter(c => c.id !== conv.id)]);
+        return { id: conv.id, error: null };
+      }
+
+      const res = await sendMatchRequest(person.id);
+      if (res.conversationId) {
+        await refresh();
+        return { id: res.conversationId, error: null };
+      }
+      return { id: null, error: res.error || 'Could not start a direct chat right now.' };
+    },
+    [conversations, demo, refresh]
+  );
+
   const sendRequest = useCallback(
     async (
       toUserId: string
@@ -315,34 +352,15 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
         const uid = uidRef.current;
         const person = getDemoPerson(toUserId);
         if (!uid || !person) return { status: 'error', error: 'Demo profile not found.' };
-        if (person.instantMatch) {
-          const conv = buildMatchConversation(person);
-          setConversations(prev => [conv, ...prev.filter(c => c.id !== conv.id)]);
-          setRequests(prev => [
-            {
-              id: `demo-req-ok-${person.key}`, fromUser: uid, toUser: person.id,
-              fromHandle: handleRef.current, fromAvatar: '', toHandle: `@${person.username}`, toAvatar: person.avatar,
-              status: 'accepted', conversationId: conv.id, createdAt: new Date().toISOString(),
-            },
-            ...prev,
-          ]);
-          return { status: 'matched', conversationId: conv.id };
-        }
-        setRequests(prev => [
-          {
-            id: `demo-req-out-${person.key}`, fromUser: uid, toUser: person.id,
-            fromHandle: handleRef.current, fromAvatar: '', toHandle: `@${person.username}`, toAvatar: person.avatar,
-            status: 'pending', createdAt: new Date().toISOString(),
-          },
-          ...prev,
-        ]);
-        return { status: 'sent' };
+        const conv = buildDirectConversation(person);
+        setConversations(prev => [conv, ...prev.filter(c => c.id !== conv.id)]);
+        return { status: 'matched', conversationId: conv.id };
       }
       const res = await sendMatchRequest(toUserId);
       if (res.status !== 'error') refresh();
       return res;
     },
-    [refresh]
+    [demo, refresh]
   );
 
   const respondRequest = useCallback(
@@ -354,7 +372,7 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
           setRequests(prev => prev.map(r => (r.id === requestId ? { ...r, status: 'declined' as const } : r)));
           return { conversationId: null, error: null };
         }
-        const conv = buildMatchConversation(person);
+        const conv = buildDirectConversation(person);
         setConversations(prev => [conv, ...prev.filter(c => c.id !== conv.id)]);
         setRequests(prev => prev.map(r => (r.id === requestId ? { ...r, status: 'accepted' as const, conversationId: conv.id } : r)));
         return { conversationId: conv.id, error: null };
@@ -363,7 +381,7 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
       await refresh();
       return res;
     },
-    [refresh]
+    [demo, refresh]
   );
 
   const createGroup = useCallback(
@@ -377,7 +395,7 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
       if (res.id) await refresh();
       return res;
     },
-    [refresh]
+    [demo, refresh]
   );
 
   const openOutingChat = useCallback(
@@ -396,7 +414,7 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
       if (res.id) await refresh();
       return res;
     },
-    [refresh]
+    [demo, refresh]
   );
 
   return {
@@ -407,6 +425,7 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
     refresh,
     loadHistory,
     sendMessage,
+    openDirectChat,
     sendRequest,
     respondRequest,
     createGroup,

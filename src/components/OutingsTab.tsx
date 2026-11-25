@@ -10,12 +10,9 @@ import {
   MapPin, 
   Plus, 
   Search, 
-  Sparkles, 
   Filter, 
   X, 
   Check, 
-  ChevronRight, 
-  Ticket,
   Share2, 
   Link2, 
   Compass, 
@@ -32,11 +29,7 @@ import {
 import { OutingPlan, OutingAttendee, SpotItem, UserProfile } from '../types.ts';
 import { shareContent } from '../utils/shareUtils.ts';
 import OutingShareCard from './OutingShareCard';
-import HostTicketsPanel from './HostTicketsPanel';
-import TicketBuySheet from './TicketBuySheet';
-import MyTicketsSheet from './MyTicketsSheet';
 import { NearYouControl } from './NearYouControl';
-import { fetchTicketSummaries, type TicketSummary } from '../lib/ticketsBuyer';
 import { optimizedUrl } from '../lib/imageOptimizer';
 import { WaitlistButton, TemplatePicker } from './OutingExtras';
 import { uploadCoverImage } from '../lib/cloudSync.ts';
@@ -317,7 +310,6 @@ const OUTING_BTN_SOFT = 'min-h-[44px] rounded-2xl px-3 bg-slate-100 dark:bg-whit
 const OUTING_BTN_SMALL_PRIMARY = 'h-9 rounded-full px-4 bg-[#E0533C] text-white text-[12px] font-extrabold active:scale-[0.97] transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50';
 const OUTING_BTN_SMALL_SOFT = 'h-9 rounded-full px-4 bg-slate-100 dark:bg-white/[0.07] text-slate-700 dark:text-slate-200 text-[12px] font-bold active:scale-[0.97] transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50';
 const OUTING_BTN_STATUS = 'min-h-[44px] rounded-2xl px-3 text-[13px] font-extrabold flex items-center justify-center gap-1.5';
-const OUTING_TICKET_STRIP = 'w-full flex items-center justify-between gap-3 rounded-2xl px-3 py-2.5 bg-[#E0533C]/[0.06] border border-[#E0533C]/15 active:scale-[0.99] transition cursor-pointer';
 
 export const OutingsTab: React.FC<OutingsTabProps> = ({
   outings,
@@ -407,16 +399,10 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   }, [activeManagingOuting?.id, currentUserId]);
 
   // ---- Custom deep link for hosted plans ----------------------------------
-  const [ticketInfo, setTicketInfo] = useState<Record<string, TicketSummary>>({});
-  const [buyFor, setBuyFor] = useState<OutingPlan | null>(null);
-  const [myTicketsOpen, setMyTicketsOpen] = useState(false);
-
-  // Links for outings that sell tickets open the buy sheet straight away
   const buildOutingLink = (plan: OutingPlan) =>
-    `${siteOrigin()}/?tab=outings&outing=${encodeURIComponent(String(plan.id))}&ref=share${ticketInfo[String(plan.id)] ? '&tickets=1' : ''}`;
+    `${siteOrigin()}/?tab=outings&outing=${encodeURIComponent(String(plan.id))}&ref=share`;
 
   const [shareCardFor, setShareCardFor] = useState<OutingPlan | null>(null);
-  const [ticketsFor, setTicketsFor] = useState<OutingPlan | null>(null);
 
   const handleShareOutingLink = (plan: OutingPlan) => {
     // Pro and Elite get a share card; Free keeps the plain link share
@@ -707,7 +693,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   };
 
   // Check user attendee status for a plan
-  const getAttendeeStatus = (plan: OutingPlan): 'host' | 'joined' | 'pending' | 'awaiting' | 'none' => {
+  const getAttendeeStatus = (plan: OutingPlan): 'host' | 'joined' | 'pending' | 'none' => {
     const effectiveUserId = currentUserId || currentUserProfile.handle || 'current-user';
     if (plan.hostId === effectiveUserId || (!!currentUserProfile.handle && plan.hostHandle === currentUserProfile.handle)) {
       return 'host';
@@ -718,38 +704,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       (currentUserProfile.handle && a.userHandle === currentUserProfile.handle)
     );
     if (!myAttendee || myAttendee.status === 'declined') return 'none';
-    if (myAttendee.status === 'awaiting_payment') return 'awaiting';
     return (myAttendee.status === 'joined' || myAttendee.status === 'approved') ? 'joined' : 'pending';
-  };
-
-  // Approved guests who still have to pay: how long they have left
-  const myPayBy = (plan: OutingPlan): string | null => {
-    const me = plan.attendees?.find(a => a.status === 'awaiting_payment' && (a.userId === currentUserId || (currentUserProfile.handle && a.userHandle === currentUserProfile.handle)));
-    return me?.payBy || null;
-  };
-  const timeLeft = (iso?: string | null): string => {
-    if (!iso) return '';
-    const ms = new Date(iso).getTime() - Date.now();
-    if (ms <= 0) return 'time is up';
-    const m = Math.ceil(ms / 60000);
-    if (m < 60) return `${m} min left`;
-    const h = Math.floor(m / 60);
-    return h < 48 ? `${h}h ${m % 60}m left` : `${Math.floor(h / 24)} days left`;
-  };
-
-  // Handle Join Request
-  const ticketIdsKey = filteredOutings.map((p) => String(p.id)).join(',');
-  useEffect(() => {
-    let off = false;
-    const ids = ticketIdsKey ? ticketIdsKey.split(',') : [];
-    // Only free tickets are shown for now: plans that only have paid tickets show no ticket
-    fetchTicketSummaries('outing', ids).then((m) => { if (!off) setTicketInfo(Object.fromEntries(Object.entries(m).filter(([, v]) => !(v.min_price > 0)))); });
-    return () => { off = true; };
-  }, [ticketIdsKey]);
-
-  const openBuy = (e: React.MouseEvent, plan: OutingPlan) => {
-    e.stopPropagation();
-    setBuyFor(plan);
   };
 
   const handleJoinClick = async (e: React.MouseEvent, plan: OutingPlan) => {
@@ -899,7 +854,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#E0533C] animate-pulse shrink-0" />
+              <span className="w-2.5 h-2.5 rounded-full bg-[#E0533C] shrink-0" />
               <h1 className="text-base font-black text-slate-900 dark:text-slate-100 tracking-tight">
                 Outings & Public Plans
               </h1>
@@ -1174,20 +1129,6 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                   </div>
                 </div>
 
-                {/* Tickets for guests */}
-                {attendeeStatus !== 'host' && ticketInfo[String(plan.id)] && (
-                  <button type="button" onClick={(e) => openBuy(e, plan)} className={OUTING_TICKET_STRIP}>
-                    <span className="flex items-center gap-2 min-w-0">
-                      <span className="w-8 h-8 rounded-xl bg-[#E0533C]/10 text-[#E0533C] flex items-center justify-center shrink-0"><Ticket className="w-4 h-4" /></span>
-                      <span className="min-w-0 text-left">
-                        <span className="block text-[13px] font-extrabold leading-tight">{ticketInfo[String(plan.id)].min_price > 0 ? `Tickets from KES ${ticketInfo[String(plan.id)].min_price.toLocaleString('en-KE')}` : 'Free tickets'}</span>
-                        <span className="block text-[11px] text-slate-500 dark:text-slate-400">{ticketInfo[String(plan.id)].left <= 0 ? 'Sold out' : ticketInfo[String(plan.id)].left <= 10 ? `Only ${ticketInfo[String(plan.id)].left} left` : 'Tap to get yours'}</span>
-                      </span>
-                    </span>
-                    <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
-                  </button>
-                )}
-
                 {/* Actions */}
                 <div className="flex items-stretch gap-2" onClick={(e) => e.stopPropagation()}>
                   {attendeeStatus === 'host' && (
@@ -1199,13 +1140,9 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                           <span className="min-w-5 h-5 px-1.5 rounded-full bg-[#E0533C] text-white text-[11px] font-black flex items-center justify-center">{pendingAttendees.length}</span>
                         )}
                       </button>
-                      <button type="button" onClick={() => onOpenOutingChat?.(plan)} className={`${OUTING_BTN_SOFT} flex-1`}>
-                        <MessageSquare className="w-4 h-4 text-[#E0533C]" />
+                      <button type="button" onClick={() => onOpenOutingChat?.(plan)} className={`${OUTING_BTN_PRIMARY} flex-1`}>
+                        <MessageSquare className="w-4 h-4" />
                         <span>Chat</span>
-                      </button>
-                      <button type="button" onClick={() => setTicketsFor(plan)} className={`${OUTING_BTN_PRIMARY} flex-1`}>
-                        <Ticket className="w-4 h-4" />
-                        <span>Tickets</span>
                       </button>
                     </>
                   )}
@@ -1215,14 +1152,6 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                       <Clock className="w-4 h-4" />
                       <span>Waiting for host approval</span>
                     </div>
-                  )}
-
-                  {attendeeStatus === 'awaiting' && (
-                    <button type="button" onClick={(e) => openBuy(e, plan)} className={`${OUTING_BTN_PRIMARY} flex-1`}>
-                      <Ticket className="w-4 h-4" />
-                      <span>You're approved. Pay to confirm</span>
-                      <span className="text-[11px] font-bold opacity-90">· {timeLeft(myPayBy(plan))}</span>
-                    </button>
                   )}
 
                   {attendeeStatus === 'joined' && (
@@ -1305,7 +1234,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#E0533C] animate-pulse shrink-0" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#E0533C] shrink-0" />
                     <h3 className="text-[22px] font-black leading-tight tracking-tight">Host a plan</h3>
                   </div>
                   <p className="text-[13px] text-slate-500 dark:text-slate-400 mt-1">Pick a spot, set the time and let people join.</p>
@@ -1595,7 +1524,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                 {/* Vibe */}
                 <section className="space-y-3">
                   <p className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                    <Sparkles className="w-3.5 h-3.5 text-[#E0533C]" />The vibe
+                    <Compass className="w-3.5 h-3.5 text-[#E0533C]" />The vibe
                   </p>
                   <textarea
                     required
@@ -1643,7 +1572,6 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
         const joined = (plan.attendees || []).filter(a => a.status === 'joined' || a.status === 'approved');
         const pendingCount = (plan.attendees || []).filter(a => a.status === 'pending').length;
         const spotsLeft = Math.max(0, plan.maxAttendees - (joined.length + 1));
-        const tInfo = ticketInfo[String(plan.id)];
         const saved = savedIds.has(plan.id);
         const close = () => setSelectedOutingDetail(null);
         return (
@@ -1672,7 +1600,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
 
               {/* Body */}
               <div className="flex-1 overflow-y-auto p-5 space-y-5">
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <div className="rounded-2xl bg-slate-50 dark:bg-white/[0.05] p-3">
                     <Calendar className="w-4 h-4 text-[#E0533C]" />
                     <p className="text-[12px] font-extrabold mt-1.5 leading-tight">{formatOutingDate(plan.date, plan.time)}</p>
@@ -1683,25 +1611,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                     <p className="text-[12px] font-extrabold mt-1.5 leading-tight">{spotsLeft === 0 ? 'Full' : `${spotsLeft} left`}</p>
                     <p className="text-[10px] text-slate-400 mt-0.5">of {plan.maxAttendees} spots</p>
                   </div>
-                  <div className="rounded-2xl bg-slate-50 dark:bg-white/[0.05] p-3">
-                    <Ticket className="w-4 h-4 text-[#E0533C]" />
-                    <p className="text-[12px] font-extrabold mt-1.5 leading-tight">{tInfo ? (tInfo.min_price > 0 ? `KES ${tInfo.min_price.toLocaleString('en-KE')}` : 'Free') : 'No ticket'}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{tInfo ? (tInfo.left <= 0 ? 'sold out' : 'per ticket') : 'needed'}</p>
-                  </div>
                 </div>
-
-                {status !== 'host' && tInfo && (
-                  <button type="button" onClick={(e) => openBuy(e, plan)} className={OUTING_TICKET_STRIP}>
-                    <span className="flex items-center gap-2 min-w-0">
-                      <span className="w-8 h-8 rounded-xl bg-[#E0533C]/10 text-[#E0533C] flex items-center justify-center shrink-0"><Ticket className="w-4 h-4" /></span>
-                      <span className="min-w-0 text-left">
-                        <span className="block text-[13px] font-extrabold leading-tight">{status === 'awaiting' ? `Pay to confirm your spot (${timeLeft(myPayBy(plan))})` : 'Get your ticket'}</span>
-                        <span className="block text-[11px] text-slate-500 dark:text-slate-400">{tInfo.left <= 10 && tInfo.left > 0 ? `Only ${tInfo.left} left` : 'Free ticket'}</span>
-                      </span>
-                    </span>
-                    <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
-                  </button>
-                )}
 
                 {/* Host */}
                 <div className="flex items-center justify-between gap-3">
@@ -1760,13 +1670,9 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                         <span>Manage</span>
                         {pendingCount > 0 && <span className="min-w-5 h-5 px-1.5 rounded-full bg-[#E0533C] text-white text-[11px] font-black flex items-center justify-center">{pendingCount}</span>}
                       </button>
-                      <button type="button" onClick={() => { onOpenOutingChat?.(plan); close(); }} className={`${OUTING_BTN_SOFT} flex-1`}>
-                        <MessageSquare className="w-4 h-4 text-[#E0533C]" />
+                      <button type="button" onClick={() => { onOpenOutingChat?.(plan); close(); }} className={`${OUTING_BTN_PRIMARY} flex-1`}>
+                        <MessageSquare className="w-4 h-4" />
                         <span>Chat</span>
-                      </button>
-                      <button type="button" onClick={() => setTicketsFor(plan)} className={`${OUTING_BTN_PRIMARY} flex-1`}>
-                        <Ticket className="w-4 h-4" />
-                        <span>Tickets</span>
                       </button>
                     </>
                   )}
@@ -1779,11 +1685,6 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                         <MessageSquare className="w-4 h-4" /><span>Group chat</span>
                       </button>
                     </>
-                  )}
-                  {status === 'awaiting' && (
-                    <button type="button" onClick={(e) => openBuy(e, plan)} className={`${OUTING_BTN_PRIMARY} flex-1`}>
-                      <Ticket className="w-4 h-4" /><span>Pay to confirm</span><span className="text-[11px] opacity-90">· {timeLeft(myPayBy(plan))}</span>
-                    </button>
                   )}
                   {status === 'pending' && (
                     <div className={`${OUTING_BTN_STATUS} flex-1 bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-300`}>
@@ -1947,7 +1848,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                               </div>
 
                               <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full bg-slate-100 dark:bg-white/[0.07] text-slate-600 dark:text-slate-300 text-[10px] font-extrabold tracking-wide shrink-0">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#E0533C] animate-pulse" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#E0533C]" />
                                 Pending
                               </span>
                             </div>
@@ -1983,26 +1884,6 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
               })()}
 
               {/* 2. Confirmed Attendees & Host */}
-              {(() => {
-                const waiting = (activeManagingOuting.attendees || []).filter(a => a.status === 'awaiting_payment');
-                if (!waiting.length) return null;
-                return (
-                  <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <h4 className="font-extrabold text-[14px] text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-[#E0533C]" />
-                      <span>Approved, waiting for payment ({waiting.length})</span>
-                    </h4>
-                    {waiting.map(a => (
-                      <div key={a.id} className="flex items-center justify-between gap-2 rounded-xl bg-[#E0533C]/[0.06] px-3 py-2 text-xs">
-                        <span className="font-bold truncate">{a.userHandle || a.userName}</span>
-                        <span className="text-[#E0533C] font-bold shrink-0">{timeLeft(a.payBy)}</span>
-                      </div>
-                    ))}
-                    <p className="text-[10px] text-slate-500">If they do not pay in time, their approval is cancelled automatically.</p>
-                  </div>
-                );
-              })()}
-
               {(() => {
                 const confirmedList = (activeManagingOuting.attendees || []).filter(a => a.status === 'joined' || a.status === 'approved');
 
@@ -2112,27 +1993,6 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
           onClose={() => setShareCardFor(null)}
           onShared={() => track('share', 'outing', shareCardFor.id)}
           showToast={showToast}
-        />
-      )}
-      {buyFor && (
-        <TicketBuySheet
-          kind="outing"
-          source={String(buyFor.id)}
-          signedIn={isUserSignedIn || !!currentUserId}
-          onNeedSignIn={() => { setBuyFor(null); showToast('Please sign in to buy tickets'); onOpenAuth(); }}
-          onClose={() => setBuyFor(null)}
-          onOpenMyTickets={() => setMyTicketsOpen(true)}
-        />
-      )}
-      {myTicketsOpen && <MyTicketsSheet onClose={() => setMyTicketsOpen(false)} />}
-      {ticketsFor && (
-        <HostTicketsPanel
-          kind="outing"
-          source={String(ticketsFor.id)}
-          title={ticketsFor.spotTitle}
-          onClose={() => setTicketsFor(null)}
-          onEditPoster={() => { const p = ticketsFor; setTicketsFor(null); handleShareOutingLink(p); }}
-          onToast={(m, t) => showToast(m, { type: t === 'error' ? 'error' : 'success' })}
         />
       )}
 

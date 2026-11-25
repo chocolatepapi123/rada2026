@@ -12,8 +12,7 @@ import { searchProfiles, type CloudProfileHit } from '../lib/socialsCloud.ts';
 import { getStoredLanguage, saveStoredLanguage, translations, type AppLanguage } from '../utils/i18n.ts';
 import { 
   X, 
-  Sparkles, 
-  Car, 
+  Car,  
   MapPin, 
   Calendar, 
   Clock, 
@@ -417,14 +416,13 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       type="button"
                       onClick={() => {
                         onToggleSave?.(selectedSpot, 'spot');
-                        showToast(isSpotSaved ? 'Removed from Vault' : 'Saved to Vault');
                       }}
                       className={`w-9 h-9 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs ${
                         isSpotSaved
                           ? 'bg-[#E0533C] text-white ring-2 ring-orange-400/40'
                           : 'bg-[#F8F8F6] hover:bg-slate-200 dark:bg-[#1C1A1E] dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 hover:text-[#E0533C]'
                       }`}
-                      title={isSpotSaved ? 'Saved to Vault (Tap to remove)' : 'Save to Vault'}
+                      title={isSpotSaved ? 'Manage Saved Collection' : 'Save to Collection'}
                     >
                       <Bookmark className={`w-4 h-4 ${isSpotSaved ? 'fill-white' : ''}`} />
                     </button>
@@ -488,14 +486,13 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       onClick={(e) => {
                         e.stopPropagation();
                         onToggleSave?.(selectedSpot, 'spot');
-                        showToast(isSpotSaved ? 'Removed from Vault' : 'Saved to Vault');
                       }}
                       className={`absolute top-3 left-3 z-10 w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-md transition shadow-md cursor-pointer ${
                         isSpotSaved
                           ? 'bg-[#E0533C] text-white ring-2 ring-white/50'
                           : 'bg-black/60 hover:bg-black/85 text-white'
                       }`}
-                      title={isSpotSaved ? 'Saved to Vault (Tap to remove)' : 'Save to Vault'}
+                      title={isSpotSaved ? 'Manage Saved Collection' : 'Save to Collection'}
                     >
                       <Bookmark className={`w-4 h-4 ${isSpotSaved ? 'fill-white' : ''}`} />
                     </button>
@@ -754,7 +751,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
             {selectedSpot.featuredDishes && selectedSpot.featuredDishes.length > 0 && (
               <div className="p-3 bg-orange-50/70 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/40 rounded-2xl space-y-2">
                 <span className="font-black text-xs text-[#E0533C] flex items-center gap-1.5 uppercase tracking-wider">
-                  <Sparkles className="w-3.5 h-3.5" />
+                  <Star className="w-3.5 h-3.5" />
                   <span>Featured Dishes & Signature Drinks</span>
                 </span>
                 <div className="flex flex-wrap gap-1.5">
@@ -863,7 +860,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <h4 className="font-black text-slate-900 dark:text-slate-100 uppercase text-[11px] tracking-wider flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-[#E0533C]" />
+                      <Compass className="w-3.5 h-3.5 text-[#E0533C]" />
                       <span>Activities & Pricing</span>
                     </h4>
                     <p className="text-[10px] text-slate-400 font-medium mt-0.5">
@@ -1281,14 +1278,13 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       type="button"
                       onClick={() => {
                         onToggleSave?.(selectedEvent, 'event');
-                        showToast(isEventSaved ? 'Removed from Vault' : 'Saved to Vault');
                       }}
                       className={`w-9 h-9 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs ${
                         isEventSaved
                           ? 'bg-[#E0533C] text-white ring-2 ring-orange-400/40'
                           : 'bg-[#F8F8F6] hover:bg-slate-200 dark:bg-[#1C1A1E] dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 hover:text-[#E0533C]'
                       }`}
-                      title={isEventSaved ? 'Saved to Vault (Tap to remove)' : 'Save to Vault'}
+                      title={isEventSaved ? 'Manage Saved Collection' : 'Save to Collection'}
                     >
                       <Bookmark className={`w-4 h-4 ${isEventSaved ? 'fill-white' : ''}`} />
                     </button>
@@ -1324,16 +1320,14 @@ export const Overlays: React.FC<OverlaysProps> = ({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  const isEventSaved = savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event');
                   onToggleSave?.(selectedEvent, 'event');
-                  showToast(isEventSaved ? 'Removed from Vault' : 'Saved to Vault');
                 }}
                 className={`absolute top-3 left-3 z-10 w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-md transition shadow-md cursor-pointer ${
                   savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event')
                     ? 'bg-[#E0533C] text-white ring-2 ring-white/50'
                     : 'bg-black/60 hover:bg-black/85 text-white'
                 }`}
-                title={savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event') ? 'Saved to Vault (Tap to remove)' : 'Save to Vault'}
+                title={savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event') ? 'Manage Saved Collection' : 'Save to Collection'}
               >
                 <Bookmark className={`w-4 h-4 ${savedItems.some(s => String(s.id) === String(selectedEvent.id) && s.kind === 'event') ? 'fill-white' : ''}`} />
               </button>
@@ -1422,7 +1416,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                   <span>
                     {selectedEvent.host ? `Hosted by ${selectedEvent.host}` : ''}
                     {selectedEvent.host && selectedEvent.source ? ' · ' : ''}
-                    {selectedEvent.source ? `Tickets via ${getSourceLabel(selectedEvent.source)}` : ''}
+                    {selectedEvent.source ? `Listed via ${getSourceLabel(selectedEvent.source)}` : ''}
                   </span>
                   <BusinessBadge businessId={selectedEvent.businessId} category="event_organizer" size="xs" unclaimedVerified />
                 </p>
@@ -1528,47 +1522,6 @@ export const Overlays: React.FC<OverlaysProps> = ({
               </div>
             )}
 
-            {/* No tiers scraped: point to the ticket page instead of showing nothing */}
-            {(!selectedEvent.tiers || selectedEvent.tiers.length === 0) && selectedEvent.source && (
-              <div className="p-3 rounded-2xl bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-dashed border-slate-300 dark:border-slate-700 text-[11px] text-slate-500">
-                Ticket prices for this event are listed on {getSourceLabel(selectedEvent.source)}.
-              </div>
-            )}
-
-            {/* Ticket Tier Options */}
-            {selectedEvent.tiers && selectedEvent.tiers.length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-                <h4 className="font-black text-slate-900 dark:text-slate-100 uppercase text-[11px] tracking-wider">
-                  Ticket Tier Options
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {selectedEvent.tiers.map((t, idx) => {
-                    const soldOut = t.status === 'sold_out' || t.status === 'soldout';
-                    return (
-                    <div
-                      key={idx}
-                      className={`bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 p-2.5 rounded-xl flex items-center justify-between gap-2 ${
-                        soldOut ? 'opacity-65' : ''
-                      }`}
-                    >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-bold text-xs">{t.name}</span>
-                          {soldOut && (
-                            <span className="px-1.5 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/70 text-rose-600 dark:text-rose-300 text-[9px] font-black uppercase tracking-wide">
-                              Sold out
-                            </span>
-                          )}
-                        </div>
-                        {t.perks && <span className="text-[9px] text-slate-400 block">{t.perks}</span>}
-                      </div>
-                      <span className={`font-black text-xs shrink-0 ${soldOut ? 'text-slate-400 line-through' : 'text-[#E0533C]'}`}>{t.price}</span>
-                    </div>
-                  );})}
-                </div>
-              </div>
-            )}
-
             <div className="pt-2 flex flex-col gap-2">
               {!isOnlineEvent(selectedEvent) && (
                 <div className="flex justify-start empty:hidden">
@@ -1602,8 +1555,8 @@ export const Overlays: React.FC<OverlaysProps> = ({
                     {isOnlineEvent(selectedEvent)
                       ? 'Join / Get Access'
                       : selectedEvent.source
-                      ? `Get Tickets on ${getSourceLabel(selectedEvent.source)}`
-                      : 'Get Primary Ticket'}
+                      ? `Open on ${getSourceLabel(selectedEvent.source)}`
+                      : 'View Event Website'}
                   </span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </button>
@@ -2101,7 +2054,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       <Bell className="w-4 h-4 text-[#E0533C]" />
                       <div>
                         <h4 className="font-bold">Push Notifications</h4>
-                        <p className="text-[10px] text-slate-400">Match alerts, event drops & ticket passes</p>
+                        <p className="text-[10px] text-slate-400">Chat messages, event drops & hangout reminders</p>
                       </div>
                     </div>
                     <button

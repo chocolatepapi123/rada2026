@@ -455,7 +455,7 @@ export const LukuEventsTab: React.FC<LukuEventsTabProps> = ({
 
                   {/* Matching Event Focus Badge */}
                   {isMatch && (
-                    <span className="absolute bottom-2.5 left-2.5 bg-[#E0533C] dark:bg-[#A94F3E] text-white text-[9px] font-black px-2 py-0.5 rounded-md shadow-md animate-pulse">
+                    <span className="absolute bottom-2.5 left-2.5 bg-[#E0533C] dark:bg-[#A94F3E] text-white text-[9px] font-black px-2 py-0.5 rounded-md shadow-md">
                       Selected Plan Target
                     </span>
                   )}

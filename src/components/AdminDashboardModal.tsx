@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   X, Search, ShieldCheck, Clock, XCircle, RefreshCw, LayoutDashboard, MapPinPlus, Users,
-  BadgeCheck, Crown, Trash2, Ban, UserX, Store, Sparkles, ImagePlus, CircleDollarSign,
+  BadgeCheck, Crown, Trash2, Ban, UserX, Store, Calendar, ImagePlus, CircleDollarSign,
   Film, Flag, ExternalLink, FileText, CheckCircle2, AlertCircle, MapPin, Phone, Mail, Globe, Image as ImageIcon,
 } from 'lucide-react';
 import type {
@@ -18,7 +18,6 @@ import { fetchBusinesses,
 } from '../lib/cloudSync';
 import { CinemaAdminPanel } from './CinemaAdminPanel.tsx';
 import { AdminSubscriptionsPanel } from './AdminSubscriptionsPanel';
-import { AdminTicketsPanel } from './AdminTicketsPanel';
 import { AdminReportsPanel } from './AdminReportsPanel';
 import { AdminLaunchChecklistPanel } from './AdminLaunchChecklistPanel';
 import { AdminHealthPanel } from './AdminHealthPanel';
@@ -32,7 +31,7 @@ import { SPOT_CATEGORIES as CANONICAL_SPOT_CATEGORIES } from '../lib/spotCategor
 import { SpotCategoryTile } from './SpotCategoryBadge.tsx';
 
 type VerificationStatus = 'pending' | 'approved' | 'rejected';
-type TabId = 'overview' | 'pending_spots' | 'claims' | 'verification' | 'spots' | 'cinema' | 'users' | 'subscriptions' | 'promotions' | 'payments' | 'ticket_money' | 'reports' | 'health' | 'launch';
+type TabId = 'overview' | 'pending_spots' | 'claims' | 'verification' | 'spots' | 'cinema' | 'users' | 'subscriptions' | 'promotions' | 'payments' | 'reports' | 'health' | 'launch';
 
 export interface AdminDashboardProps {
   businesses: BusinessAccount[];
@@ -528,7 +527,6 @@ export function AdminDashboardModal({
     { id: 'subscriptions', label: 'Subscriptions', icon: <CircleDollarSign className="w-4 h-4" />, enabled: isOfficial || myPermissions.canManageSubscriptions },
     { id: 'promotions', label: 'Promotions', icon: <CircleDollarSign className="w-4 h-4" />, enabled: isOfficial || myPermissions.canManageSubscriptions },
     { id: 'payments', label: 'Payments', icon: <CircleDollarSign className="w-4 h-4" />, enabled: isOfficial || myPermissions.canManageSubscriptions },
-    { id: 'ticket_money', label: 'Ticket money', icon: <CircleDollarSign className="w-4 h-4" />, enabled: isOfficial },
     { id: 'reports', label: 'Reports', icon: <Flag className="w-4 h-4" />, enabled: isOfficial || myPermissions.canManageUsers },
     { id: 'health', label: 'Health', icon: <LayoutDashboard className="w-4 h-4" />, enabled: isOfficial },
     { id: 'launch', label: 'Launch cleanup', icon: <ShieldCheck className="w-4 h-4" />, enabled: isOfficial },
@@ -627,7 +625,7 @@ export function AdminDashboardModal({
                     <StatCard label="Total spots" value={num(stats?.totalSpots, spotsCount)} icon={<MapPinPlus className="w-5 h-5" />} />
                     <StatCard label="Community spots" value={unclaimed.length} icon={<MapPinPlus className="w-5 h-5 text-emerald-600" />} />
                     <StatCard label="Pending spots" value={pendingSpots.length} icon={<MapPin className="w-5 h-5 text-orange-500" />} />
-                    <StatCard label="Total events" value={num(stats?.totalEvents, eventsCount)} icon={<Sparkles className="w-5 h-5" />} />
+                    <StatCard label="Total events" value={num(stats?.totalEvents, eventsCount)} icon={<Calendar className="w-5 h-5" />} />
                     <StatCard label="Businesses" value={num(stats?.totalBusinesses, businesses.length)} icon={<Store className="w-5 h-5" />} />
                     <StatCard label="Pro hosts" value={num(stats?.professionalHosts)} icon={<Crown className="w-5 h-5" />} />
                     <StatCard label="Spot Claims" value={liveClaims.length} icon={<ShieldCheck className="w-5 h-5" />} />
@@ -1298,7 +1296,6 @@ export function AdminDashboardModal({
 
             {/* ================= SUBSCRIPTIONS ================= */}
             {tab === 'subscriptions' && <AdminSubscriptionsPanel toast={toast} />}
-            {tab === 'ticket_money' && <AdminTicketsPanel toast={toast} />}
             {tab === 'promotions' && <AdminPromotionsPanel toast={toast} />}
             {tab === 'payments' && <AdminManualPayments showToast={toast} />}
             {tab === 'reports' && <AdminReportsPanel toast={toast} />}

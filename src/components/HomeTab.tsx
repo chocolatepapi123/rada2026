@@ -24,7 +24,6 @@ import {
   Clock, 
   MapPin, 
   X, 
-  Ticket, 
   Flame, 
   Store, 
   SlidersHorizontal, 
@@ -1003,7 +1002,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               {/* Budget Filter */}
               <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                  <Ticket className="w-3.5 h-3.5 text-[#2D6A4F]" />
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-[#2D6A4F]" />
                   <span>Budget / Price Range:</span>
                 </span>
                 <div className="grid grid-cols-4 gap-1.5 text-xs">
@@ -1296,7 +1295,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           <div className="flex gap-1.5 overflow-x-auto hide-scrollbar pb-1">
             {[
               { id: 'all', label: 'All Deals' },
-              { id: 'Tickets', label: 'Tickets' },
               { id: 'Food', label: 'Food' },
               { id: 'Drinks', label: 'Drinks' },
               { id: 'Apparel', label: 'Apparel' },
@@ -1397,10 +1395,10 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     </p>
                   </div>
 
-                  {/* Customized CTA Button: View Tickets or Visit Spot */}
+                  {/* Customized CTA Button: View Event or Visit Spot */}
                   <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
                     {(() => {
-                      const isEventOffer = offer.category === 'Tickets' || offer.businessCategory === 'event_organizer';
+                      const isEventOffer = offer.businessCategory === 'event_organizer';
 
                       if (isEventOffer) {
                         return (
@@ -1419,10 +1417,10 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                               }
                             }}
                             className="flex-1 py-2 px-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98]"
-                            title={`View Tickets: ${offer.title}`}
+                            title={`View Event: ${offer.title}`}
                           >
-                            <Ticket className="w-3.5 h-3.5 shrink-0" />
-                            <span>View Tickets</span>
+                            <Calendar className="w-3.5 h-3.5 shrink-0" />
+                            <span>View Event</span>
                             <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                           </button>
                         );
@@ -1563,7 +1561,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               {sortedEvents.slice(0, 12).map((evt) => {
                 const isToday = isHappeningToday(evt);
                 const online = isOnlineEvent(evt);
-                const priceDisplay = getEventPriceLabel(evt);
                 const badgeStyle = getCategoryBadgeStyle(evt.category, evt.genre);
 
                 return (
@@ -1614,13 +1611,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                           <Bookmark className={`w-3.5 h-3.5 ${isSaved(evt.id, 'event') ? 'fill-white' : ''}`} />
                         </button>
                       </div>
-
-                      {/* Ticket price badge on thumbnail */}
-                      <div className="absolute bottom-2 left-2">
-                        <span className="bg-black/75 text-emerald-400 text-[10px] font-extrabold px-2.5 py-0.5 rounded-md border border-white/10">
-                          {priceDisplay}
-                        </span>
-                      </div>
                     </div>
 
                     <h3 className="font-extrabold text-sm line-clamp-1 text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] transition">
@@ -1660,7 +1650,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                       }}
                       className="px-3 py-1.5 bg-[#E0533C] text-white rounded-xl text-xs font-bold shadow-xs hover:bg-orange-700 transition"
                     >
-                      {online ? 'Join / Access' : 'Get Tickets'}
+                      {online ? 'Join / Access' : 'View Event'}
                     </button>
                   </div>
                   </div>
@@ -1784,8 +1774,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   }}
                   className="mt-3 w-full py-2 bg-[#2D6A4F] hover:bg-emerald-800 text-white rounded-xl text-[11px] font-black transition shadow-xs flex items-center justify-center gap-1.5"
                 >
-                  <Ticket className="w-3.5 h-3.5" />
-                  <span>Showtimes & Tickets</span>
+                  <Film className="w-3.5 h-3.5" />
+                  <span>Showtimes</span>
                 </button>
               </div>
             ))}

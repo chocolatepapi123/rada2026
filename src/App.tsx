@@ -24,7 +24,7 @@ import { ToastProvider, showToast as triggerToast, type ToastOptions } from './c
 import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 import { AuthModal } from './components/AuthModal.tsx';
 import { Overlays } from './components/Overlays.tsx';
-import { MyTicketsSheet } from './components/MyTicketsSheet.tsx';
+import { SaveToCollectionModal, type SaveTargetInfo } from './components/SaveToCollectionModal.tsx';
 import { SavedPlacesModal } from './components/SavedPlacesModal.tsx';
 import { SuggestSpotModal } from './components/SuggestSpotModal.tsx';
 import { CreateEventModal } from './components/CreateEventModal.tsx';
@@ -162,7 +162,6 @@ const AdminDashboard = lazyNamed(() => import('./components/AdminDashboardModal.
 const PublicBusinessProfileModal = lazyNamed(() => import('./components/PublicBusinessProfileModal.tsx'), 'PublicBusinessProfileModal');
 const LocationMapModal = lazyNamed(() => import('./components/LocationMapModal.tsx'), 'LocationMapModal');
 const UserProfileModal = lazyNamed(() => import('./components/UserProfileModal.tsx'), 'UserProfileModal');
-const TicketBuySheet = lazyNamed(() => import('./components/TicketBuySheet.tsx'), 'TicketBuySheet');
 
 const TabFallback = () => {
   const [slow, setSlow] = useState(false);
@@ -992,48 +991,132 @@ export default function App() {
   const handleCreateFolder = (name: string, emoji?: string) => {
     const newFolder: CollectionFolder = {
       id: `f-${Date.now()}`,
-      name,
+      name: name.trim(),
       emoji: emoji || 'folder',
       createdAt: new Date().toISOString()
     };
-    setSavedFolders(prev => [newFolder, ...prev]);
+    setSavedFolders(prev => {
+      const updated = [newFolder, ...prev];
+      if (session?.user?.id) {
+        cloud.syncSavedPlans(session.user.id, savedItems, updated);
+      }
+      return updated;
+    });
+  };
+
+  const handleEditFolder = (folderId: string, name: string, emoji: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setSavedFolders(prev => {
+      const updated = prev.map(f =>
+        f.id === folderId ? { ...f, name: trimmed, emoji: emoji || f.emoji || 'folder' } : f
+      );
+      if (session?.user?.id) {
+        cloud.syncSavedPlans(session.user.id, savedItems, updated);
+      }
+      return updated;
+    });
   };
 
   const handleDeleteFolder = (folderId: string) => {
-    setSavedFolders(prev => prev.filter(f => f.id !== folderId));
-    setSavedItems(prev => prev.map(item => item.folderId === folderId ? { ...item, folderId: undefined } : item));
+    const nextFolders = savedFolders.filter(f => f.id !== folderId);
+    const nextItems = savedItems.map(item => item.folderId === folderId ? { ...item, folderId: undefined } : item);
+    setSavedFolders(nextFolders);
+    setSavedItems(nextItems);
+    if (session?.user?.id) {
+      cloud.syncSavedPlans(session.user.id, nextItems, nextFolders);
+    }
   };
 
   const handleAssignItemFolder = (itemId: string | number, kind: string, folderId: string | undefined) => {
-    setSavedItems(prev => prev.map(item => {
-      if (String(item.id) === String(itemId) && item.kind === kind) {
-        return { ...item, folderId };
-      }
-      return item;
-    }));
-  };
-
-  const handleToggleSave = (item: any, kind: 'spot' | 'event' | 'offer' | 'thrift') => {
-    // Analytics: count a new save (not an un-save) for spots and events.
-    if ((kind === 'spot' || kind === 'event') && !savedItems.some(s => String(s.id) === String(item.id) && s.kind === kind)) {
-      track('save', kind, item.id);
-    }
-    if (!savedItems.some(s => String(s.id) === String(item.id) && s.kind === kind)) logPlatformEvent('save');
     setSavedItems(prev => {
-      const exists = prev.some(s => String(s.id) === String(item.id) && s.kind === kind);
-      let updated: SavedItem[];
-      if (exists) {
-        updated = prev.filter(s => !(String(s.id) === String(item.id) && s.kind === kind));
-        triggerToast('Removed from saved items', { type: 'info' });
-      } else {
-        updated = [{ id: item.id, kind, savedAt: new Date().toISOString() }, ...prev];
-        triggerToast('Saved to your collection', { type: 'success' });
-      }
+      const updated = prev.map(item => {
+        if (String(item.id) === String(itemId) && item.kind === kind) {
+          return { ...item, folderId };
+        }
+        return item;
+      });
       if (session?.user?.id) {
         cloud.syncSavedPlans(session.user.id, updated, savedFolders);
       }
       return updated;
     });
+  };
+
+  const [saveTarget, setSaveTarget] = useState<SaveTargetInfo | null>(null);
+
+  const handleToggleSave = (item: any, kind: 'spot' | 'event' | 'offer' | 'thrift') => {
+    if (!item || item.id === undefined || item.id === null) return;
+    const title = item.title || item.spotTitle || item.name || 'Saved item';
+    const subtitle = item.address || item.neighborhood || item.location || item.businessName || '';
+    const image = item.img || item.posterUrl || item.images?.[0] || item.spotImage || '';
+    setSaveTarget({ item, kind, title, subtitle, image });
+  };
+
+  const handleSaveToFolder = (folderId: string | undefined) => {
+    if (!saveTarget) return;
+    const { item, kind } = saveTarget;
+    const exists = savedItems.some(s => String(s.id) === String(item.id) && s.kind === kind);
+    if (!exists) {
+      if (kind === 'spot' || kind === 'event') track('save', kind, item.id);
+      logPlatformEvent('save');
+    }
+    setSavedItems(prev => {
+      const hasItem = prev.some(s => String(s.id) === String(item.id) && s.kind === kind);
+      const updated: SavedItem[] = hasItem
+        ? prev.map(s => (String(s.id) === String(item.id) && s.kind === kind ? { ...s, folderId } : s))
+        : [{ id: item.id, kind, folderId, savedAt: new Date().toISOString() }, ...prev];
+      if (session?.user?.id) {
+        cloud.syncSavedPlans(session.user.id, updated, savedFolders);
+      }
+      return updated;
+    });
+    const folderName = folderId ? savedFolders.find(f => f.id === folderId)?.name : undefined;
+    triggerToast(
+      folderName ? `${exists ? 'Moved to' : 'Saved to'} "${folderName}"` : exists ? 'Updated collection' : 'Saved to collection',
+      { type: 'success' }
+    );
+  };
+
+  const handleCreateAndSaveFolder = (name: string, emoji: string) => {
+    if (!saveTarget) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const newFolder: CollectionFolder = {
+      id: `f-${Date.now()}`,
+      name: trimmed,
+      emoji: emoji || 'folder',
+      createdAt: new Date().toISOString()
+    };
+    const { item, kind } = saveTarget;
+    const exists = savedItems.some(s => String(s.id) === String(item.id) && s.kind === kind);
+    if (!exists) {
+      if (kind === 'spot' || kind === 'event') track('save', kind, item.id);
+      logPlatformEvent('save');
+    }
+    const nextFolders = [newFolder, ...savedFolders];
+    const nextItems: SavedItem[] = exists
+      ? savedItems.map(s => (String(s.id) === String(item.id) && s.kind === kind ? { ...s, folderId: newFolder.id } : s))
+      : [{ id: item.id, kind, folderId: newFolder.id, savedAt: new Date().toISOString() }, ...savedItems];
+    setSavedFolders(nextFolders);
+    setSavedItems(nextItems);
+    if (session?.user?.id) {
+      cloud.syncSavedPlans(session.user.id, nextItems, nextFolders);
+    }
+    triggerToast(`Saved to "${trimmed}"`, { type: 'success' });
+  };
+
+  const handleRemoveFromSavedTarget = () => {
+    if (!saveTarget) return;
+    const { item, kind } = saveTarget;
+    setSavedItems(prev => {
+      const updated = prev.filter(s => !(String(s.id) === String(item.id) && s.kind === kind));
+      if (session?.user?.id) {
+        cloud.syncSavedPlans(session.user.id, updated, savedFolders);
+      }
+      return updated;
+    });
+    triggerToast('Removed from saved items', { type: 'info' });
   };
 
   // Restore saved plans from Supabase on session start
@@ -1159,18 +1242,19 @@ export default function App() {
       setOutings(prev => prev.map(o => o.id === outingId
         ? { ...o, attendees: (o.attendees || []).map(a => a.id === attendeeId ? { ...a, status: 'pending' as const } : a) }
         : o));
-      showToast(/tickets left to hold/i.test(upd.error) ? upd.error : "That request couldn't be updated. Please try again.", { type: 'error' });
+      showToast("That request couldn't be updated. Please try again.", { type: 'error' });
       return;
     }
 
-    // The host asked for a paid ticket: the guest is approved but waits for payment before they count as in
     if (status === 'approved' && upd.status === 'awaiting_payment') {
       setOutings(prev => prev.map(o => {
         if (o.id !== outingId) return o;
-        const atts = (o.attendees || []).map(a => a.id === attendeeId ? { ...a, status: 'awaiting_payment' as const, payBy: upd.payBy ?? null } : a);
+        const atts = (o.attendees || []).map(a => a.id === attendeeId ? { ...a, status: 'approved' as const } : a);
         return { ...o, attendees: atts, currentAttendeesCount: atts.filter(a => a.status === 'joined' || a.status === 'approved').length + 1 };
       }));
-      showToast('Approved. They have to pay for their ticket in time to keep the spot.');
+      const res = await socials.openOutingChat(outingId);
+      if (res.error) showToast('Approved, but the group chat could not be set up: ' + res.error, { type: 'error' });
+      else showToast('Approved!');
       return;
     }
 
@@ -1273,27 +1357,6 @@ export default function App() {
 
   // Modals state for Account Settings and Saved Items
   const [isSavedModalOpen, setIsSavedModalOpen] = useState(false);
-  const [isMyTicketsOpen, setIsMyTicketsOpen] = useState(false);
-  // Share links like /?event=ID&tickets=1 or /?outing=ID&tickets=1 open the ticket sheet
-  const [ticketLink, setTicketLink] = useState<{ kind: 'event' | 'outing'; source: string } | null>(() => {
-    try {
-      const q = new URLSearchParams(window.location.search);
-      if (q.get('tickets') !== '1') return null;
-      const ev = q.get('event'); const out = q.get('outing');
-      if (ev) return { kind: 'event', source: ev };
-      if (out) return { kind: 'outing', source: out };
-    } catch (_) {}
-    return null;
-  });
-  const closeTicketLink = () => {
-    setTicketLink(null);
-    try {
-      const q = new URLSearchParams(window.location.search);
-      ['tickets', 'event'].forEach(k => q.delete(k));
-      const qs = q.toString();
-      window.history.replaceState(window.history.state, '', window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash);
-    } catch (_) {}
-  };
   const [isProfilePageOpen, setIsProfilePageOpen] = useState(false);
   // Profile page is loaded into state (not React.lazy) so it always appears the moment its code arrives.
   const [ProfilePageComp, setProfilePageComp] = useState<React.ComponentType<any> | null>(null);
@@ -1385,7 +1448,7 @@ export default function App() {
     writeJSONDebounced('rada_tickets', tickets.filter(t => !String(t.id).startsWith('demo-')));
   }, [tickets]);
 
-  // Chats, match requests and group chats now live in Supabase (shared between people and devices).
+  // Chats and group chats now live in Supabase (shared between people and devices).
   // The old on-device demo chats are discarded once.
   useEffect(() => {
     try { localStorage.removeItem('rada_conversations'); localStorage.removeItem('rada_pending_requests'); localStorage.removeItem('rada_sent_requests'); } catch {}
@@ -1409,12 +1472,12 @@ export default function App() {
     const past = persona
       ? demoPastOutings(persona, { id: demoUid, name: currentUserProfile?.name || 'You', handle: currentUserProfile?.handle || '@you', avatar: currentUserProfile?.avatar || '' })
       : [];
-    // Sample hostings from the showcase set (with tickets) sit alongside the demo ones
+    // Sample hostings from the showcase set sit alongside the demo ones
     const sample = buildShowcaseOutings();
     setDemoOutings(prev => [...[...seed, ...past, ...sample].filter(o => !!(o.spotImage && String(o.spotImage).trim())), ...prev.filter(o => !/^demo-out-\d+$/.test(String(o.id)) && !String(o.id).startsWith('demo-past-') && !String(o.id).startsWith('showcase-out-'))]);
   }, [demoUid, session?.user?.email, currentUserProfile?.handle, currentUserProfile?.name, currentUserProfile?.avatar]);
 
-  // Demo Mode: saved plans and tickets in the Vault (never saved to the device)
+  // Demo Mode: saved plans in the Vault (never saved to the device)
   useEffect(() => {
     if (!isDemoMode() || !demoUid) return;
     setTickets(prev => [...buildDemoVaultTickets(), ...prev.filter(t => !String(t.id).startsWith('demo-vault-'))]);
@@ -1474,8 +1537,7 @@ export default function App() {
     activeOverlay ||
     isSuggestSpotModalOpen ||
     isCreateEventOpen ||
-    isMyTicketsOpen ||
-    Boolean(ticketLink)
+    Boolean(saveTarget)
   );
 
   // Swipe left/right on the main content to move between tabs (blocked while any modal / full-screen view is open).
@@ -1521,8 +1583,7 @@ export default function App() {
       if (activeOverlay) setActiveOverlay(null);
       if (isSuggestSpotModalOpen) setIsSuggestSpotModalOpen(false);
       if (isCreateEventOpen) setIsCreateEventOpen(false);
-      if (isMyTicketsOpen) setIsMyTicketsOpen(false);
-      if (ticketLink) closeTicketLink();
+      if (saveTarget) setSaveTarget(null);
     },
     handleBackToSpots,
     setActiveTab,
@@ -2085,16 +2146,8 @@ export default function App() {
     });
   };
 
-  // Cinema Booking & Vault Sync
+  // Open Cinema Showtimes Link
   const handleBookCinema = (movie: CinemaMovie) => {
-    const newPass: VaultTicket = {
-      id: `pass-${Date.now()}`,
-      title: movie.title,
-      dateStr: movie.date,
-      locationStr: movie.locationName || 'Cinema',
-      type: 'Cinema Movie Pass'
-    };
-    setTickets(prev => [newPass, ...prev]);
     window.open(movie.bookingUrl || movie.url, '_blank', 'noopener');
   };
 
@@ -2238,24 +2291,14 @@ export default function App() {
   };
 
   const handleBuyEventTicket = (event: EventItem) => {
-    const newPass: VaultTicket = {
-      id: `tkt-${Date.now()}`,
-      title: event.title,
-      dateStr: event.date,
-      locationStr: event.location.split(',')[0],
-      type: 'Verified Ticket Pass'
-    };
-    setTickets(prev => [newPass, ...prev]);
-    setTimeout(() => {
-      window.open(event.url, '_blank');
-    }, 750);
+    window.open(event.url, '_blank', 'noopener');
   };
 
   // Plan a Date workflow
-  const handlePlanDateFromSpot = (spot: SpotItem) => {
+  const handlePlanDateFromSpot = (spot: SpotItem, chatId?: string | null) => {
     setSelectedSpotModal(null);
     setDatePlanningSpot(spot);
-    setPlanDateChatId(null);
+    setPlanDateChatId(chatId ?? null);
     setIsPlanDateModalOpen(true);
   };
 
@@ -2268,7 +2311,7 @@ export default function App() {
       conversations.find(c => c.id === planDateChatId) ||
       conversations.find(c => c.type === 'direct');
     if (!target) {
-      showToast('Match with someone first, then plan a date from your chat with them.', { type: 'error' });
+      showToast('Open a chat or message someone from their profile first to plan a date.', { type: 'error' });
       return;
     }
     const err = await socials.sendMessage(target.id, {
@@ -2459,7 +2502,6 @@ export default function App() {
             userId={session?.user?.id}
             onLogout={handleSignOut}
             onOpenSaved={() => setIsSavedModalOpen(true)}
-            onOpenMyTickets={() => requireAuth('see your tickets', () => setIsMyTicketsOpen(true))}
             savedCount={savedItems.length}
             onOpenProfile={() => setIsProfilePageOpen(true)}
             avatar={currentUserProfile?.avatar}
@@ -2584,9 +2626,6 @@ export default function App() {
                 conversations={conversations}
                 currentUserProfile={currentUserProfile}
                 myUserId={demoAwareUserId(session?.user?.id && !isGuestMode ? session.user.id : undefined)}
-                requests={socials.requests}
-                onSendMatchRequest={socials.sendRequest}
-                onRespondRequest={socials.respondRequest}
                 onSendMessage={socials.sendMessage}
                 onLoadHistory={socials.loadHistory}
                 onRefreshSocials={socials.refresh}
@@ -2776,26 +2815,19 @@ export default function App() {
               <Suspense fallback={<OverlayFallback onClose={() => setViewingProfile(null)} />}>
                 <UserProfileModal
                   user={viewingProfile}
-                  isMutualMatch={Boolean(viewingProfile?.id && conversations.some(c => c.type === 'direct' && (c as any).otherUserId === viewingProfile.id))}
                   onClose={() => setViewingProfile(null)}
-                  onSendMatchRequest={(u) => {
-                    requireAuth('send messages', async () => {
-                      if (!u.id) { showToast('This profile cannot receive requests yet.', { type: 'error' }); return; }
-                      const res = await socials.sendRequest(u.id);
-                      if (res.status === 'error') showToast(res.error || 'Could not send the request.', { type: 'error' });
-                      else if (res.status === 'matched') {
-                        showToast(`It's a match with ${u.handle}!`, { category: 'match' });
-                        if (res.conversationId) setTargetChatId(res.conversationId);
-                        setActiveTab('socials');
-                      } else if (res.status === 'already_sent') showToast(`You already sent ${u.handle} a request.`);
-                      else showToast(`Hangout & Match request sent to ${u.handle}!`, { category: 'match' });
-                      setViewingProfile(null);
-                    });
-                  }}
                   onSendMessage={(u) => {
-                    requireAuth('send messages', () => {
-                      const dm = conversations.find(c => c.type === 'direct' && (c as any).otherUserId === u.id);
-                      if (dm) setTargetChatId(dm.id);
+                    requireAuth('send messages', async () => {
+                      const res = await socials.openDirectChat({
+                        id: u.id || u.handle,
+                        handle: u.handle,
+                        avatar: u.avatar,
+                      });
+                      if (res.error || !res.id) {
+                        showToast(res.error || 'Could not open chat.', { type: 'error' });
+                        return;
+                      }
+                      setTargetChatId(res.id);
                       setActiveTab('socials');
                       setViewingProfile(null);
                     });
@@ -2803,7 +2835,7 @@ export default function App() {
                   showToast={showToast}
                   onOpenSavedItems={() => requireAuth('view saved collections', () => setIsSavedModalOpen(true))}
                   onOpenAccountSettings={() => setIsProfilePageOpen(true)}
-                  currentUserId={session?.user?.id}
+                  currentUserId={demoAwareUserId(session?.user?.id && !isGuestMode ? session.user.id : undefined)}
                   onOpenAuth={() => setIsAuthModalOpen(true)}
                   spots={allMergedSpots}
                   events={allEvents}
@@ -2825,15 +2857,23 @@ export default function App() {
                   onPlanDateAtSpot={(id, withUserId) => {
                     const sp = allMergedSpots.find(x => String(x.id) === String(id));
                     if (!sp) return;
-                    requireAuth('send messages', () => {
-                      const dm = conversations.find(c => c.type === 'direct' && (c as any).otherUserId === withUserId);
-                      if (!dm) {
-                        showToast('Match with them first, then you can plan a date here.', { type: 'error' });
-                        return;
+                    requireAuth('send messages', async () => {
+                      const existingDm = conversations.find(c => c.type === 'direct' && (c as any).otherUserId === withUserId);
+                      let chatId = existingDm?.id || null;
+                      if (!chatId) {
+                        const res = await socials.openDirectChat({
+                          id: withUserId,
+                          handle: viewingProfile.handle || viewingProfile.username || withUserId,
+                          avatar: viewingProfile.avatar,
+                        });
+                        chatId = res.id;
+                        if (!chatId) {
+                          showToast(res.error || 'Open a chat with them first to plan a date.', { type: 'error' });
+                          return;
+                        }
                       }
                       setViewingProfile(null);
-                      handlePlanDateFromSpot(sp);
-                      setPlanDateChatId(dm.id);
+                      handlePlanDateFromSpot(sp, chatId);
                     });
                   }}
                 />
@@ -2871,7 +2911,6 @@ export default function App() {
                   outings={allOutings}
                   myBusinesses={session?.user?.id ? businesses.filter(b => b.ownerId === session.user.id && !isDemoId(b.id)) : []}
                   savedCount={savedItems.length}
-                  ticketCount={tickets.length}
                   onOpenSaved={() => setIsSavedModalOpen(true)}
                   isDarkMode={isDarkMode}
                   spots={spots.map(s => ({ id: s.id, title: s.title, neighborhood: s.neighborhood }))}
@@ -2897,29 +2936,6 @@ export default function App() {
             </ErrorBoundary>
           )}
 
-          {ticketLink && (
-            <ErrorBoundary overlay fallbackTitle="Ticket checkout unavailable" onReset={closeTicketLink}>
-              <Suspense fallback={<OverlayFallback onClose={closeTicketLink} />}>
-                <div className={isAuthModalOpen ? 'hidden' : ''}>
-                  <TicketBuySheet
-                    kind={ticketLink.kind}
-                    source={ticketLink.source}
-                    signedIn={!!session && !isGuestMode}
-                    onNeedSignIn={() => { setAuthModalMessage('Please log in or create an account to buy tickets.'); setIsAuthModalOpen(true); }}
-                    onClose={closeTicketLink}
-                    onOpenMyTickets={() => setIsMyTicketsOpen(true)}
-                  />
-                </div>
-              </Suspense>
-            </ErrorBoundary>
-          )}
-
-          {isMyTicketsOpen && (
-            <ErrorBoundary overlay fallbackTitle="Tickets unavailable" onReset={() => setIsMyTicketsOpen(false)}>
-              <MyTicketsSheet onClose={() => setIsMyTicketsOpen(false)} />
-            </ErrorBoundary>
-          )}
-
           {isSavedModalOpen && (
             <ErrorBoundary overlay fallbackTitle="Saved items unavailable" onReset={() => setIsSavedModalOpen(false)}>
               <SavedPlacesModal
@@ -2928,6 +2944,7 @@ export default function App() {
                 savedItems={savedItems}
                 savedFolders={savedFolders}
                 onCreateFolder={handleCreateFolder}
+                onEditFolder={handleEditFolder}
                 onDeleteFolder={handleDeleteFolder}
                 onAssignItemFolder={handleAssignItemFolder}
                 spots={allMergedSpots}
@@ -2946,6 +2963,25 @@ export default function App() {
               />
             </ErrorBoundary>
           )}
+
+          {saveTarget && (() => {
+            const existingSaved = savedItems.find(
+              s => String(s.id) === String(saveTarget.item?.id) && s.kind === saveTarget.kind
+            );
+            return (
+              <SaveToCollectionModal
+                key={`${saveTarget.kind}-${String(saveTarget.item?.id)}`}
+                target={saveTarget}
+                isAlreadySaved={Boolean(existingSaved)}
+                currentFolderId={existingSaved?.folderId}
+                folders={savedFolders}
+                onClose={() => setSaveTarget(null)}
+                onSaveToFolder={handleSaveToFolder}
+                onCreateAndSave={handleCreateAndSaveFolder}
+                onRemoveFromSaved={handleRemoveFromSavedTarget}
+              />
+            );
+          })()}
 
           {isSuggestSpotModalOpen && (
             <ErrorBoundary overlay fallbackTitle="Suggest a Spot unavailable" onReset={() => setIsSuggestSpotModalOpen(false)}>

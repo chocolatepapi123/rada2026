@@ -11,7 +11,8 @@ import {
   Folder,
   ChevronDown,
   Plus,
-  Check
+  Check,
+  Pencil
 } from 'lucide-react';
 import { 
   SavedItem, 
@@ -39,6 +40,7 @@ interface SavedPlacesModalProps {
   onOpenEvent: (event: EventItem) => void;
   onOpenOffer?: (offer: BusinessOffer) => void;
   onCreateFolder?: (name: string, emoji?: string) => void;
+  onEditFolder?: (folderId: string, name: string, emoji: string) => void;
   onDeleteFolder?: (folderId: string) => void;
   onAssignItemFolder?: (itemId: string | number, kind: string, folderId: string | undefined) => void;
   showToast: (msg: string) => void;
@@ -61,6 +63,7 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
   onOpenEvent,
   onOpenOffer,
   onCreateFolder,
+  onEditFolder,
   onDeleteFolder,
   onAssignItemFolder,
   showToast
@@ -77,10 +80,13 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
     return () => { off = true; };
   }, []);
   
-  // New Folder Creation UI State
+  // New / Edit Folder UI State
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [newFolderEmoji, setNewFolderEmoji] = useState('heart');
+  const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
+  const [editFolderName, setEditFolderName] = useState('');
+  const [editFolderEmoji, setEditFolderEmoji] = useState('heart');
 
   // Active Dropdown for assigning an item to a folder
   const [activeFolderMenuForItemId, setActiveFolderMenuForItemId] = useState<string | null>(null);
@@ -208,7 +214,20 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
     setIsCreatingFolder(false);
   };
 
+  const handleEditFolderSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingFolderId || !editFolderName.trim()) {
+      showToast('Please enter a collection name.');
+      return;
+    }
+    onEditFolder?.(editingFolderId, editFolderName.trim(), editFolderEmoji);
+    showToast(`Updated collection "${editFolderName.trim()}"!`);
+    setEditingFolderId(null);
+  };
+
   if (!isOpen) return null;
+
+  const activeFolderObj = selectedFolderId !== 'all' ? savedFolders.find(f => f.id === selectedFolderId) : undefined;
 
   return (
     <div className="fixed inset-0 z-[150] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
@@ -232,7 +251,7 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                Organize your bookmarked spots, experiences, fits & tickets into custom folders
+                Organize your bookmarked spots, experiences, events &amp; deals into collections
               </p>
             </div>
           </div>
@@ -252,7 +271,7 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
             <input
               type="text"
-              placeholder="Search saved spots, outdoor activities, events, or fits..."
+              placeholder="Search saved spots, outdoor activities, events, or deals..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-3 py-2 text-xs bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:border-[#E0533C] text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
@@ -288,19 +307,43 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
 
           {/* Custom Collection Folders Bar */}
           <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800/80 space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
                 <Folder className="w-3 h-3 text-amber-500" />
-                <span>Custom Folders ({savedFolders.length})</span>
+                <span>Collections ({savedFolders.length})</span>
               </span>
-              <button
-                type="button"
-                onClick={() => setIsCreatingFolder(prev => !prev)}
-                className="text-[10px] font-bold text-[#E0533C] hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <Plus className="w-3 h-3" />
-                <span>{isCreatingFolder ? 'Cancel' : 'New Folder'}</span>
-              </button>
+              <div className="flex items-center gap-3">
+                {activeFolderObj && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (editingFolderId === activeFolderObj.id) {
+                        setEditingFolderId(null);
+                      } else {
+                        setIsCreatingFolder(false);
+                        setEditingFolderId(activeFolderObj.id);
+                        setEditFolderName(activeFolderObj.name);
+                        setEditFolderEmoji(activeFolderObj.emoji || 'heart');
+                      }
+                    }}
+                    className="text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:text-[#E0533C] flex items-center gap-1 cursor-pointer"
+                  >
+                    <Pencil className="w-3 h-3" />
+                    <span>{editingFolderId === activeFolderObj.id ? 'Cancel Edit' : 'Edit Collection'}</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingFolderId(null);
+                    setIsCreatingFolder(prev => !prev);
+                  }}
+                  className="text-[11px] font-bold text-[#E0533C] hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>{isCreatingFolder ? 'Cancel' : 'New Folder'}</span>
+                </button>
+              </div>
             </div>
 
             {/* Folder Creation Form */}
@@ -345,11 +388,69 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
               </form>
             )}
 
+            {/* Edit Selected Collection Form */}
+            {editingFolderId && activeFolderObj && editingFolderId === activeFolderObj.id && (
+              <form onSubmit={handleEditFolderSubmit} className="p-2.5 bg-white dark:bg-[#1C1A1E] border border-amber-300/70 dark:border-amber-800/60 rounded-2xl space-y-2 animate-in fade-in zoom-in-95 duration-150">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 inline-block border border-amber-200 dark:border-amber-900">
+                    <CategoryIcon name={editFolderEmoji} className="w-5 h-5" />
+                  </span>
+                  <input
+                    type="text"
+                    value={editFolderName}
+                    onChange={(e) => setEditFolderName(e.target.value)}
+                    placeholder="Collection name"
+                    className="flex-1 px-3 py-1.5 text-xs bg-[#F8F8F6] dark:bg-[#121113] border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-[#E0533C]"
+                    autoFocus
+                  />
+                  <button
+                    type="submit"
+                    className="px-3 py-1.5 bg-[#E0533C] text-white text-xs font-bold rounded-xl shadow-xs hover:bg-orange-700 transition cursor-pointer"
+                  >
+                    Update
+                  </button>
+                  {onDeleteFolder && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const name = activeFolderObj.name;
+                        onDeleteFolder(activeFolderObj.id);
+                        setEditingFolderId(null);
+                        setSelectedFolderId('all');
+                        showToast(`Deleted collection "${name}".`);
+                      }}
+                      className="p-1.5 rounded-xl bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 transition cursor-pointer"
+                      title="Delete collection"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1 overflow-x-auto hide-scrollbar pt-1">
+                  <span className="text-[10px] text-slate-400 font-semibold mr-1">Icon:</span>
+                  {EMOJI_OPTIONS.map(em => (
+                    <button
+                      key={em}
+                      type="button"
+                      onClick={() => setEditFolderEmoji(em)}
+                      className={`p-1.5 rounded-md transition ${editFolderEmoji === em ? 'bg-orange-100 dark:bg-orange-950 ring-2 ring-[#E0533C]' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                    >
+                      <CategoryIcon name={em} className="w-4 h-4" />
+                    </button>
+                  ))}
+                </div>
+              </form>
+            )}
+
             {/* Folder Filter Pills */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 hide-scrollbar">
               <button
                 type="button"
-                onClick={() => setSelectedFolderId('all')}
+                onClick={() => {
+                  setSelectedFolderId('all');
+                  setEditingFolderId(null);
+                }}
                 className={`text-[10px] font-bold px-2.5 py-1 rounded-lg whitespace-nowrap transition cursor-pointer ${
                   selectedFolderId === 'all'
                     ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-extrabold'
@@ -365,7 +466,10 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
                   <button
                     key={folder.id}
                     type="button"
-                    onClick={() => setSelectedFolderId(folder.id)}
+                    onClick={() => {
+                      setSelectedFolderId(folder.id);
+                      if (editingFolderId && editingFolderId !== folder.id) setEditingFolderId(null);
+                    }}
                     className={`text-[10px] font-bold px-2.5 py-1 rounded-lg whitespace-nowrap transition flex items-center gap-1 cursor-pointer ${
                       selectedFolderId === folder.id
                         ? 'bg-amber-500 text-white shadow-xs font-extrabold'
@@ -412,7 +516,7 @@ export const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
                     : 'No items saved in this category yet'}
               </h4>
               <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                Tap the bookmark icon on any Nairobi spot, outdoor activity, concert pass, or promo deal to save it.
+                Tap the bookmark icon on any Nairobi spot, outdoor activity, event, or promo deal to save it.
               </p>
             </div>
           ) : (

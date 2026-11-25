@@ -391,7 +391,7 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
                         <p className="text-[10px] text-slate-400 truncate">{evt.location}</p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-bold text-purple-600 shrink-0">Tickets →</span>
+                    <span className="text-[10px] font-bold text-purple-600 shrink-0">View →</span>
                   </div>
                 ))}
               </div>

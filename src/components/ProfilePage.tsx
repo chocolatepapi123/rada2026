@@ -43,7 +43,6 @@ interface ProfilePageProps {
   outings?: OutingPlan[];
   myBusinesses?: BusinessAccount[];
   savedCount?: number;
-  ticketCount?: number;
   onOpenSaved?: () => void;
   isDarkMode: boolean;
   /** Spots people can link a diary entry to. */
@@ -72,7 +71,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   professionalStats,
   outings = [],
   savedCount = 0,
-  ticketCount = 0,
   onOpenSaved,
   spots = [],
   savedItems = [],
@@ -301,7 +299,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
               </button>
               {[
                 [hostedOutings.length, 'Hosted'],
-                [ticketCount, 'Tickets'],
               ].map(([n, label]) => (
                 <div key={String(label)} className="text-center">
                   <p className="text-[22px] leading-none font-black">{n}</p>
@@ -359,11 +356,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                     <button
                       type="button"
                       onClick={onOpenSaved}
-                      className="px-3 py-1.5 rounded-xl text-[11px] font-black text-white shrink-0 cursor-pointer flex items-center gap-1.5"
+                      className="px-3 py-2 rounded-xl text-[11px] font-black text-white shrink-0 cursor-pointer flex items-center gap-1.5"
                       style={{ background: accent }}
                     >
                       <Bookmark className="w-3 h-3" />
-                      <span>Saved Items</span>
+                      <span>Edit / Organize</span>
                     </button>
                   )}
                 </div>

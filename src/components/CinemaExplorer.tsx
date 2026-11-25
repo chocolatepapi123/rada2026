@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
-  Search, X, Film, MapPin, Ticket, Clock, ExternalLink, CalendarDays, Check, ChevronDown, Play, Tag,
+  Search, X, Film, MapPin, Clock, ExternalLink, CalendarDays, Check, ChevronDown, Play, Tag,
 } from 'lucide-react';
 import { CinemaMovie, CinemaShowtime } from '../types.ts';
 import { distanceKm, LatLng } from '../lib/geo.ts';
@@ -232,7 +232,7 @@ const MovieSheet: React.FC<SheetProps> = ({ group, onClose, onBook, focusShowtim
         <div className="sticky top-0 z-10 flex items-center justify-between px-4 pt-3 pb-2 bg-white/95 dark:bg-[#141216]/95 backdrop-blur-sm">
           <div className="w-10 h-1 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto absolute left-1/2 -translate-x-1/2 top-2 sm:hidden" />
           <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 pt-1.5">
-            {group.comingSoon ? 'Coming soon' : 'Showtimes & tickets'}
+            {group.comingSoon ? 'Coming soon' : 'Showtimes'}
           </span>
           <button type="button" onClick={onClose} aria-label="Close"
             className="p-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer">
@@ -312,7 +312,7 @@ const MovieSheet: React.FC<SheetProps> = ({ group, onClose, onBook, focusShowtim
                 <section key={String(entry.id)} className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
                   <header className="flex items-center justify-between gap-2 px-3 py-2" style={{ backgroundColor: p.color, color: p.textColor }}>
                     <div className="flex items-center gap-2 min-w-0">
-                      <Ticket className="w-4 h-4 shrink-0" />
+                      <Film className="w-4 h-4 shrink-0" />
                       <span className="text-[12px] font-black truncate">
                         {p.label}{entry.format && entry.format !== '2D' ? ` · ${entry.format}` : ''}
                       </span>
@@ -382,7 +382,7 @@ const MovieSheet: React.FC<SheetProps> = ({ group, onClose, onBook, focusShowtim
           </div>
 
           <p className="text-[10px] text-center text-slate-400">
-            Prices and seats are set by the cinema. You complete payment on their site.
+            Showtimes and seat details are hosted by the cinema on their site.
           </p>
         </div>
       </div>
@@ -765,8 +765,8 @@ export const CinemaExplorer: React.FC<CinemaExplorerProps> = ({ movies, onBookMo
                   </div>
 
                   <div className="w-full mt-2 py-1.5 bg-[#2D6A4F] group-hover:bg-emerald-800 text-white rounded-xl text-[11px] font-black transition flex items-center justify-center gap-1 shadow-xs">
-                    <Ticket className="w-3.5 h-3.5" />
-                    <span>Showtimes &amp; Tickets</span>
+                    <Film className="w-3.5 h-3.5" />
+                    <span>Showtimes</span>
                   </div>
                 </div>
               );

@@ -77,7 +77,7 @@ export const getEventPriceDisplay = (tiers?: TicketTier[]): string => {
   if (hasFree) return 'Free Entry';
   
   // Return first/lowest tier price
-  return tiers[0].price || 'Tickets Available';
+  return tiers[0].price || 'See Details';
 };
 
 // Styling badge per event category / genre
