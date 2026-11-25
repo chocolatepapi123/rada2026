@@ -1,0 +1,167 @@
+institution,area,county,type,radius_m,kind
+University of Nairobi - Main Campus,CBD,Nairobi,University,,institution
+Technical University of Kenya,CBD,Nairobi,University,,institution
+Cooperative University - Nairobi CBD Campus,CBD,Nairobi,University,,institution
+KCA University - CBD Campus,CBD,Nairobi,University,,institution
+Kenyatta University - City Centre Campus,CBD,Nairobi,University,,institution
+Egerton University - Nairobi City Campus,CBD,Nairobi,University,,institution
+Moi University - Nairobi Campus,CBD,Nairobi,University,,institution
+Laikipia University - Nairobi Campus,CBD,Nairobi,University,,institution
+Kisii University - Nairobi Campus,CBD,Nairobi,University,,institution
+South Eastern Kenya University - Nairobi Town Campus,CBD,Nairobi,University,,institution
+Mount Kenya University - MKU Towers,CBD,Nairobi,University,,institution
+Zetech University - StanBank Campus,CBD,Nairobi,University,,institution
+Zetech University - Agriculture House Campus,CBD,Nairobi,University,,institution
+Kabarak University - Nairobi City Campus,CBD,Nairobi,University,,institution
+Riara University,,Nairobi,University,,institution
+Strathmore University,,Nairobi,University,,institution
+Tangaza University,,Nairobi,University,,institution
+Hekima University College,,Nairobi,University college,,institution
+Marist International University College,,Nairobi,University college,,institution
+The Nairobi National Polytechnic,CBD,Nairobi,National polytechnic,,institution
+Kenya Institute of Management,CBD,Nairobi,Professional college,,institution
+Kenya Institute of Professional Studies,CBD,Nairobi,College,,institution
+Nairobi Institute of Technology,CBD,Nairobi,College,,institution
+Graffins College - Moi Avenue,CBD,Nairobi,College,,institution
+Oshwal College,,Nairobi,College,,institution
+Kenya Institute of Development Studies,CBD,Nairobi,College,,institution
+Summit Institute of Professionals,CBD,Nairobi,College,,institution
+Vision Institute of Professionals,CBD,Nairobi,College,,institution
+Nairobi Aviation College,,Nairobi,Aviation college,,institution
+Air Travel and Related Studies Centre,,Nairobi,Aviation college,,institution
+College of Human Resource Management,CBD,Nairobi,Professional college,,institution
+Kenya School of Revenue Administration,,Nairobi,Professional college,,institution
+Kenya Institute of Mass Communication,CBD,Nairobi,Technical college,,institution
+USIU-Africa,Kasarani,Nairobi,University,,institution
+Aga Khan University,Parklands,Nairobi,University,,institution
+University of Nairobi - Chiromo Campus,Chiromo,Nairobi,University,,institution
+University of Nairobi - Parklands Campus,Parklands,Nairobi,University,,institution
+University of Nairobi - Lower Kabete Campus,Kabete,Nairobi,University,,institution
+Zetech University - Westlands Campus,Westlands,Nairobi,University,,institution
+JKUAT - Westlands Campus,Westlands,Nairobi,University,,institution
+KCA University - Ruaraka Campus,Ruaraka,Nairobi,University,,institution
+Kenyatta University - Parklands Campus,Parklands,Nairobi,University,,institution
+Kiriri Women's University of Science and Technology,Kasarani,Nairobi,University,,institution
+Graffins College - Westlands,Westlands,Nairobi,College,,institution
+Institute of Advanced Technology - Westlands,Westlands,Nairobi,College,,institution
+Excel Global College - Parklands,Parklands,Nairobi,College,,institution
+Kenya Technical Trainers College,Gigiri,Nairobi,Technical college,,institution
+International Hotel and Tourism Institute - Kileleshwa,Kileleshwa,Nairobi,College,,institution
+Kenya Utalii College,Thika Road,Nairobi,Hospitality college,,institution
+Kenyatta University,Kahawa,Nairobi,University,4500,institution
+Zetech University - Main Campus,Ruiru,Kiambu,University,,institution
+Pan Africa Christian University,Roysambu,Nairobi,University,,institution
+Kenyatta University TVET,Kahawa,Nairobi,TVET,,institution
+Kasarani Technical and Vocational College,Kasarani,Nairobi,TVET,,institution
+Nairobi Institute of Business Studies,Thika Road,Nairobi,College,,institution
+Kamukunji Technical and Vocational College,,Nairobi,TVET,,institution
+Kenya Institute of Special Education,Kasarani,Nairobi,College,,institution
+Kenya Institute of Social Work and Community Development,,Nairobi,College,,institution
+Kenya Christian Industrial Training Institute,Eastleigh,Nairobi,TVET,,institution
+Royal College of Science and Technology,Ruiru,Kiambu,College,,institution
+Kenya Medical Training College - Nairobi,,Nairobi,Medical college,,institution
+Catholic University of Eastern Africa,Lang'ata,Nairobi,University,,institution
+Daystar University - Nairobi Campus,,Nairobi,University,,institution
+The Cooperative University of Kenya,Karen,Nairobi,University,,institution
+JKUAT - Karen Campus,Karen,Nairobi,University,,institution
+Africa International University,Karen,Nairobi,University,,institution
+Multimedia University of Kenya,Mbagathi Road,Nairobi,University,,institution
+PC Kinyanjui Technical Training Institute,Riruta,Nairobi,TVET,,institution
+Railway Training Institute,South B,Nairobi,TVET,,institution
+Kenya Medical Training College - Karen,Karen,Nairobi,Medical college,,institution
+Amref International University,,Nairobi,University,,institution
+Management University of Africa,,Nairobi,University,,institution
+Africa Nazarene University - Nairobi Campus,,Nairobi,University,,institution
+Kenya Methodist University - Nairobi Campus,,Nairobi,University,,institution
+Pioneer International University,,Nairobi,University,,institution
+Lang'ata Technical and Vocational College,Lang'ata,Nairobi,TVET,,institution
+Kibra Technical and Vocational College,Kibra,Nairobi,TVET,,institution
+NYS Engineering Institute,,Nairobi,TVET,,institution
+Kenya Water Institute,,Nairobi,TVET,,institution
+Kenya Institute of Highways and Building Technology,,Nairobi,TVET,,institution
+East African School of Aviation,,Nairobi,Aviation college,,institution
+Kenya School of Monetary Studies,,Nairobi,Professional college,,institution
+Kenya Aeronautical College,,Nairobi,Aviation college,,institution
+Kenya Medical Training College - Mathare,Mathare,Nairobi,Medical college,,institution
+Karen Technical Training Institute for the Deaf,Karen,Nairobi,TVET,,institution
+JKUAT,Juja,Kiambu,University,5000,institution
+Kenyatta University - Ruiru Campus,Ruiru,Kiambu,University,,institution
+Ruiru Technical and Vocational College,Ruiru,Kiambu,TVET,,institution
+Kiambu Institute of Science and Technology,Kiambu Town,Kiambu,National polytechnic,,institution
+Presbyterian University of East Africa,Kikuyu,Kiambu,University,,institution
+University of Nairobi - Kikuyu Campus,Kikuyu,Kiambu,University,,institution
+Kabete National Polytechnic,Kabete,Kiambu,National polytechnic,,institution
+Thogoto Teachers Training College,Kikuyu,Kiambu,Teacher training,,institution
+St. Paul's University,Limuru,Kiambu,University,,institution
+Esmart College - Kikuyu Campus,Kikuyu,Kiambu,College,,institution
+Limuru Technical and Vocational College,Limuru,Kiambu,TVET,,institution
+Githunguri Technical and Vocational College,Githunguri,Kiambu,TVET,,institution
+Skynet Business College - Limuru,Limuru,Kiambu,College,,institution
+Mount Kenya University - Thika,Thika,Kiambu,University,,institution
+Gretsa University,Thika,Kiambu,University,,institution
+Umma University - Thika Campus,Thika,Kiambu,University,,institution
+Thika Technical Training Institute,Thika,Kiambu,TVET,,institution
+Gatundu South Technical and Vocational College,Gatundu,Kiambu,TVET,,institution
+St. John's Teachers Training College - Kilimambogo,Thika,Kiambu,Teacher training,,institution
+Jodan College of Technology,Thika,Kiambu,TVET,,institution
+Hemland College of Professional and Technical Studies,Thika,Kiambu,College,,institution
+Thika Institute of Business Studies,Thika,Kiambu,College,,institution
+Thika College of Banking and Accountancy,Thika,Kiambu,Professional college,,institution
+Milestone Institute of Professional Studies,Thika,Kiambu,Professional college,,institution
+Starwan Technical Institute,Thika,Kiambu,Technical college,,institution
+Havard Institute of Development Studies,Thika,Kiambu,College,,institution
+CITC Technical and Business College,Thika,Kiambu,Technical college,,institution
+Thika College of Excellence,Thika,Kiambu,College,,institution
+Thika Talents Technical College,Thika,Kiambu,Technical college,,institution
+Hewitt and Bennet International College - Thika,Thika,Kiambu,TVET,,institution
+Equip Africa Institute - Thika Centre,Thika,Kiambu,TVET,,institution
+Kenya Medical Training College - Thika,Thika,Kiambu,Medical college,,institution
+Amboseli Institute of Hospitality and Technology,Thika,Kiambu,Hospitality college,,institution
+Kenya Institute of Software Engineering,Thika,Kiambu,Technical college,,institution
+International Centre of Technology,Thika,Kiambu,Technical college,,institution
+ICT Fire and Rescue - Thika,Thika,Kiambu,Technical training,,institution
+Transafric Accountancy and Management College,Thika,Kiambu,Professional college,,institution
+Mama Ngina University College,Gatundu,Kiambu,University college,,institution
+Kenya Medical Training College - Gatundu,Gatundu,Kiambu,Medical college,,institution
+Kenya Medical Training College - Karuri,Karuri,Kiambu,Medical college,,institution
+Lari Technical and Vocational College,Lari,Kiambu,TVET,,institution
+Nachu Technical and Vocational College,Kikuyu,Kiambu,TVET,,institution
+Juja Town,Juja,Kiambu,Student area,3100,zone
+Gachororo,Juja,Kiambu,Student area,1900,zone
+Kalimoni,Juja,Kiambu,Student area,1900,zone
+Witeithie,Juja,Kiambu,Student area,1900,zone
+Juja South,Juja,Kiambu,Student area,1900,zone
+Juja Farm,Juja,Kiambu,Student area,1900,zone
+Kahawa Sukari,Kahawa,Nairobi,Student area,2200,zone
+Kahawa Wendani,Kahawa,Nairobi,Student area,2200,zone
+Kahawa West,Kahawa,Nairobi,Student area,2200,zone
+Githurai 45,Githurai,Nairobi,Student area,1900,zone
+Mwiki,Kasarani,Nairobi,Student area,1900,zone
+Roysambu,Roysambu,Nairobi,Student area,2500,zone
+Kasarani,Kasarani,Nairobi,Student area,2500,zone
+Zimmerman,Zimmerman,Nairobi,Student area,1900,zone
+Ruaraka,Ruaraka,Nairobi,Student area,1900,zone
+Ruiru Town,Ruiru,Kiambu,Student area,3100,zone
+Kimbo,Ruiru,Kiambu,Student area,1900,zone
+Membley,Ruiru,Kiambu,Student area,1900,zone
+Thika Town,Thika,Kiambu,Student area,3800,zone
+Makongeni,Thika,Kiambu,Student area,1900,zone
+Nairobi CBD,CBD,Nairobi,Student area,2500,zone
+Ngara,Ngara,Nairobi,Student area,1900,zone
+Parklands,Parklands,Nairobi,Student area,2200,zone
+Westlands,Westlands,Nairobi,Student area,2500,zone
+Kileleshwa,Kileleshwa,Nairobi,Student area,1900,zone
+Lang'ata,Lang'ata,Nairobi,Student area,2200,zone
+Karen,Karen,Nairobi,Student area,2800,zone
+South B,South B,Nairobi,Student area,1900,zone
+South C,South C,Nairobi,Student area,1900,zone
+Madaraka,Madaraka,Nairobi,Student area,1900,zone
+Kabete,Kabete,Nairobi,Student area,1900,zone
+Riruta,Riruta,Nairobi,Student area,1900,zone
+Kawangware,Kawangware,Nairobi,Student area,1900,zone
+Eastleigh,Eastleigh,Nairobi,Student area,1900,zone
+Kikuyu Town,Kikuyu,Kiambu,Student area,2500,zone
+Kiambu Town,Kiambu Town,Kiambu,Student area,2500,zone
+Limuru Town,Limuru,Kiambu,Student area,2500,zone
+Gatundu Town,Gatundu,Kiambu,Student area,2200,zone
+Githunguri Town,Githunguri,Kiambu,Student area,1900,zone
