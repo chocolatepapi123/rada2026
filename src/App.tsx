@@ -48,6 +48,13 @@ import { buildDemoVaultTickets } from './data/demoVault.ts';
 import { useUnclaimedSpots, mergeSpots, evictUnclaimedSpot } from './lib/spotsFeed.ts';
 import { resolveNearestNeighborhood } from './lib/geo.ts';
 import { buildPublicCollectionSnapshot, publishMyPublicCollections } from './lib/publicCollections.ts';
+import {
+  type RadaHistoryState,
+  normalizeNavTab,
+  createInitialTabStack,
+  pushTabToStack,
+  popTabFromStack,
+} from './lib/tabHistory.ts';
 
 // One-time removal of the old demo content cached on this device
 purgeSeedData();
@@ -580,6 +587,16 @@ export default function App() {
 
   // Navigation
   const [activeTab, setActiveTab] = useState<string>(readDeepLinkTab);
+  const activeTabRef = useRef<string>(activeTab);
+  activeTabRef.current = activeTab;
+  const tabHistoryRef = useRef<string[]>(createInitialTabStack(activeTab));
+  const historyDepthRef = useRef<number>(tabHistoryRef.current.length);
+  const lastScrollByTabRef = useRef<Record<string, number>>({});
+  const lastSpotsScrollPosRef = useRef<number>(0);
+  const modalHistoryPushedRef = useRef<boolean>(false);
+  const pendingTabHistoryReplaceRef = useRef<string | null>(null);
+  const isProgrammaticBackRef = useRef<boolean>(false);
+  const programmaticBackTimerRef = useRef<number | null>(null);
 
   // Loaded main-tab components (see TAB_COMPONENTS). Until one is here, its tab shows the spinner.
   const [tabComps, setTabComps] = useState<Record<string, React.ComponentType<any>>>({});
@@ -641,21 +658,67 @@ export default function App() {
     return () => clearTimeout(t);
   }, [authLoading]);
 
-  // One tab-change handler for the nav bar AND swipes (history.pushState included).
-  const changeTab = (tab: string) => {
-    if (tab !== activeTab) {
-      if (tab !== 'home') {
-        window.history.pushState({ radaApp: true, tab }, '');
-      }
-      setActiveTab(tab);
+  const triggerProgrammaticBack = useCallback(() => {
+    isProgrammaticBackRef.current = true;
+    if (programmaticBackTimerRef.current) {
+      window.clearTimeout(programmaticBackTimerRef.current);
+    }
+    window.history.back();
+    programmaticBackTimerRef.current = window.setTimeout(() => {
+      isProgrammaticBackRef.current = false;
+      programmaticBackTimerRef.current = null;
+    }, 150);
+  }, []);
+
+  const restoreTabScroll = useCallback((tab: string, poppedFrom: string | null) => {
+    const pos =
+      tab === 'spots' && poppedFrom === 'calendar'
+        ? lastSpotsScrollPosRef.current
+        : (lastScrollByTabRef.current[tab] ?? 0);
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: pos, behavior: 'instant' });
+    });
+  }, []);
+
+  // Unified tab navigation helper so every tab switch updates the back-navigation stack.
+  const navigateToTab = useCallback((tab: string, opts?: { preserveScroll?: boolean }) => {
+    const current = normalizeNavTab(activeTabRef.current);
+    const { stack, changed, tab: nextTab } = pushTabToStack(tabHistoryRef.current, tab);
+    if (!changed && current === nextTab) return;
+
+    lastScrollByTabRef.current[current] = window.scrollY;
+    if (current === 'spots' && nextTab === 'calendar') {
+      lastSpotsScrollPosRef.current = window.scrollY;
+    }
+
+    tabHistoryRef.current = stack;
+    activeTabRef.current = nextTab;
+
+    if (modalHistoryPushedRef.current) {
+      // A modal is open and closing in this transition; replace its history entry on close
+      // instead of letting modal cleanup call history.back() over the new tab entry.
+      pendingTabHistoryReplaceRef.current = nextTab;
+    } else {
+      historyDepthRef.current += 1;
+      const state: RadaHistoryState = {
+        radaApp: true,
+        tab: nextTab,
+        depth: historyDepthRef.current,
+      };
+      window.history.pushState(state, '');
+    }
+
+    setActiveTab(nextTab);
+    if (!opts?.preserveScroll) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  };
+  }, []);
+
+  const changeTab = navigateToTab;
   const mainRef = useRef<HTMLElement | null>(null);
   const tabSlide = tabSlideDir(activeTab) * 48;
   const [calendarTargetDate, setCalendarTargetDate] = useState<string | null>(null);
   const [calendarTargetEventId, setCalendarTargetEventId] = useState<number | string | null>(null);
-  const lastSpotsScrollPosRef = useRef<number>(0);
 
 
   // Business Hub State
@@ -1274,33 +1337,42 @@ export default function App() {
       return;
     }
     setTargetChatId(`grp-outing-${outing.id}`);
-    setActiveTab('socials');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    navigateToTab('socials');
   };
 
   // Seamless Calendar Routing
   const handleNavigateToCalendar = (dateStr?: string, eventId?: number | string) => {
-    if (activeTab === 'spots') {
+    if (normalizeNavTab(activeTabRef.current) === 'spots') {
       lastSpotsScrollPosRef.current = window.scrollY;
     }
     setSelectedSpotModal(null);
     setSelectedEventModal(null);
     setActiveOverlay(null);
     setIsSavedModalOpen(false);
+    setSelectedPublicBusiness(null);
+    setViewingProfile(null);
+    setIsProfilePageOpen(false);
     setCalendarTargetDate(dateStr || null);
     setCalendarTargetEventId(eventId || null);
-    window.history.pushState({ radaApp: true, tab: 'calendar' }, '');
-    setActiveTab('calendar');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    navigateToTab('calendar');
   };
 
   // Smooth back navigation to Spots feed without losing scroll position or filters
   const handleBackToSpots = () => {
-    setActiveTab('spots');
-    const pos = lastSpotsScrollPosRef.current;
-    requestAnimationFrame(() => {
-      window.scrollTo({ top: pos, behavior: 'instant' });
-    });
+    const stack = tabHistoryRef.current;
+    if (stack.length >= 2 && stack[stack.length - 1] === 'calendar' && stack[stack.length - 2] === 'spots') {
+      tabHistoryRef.current = stack.slice(0, -1);
+      activeTabRef.current = 'spots';
+      historyDepthRef.current = Math.max(1, historyDepthRef.current - 1);
+      setActiveTab('spots');
+      restoreTabScroll('spots', 'calendar');
+      if (!modalHistoryPushedRef.current) {
+        triggerProgrammaticBack();
+      }
+      return;
+    }
+    navigateToTab('spots', { preserveScroll: true });
+    restoreTabScroll('spots', 'calendar');
   };
 
   const handleCloseSpotModal = () => {
@@ -1545,14 +1617,12 @@ export default function App() {
 
   const lastBackPressRef = useRef<number>(0);
   const prevModalOpenRef = useRef<boolean>(false);
-  const modalHistoryPushedRef = useRef<boolean>(false);
-  const isProgrammaticBackRef = useRef<boolean>(false);
   const isExitingRef = useRef<boolean>(false);
   const backStateRef = useRef({
     isAnyModalOpen: false,
     activeTab: 'home',
     closeTopModals: () => {},
-    handleBackToSpots: () => {},
+    restoreTabScroll: (_tab: string, _poppedFrom: string | null) => {},
     setActiveTab: (_t: string) => {},
     showToast: (_m: string) => {},
   });
@@ -1585,62 +1655,103 @@ export default function App() {
       if (isCreateEventOpen) setIsCreateEventOpen(false);
       if (saveTarget) setSaveTarget(null);
     },
-    handleBackToSpots,
+    restoreTabScroll,
     setActiveTab,
     showToast,
   };
 
   useEffect(() => {
-    // Anchor base history state on app startup
+    // Anchor base history state on app startup: [guard(0), home(1), ...deepLinkTab]
+    const initialStack = tabHistoryRef.current;
     if (!window.history.state || !window.history.state.radaApp) {
-      window.history.replaceState({ radaApp: true, tab: 'home' }, '');
-      // Opened from a shared link (?tab=outings&outing=ID): add an entry so Back returns to Home
-      if (readDeepLinkTab() === 'outings') {
-        window.history.pushState({ radaApp: true, tab: 'outings' }, '');
-      }
-      // Extra "guard" entry on top: the first Back press on Home pops this one (and shows the
-      // "Press Back again" toast) instead of closing the app straight away.
-      window.history.pushState({ radaApp: true, guard: true }, '');
+      window.history.replaceState({ radaApp: true, guard: true, depth: 0 } satisfies RadaHistoryState, '');
+      initialStack.forEach((tab, idx) => {
+        window.history.pushState(
+          { radaApp: true, tab, depth: idx + 1 } satisfies RadaHistoryState,
+          ''
+        );
+      });
+      historyDepthRef.current = initialStack.length;
     }
 
-    const handlePopState = (_e: PopStateEvent) => {
-      // If this pop was triggered programmatically to clean up a UI modal close, ignore it
-      if (isProgrammaticBackRef.current) {
-        isProgrammaticBackRef.current = false;
-        return;
-      }
-
-      if (isExitingRef.current) {
-        return;
-      }
+    const performBackStep = (state: RadaHistoryState | null) => {
+      if (isExitingRef.current) return;
 
       const cur = backStateRef.current;
 
-      // 1. If any modal or overlay is open, dismiss it and stay inside app
+      // 1. If any modal or overlay is open, dismiss it and stay on the current tab
       if (cur.isAnyModalOpen) {
-        // Modal is closed by browser hardware back button, so history entry is already popped
         modalHistoryPushedRef.current = false;
+        pendingTabHistoryReplaceRef.current = null;
+        if (typeof state?.depth === 'number') {
+          historyDepthRef.current = state.depth;
+        }
         cur.closeTopModals();
         return;
       }
 
-      // 2. If user navigated to Calendar from Spots, return smoothly to Spots feed
-      if (cur.activeTab === 'calendar') {
-        cur.handleBackToSpots();
+      // 2. Handle browser Forward navigation cleanly if state depth advanced
+      if (
+        state?.radaApp &&
+        typeof state.depth === 'number' &&
+        state.depth > historyDepthRef.current &&
+        state.tab &&
+        !state.guard &&
+        !state.modal
+      ) {
+        const next = pushTabToStack(tabHistoryRef.current, state.tab);
+        tabHistoryRef.current = next.stack;
+        historyDepthRef.current = state.depth;
+        activeTabRef.current = next.tab;
+        cur.setActiveTab(next.tab);
         return;
       }
 
-      // If user is on an inner tab, navigate back to home feed first
-      if (cur.activeTab !== 'home') {
+      // 3. Go back to the previous visited tab in the stack
+      if (tabHistoryRef.current.length > 1) {
+        const { stack, targetTab, poppedFrom } = popTabFromStack(tabHistoryRef.current, state);
+        if (targetTab) {
+          tabHistoryRef.current = stack;
+          historyDepthRef.current =
+            typeof state?.depth === 'number'
+              ? state.depth
+              : Math.max(1, historyDepthRef.current - 1);
+
+          // If the mobile browser skipped intermediate entries directly to the guard, re-anchor the target tab
+          if (state?.guard) {
+            historyDepthRef.current += 1;
+            window.history.pushState(
+              { radaApp: true, tab: targetTab, depth: historyDepthRef.current } satisfies RadaHistoryState,
+              ''
+            );
+          }
+
+          activeTabRef.current = targetTab;
+          cur.setActiveTab(targetTab);
+          cur.restoreTabScroll(targetTab, poppedFrom);
+          return;
+        }
+      }
+
+      // 4. Safety fallback if somehow on a non-home root tab
+      if (normalizeNavTab(cur.activeTab) !== 'home') {
+        tabHistoryRef.current = ['home'];
+        activeTabRef.current = 'home';
         cur.setActiveTab('home');
+        if (state?.guard) {
+          historyDepthRef.current = 1;
+          window.history.pushState(
+            { radaApp: true, tab: 'home', depth: 1 } satisfies RadaHistoryState,
+            ''
+          );
+        }
         return;
       }
 
-      // 3. User is on home feed with no modals open:
-      // Prevent accidental phone hardware back button app exit using double-press confirmation
+      // 5. User is on root home feed with no modals or previous tabs left:
+      // Prevent accidental exit via double-press confirmation
       const now = Date.now();
       if (now - lastBackPressRef.current < 2000) {
-        // Double-press within 2 seconds: leave the app on the second press
         isExitingRef.current = true;
         try {
           const appPlugin = (window as any).Capacitor?.Plugins?.App;
@@ -1655,12 +1766,60 @@ export default function App() {
 
       lastBackPressRef.current = now;
       cur.showToast('Press Back again to exit RADA PULSE');
-      // Re-anchor history state to keep the user safely inside the web app
-      window.history.pushState({ radaApp: true, tab: 'home' }, '');
+      historyDepthRef.current = 1;
+      window.history.pushState(
+        { radaApp: true, tab: 'home', depth: 1 } satisfies RadaHistoryState,
+        ''
+      );
+    };
+
+    const handlePopState = (e: PopStateEvent) => {
+      if (isProgrammaticBackRef.current) {
+        isProgrammaticBackRef.current = false;
+        if (programmaticBackTimerRef.current) {
+          window.clearTimeout(programmaticBackTimerRef.current);
+          programmaticBackTimerRef.current = null;
+        }
+        return;
+      }
+      performBackStep((e.state as RadaHistoryState | null) ?? null);
     };
 
     window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+
+    // Capacitor Android native hardware back button support
+    let capHandle: any = null;
+    let capDisposed = false;
+    try {
+      const appPlugin = (window as any).Capacitor?.Plugins?.App;
+      if (appPlugin?.addListener) {
+        const res = appPlugin.addListener('backButton', (ev: { canGoBack?: boolean }) => {
+          if (ev?.canGoBack) {
+            window.history.back();
+          } else {
+            performBackStep(null);
+          }
+        });
+        if (res && typeof res.then === 'function') {
+          res.then((h: any) => {
+            if (capDisposed) h?.remove?.();
+            else capHandle = h;
+          }).catch(() => {});
+        } else {
+          capHandle = res;
+        }
+      }
+    } catch (_) {}
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      capDisposed = true;
+      try { capHandle?.remove?.(); } catch (_) {}
+      if (programmaticBackTimerRef.current) {
+        window.clearTimeout(programmaticBackTimerRef.current);
+        programmaticBackTimerRef.current = null;
+      }
+    };
   }, []);
 
   // Once the user leaves the Outings tab, clear the shared-link parameters from the address bar
@@ -1681,24 +1840,36 @@ export default function App() {
   }, [activeTab]);
 
   // When any modal opens, push a history entry.
-  // When closed through its UI (not by back), call history.back() once so entries don't pile up.
+  // When closed through its UI (not by back), clean up or convert its history entry.
   useEffect(() => {
     if (isAnyModalOpen) {
       if (!prevModalOpenRef.current) {
-        window.history.pushState({ radaApp: true, modal: true }, '');
+        historyDepthRef.current += 1;
+        window.history.pushState(
+          { radaApp: true, modal: true, depth: historyDepthRef.current } satisfies RadaHistoryState,
+          ''
+        );
         modalHistoryPushedRef.current = true;
       }
     } else {
       if (prevModalOpenRef.current && modalHistoryPushedRef.current) {
-        // Modal was closed through UI (not via back button)
         modalHistoryPushedRef.current = false;
-        isProgrammaticBackRef.current = true;
-        window.history.back();
-        window.setTimeout(() => { isProgrammaticBackRef.current = false; }, 150);
+        const pendingTab = pendingTabHistoryReplaceRef.current;
+        pendingTabHistoryReplaceRef.current = null;
+        if (pendingTab) {
+          window.history.replaceState(
+            { radaApp: true, tab: pendingTab, depth: historyDepthRef.current } satisfies RadaHistoryState,
+            ''
+          );
+        } else {
+          // Modal was closed through UI (not via back button)
+          historyDepthRef.current = Math.max(1, historyDepthRef.current - 1);
+          triggerProgrammaticBack();
+        }
       }
     }
     prevModalOpenRef.current = isAnyModalOpen;
-  }, [isAnyModalOpen]);
+  }, [isAnyModalOpen, triggerProgrammaticBack]);
 
   // ---------------------------------------------------------------
   // CLOUD SYNC (Supabase): businesses + listings are shared across devices
@@ -2332,7 +2503,7 @@ export default function App() {
     }, ...prev]);
     setPlanDateChatId(null);
     setTargetChatId(target.id);
-    setActiveTab('socials');
+    navigateToTab('socials');
   };
 
   // Create Group Chat (real members, looked up by @username)
@@ -2347,7 +2518,7 @@ export default function App() {
       showToast('Group created. Not found: ' + res.missing.map(h => '@' + h).join(', '), { type: 'error' });
     }
     setTargetChatId(res.id);
-    setActiveTab('socials');
+    navigateToTab('socials');
   };
 
   // "Go with someone" on an event: group chat + opening message + a Vault entry
@@ -2375,7 +2546,7 @@ export default function App() {
     }, ...prev]);
     handleCloseEventModal();
     setTargetChatId(res.id);
-    setActiveTab('socials');
+    navigateToTab('socials');
     return null;
   };
 
@@ -2481,10 +2652,7 @@ export default function App() {
           {/* Top Header */}
           <Header
             onOpenOverlay={handleOpenOverlay}
-            onSwitchTab={(tab) => {
-              setActiveTab(tab);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
+            onSwitchTab={(tab) => navigateToTab(tab)}
             currentLocation={currentLocation}
             isGpsActive={isGpsActive}
             onUpdateLocation={handleUpdateLocation}
@@ -2525,7 +2693,7 @@ export default function App() {
               <HomeTab
                 events={allEvents}
                 outings={outings}
-                onGoToOutings={() => setActiveTab('outings')}
+                onGoToOutings={() => navigateToTab('outings')}
                 cinemaMovies={cinemaMovies}
                 statuses={statuses}
                 offers={offers}
@@ -2652,10 +2820,7 @@ export default function App() {
                 tickets={tickets}
                 events={allEvents}
                 onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
-                onExploreTrendingEvents={() => {
-                  setActiveTab('home');
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
+                onExploreTrendingEvents={() => navigateToTab('home')}
                 onShowQrCode={(title) => setQrPassTitle(title)}
                 showToast={showToast}
               />
@@ -2672,9 +2837,7 @@ export default function App() {
                 initialDate={calendarTargetDate}
                 highlightEventId={calendarTargetEventId}
                 onOpenEventDetails={(evt) => setSelectedEventModal(evt)}
-                onExploreTrendingEvents={() => {
-                  setActiveTab('spots');
-                }}
+                onExploreTrendingEvents={() => navigateToTab('spots')}
                 onBackToSpots={handleBackToSpots}
                 savedItems={savedItems}
                 onToggleSave={handleToggleSave}
@@ -2828,7 +2991,7 @@ export default function App() {
                         return;
                       }
                       setTargetChatId(res.id);
-                      setActiveTab('socials');
+                      navigateToTab('socials');
                       setViewingProfile(null);
                     });
                   }}
@@ -2952,9 +3115,10 @@ export default function App() {
                 offers={offers}
                 outings={allOutings}
                 onOpenOuting={(o: any) => {
-                  try { window.history.replaceState({}, '', `${window.location.pathname}?tab=outings&outing=${encodeURIComponent(String(o.id))}`); } catch (_) {}
+                  try { window.history.replaceState(window.history.state, '', `${window.location.pathname}?tab=outings&outing=${encodeURIComponent(String(o.id))}`); } catch (_) {}
                   window.dispatchEvent(new CustomEvent('rada:open-outing', { detail: { id: String(o.id) } }));
-                  setActiveTab('outings');
+                  setIsSavedModalOpen(false);
+                  navigateToTab('outings');
                 }}
                 onToggleSave={handleToggleSave}
                 onOpenSpot={(spot) => setSelectedSpotModal(spot)}

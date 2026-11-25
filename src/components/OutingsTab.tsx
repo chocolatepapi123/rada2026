@@ -450,7 +450,11 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
       params.delete('outing');
       params.delete('ref');
       const qs = params.toString();
-      window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+      window.history.replaceState(
+        window.history.state,
+        '',
+        window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash
+      );
     }
   }, [outings]);
 
