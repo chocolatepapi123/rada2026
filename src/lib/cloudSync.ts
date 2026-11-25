@@ -1923,6 +1923,90 @@ export async function updateOutingAttendeeStatus(
   }
 }
 
+export async function leaveOuting(
+  outingId: string,
+  attendeeId: string,
+  userId?: string
+): Promise<{ error: string | null }> {
+  try {
+    const cached = localStorage.getItem(OUTINGS_LOCAL_KEY);
+    if (cached) {
+      const list: OutingPlan[] = JSON.parse(cached);
+      const updated = list.map(o => {
+        if (o.id !== outingId) return o;
+        const filtered = (o.attendees || []).filter(
+          a => a.id !== attendeeId && (!userId || a.userId !== userId)
+        );
+        return {
+          ...o,
+          attendees: filtered,
+          currentAttendeesCount: filtered.filter(a => a.status === 'joined' || a.status === 'approved').length + 1
+        };
+      });
+      localStorage.setItem(OUTINGS_LOCAL_KEY, JSON.stringify(updated));
+    }
+  } catch (e) {}
+
+  if (!isSupabaseConfigured) return { error: null };
+
+  try {
+    // Prefer deleting the attendee row; if RLS only permits status updates, mark as declined.
+    const delById = await supabase
+      .from('outing_attendees')
+      .delete()
+      .eq('id', attendeeId)
+      .select('id');
+
+    let removed = !delById.error && Array.isArray(delById.data) && delById.data.length > 0;
+
+    if (!removed && userId) {
+      const delByUser = await supabase
+        .from('outing_attendees')
+        .delete()
+        .eq('outing_id', outingId)
+        .eq('user_id', userId)
+        .select('id');
+      removed = !delByUser.error && Array.isArray(delByUser.data) && delByUser.data.length > 0;
+    }
+
+    if (!removed) {
+      const updById = await supabase
+        .from('outing_attendees')
+        .update({ status: 'declined' })
+        .eq('id', attendeeId)
+        .select('id');
+      removed = !updById.error && Array.isArray(updById.data) && updById.data.length > 0;
+
+      if (!removed && userId) {
+        const updByUser = await supabase
+          .from('outing_attendees')
+          .update({ status: 'declined' })
+          .eq('outing_id', outingId)
+          .eq('user_id', userId)
+          .select('id');
+        if (updByUser.error) return { error: updByUser.error.message };
+        removed = Array.isArray(updByUser.data) && updByUser.data.length > 0;
+      } else if (updById.error && !userId) {
+        return { error: updById.error.message };
+      }
+    }
+
+    if (userId) {
+      try {
+        await supabase
+          .from('conversation_members')
+          .delete()
+          .eq('conversation_id', `grp-outing-${outingId}`)
+          .eq('user_id', userId);
+      } catch (_) {}
+    }
+
+    return { error: null };
+  } catch (err: any) {
+    return { error: err?.message || String(err) };
+  }
+}
+
 /**
  * Automatically creates or updates a temporary Group Chat thread for an Outing when host approves an applicant
  */

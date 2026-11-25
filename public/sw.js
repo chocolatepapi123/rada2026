@@ -1,6 +1,6 @@
 /* RADA PULSE service worker: makes repeat launches fast and gives an offline shell.
  * No build step needed. Bump VERSION to force every device to drop old caches. */
-const VERSION = 'rada-v11';
+const VERSION = 'rada-v12';
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
 const RUNTIME = `${VERSION}-runtime`;
@@ -91,7 +91,7 @@ self.addEventListener('fetch', (event) => {
       event.respondWith(cacheFirst(request));
       return;
     }
-    if (/\.(svg|jpg|jpeg|png|webp|ico|json)$/.test(url.pathname) && url.pathname !== '/sw.js') {
+    if (/\.(svg|jpg|jpeg|png|webp|ico|json)$/.test(url.pathname) && url.pathname !== '/sw.js' && url.pathname !== '/manifest.json') {
       event.respondWith(staleWhileRevalidate(request));
     }
     return;

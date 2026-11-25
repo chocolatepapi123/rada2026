@@ -24,7 +24,8 @@ import {
   ImagePlus,
   Loader2,
   Bookmark,
-  Navigation
+  Navigation,
+  LogOut
 } from 'lucide-react';
 import { OutingPlan, OutingAttendee, SpotItem, UserProfile } from '../types.ts';
 import { shareContent } from '../utils/shareUtils.ts';
@@ -298,6 +299,7 @@ interface OutingsTabProps {
   /** Opens the account area where plans live (Creator Hub > Plan). */
   onOpenPlans?: () => void;
   onRequestJoin: (outingId: string, attendee: OutingAttendee) => Promise<void>;
+  onLeaveOuting?: (outingId: string, attendeeId: string) => Promise<void>;
   onUpdateAttendeeStatus?: (outingId: string, attendeeId: string, status: 'approved' | 'declined') => Promise<void>;
   onOpenOutingChat?: (outing: OutingPlan) => void;
   onOpenSpotDetails?: (spot: SpotItem) => void;
@@ -321,6 +323,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   onCreateOuting,
   onOpenPlans,
   onRequestJoin,
+  onLeaveOuting,
   onUpdateAttendeeStatus,
   onOpenOutingChat,
   onOpenSpotDetails,
@@ -696,19 +699,39 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
     return `${dateStr}${timeStr ? ` • ${timeStr}` : ''}`;
   };
 
+  const [leavingOutingId, setLeavingOutingId] = useState<string | null>(null);
+
+  const findMyAttendee = (plan: OutingPlan): OutingAttendee | undefined => {
+    const effectiveUserId = currentUserId || currentUserProfile.handle || 'current-user';
+    return plan.attendees?.find(a =>
+      a.userId === effectiveUserId ||
+      a.userName === currentUserProfile.name ||
+      (currentUserProfile.handle && a.userHandle === currentUserProfile.handle)
+    );
+  };
+
   // Check user attendee status for a plan
   const getAttendeeStatus = (plan: OutingPlan): 'host' | 'joined' | 'pending' | 'none' => {
     const effectiveUserId = currentUserId || currentUserProfile.handle || 'current-user';
     if (plan.hostId === effectiveUserId || (!!currentUserProfile.handle && plan.hostHandle === currentUserProfile.handle)) {
       return 'host';
     }
-    const myAttendee = plan.attendees?.find(a => 
-      a.userId === effectiveUserId || 
-      a.userName === currentUserProfile.name ||
-      (currentUserProfile.handle && a.userHandle === currentUserProfile.handle)
-    );
+    const myAttendee = findMyAttendee(plan);
     if (!myAttendee || myAttendee.status === 'declined') return 'none';
     return (myAttendee.status === 'joined' || myAttendee.status === 'approved') ? 'joined' : 'pending';
+  };
+
+  const handleLeaveClick = async (e: React.MouseEvent, plan: OutingPlan) => {
+    e.stopPropagation();
+    if (!onLeaveOuting || leavingOutingId === plan.id) return;
+    const myAttendee = findMyAttendee(plan);
+    if (!myAttendee) return;
+    setLeavingOutingId(plan.id);
+    try {
+      await onLeaveOuting(plan.id, myAttendee.id);
+    } finally {
+      setLeavingOutingId(prev => (prev === plan.id ? null : prev));
+    }
   };
 
   const handleJoinClick = async (e: React.MouseEvent, plan: OutingPlan) => {
@@ -1134,7 +1157,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-stretch gap-2" onClick={(e) => e.stopPropagation()}>
+                <div className="flex flex-wrap items-stretch gap-2" onClick={(e) => e.stopPropagation()}>
                   {attendeeStatus === 'host' && (
                     <>
                       <button type="button" onClick={() => setManagingOuting(plan)} className={`${OUTING_BTN_SOFT} flex-1 relative`}>
@@ -1160,13 +1183,23 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
 
                   {attendeeStatus === 'joined' && (
                     <>
-                      <div className={`${OUTING_BTN_STATUS} bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300`}>
-                        <Check className="w-4 h-4 stroke-[3]" />
+                      <div className={`${OUTING_BTN_STATUS} bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2.5 text-[12px] whitespace-nowrap`}>
+                        <Check className="w-4 h-4 stroke-[3] shrink-0" />
                         <span>You're in</span>
                       </div>
-                      <button type="button" onClick={() => onOpenOutingChat?.(plan)} className={`${OUTING_BTN_PRIMARY} flex-1`}>
-                        <MessageSquare className="w-4 h-4" />
-                        <span>Group chat</span>
+                      <button type="button" onClick={() => onOpenOutingChat?.(plan)} className={`${OUTING_BTN_PRIMARY} flex-1 min-w-0 px-2.5 text-[12px] whitespace-nowrap`}>
+                        <MessageSquare className="w-4 h-4 shrink-0" />
+                        <span className="truncate">Group chat</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={leavingOutingId === plan.id}
+                        onClick={(e) => handleLeaveClick(e, plan)}
+                        aria-label="Leave outing"
+                        className="min-h-[44px] rounded-2xl px-2.5 bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-500/20 text-[12px] font-bold active:scale-[0.98] transition flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50 whitespace-nowrap shrink-0"
+                      >
+                        <LogOut className="w-3.5 h-3.5 shrink-0" />
+                        <span>{leavingOutingId === plan.id ? 'Leaving…' : 'Leave'}</span>
                       </button>
                     </>
                   )}
@@ -1666,7 +1699,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
 
               {/* Actions */}
               <div className="shrink-0 p-4 pt-3 border-t border-slate-100 dark:border-white/10 space-y-2 bg-white/95 dark:bg-[#1C1A1E]/95 backdrop-blur" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
-                <div className="flex items-stretch gap-2">
+                <div className="flex flex-wrap items-stretch gap-2">
                   {status === 'host' && (
                     <>
                       <button type="button" onClick={() => setManagingOuting(plan)} className={`${OUTING_BTN_SOFT} flex-1`}>
@@ -1682,11 +1715,21 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                   )}
                   {status === 'joined' && (
                     <>
-                      <div className={`${OUTING_BTN_STATUS} bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300`}>
-                        <Check className="w-4 h-4 stroke-[3]" /><span>You're in</span>
+                      <div className={`${OUTING_BTN_STATUS} bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2.5 text-[12px] whitespace-nowrap`}>
+                        <Check className="w-4 h-4 stroke-[3] shrink-0" /><span>You're in</span>
                       </div>
-                      <button type="button" onClick={() => { onOpenOutingChat?.(plan); close(); }} className={`${OUTING_BTN_PRIMARY} flex-1`}>
-                        <MessageSquare className="w-4 h-4" /><span>Group chat</span>
+                      <button type="button" onClick={() => { onOpenOutingChat?.(plan); close(); }} className={`${OUTING_BTN_PRIMARY} flex-1 min-w-0 px-2.5 text-[12px] whitespace-nowrap`}>
+                        <MessageSquare className="w-4 h-4 shrink-0" /><span className="truncate">Group chat</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={leavingOutingId === plan.id}
+                        onClick={(e) => handleLeaveClick(e, plan)}
+                        aria-label="Leave outing"
+                        className="min-h-[44px] rounded-2xl px-2.5 bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-500/20 text-[12px] font-bold active:scale-[0.98] transition flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50 whitespace-nowrap shrink-0"
+                      >
+                        <LogOut className="w-3.5 h-3.5 shrink-0" />
+                        <span>{leavingOutingId === plan.id ? 'Leaving…' : 'Leave'}</span>
                       </button>
                     </>
                   )}

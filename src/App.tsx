@@ -1328,6 +1328,66 @@ export default function App() {
     }
   };
 
+  const handleLeaveOuting = async (outingId: string, attendeeId: string) => {
+    const uid = demoAwareUserId(session?.user?.id);
+    if (isDemoMode() && isDemoId(outingId)) {
+      setDemoOutings(prev => prev.map(o => {
+        if (o.id !== outingId) return o;
+        const atts = (o.attendees || []).filter(
+          a => a.id !== attendeeId && (!uid || a.userId !== uid)
+        );
+        return {
+          ...o,
+          attendees: atts,
+          currentAttendeesCount: atts.filter(a => a.status === 'joined' || a.status === 'approved').length + 1,
+        };
+      }));
+      showToast('You left this outing.');
+      return;
+    }
+
+    const previousAttendees = outings.find(o => o.id === outingId)?.attendees;
+    setOutings(prev => {
+      const updatedList = prev.map(o => {
+        if (o.id !== outingId) return o;
+        const atts = (o.attendees || []).filter(
+          a => a.id !== attendeeId && (!uid || a.userId !== uid)
+        );
+        return {
+          ...o,
+          attendees: atts,
+          currentAttendeesCount: atts.filter(a => a.status === 'joined' || a.status === 'approved').length + 1,
+        };
+      });
+      writeJSON('rada_outings_cache', updatedList);
+      return updatedList;
+    });
+
+    const res = await cloud.leaveOuting(outingId, attendeeId, session?.user?.id);
+    if (res.error) {
+      if (previousAttendees) {
+        const restoreAtts = previousAttendees;
+        setOutings(prev => {
+          const restored = prev.map(o => {
+            if (o.id !== outingId) return o;
+            return {
+              ...o,
+              attendees: restoreAtts,
+              currentAttendeesCount: restoreAtts.filter(a => a.status === 'joined' || a.status === 'approved').length + 1,
+            };
+          });
+          writeJSON('rada_outings_cache', restored);
+          return restored;
+        });
+      }
+      showToast("Couldn't leave this outing. Please try again.", { type: 'error' });
+      return;
+    }
+
+    socials.refresh().catch(() => {});
+    showToast('You left this outing.');
+  };
+
   const handleOpenOutingChat = async (outing: OutingPlan) => {
     const isHost = Boolean(session?.user?.id) && outing.hostId === session.user.id;
     // Only the host can unlock the chat; approved guests are added automatically and just need a refresh
@@ -2774,6 +2834,7 @@ export default function App() {
                 onCreateOuting={handleCreateOuting}
                 onOpenPlans={() => setIsProfilePageOpen(true)}
                 onRequestJoin={handleRequestJoin}
+                onLeaveOuting={handleLeaveOuting}
                 onUpdateAttendeeStatus={handleUpdateAttendeeStatus}
                 onOpenOutingChat={handleOpenOutingChat}
                 onOpenSpotDetails={(spot) => setSelectedSpotModal(spot)}
