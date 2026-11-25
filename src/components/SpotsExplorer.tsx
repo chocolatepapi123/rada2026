@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { Search, X, MapPin, Bookmark, Star, Compass, Trash2, Navigation, ChevronDown, Check, LayoutGrid, Wallet } from 'lucide-react';
+import {
+  Search, X, MapPin, Bookmark, Star, Compass, Trash2, Navigation, ChevronDown, Check, LayoutGrid, Wallet, ArrowUpRight,
+} from 'lucide-react';
 import { SpotItem, SavedItem } from '../types.ts';
 import { spotInCategory, getSpotCategoryIds, isAllKey, resolveSpotCategory, SPOT_CATEGORIES } from '../lib/spotCategories.ts';
 import { getSpotCategoryAccent, accentVars } from '../lib/spotAccentTheme.ts';
@@ -10,6 +12,8 @@ import type { LatLng } from '../lib/geo.ts';
 import { spotMatchesSearchWithTags } from '../utils/spotTags.ts';
 import { useActivePromotions, sortSpotsByCategoryPromotion } from '../lib/promotions.ts';
 import { isStockSpotImage } from '../lib/spotsFeed.ts';
+import { pickSessionTopTen, getCurrentWeekRangeLabel } from '../lib/topTen.ts';
+import { SingleSlideCarousel } from './SingleSlideCarousel.tsx';
 
 interface SpotsExplorerProps {
   categoryKey?: string | null;
@@ -57,8 +61,8 @@ const PillDropdown: React.FC<{
         onClick={() => setOpen(o => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className={`flex items-center gap-1.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border rounded-xl px-2.5 py-1.5 font-bold text-slate-800 dark:text-slate-200 cursor-pointer transition ${
-          active ? 'border-[#E0533C]/60' : 'border-slate-200 dark:border-slate-800'
+        className={`flex items-center gap-1.5 bg-[#F8F8F6] dark:bg-[#1C1A1E] border rounded-full px-3 py-1.5 font-bold text-slate-800 dark:text-slate-200 cursor-pointer transition whitespace-nowrap ${
+          active ? 'border-[#E0533C]/60 text-[#E0533C]' : 'border-slate-200 dark:border-slate-800'
         }`}
       >
         {caption && <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">{caption}</span>}
@@ -145,9 +149,9 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
   const isSaved = (id: string | number) =>
     savedItems.some(s => String(s.id) === String(id) && s.kind === 'spot');
 
-  const filteredSpots = useMemo(() => {
-    const effectiveCat = showCategoryDropdown ? pickedCat : (categoryKey || '').toLowerCase().trim();
+  const effectiveCat = showCategoryDropdown ? pickedCat : (categoryKey || '').toLowerCase().trim();
 
+  const filteredSpots = useMemo(() => {
     let result = spots.filter(s => {
       if (isStockSpotImage(s.img)) return false;
       // Category match
@@ -175,7 +179,14 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
       return sortSpotsByCategoryPromotion(featured, effectiveCat, categorySlotPromos);
     }
     return featured;
-  }, [spots, categorySlotPromos, categoryKey, showCategoryDropdown, pickedCat, selectedBudget, query]);
+  }, [spots, categorySlotPromos, effectiveCat, selectedBudget, query]);
+
+  const weekLabel = useMemo(() => getCurrentWeekRangeLabel(), []);
+  const topTenSpots = useMemo(() => {
+    if (forDate || filteredSpots.length === 0) return [];
+    const scopeKey = effectiveCat && !isAllKey(effectiveCat) ? effectiveCat : 'all';
+    return pickSessionTopTen(`spots-cat-${scopeKey}`, filteredSpots, (s) => String(s.id), 10);
+  }, [forDate, effectiveCat, filteredSpots]);
 
   return (
     <div className="space-y-4">
@@ -206,7 +217,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
         )}
       </div>
 
-      {/* Filters: budget dropdown, category (all-spots screens only) */}
+      {/* Filters: compact pill dropdowns */}
       <div className="flex items-center gap-2 flex-wrap text-xs">
         {showCategoryDropdown && (
           <PillDropdown value={pickedCat} options={CATEGORY_OPTIONS} onChange={setPickedCat} menuWidthClass="w-64" />
@@ -234,7 +245,127 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
         )}
       </div>
 
-      {/* Spots Grid */}
+      {/* RADA TOP 10 weekly single-card swipe carousel */}
+      {!forDate && topTenSpots.length > 0 && (
+        <section className="space-y-2.5" aria-label="RADA Top 10 this week">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <img
+                src="/rada-mark.png"
+                alt="RADA"
+                className="w-6 h-6 rounded-lg object-contain shrink-0"
+              />
+              <span className="text-xs font-black tracking-tight text-slate-900 dark:text-slate-100 whitespace-nowrap">
+                RADA
+              </span>
+              <span className="text-xs font-black tracking-wide uppercase text-[#E0533C] whitespace-nowrap">
+                TOP 10
+              </span>
+            </div>
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 tabular-nums truncate">
+              {weekLabel}
+            </span>
+          </div>
+
+          <SingleSlideCarousel ariaLabel="RADA Top 10 spots carousel">
+            {topTenSpots.map((spot, idx) => {
+              const rank = idx + 1;
+              const saved = isSaved(spot.id);
+              const coverImg = (spot.images && spot.images[0]) || spot.img;
+              const catIds = getSpotCategoryIds(spot);
+              const primary = getSpotCategoryAccent(catIds[0] || spot.category);
+              const locationLine =
+                [spot.neighborhood, spot.address?.split(',')[0]].filter(Boolean).join(' · ') || 'Nairobi';
+              const shortDesc =
+                spot.description?.trim() || `${primary.label} spot in ${spot.neighborhood || 'Nairobi'}.`;
+              const dist = (spot as any).distanceKm as number | undefined;
+
+              return (
+                <article
+                  key={`top10-spot-${spot.id}`}
+                  onClick={() => onOpenSpot(spot)}
+                  style={accentVars(primary)}
+                  className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-xs cursor-pointer hover:border-[#E0533C] transition group"
+                >
+                  {/* Landscape 16:9 image */}
+                  <div className="relative aspect-video w-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                    {coverImg ? (
+                      <img
+                        src={coverImg}
+                        alt={spot.title}
+                        loading={idx < 2 ? 'eager' : 'lazy'}
+                        decoding="async"
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-100 to-amber-50 dark:from-slate-800 dark:to-slate-900">
+                        <Compass className="w-10 h-10 text-[#E0533C]/50" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-black/20 pointer-events-none" />
+
+                    {/* Ranking badge #1 through #10 */}
+                    <span className="absolute top-3 left-3 px-2.5 py-1 rounded-xl bg-[#E0533C] text-white text-xs font-black shadow-md tabular-nums">
+                      #{rank}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleSave?.(spot, 'spot');
+                      }}
+                      aria-label={saved ? 'Remove from saved' : 'Save spot'}
+                      className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs ${
+                        saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
+                      }`}
+                    >
+                      <Bookmark className={`w-4 h-4 ${saved ? 'fill-white' : ''}`} />
+                    </button>
+
+                    {dist != null && (
+                      <span className="absolute bottom-3 left-3 bg-[#2D6A4F]/95 text-white text-[10px] font-black px-2 py-0.5 rounded-lg flex items-center gap-1">
+                        <Navigation className="w-3 h-3" /> {formatKm(dist)}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Card details */}
+                  <div className="p-4 space-y-2">
+                    <div className="space-y-1">
+                      <h4 className="font-black text-base leading-snug text-slate-900 dark:text-slate-100 truncate group-hover:text-[#E0533C] transition">
+                        {spot.title}
+                      </h4>
+                      <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1 truncate">
+                        <MapPin className="w-3.5 h-3.5 shrink-0 text-[#E0533C]" />
+                        <span className="truncate">{locationLine}</span>
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                        {shortDesc}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenSpot(spot);
+                      }}
+                      className="w-full py-2.5 px-4 rounded-2xl bg-[#E0533C] hover:bg-orange-700 text-white text-xs font-black transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                    >
+                      <span>Visit</span>
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </SingleSlideCarousel>
+        </section>
+      )}
+
+      {/* Spots Grid (existing 2-column layout preserved) */}
       {filteredSpots.length === 0 ? (
         <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-dashed border-slate-300 dark:border-slate-800 rounded-3xl p-8 text-center space-y-3">
           <Compass className="w-8 h-8 mx-auto" style={{ color: screenAccent.color }} />
