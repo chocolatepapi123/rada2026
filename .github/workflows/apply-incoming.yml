@@ -1,0 +1,79 @@
+name: Apply incoming zips
+
+# Drop a .zip into incoming/ (on main). This unpacks it into the repo using the
+# zip's own paths, deletes the zip, and commits the result.
+# Anything under .github/ inside a zip is skipped (GitHub does not let this
+# workflow write workflow files); add those by hand.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "incoming/*.zip"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-incoming
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unpack zips
+        run: |
+          shopt -s nullglob
+          zips=(incoming/*.zip)
+          if [ ${#zips[@]} -eq 0 ]; then
+            echo "No zips in incoming/. Nothing to do."
+            exit 0
+          fi
+          for z in "${zips[@]}"; do
+            echo "=== $z"
+            python3 - "$z" <<'PY'
+          import sys, zipfile, pathlib
+          zf = zipfile.ZipFile(sys.argv[1])
+          bad = zf.testzip()
+          if bad:
+              sys.exit(f"corrupt zip entry: {bad}")
+          root = pathlib.Path(".").resolve()
+          done = skipped = 0
+          for info in zf.infolist():
+              if info.is_dir():
+                  continue
+              name = info.filename.replace("\\", "/")
+              parts = [p for p in name.split("/") if p not in ("", ".")]
+              if not parts or name.startswith("/") or ".." in parts:
+                  print("skip (unsafe path):", name); skipped += 1; continue
+              if parts[0] in (".github", ".git"):
+                  print("skip (add by hand):", name); skipped += 1; continue
+              dest = root.joinpath(*parts).resolve()
+              if root not in dest.parents:
+                  print("skip (outside repo):", name); skipped += 1; continue
+              dest.parent.mkdir(parents=True, exist_ok=True)
+              dest.write_bytes(zf.read(info))
+              print("wrote", "/".join(parts)); done += 1
+          print(f"extracted {done} files, skipped {skipped}")
+          if done == 0:
+              sys.exit("zip contained no usable files")
+          PY
+            rm -f "$z"
+          done
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "Apply incoming zip"
+          git pull --rebase origin main
+          git push origin HEAD:main
