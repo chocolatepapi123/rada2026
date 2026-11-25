@@ -35,7 +35,7 @@ interface DeckSpec {
 
 // The three sample posts used in the commercial (Socials, Shot 2).
 const DECK: DeckSpec[] = [
-  { n: 1, by: 'otis', body: 'Mzinga iko Kasarani. Nani ako rada?', area: 'Kasarani', img: 'mzinga-kasarani', hours: 9, replies: 7, trusted: true },
+  { n: 1, by: 'otis', body: 'Nani ako kasa?', area: 'Kasarani', img: 'mzinga-kasarani', hours: 9, replies: 7, trusted: true },
   { n: 2, by: 'caro', body: 'Got an extra ticket for tonight. Who’s coming?', area: 'Westlands', img: 'extra-ticket', hours: 5, replies: 4,
     plan: { kind: 'event', ref: 'showcase-ev-sunset-rooftop', title: 'Sunset Rooftop Sessions' } },
   { n: 3, by: 'dennis', body: 'Looking for people to catch the game with.', area: 'Kilimani', img: 'catch-the-game', hours: 7, replies: 9 },

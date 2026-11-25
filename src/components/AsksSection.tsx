@@ -226,7 +226,7 @@ const AsksSection: React.FC<Props> = ({ signedIn, showToast, onNeedSignIn, onCha
                     <p className="text-[12px]"><b>@{r.handle || 'someone'}</b>{r.verified && <BadgeCheck className="inline w-3.5 h-3.5 ml-1 text-[#2D6A4F]" />} {r.message}</p>
                     {r.status === 'pending' ? (
                       <div className="flex gap-2">
-                        <button onClick={() => accept(r)} className="px-3 py-1.5 rounded-full bg-[#2D6A4F] text-white text-[11px] font-extrabold cursor-pointer">Let them in</button>
+                        <button onClick={() => accept(r)} className="px-3 py-1.5 rounded-full bg-[#2D6A4F] text-white text-[11px] font-extrabold cursor-pointer">Chat</button>
                         <button onClick={() => decline(r)} className="px-3 py-1.5 rounded-full text-slate-500 text-[11px] font-extrabold cursor-pointer">Not now</button>
                       </div>
                     ) : <p className="text-[11px] font-bold text-slate-400">{r.status === 'accepted' ? 'In the chat' : 'Not now'}</p>}
