@@ -11,15 +11,20 @@
  *   SUPABASE_SERVICE_ROLE_KEY
  *
  * Sources
- *   anga       cinema.angacinemas.com    films, posters, synopsis, trailer + every showtime with a direct reservation link & price
- *   century    centurycinemax.co.ke      films, posters, synopsis, per-cinema direct booking pages, upcoming releases
- *   unseen     unseen-nairobi.com        independent films, posters, synopsis, trailer, Mookh ticket links
- *   kenyabuzz  kenyabuzz.com/movies      needs Playwright (the site is a JS app). Optional, best-effort.
+ *   anga          cinema.angacinemas.com             films, posters, synopsis, trailer + every showtime with reservation link & price
+ *   century       centurycinemax.co.ke               films, posters, synopsis, per-cinema direct booking pages, upcoming releases
+ *   unseen        unseen-nairobi.com                 independent films, posters, synopsis, trailer, Mookh ticket links
+ *   westgate      westgate.co.ke/movies              Westgate Mall films, runtime, rating, genres, synopsis, trailer, showtimes
+ *   gig           events.gig.co.ke/movies            Century Cinemax lineup, posters, trailers, runtimes & upcoming releases via GiG
+ *   visitnairobi  visitnairobi.city/films            Nairobi cinema catalog (KenyaBuzz + TMDB posters, genres, ratings, trailers)
+ *   mydorpie      mydorpie.com/Movies/Cinemas-in-Kenya   Kenyan cinema directory & showtime feeds
+ *   kenyabuzz     kenyabuzz.com/movies               needs Playwright (the site is a JS app). Optional, best-effort.
  */
 import * as cheerio from 'cheerio';
 import { createHash } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { VENUE_LABELS, titleKey, detectFormat } from '../src/lib/cinemaProviders.ts';
+import { r2Missing, put as r2Put, publicUrl as r2PublicUrl } from './lib/r2.mjs';
 
 try { (process as any).loadEnvFile?.('.env.local'); } catch { /* no file, fine */ }
 
@@ -430,10 +435,369 @@ async function scrapeKenyaBuzz(): Promise<Result> {
   return { movies, showtimes: [] };
 }
 
+// ═════════════════════════ WESTGATE CINEMA ═════════════════════════
+const WESTGATE = 'https://westgate.co.ke';
+
+async function scrapeWestgate(): Promise<Result> {
+  const html = await get(`${WESTGATE}/movies`);
+  const $ = cheerio.load(html);
+  const slugs = new Set<string>();
+  $('a[href*="/movies/"]').each((_, el) => {
+    const href = $(el).attr('href') || '';
+    const m = href.match(/\/movies\/([a-z0-9-]+)\/?$/i);
+    if (m && m[1] !== 'today-lineup') slugs.add(m[1]);
+  });
+  log(`  westgate: ${slugs.size} film pages found`);
+
+  const movies: SeedMovie[] = [];
+  const showtimes: SeedShowtime[] = [];
+  const today = todayISO();
+
+  for (const slug of slugs) {
+    const url = `${WESTGATE}/movies/${slug}`;
+    try {
+      const pageHtml = await get(url);
+      const $p = cheerio.load(pageHtml);
+      const rawTitle = clean($p('h1').first().text()).replace(/\s*Showtimes$/i, '');
+      const title = toTitleCase(rawTitle || slug.replace(/-/g, ' '));
+      if (!title) continue;
+
+      const ogImg = $p('meta[property="og:image"]').attr('content') || null;
+      const bodyImg = $p('main img, article img, .movie-poster img').toArray()
+        .map((e: any) => abs(WESTGATE, $p(e).attr('src')))
+        .find((u): u is string => Boolean(u && !/logo|westgate-shopping-mall|favicon/i.test(u)));
+      const poster = bodyImg || ogImg;
+
+      const mainText = clean(
+        $p('h1').first().parent().parent().text() ||
+        $p('main').text() ||
+        $p('body').text()
+      );
+      const runtime = parseRuntime((mainText.match(/Runtime:\s*([^\n]+?)(?:Rating:|Genres:|Synopsis:|$)/i) || [])[1] || '');
+      const ratingRaw = clean((mainText.match(/Rating:\s*([A-Za-z0-9+_-]+)/i) || [])[1]);
+      const rating = ratingRaw && !/^TBC$/i.test(ratingRaw) ? ratingRaw : null;
+      const genreRaw = clean((mainText.match(/Genres?:\s*([^]+?)(?:Synopsis:|CAST:|Select Date|$)/i) || [])[1]);
+      const genre = genreRaw ? toTitleCase(genreRaw.split(',')[0].replace(/\//g, ' / ').trim()) : null;
+      const synMatch = mainText.match(/Synopsis:\s*([^]+?)(?:CAST:|Select Date|Today|$)/i);
+      const ogDesc = clean($p('meta[property="og:description"]').attr('content')).replace(/\s*CAST\b.*$/i, '');
+      const synopsis = clean(synMatch?.[1]) || ogDesc || null;
+      const trailer = ytWatch(
+        $p('a[href*="youtu"], iframe[src*="youtu"]').attr('href') ||
+        $p('iframe[src*="youtu"]').attr('src') ||
+        pageHtml.match(/https:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)[\w-]+/i)?.[0]
+      );
+      const format = detectFormat(title, mainText);
+      const movieId = `westgate:${slug}`;
+
+      // Parse show dates + times
+      const dateMatches = [...mainText.matchAll(/(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(\d{1,2})\s+([A-Za-z]{3})/gi)];
+      const timeMatches = [...new Set([...mainText.matchAll(/\b(\d{1,2}:\d{2})\b/g)].map(m => m[1]))];
+      const dates = dateMatches.length
+        ? [...new Set(dateMatches.map(d => inferDate(Number(d[1]), d[2])).filter((x): x is string => Boolean(x && x >= today)))]
+        : [today];
+      const isComing = dates.length > 0 && dates[0] > addDays(today, 7);
+      const release = isComing ? dates[0] : null;
+
+      for (const dt of dates.slice(0, 6)) {
+        for (const tm of timeMatches.slice(0, 6)) {
+          showtimes.push({
+            id: `${movieId}:${dt}:${tm}`,
+            movie_id: movieId,
+            provider: 'westgate',
+            venue: VENUE_LABELS.westgate,
+            venue_key: 'westgate',
+            show_date: dt,
+            show_time: tm,
+            starts_at: `${dt}T${tm}:00+03:00`,
+            screen: null,
+            format,
+            price_kes: format === '3D' ? 1000 : 850,
+            booking_url: url,
+          });
+        }
+      }
+
+      movies.push({
+        id: movieId,
+        provider: 'westgate',
+        title,
+        title_key: titleKey(title),
+        poster_url: poster,
+        backdrop_url: null,
+        synopsis,
+        genre,
+        rating,
+        runtime_min: runtime,
+        format,
+        language: /hindi/i.test(title) ? 'Hindi' : /salangpur/i.test(title) ? 'Gujarati' : 'English',
+        release_date: release,
+        trailer_url: trailer,
+        movie_url: url,
+        booking_url: url,
+        status: isComing ? 'coming_soon' : 'now_showing',
+        venues: [{ venue: VENUE_LABELS.westgate, venueKey: 'westgate', bookingUrl: url }],
+      });
+      await sleep(200);
+    } catch (e) {
+      log(`  ! westgate ${slug}: ${(e as Error).message}`);
+    }
+  }
+  return { movies, showtimes };
+}
+
+// ═════════════════════════ GiG MOVIES ═════════════════════════
+const GIG_MOVIES = 'https://events.gig.co.ke/movies';
+const GIG_CINEMA_MAP: Record<string, string> = {
+  'garden-city': 'century_garden_city',
+  'two-rivers': 'century_two_rivers',
+  sarit: 'century_sarit',
+  junction: 'century_junction',
+};
+
+async function scrapeGig(): Promise<Result> {
+  const html = await get(GIG_MOVIES);
+  const rsc = [...html.matchAll(/self\.__next_f\.push\(\[1,"([\s\S]*?)"\]\)/g)].map(m => m[1]).join('');
+  const dec = rsc.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+
+  const slideByKey = new Map<string, { backdrop?: string; poster?: string; trailer?: string; label?: string }>();
+  for (const m of dec.matchAll(/"trailerUrl":"([^"]+)"/g)) {
+    const start = dec.lastIndexOf('{"id":', m.index);
+    if (start < 0) continue;
+    let i = start, depth = 0, s = '';
+    for (; i < dec.length && i < start + 3000; i++) {
+      const ch = dec[i]; s += ch;
+      if (ch === '{') depth++;
+      else if (ch === '}') { depth--; if (depth === 0) break; }
+    }
+    try {
+      const obj = JSON.parse(s);
+      if (obj?.title) {
+        slideByKey.set(titleKey(obj.title), {
+          backdrop: obj.poster || undefined,
+          poster: obj.moviePoster || undefined,
+          trailer: ytWatch(obj.trailerUrl) || undefined,
+          label: obj.label || undefined,
+        });
+      }
+    } catch { /* ignore malformed fragment */ }
+  }
+
+  const movies: SeedMovie[] = [];
+  const seen = new Set<string>();
+  for (const m of dec.matchAll(/"movie":\{"id":"([^"]+)"/g)) {
+    let i = m.index + 8, depth = 0, s = '';
+    for (; i < dec.length && i < m.index + 2500; i++) {
+      const ch = dec[i]; s += ch;
+      if (ch === '{') depth++;
+      else if (ch === '}') { depth--; if (depth === 0) break; }
+    }
+    try {
+      const obj = JSON.parse(s);
+      if (!obj?.id || seen.has(obj.id) || !obj?.title) continue;
+      seen.add(obj.id);
+      const tKey = titleKey(obj.title);
+      const slide = slideByKey.get(tKey);
+      const formats: string[] = Array.isArray(obj.formats) ? obj.formats : [];
+      const format = detectFormat(obj.title, ...formats);
+      const venues = (Array.isArray(obj.cinemas) ? obj.cinemas : [])
+        .map((c: string) => {
+          const vk = GIG_CINEMA_MAP[c];
+          if (!vk) return null;
+          return {
+            venue: VENUE_LABELS[vk] || c,
+            venueKey: vk,
+            bookingUrl: `https://events.gig.co.ke/movies/${c}`,
+          };
+        })
+        .filter(Boolean) as { venue: string; venueKey: string; bookingUrl: string }[];
+
+      movies.push({
+        id: `gig:${obj.id}`,
+        provider: 'gig',
+        title: clean(obj.title),
+        title_key: tKey,
+        poster_url: obj.poster || slide?.poster || null,
+        backdrop_url: slide?.backdrop || null,
+        synopsis: null,
+        genre: obj.genre || null,
+        rating: obj.rating || null,
+        runtime_min: obj.runtime ? parseRuntime(String(obj.runtime)) : null,
+        format,
+        language: /hindi/i.test(obj.title) ? 'Hindi' : 'English',
+        release_date: null,
+        trailer_url: slide?.trailer || null,
+        movie_url: obj.href ? `https://events.gig.co.ke${obj.href}` : GIG_MOVIES,
+        booking_url: obj.href ? `https://events.gig.co.ke${obj.href}` : GIG_MOVIES,
+        status: /coming soon/i.test(slide?.label || '') ? 'coming_soon' : 'now_showing',
+        venues,
+      });
+    } catch { /* ignore */ }
+  }
+  log(`  gig: ${movies.length} films extracted`);
+  return { movies, showtimes: [] };
+}
+
+// ═════════════════════════ VISIT NAIROBI FILMS ═════════════════════════
+const VISIT_NAIROBI = 'https://visitnairobi.city';
+
+async function scrapeVisitNairobi(): Promise<Result> {
+  const html = await get(`${VISIT_NAIROBI}/films`);
+  const kbScriptMatch = html.match(/src=["'](kb\.js[^"']*)["']/i);
+  const kbUrl = kbScriptMatch ? `${VISIT_NAIROBI}/${kbScriptMatch[1]}` : `${VISIT_NAIROBI}/kb.js`;
+  const kbText = await get(kbUrl);
+  const idx = kbText.indexOf('KB_SNAP=');
+  if (idx < 0) return { movies: [], showtimes: [] };
+  const jsonStr = kbText.slice(idx + 8).replace(/;\s*$/, '');
+  const kb = JSON.parse(jsonStr);
+  const rawMovies: any[] = Array.isArray(kb?.movies) ? kb.movies : [];
+
+  const movies: SeedMovie[] = rawMovies.map(x => {
+    const title = clean(x.t);
+    const synClean = clean(String(x.syn || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&#39;/g, "'"));
+    const poster = x.img ? `${VISIT_NAIROBI}/${String(x.img).replace(/^\//, '')}` : null;
+    const genre = x.genre ? clean(String(x.genre).split('|')[0].trim()) : null;
+    const rating = x.rating && x.rating !== '-' && x.rating !== '0' ? String(x.rating) : null;
+    return {
+      id: `visitnairobi:${x.s || sha(title)}`,
+      provider: 'visitnairobi',
+      title,
+      title_key: titleKey(title),
+      poster_url: poster,
+      backdrop_url: null,
+      synopsis: synClean || null,
+      genre: genre === 'Science Fiction' ? 'Sci-Fi' : genre,
+      rating,
+      runtime_min: typeof x.run === 'number' ? x.run : null,
+      format: detectFormat(title),
+      language: /hindi|nayyi|prahaar|drishyam/i.test(title) ? 'Hindi' : 'English',
+      release_date: x.rel || null,
+      trailer_url: x.yt ? `https://www.youtube.com/watch?v=${x.yt}` : null,
+      movie_url: `${VISIT_NAIROBI}/films`,
+      booking_url: 'https://kenyabuzz.com/movies',
+      status: x.soon ? 'coming_soon' : 'now_showing',
+      venues: [],
+    };
+  }).filter(m => Boolean(m.title));
+
+  log(`  visitnairobi: ${movies.length} films from ${kbUrl}`);
+  return { movies, showtimes: [] };
+}
+
+// ═════════════════════════ MYDORPIE KENYA CINEMAS ═════════════════════════
+const MYDORPIE = 'https://mydorpie.com';
+const MYDORPIE_VENUES: { path: string; venueKey: string }[] = [
+  { path: '/m/?page=kenyamovies_westgatenairobi', venueKey: 'westgate' },
+  { path: '/m/?page=kenyamovies_prestplaza', venueKey: 'prestige' },
+  { path: '/m/?page=kenyamovies_angadiamond', venueKey: 'anga_diamond' },
+  { path: '/m/?page=kenyamovies_angasky', venueKey: 'anga_panari' },
+  { path: '/m/?page=kenyamovies_20thcenturyimax', venueKey: '20th_century' },
+  { path: '/Cinemas/Nairobi/Century-Cinemax/Garden-City-Mall-Movies', venueKey: 'century_garden_city' },
+  { path: '/Cinemas/Nairobi/Century-Cinemax/Junction-Mall-Movies', venueKey: 'century_junction' },
+  { path: '/Cinemas/Nairobi/Century-Cinemax/Sarit-Centre-Movies', venueKey: 'century_sarit' },
+  { path: '/Cinemas/Nairobi/Century-Cinemax/Two-Rivers-Mall-Movies', venueKey: 'century_two_rivers' },
+  { path: '/Cinemas/Kenya/Mombasa/Nyali-Cinemax-Movies', venueKey: 'nyali' },
+  { path: '/m/?page=kenyamovies_nakumatt', venueKey: 'megacity' },
+];
+
+async function scrapeMydorpie(): Promise<Result> {
+  const indexHtml = await get(`${MYDORPIE}/Movies/Cinemas-in-Kenya`);
+  const $idx = cheerio.load(indexHtml);
+  const movies: SeedMovie[] = [];
+  const showtimes: SeedShowtime[] = [];
+  const seen = new Set<string>();
+  const today = todayISO();
+
+  for (const v of MYDORPIE_VENUES) {
+    try {
+      const pageUrl = `${MYDORPIE}${v.path}`;
+      const html = await get(pageUrl);
+      const $ = cheerio.load(html);
+      $('h2, h3, .movie-title, .film-title').each((_, el) => {
+        const title = clean($(el).text());
+        if (!title || /contact details|showing now|see also|share this page|movies$/i.test(title) || title.length < 3) return;
+        const parentText = clean($(el).parent().text());
+        if (/currently being updated/i.test(parentText)) return;
+        const tKey = titleKey(title);
+        const id = `mydorpie:${sha(tKey)}`;
+        if (!seen.has(id)) {
+          seen.add(id);
+          movies.push({
+            id,
+            provider: 'mydorpie',
+            title,
+            title_key: tKey,
+            poster_url: abs(MYDORPIE, $(el).parent().find('img').attr('src')),
+            backdrop_url: null,
+            synopsis: null,
+            genre: null,
+            rating: null,
+            runtime_min: null,
+            format: detectFormat(title, parentText),
+            language: 'English',
+            release_date: null,
+            trailer_url: null,
+            movie_url: pageUrl,
+            booking_url: pageUrl,
+            status: 'now_showing',
+            venues: [{ venue: VENUE_LABELS[v.venueKey] || v.venueKey, venueKey: v.venueKey, bookingUrl: pageUrl }],
+          });
+        }
+        const times = [...parentText.matchAll(/\b(\d{1,2}:\d{2}(?:\s*[AP]M)?)\b/gi)].map(m => to24(m[1]) || m[1]);
+        for (const tm of times.slice(0, 6)) {
+          showtimes.push({
+            id: `${id}:${v.venueKey}:${today}:${tm}`,
+            movie_id: id,
+            provider: 'mydorpie',
+            venue: VENUE_LABELS[v.venueKey] || v.venueKey,
+            venue_key: v.venueKey,
+            show_date: today,
+            show_time: tm.slice(0, 5),
+            starts_at: `${today}T${tm.slice(0, 5)}:00+03:00`,
+            screen: null,
+            format: detectFormat(title, parentText),
+            price_kes: null,
+            booking_url: pageUrl,
+          });
+        }
+      });
+      await sleep(150);
+    } catch (e) {
+      log(`  ! mydorpie ${v.venueKey}: ${(e as Error).message}`);
+    }
+  }
+  log(`  mydorpie: checked ${$idx('a').length} directory links across ${MYDORPIE_VENUES.length} cinemas, found ${movies.length} active films`);
+  return { movies, showtimes };
+}
+
+// ═════════════════════════ optional R2 mirroring ═════════════════════════
+async function maybeMirrorToR2(imageUrl: string | null, keyPrefix: string): Promise<string | null> {
+  if (!imageUrl || r2Missing().length > 0) return imageUrl;
+  try {
+    const res = await fetch(imageUrl, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return imageUrl;
+    const ct = res.headers.get('content-type') || 'image/jpeg';
+    if (!ct.startsWith('image/')) return imageUrl;
+    const ext = ct.includes('webp') ? 'webp' : ct.includes('png') ? 'png' : 'jpg';
+    const key = `posters/${keyPrefix}-${sha(imageUrl)}.${ext}`;
+    const buf = Buffer.from(await res.arrayBuffer());
+    await r2Put(key, buf, ct);
+    return r2PublicUrl(key);
+  } catch {
+    return imageUrl;
+  }
+}
+
 // ═════════════════════════ persistence ═════════════════════════
 async function save(sb: ReturnType<typeof createClient>, provider: string, r: Result) {
   if (!r.movies.length) { log(`  ${provider}: nothing scraped, leaving existing rows untouched`); return; }
   const now = new Date().toISOString();
+  const useR2 = r2Missing().length === 0;
+  if (useR2) {
+    for (const m of r.movies) {
+      m.poster_url = await maybeMirrorToR2(m.poster_url, `cinema-${provider}`);
+      m.backdrop_url = await maybeMirrorToR2(m.backdrop_url, `cinema-${provider}-bg`);
+    }
+  }
 
   const { error: e1 } = await sb.from('cinema_movies').upsert(r.movies.map(m => ({ ...m, scraped_at: now })), { onConflict: 'id' });
   if (e1) throw e1;
@@ -456,7 +820,14 @@ async function save(sb: ReturnType<typeof createClient>, provider: string, r: Re
 
 // ═════════════════════════ main ═════════════════════════
 const SOURCES: Record<string, () => Promise<Result>> = {
-  anga: scrapeAnga, century: scrapeCentury, unseen: scrapeUnseen, kenyabuzz: scrapeKenyaBuzz,
+  anga: scrapeAnga,
+  century: scrapeCentury,
+  unseen: scrapeUnseen,
+  westgate: scrapeWestgate,
+  gig: scrapeGig,
+  visitnairobi: scrapeVisitNairobi,
+  mydorpie: scrapeMydorpie,
+  kenyabuzz: scrapeKenyaBuzz,
 };
 
 async function main() {

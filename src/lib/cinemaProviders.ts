@@ -41,6 +41,34 @@ export const PROVIDERS: Record<string, ProviderInfo> = {
     hint: 'Independent rooftop cinema. Details and booking are on Mookh.',
     hasShowtimes: false,
   },
+  westgate: {
+    id: 'westgate', label: 'Westgate Cinema', short: 'Westgate',
+    color: '#0F766E', textColor: '#FFFFFF',
+    bookLabel: 'Showtimes (Westgate)',
+    hint: 'Opens Westgate Cinema showtimes and seat booking in Westlands.',
+    hasShowtimes: true,
+  },
+  gig: {
+    id: 'gig', label: 'GiG Cinema', short: 'GiG',
+    color: '#1D4ED8', textColor: '#FFFFFF',
+    bookLabel: 'View on GiG',
+    hint: 'Opens Century Cinemax showtimes and M-Pesa booking via GiG.',
+    hasShowtimes: false,
+  },
+  visitnairobi: {
+    id: 'visitnairobi', label: 'Visit Nairobi Films', short: 'Visit Nairobi',
+    color: '#047857', textColor: '#FFFFFF',
+    bookLabel: 'Film details & showtimes',
+    hint: 'Opens the Nairobi cinema guide and booking links.',
+    hasShowtimes: false,
+  },
+  mydorpie: {
+    id: 'mydorpie', label: 'MyDorpie Cinemas', short: 'MyDorpie',
+    color: '#B45309', textColor: '#FFFFFF',
+    bookLabel: 'Cinema schedule',
+    hint: 'Opens Kenyan cinema directory and box-office details.',
+    hasShowtimes: false,
+  },
 };
 
 export const GENERIC_PROVIDER: ProviderInfo = {
@@ -62,6 +90,11 @@ export const VENUE_LABELS: Record<string, string> = {
   anga_panari: 'Anga Sky Panari',
   anga_cbd: 'Anga CBD',
   unseen: 'Unseen Nairobi (Yaya Centre)',
+  westgate: 'Westgate Cinema (Westgate Mall)',
+  prestige: 'Prestige Plaza Cinema (Ngong Rd)',
+  '20th_century': '20th Century IMAX (CBD)',
+  nyali: 'Nyali Cinemax (Mombasa)',
+  megacity: 'Mega City Cinema (Kisumu)',
 };
 
 export interface Area {
@@ -80,7 +113,7 @@ export const AREAS: Area[] = [
   { id: 'junction', label: 'Junction Mall', keywords: ['junction'], coords: { lat: -1.2989, lng: 36.7618 } },
   { id: 'prestige', label: 'Prestige Plaza', keywords: ['prestige'], coords: { lat: -1.2982, lng: 36.7865 } },
   { id: 'diamond', label: 'Diamond Plaza', keywords: ['diamond'], coords: { lat: -1.2585, lng: 36.8145 } },
-  { id: 'cbd', label: 'Nairobi CBD', keywords: ['anga cbd'], coords: { lat: -1.2857, lng: 36.8202 } },
+  { id: 'cbd', label: 'Nairobi CBD', keywords: ['anga cbd', '20th century'], coords: { lat: -1.2857, lng: 36.8202 } },
   { id: 'panari', label: 'Panari Sky', keywords: ['panari'], coords: { lat: -1.3288, lng: 36.8533 } },
   { id: 'yaya', label: 'Unseen / Yaya', keywords: ['unseen', 'yaya'], coords: { lat: -1.2937, lng: 36.7878 } },
 ];
