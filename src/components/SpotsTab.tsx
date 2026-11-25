@@ -8,11 +8,12 @@ import {
   Plus,
   Compass,
   Bookmark,
+  ChevronLeft,
+  ChevronRight,
   Image as ImageIcon,
   X,
   Trash2,
-  Navigation,
-  ArrowUpRight
+  Navigation
 } from 'lucide-react';
 
 import { SpotItem, SavedItem, Review } from '../types.ts';
@@ -20,9 +21,9 @@ import { BusinessBadge } from './BusinessBadge.tsx';
 import { supabase } from '../lib/supabase.ts';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 import type { ToastOptions } from './Toast.tsx';
-import { resolveSpotBudget, budgetBadge, plainPriceLabel } from '../lib/spotBudget.ts';
+import { resolveSpotBudget, budgetBadge } from '../lib/spotBudget.ts';
 import { useUnclaimedSpots, spotInCategory, mergeSpots, evictUnclaimedSpot, spotMatchesArea } from '../lib/spotsFeed.ts';
-import { SPOT_CATEGORIES, getSpotCategoryIds } from '../lib/spotCategories.ts';
+import { SPOT_CATEGORIES } from '../lib/spotCategories.ts';
 import { getSpotCategoryAccent, accentPillStyle, accentVars } from '../lib/spotAccentTheme.ts';
 import { rankSpots, useNearYou, formatKm } from '../lib/spotRanking.ts';
 import { NearYouControl } from './NearYouControl.tsx';
@@ -31,10 +32,9 @@ import { spotSearchScore } from '../lib/searchTags.ts';
 import { AdminConfirmModal } from './AdminConfirmModal.tsx';
 import { deleteListing } from '../lib/cloudSync.ts';
 import { useActivePromotions, sortSpotsByCategoryPromotion } from '../lib/promotions.ts';
+import { useProgressiveCount } from '../lib/useProgressive.ts';
 import { logPlatformEvent } from '../lib/platformAnalytics';
 import { recordInterest, categoriesForQuery } from '../lib/interests.ts';
-import { pickSessionTopTen } from '../lib/topTen.ts';
-import { SpotsTop10Carousel } from './SpotsTop10Carousel.tsx';
 
 interface SpotsTabProps {
   spots: SpotItem[];
@@ -62,7 +62,8 @@ let cachedSpotsFilters = {
 
 let cachedSpotsScrollY = 0;
 
-const CATALOGUE_PAGE_SIZE = 24;
+// Cap each horizontal carousel to 12 spots so "View All" loads fast without keeping 150+ images in the DOM at once.
+const CAROUSEL_CARD_CAP = 12;
 
 export const SpotsTab: React.FC<SpotsTabProps> = ({
   spots,
@@ -99,7 +100,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>(cachedSpotsFilters.selectedCategory);
   const [selectedNeighborhood, setSelectedNeighborhood] = useState<string>(cachedSpotsFilters.selectedNeighborhood);
   const [selectedPriceTier, setSelectedPriceTier] = useState<string>(cachedSpotsFilters.selectedPriceTier);
-  const [visibleCount, setVisibleCount] = useState(CATALOGUE_PAGE_SIZE);
+  const [activeImageIndices, setActiveImageIndices] = useState<Record<number, number>>({});
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [selectedRating, setSelectedRating] = useState<'all' | '4.5' | '4.0' | 'reviewed'>('all');
   const [onlySpecialOffers, setOnlySpecialOffers] = useState(false);
@@ -306,9 +307,21 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     };
   }, [spots]);
 
-  useEffect(() => {
-    setVisibleCount(CATALOGUE_PAGE_SIZE);
-  }, [deferredQuery, selectedCategory, selectedNeighborhood, selectedPriceTier, selectedRating, onlySpecialOffers, near.active, near.radiusKm]);
+  const handlePrevImage = (spotId: number, maxLen: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveImageIndices(prev => ({
+      ...prev,
+      [spotId]: ((prev[spotId] || 0) - 1 + maxLen) % maxLen
+    }));
+  };
+
+  const handleNextImage = (spotId: number, maxLen: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveImageIndices(prev => ({
+      ...prev,
+      [spotId]: ((prev[spotId] || 0) + 1) % maxLen
+    }));
+  };
 
 
 
@@ -422,78 +435,82 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
     if (selectedCategory !== 'all') { try { recordInterest([selectedCategory], 'filter'); } catch { /* ignore */ } }
   }, [selectedCategory]);
 
-  // Ordered catalogue list (category promotions first when filtering a category)
-  const catalogueSpots = useMemo(() => {
-    if (selectedCategory !== 'all') {
-      return sortSpotsByCategoryPromotion(filteredSpots, selectedCategory, categorySlotPromos);
-    }
-    return filteredSpots;
-  }, [filteredSpots, selectedCategory, categorySlotPromos]);
+  // Bucket spots into the 17 RADA categories; a spot with extra_categories appears in each row it belongs to.
+  // Paid `spots_category` placements are hoisted to the front in admin order (no labels).
+  const spotsByCategory = useMemo(() => {
+    return SPOT_CATEGORIES.map(def => {
+      const list = filteredSpots.filter(s => spotInCategory(s, def.id));
+      return { def, list: sortSpotsByCategoryPromotion(list, def.id, categorySlotPromos) };
+    });
+  }, [filteredSpots, categorySlotPromos]);
 
-  // Session-stable random Top 10 spots (applies current category & active filters)
-  const topTenSpots = useMemo(
-    () => pickSessionTopTen('spots-weekly-top10', filteredSpots, (sp) => String(sp.id), 10),
-    [filteredSpots],
+  // Paint the first 6 category carousels immediately, then stream the remaining rows in low-priority slices.
+  const visibleRowsTotal = useMemo(
+    () => spotsByCategory.filter(g => (selectedCategory === 'all' || selectedCategory === g.def.id) && g.list.length > 0).length,
+    [spotsByCategory, selectedCategory]
   );
+  const rowsShown = useProgressiveCount(visibleRowsTotal, 6, 4, 40, selectedCategory);
 
   const isSaved = (id: number | string) => {
     return savedItems.some(s => String(s.id) === String(id) && s.kind === 'spot');
   };
 
-  const handleOpenSpotDetails = (spot: SpotItem) => {
-    cachedSpotsScrollY = window.scrollY;
-    onOpenSpotFullView(spot);
-  };
-
-  // Compact 2-column spot card (16:9 landscape image, name, location, short description, category, avg budget, Visit/View Details)
-  const renderCompactSpotCard = (spot: SpotItem) => {
-    const catIds = getSpotCategoryIds(spot);
-    const accent = getSpotCategoryAccent(selectedCategory !== 'all' ? selectedCategory : (catIds[0] || spot.category));
-    const coverImg = (spot.images && spot.images[0]) || spot.img;
+  const renderSpotCard = (spot: SpotItem, contextCategory?: string) => {
+    const accent = getSpotCategoryAccent(contextCategory || spot.category);
+    const images = spot.images && spot.images.length > 0 ? spot.images : [spot.img];
+    const activeIdx = activeImageIndices[spot.id] || 0;
+    const currentImg = images[activeIdx] || spot.img;
     const reviewCount = spot.reviews?.length ?? (spot.reviewCount || 0);
     const hasReviews = reviewCount > 0 && Boolean(spot.rating);
     const saved = isSaved(spot.id);
-    const budgetText = budgetBadge(resolveSpotBudget(spot)) || plainPriceLabel(spot.price);
-    const dist = (spot as any).distanceKm as number | undefined;
-    const locationLine = [spot.neighborhood, spot.address?.split(',')[0]].filter(Boolean).join(' · ') || 'Nairobi';
-    const shortDesc = spot.description?.trim() || `${accent.label} venue in ${spot.neighborhood || 'Nairobi'}.`;
+    const budgetText = budgetBadge(resolveSpotBudget(spot));
 
     return (
-      <article
+      <div
         key={spot.id}
-        onClick={() => handleOpenSpotDetails(spot)}
-        style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 240px', ...accentVars(accent) }}
-        className="bg-white dark:bg-[#1C1A1E] border border-slate-200/90 dark:border-slate-800 rounded-2xl p-2 shadow-xs flex flex-col justify-between cursor-pointer hover:border-[#E0533C] dark:hover:border-[#D17A68] transition group min-w-0"
+        onClick={() => {
+          cachedSpotsScrollY = window.scrollY;
+          onOpenSpotFullView(spot);
+        }}
+        style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 340px', ...accentVars(accent) }}
+        className="w-72 bg-white dark:bg-[#1C1A1E] border border-slate-200/90 dark:border-slate-800 rounded-3xl p-3 shrink-0 shadow-xs flex flex-col justify-between cursor-pointer hover:border-[#E0533C] dark:hover:border-[#D17A68] transition group"
       >
         <div>
-          {/* Strict 16:9 landscape cover */}
-          <div className="relative aspect-video w-full rounded-xl overflow-hidden mb-2 bg-slate-100 dark:bg-slate-800">
-            {coverImg && (
-              <img
-                src={coverImg}
-                alt={spot.title}
-                loading="lazy"
-                decoding="async"
-                className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
-              />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/15 pointer-events-none" />
+          {/* Multi-image Header Carousel */}
+          <div className="relative h-44 rounded-2xl overflow-hidden mb-3 bg-slate-100 dark:bg-slate-800 group/img">
+            <img
+              src={currentImg}
+              alt={spot.title}
+              loading="lazy"
+              decoding="async"
+              className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10 pointer-events-none" />
 
+            {/* Bookmark Badge */}
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleSave?.(spot, 'spot');
               }}
-              aria-label={saved ? 'Remove from saved' : 'Add to Your Plans'}
-              className={`absolute top-2 right-2 z-10 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs ${
-                saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/85'
+              className={`absolute top-2.5 left-2.5 z-10 px-2.5 py-1 rounded-full flex items-center gap-1 text-[10px] font-bold transition cursor-pointer shadow-xs ${
+                saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
               }`}
               title={saved ? 'In Your Plans (Tap to remove)' : 'Add to Your Plans'}
             >
-              <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
+              <Bookmark className={`w-3 h-3 ${saved ? 'fill-white' : ''}`} />
+              <span>{saved ? 'In Your Plans' : 'Add to Plans'}</span>
             </button>
 
+            {/* Price Tier Badge */}
+            {budgetText && (
+              <span className="absolute top-2.5 right-2.5 bg-black/75 backdrop-blur-xs text-white text-[10px] font-extrabold px-2 py-0.5 rounded-lg">
+                {budgetText}
+              </span>
+            )}
+
+            {/* Admin Delete Quick Button on Card */}
             {isAdmin && (
               <button
                 type="button"
@@ -501,7 +518,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                   e.stopPropagation();
                   setSpotToDelete(spot);
                 }}
-                className="absolute top-2 right-10 z-10 w-7 h-7 rounded-full bg-red-600/90 hover:bg-red-700 text-white flex items-center justify-center transition shadow-xs cursor-pointer"
+                className="absolute bottom-2.5 right-2.5 z-20 w-7 h-7 rounded-full bg-red-600/90 hover:bg-red-700 text-white flex items-center justify-center transition shadow-md cursor-pointer"
                 title="Delete Spot (Admin)"
                 aria-label={`Delete ${spot.title}`}
               >
@@ -509,100 +526,175 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
               </button>
             )}
 
-            <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between gap-1 pointer-events-none">
-              {dist != null ? (
-                <span className="bg-[#2D6A4F]/95 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
-                  <Navigation className="w-2.5 h-2.5" />
-                  {formatKm(dist)}
-                </span>
-              ) : (
-                <span />
+            {/* Photo Counter Badge */}
+            {images.length > 1 && (
+              <span className="absolute bottom-2.5 left-2.5 bg-black/60 text-white text-[9px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
+                <ImageIcon className="w-2.5 h-2.5" />
+                {activeIdx + 1}/{images.length}
+              </span>
+            )}
+
+            {/* Carousel Controls */}
+            {images.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={(e) => handlePrevImage(spot.id, images.length, e)}
+                  className="absolute left-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition hover:bg-black/80 z-10 cursor-pointer"
+                  aria-label="Previous photo"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => handleNextImage(spot.id, images.length, e)}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition hover:bg-black/80 z-10 cursor-pointer"
+                  aria-label="Next photo"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </>
+            )}
+
+            {/* Dot indicators */}
+            {images.length > 1 && (
+              <div className="absolute bottom-2.5 left-0 right-0 flex justify-center gap-1 pointer-events-none">
+                {images.map((_, dotIdx) => (
+                  <span
+                    key={dotIdx}
+                    className={`h-1 rounded-full transition-all ${
+                      dotIdx === activeIdx ? 'w-3 bg-white' : 'w-1 bg-white/50'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Card Info */}
+          <div className="space-y-1.5 px-0.5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-1 min-w-0">
+                <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] truncate transition">
+                  {spot.title}
+                </h4>
+                <BusinessBadge businessId={spot.businessId} category="hospitality" size="xs" unclaimedVerified={!spot.isUserUploaded && spot.is_claimed !== false} />
+                {spot.isUserUploaded && !spot.businessId && (
+                  <span className="shrink-0 bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 text-[8px] font-black px-1.5 py-0.5 rounded-full">
+                    Pending Claim
+                  </span>
+                )}
+                {!spot.isUserUploaded && spot.is_claimed === false && (
+                  <span className="shrink-0 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[8px] font-bold px-1.5 py-0.5 rounded-full">
+                    Unclaimed
+                  </span>
+                )}
+              </div>
+              {hasReviews && (
+                <div className="flex items-center gap-0.5 text-[11px] font-black bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded-lg shrink-0">
+                  <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                  <span>{spot.rating}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5 text-[11px] text-[#475569] dark:text-slate-300 font-medium">
+              <MapPin className="w-3 h-3 shrink-0 text-[color:var(--accent-text)] dark:text-[color:var(--accent-ink)]" />
+              <span className="truncate">{spot.neighborhood || 'Nearby'}</span>
+              {(spot as any).distanceKm != null && (
+                <>
+                  <span>•</span>
+                  <span className="text-[#2D6A4F] dark:text-emerald-400 font-extrabold inline-flex items-center gap-0.5 shrink-0">
+                    <Navigation className="w-2.5 h-2.5" /> {formatKm((spot as any).distanceKm)}
+                  </span>
+                </>
               )}
               {hasReviews && (
-                <span className="bg-black/70 backdrop-blur-xs text-white text-[9px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
-                  <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
-                  {spot.rating}
-                </span>
+                <>
+                  <span>•</span>
+                  <span className="text-slate-400">({reviewCount} reviews)</span>
+                </>
               )}
             </div>
-          </div>
 
-          {/* Card info */}
-          <div className="space-y-1 px-0.5">
-            <div className="flex items-center gap-1 min-w-0">
-              <h4 className="font-black text-[13px] leading-snug text-slate-900 dark:text-slate-100 group-hover:text-[#E0533C] truncate transition">
-                {spot.title}
-              </h4>
-              <BusinessBadge
-                businessId={spot.businessId}
-                category="hospitality"
-                size="xs"
-                unclaimedVerified={!spot.isUserUploaded && spot.is_claimed !== false}
-              />
-            </div>
-
-            <p className="text-[11px] text-slate-600 dark:text-slate-300 flex items-center gap-1 truncate font-medium">
-              <MapPin className="w-3 h-3 shrink-0 text-[color:var(--accent-text)] dark:text-[color:var(--accent-ink)]" />
-              <span className="truncate">{locationLine}</span>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
+              {spot.description}
             </p>
 
-            <p className="text-[11px] leading-snug text-slate-500 dark:text-slate-400 line-clamp-2">
-              {shortDesc}
-            </p>
+            {/* Exact Location Tag Preview */}
+            {spot.exactLocationTag && (
+              <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-[var(--accent-soft)] dark:bg-[var(--accent-deep)] text-[color:var(--accent-text)] dark:text-[color:var(--accent-ink)]">
+                <span>{spot.exactLocationTag}</span>
+              </div>
+            )}
 
-            <div className="flex items-center justify-between gap-1 pt-0.5 text-[10px] font-bold">
-              <span className="inline-flex items-center gap-1 text-[color:var(--accent-text)] dark:text-[color:var(--accent-ink)] truncate">
-                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: accent.color }} />
-                <span className="truncate">{accent.label}</span>
-              </span>
-              {budgetText && (
-                <span className="text-slate-600 dark:text-slate-300 shrink-0 tabular-nums">
-                  {budgetText}
+            {/* Special Offers Highlight if any */}
+            {spot.specialOffers && spot.specialOffers.length > 0 && (
+              <div className="flex items-center gap-1.5 pt-0.5">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900">
+                  <span>{spot.specialOffers[0].discount || 'OFFER'}</span>
+                  <span className="truncate max-w-[140px]">{spot.specialOffers[0].title}</span>
                 </span>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Footer actions */}
-        <div className="pt-2 mt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center gap-1">
+        {/* Footer Actions */}
+        <div className="pt-3 mt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onViewLocation(spot);
+              }}
+              className="px-2.5 py-1.5 bg-[#F8F8F6] dark:bg-[#121113] hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-[11px] font-bold transition flex items-center gap-1"
+              title="View on Map"
+            >
+              <MapPin className="w-3 h-3 text-[color:var(--accent-text)] dark:text-[color:var(--accent-ink)]" />
+              <span>Map</span>
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setReviewModalSpot(spot);
+              }}
+              className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-700 dark:text-amber-400 rounded-xl text-[11px] font-bold transition flex items-center gap-1"
+              title="Write a Review"
+            >
+              <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+              <span>Review</span>
+            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSpotToDelete(spot);
+                }}
+                className="px-2.5 py-1.5 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/60 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 rounded-xl text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                title="Delete Spot (Admin)"
+              >
+                <Trash2 className="w-3 h-3" />
+                <span>Delete</span>
+              </button>
+            )}
+          </div>
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              onViewLocation(spot);
+              cachedSpotsScrollY = window.scrollY;
+              onOpenSpotFullView(spot);
             }}
-            className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-[#E0533C] hover:text-[#E0533C] transition shrink-0 cursor-pointer"
-            title="View on Map"
-            aria-label={`Map for ${spot.title}`}
+            className="px-3 py-1.5 rounded-xl text-[11px] font-black transition shadow-xs hover:opacity-90 bg-[var(--accent)] dark:bg-[var(--accent-deep)] text-[color:var(--accent-on)] dark:text-[color:var(--accent-ink)] border border-transparent dark:border-[color:var(--accent-line)]"
           >
-            <MapPin className="w-3.5 h-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setReviewModalSpot(spot);
-            }}
-            className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-amber-500 hover:text-amber-500 transition shrink-0 cursor-pointer"
-            title="Write a Review"
-            aria-label={`Review ${spot.title}`}
-          >
-            <Star className="w-3.5 h-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleOpenSpotDetails(spot);
-            }}
-            className="flex-1 py-1.5 px-2 rounded-xl text-[11px] font-black transition flex items-center justify-center gap-1 shadow-xs cursor-pointer bg-[var(--accent)] dark:bg-[var(--accent-deep)] text-[color:var(--accent-on)] dark:text-[color:var(--accent-ink)] hover:opacity-90 whitespace-nowrap min-w-0"
-          >
-            <span className="truncate">Visit</span>
-            <ArrowUpRight className="w-3 h-3 shrink-0" />
+            Details
           </button>
         </div>
-      </article>
+      </div>
     );
   };
 
@@ -961,71 +1053,34 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         </div>
       )}
 
-      {/* RADA TOP 10 this week */}
-      {topTenSpots.length > 0 && (
-        <SpotsTop10Carousel
-          spots={topTenSpots}
-          savedItems={savedItems}
-          onToggleSave={(item) => onToggleSave?.(item, 'spot')}
-          onVisitSpot={handleOpenSpotDetails}
-          subtitle={selectedCategory !== 'all' ? getSpotCategoryAccent(selectedCategory).label : undefined}
-        />
-      )}
-
-      {/* Compact 2-Column Spots Catalogue */}
-      {catalogueSpots.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-2 pb-1 border-b border-slate-100 dark:border-slate-800">
-            <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <span
-                className="w-2 h-2 rounded-full"
-                style={{
-                  backgroundColor:
-                    selectedCategory === 'all' ? '#E0533C' : getSpotCategoryAccent(selectedCategory).color,
-                }}
-              />
-              <span>
-                {selectedCategory === 'all'
-                  ? 'Explore All Spots'
-                  : getSpotCategoryAccent(selectedCategory).label}
-              </span>
-              <span className="text-[11px] font-bold text-slate-400 normal-case">
-                ({catalogueSpots.length})
-              </span>
-            </h3>
-            <button
-              type="button"
-              onClick={() =>
-                onOpenDedicatedViewAll(
-                  selectedCategory === 'all'
-                    ? 'All Spots & Hangouts'
-                    : getSpotCategoryAccent(selectedCategory).label,
-                  selectedCategory === 'all' ? 'spots' : selectedCategory,
-                )
-              }
-              className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer shrink-0"
-            >
-              Full Catalogue
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            {catalogueSpots.slice(0, visibleCount).map(renderCompactSpotCard)}
-          </div>
-
-          {visibleCount < catalogueSpots.length && (
-            <div className="pt-2 text-center">
-              <button
-                type="button"
-                onClick={() => setVisibleCount((prev) => prev + CATALOGUE_PAGE_SIZE)}
-                className="px-5 py-2.5 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 hover:border-[#E0533C] font-bold rounded-2xl text-xs transition cursor-pointer shadow-xs"
-              >
-                Load more ({catalogueSpots.length - visibleCount} remaining)
-              </button>
+      {/* Categorized Horizontal Carousels for the 17 RADA categories */}
+      {spotsByCategory
+        .filter(({ def, list }) => (selectedCategory === 'all' || selectedCategory === def.id) && list.length > 0)
+        .slice(0, rowsShown)
+        .map(({ def, list }) => {
+          const acc = getSpotCategoryAccent(def.id);
+          return (
+            <div key={def.id} className="space-y-2.5">
+              <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: acc.color }} />
+                  <span>{def.label}</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => onOpenDedicatedViewAll(def.label, def.id)}
+                  className="text-[11px] font-bold hover:underline cursor-pointer"
+                  style={{ color: acc.color }}
+                >
+                  View All
+                </button>
+              </div>
+              <div className="-mx-4 px-4 flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+                {list.slice(0, CAROUSEL_CARD_CAP).map(spot => renderSpotCard(spot, def.id))}
+              </div>
             </div>
-          )}
-        </div>
-      )}
+          );
+        })}
 
       {/* Quick Review Modal with Deduplication Guard & 5-Photo Limit */}
       {reviewModalSpot && (
