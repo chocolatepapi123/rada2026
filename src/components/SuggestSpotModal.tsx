@@ -1,5 +1,4 @@
 import React, { useState, useRef } from 'react';
-import { CategoryIcon } from './CategoryIcon';
 import {
   X,
   Upload,
@@ -12,6 +11,8 @@ import { SpotCategory, SpotItem } from '../types.ts';
 import { submitCommunitySpot } from '../lib/cloudSync.ts';
 import { LocationCombobox } from './LocationCombobox.tsx';
 import type { ToastOptions } from './Toast.tsx';
+import { SPOT_CATEGORIES, resolveSpotCategory } from '../lib/spotCategories.ts';
+import { SpotCategoryTile } from './SpotCategoryBadge.tsx';
 
 interface SuggestSpotModalProps {
   isOpen: boolean;
@@ -26,18 +27,7 @@ interface SuggestSpotModalProps {
   };
 }
 
-const CATEGORY_OPTIONS: { id: SpotCategory; label: string; icon: string }[] = [
-  { id: 'restaurants_dining', label: 'Restaurants & Dining', icon: 'dining' },
-  { id: 'cafes_bakeries', label: 'Cafés & Bakeries', icon: 'cafe' },
-  { id: 'clubs_lounges', label: 'Clubs & Lounges', icon: 'bar' },
-  { id: 'date_spots', label: 'Date Spots', icon: 'date' },
-  { id: 'nature', label: 'Nature & Outdoors', icon: 'nature' },
-  { id: 'creative_leisure', label: 'Creative & Leisure', icon: 'creative' },
-  { id: 'tech_gaming', label: 'Tech & Gaming', icon: 'gaming' },
-  { id: 'action_sports', label: 'Action & Sports', icon: 'action' },
-  { id: 'hotels_luxury', label: 'Hotels & Luxury', icon: 'hotel' },
-  { id: 'vacation_escapes', label: 'Vacation Escapes', icon: 'vacation' },
-];
+const CATEGORY_OPTIONS = SPOT_CATEGORIES;
 
 const PRICE_TIERS = [
   { id: 'Low', label: 'Low', desc: 'Budget-friendly' },
@@ -72,7 +62,7 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
 
   // Form state
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState<SpotCategory>('restaurants_dining');
+  const [category, setCategory] = useState<SpotCategory>('Restaurants');
   const [neighborhood, setNeighborhood] = useState('Westlands');
   const [address, setAddress] = useState('');
   const [description, setDescription] = useState('');
@@ -148,7 +138,7 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
 
   const resetForm = () => {
     setTitle('');
-    setCategory('restaurants_dining');
+    setCategory('Restaurants');
     setNeighborhood('Westlands');
     setAddress('');
     setDescription('');
@@ -272,19 +262,19 @@ export const SuggestSpotModal: React.FC<SuggestSpotModalProps> = ({
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {CATEGORY_OPTIONS.map((cat) => {
-                const isSelected = category === cat.id;
+                const isSelected = resolveSpotCategory(category) === cat.id;
                 return (
                   <button
                     key={cat.id}
                     type="button"
-                    onClick={() => setCategory(cat.id)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border transition text-left ${
+                    onClick={() => setCategory(cat.label)}
+                    className={`flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold border transition text-left cursor-pointer ${
                       isSelected
                         ? 'bg-orange-50 dark:bg-orange-950/40 border-[#E0533C] dark:border-[#D17A68] text-[#E0533C] dark:text-[#D17A68]'
-                        : 'bg-slate-50 dark:bg-[#121113] border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700'
+                        : 'bg-white dark:bg-[#121113] border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700'
                     }`}
                   >
-                    <CategoryIcon name={cat.icon} className="w-4 h-4" />
+                    <SpotCategoryTile category={cat.id} size="sm" />
                     <span className="truncate">{cat.label}</span>
                   </button>
                 );

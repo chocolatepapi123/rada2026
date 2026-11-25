@@ -57,6 +57,7 @@ export interface RadaSelectOption {
   value: string;
   label: string;
   disabled?: boolean;
+  icon?: React.ReactNode;
 }
 
 interface RadaSelectProps {
@@ -94,6 +95,7 @@ export const RadaSelect: React.FC<RadaSelectProps> = ({
 
   const selected = options.find((o) => o.value === value);
   const st = ACCENT_STYLE[accent];
+  const triggerIcon = selected?.icon ?? icon;
 
   return (
     <div ref={wrapRef} className={`relative ${className}`}>
@@ -108,7 +110,7 @@ export const RadaSelect: React.FC<RadaSelectProps> = ({
         } ${open ? st.openBorder : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'} ${buttonClassName}`}
       >
         <span className="flex items-center gap-2 min-w-0 flex-1">
-          {icon && <span className={`shrink-0 ${st.iconText}`}>{icon}</span>}
+          {triggerIcon && <span className={`shrink-0 ${st.iconText}`}>{triggerIcon}</span>}
           <span className={`block truncate ${selected ? '' : 'text-slate-400'}`}>
             {selected ? selected.label : placeholder}
           </span>
@@ -144,7 +146,10 @@ export const RadaSelect: React.FC<RadaSelectProps> = ({
                       : 'font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
                   }`}
                 >
-                  <span className="truncate">{opt.label}</span>
+                  <span className="flex items-center gap-2 min-w-0 flex-1">
+                    {opt.icon && <span className="shrink-0">{opt.icon}</span>}
+                    <span className="truncate">{opt.label}</span>
+                  </span>
                   {active && <Check className="w-3.5 h-3.5 shrink-0" />}
                 </button>
               </li>

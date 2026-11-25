@@ -28,6 +28,8 @@ import { supabase } from '../lib/supabase';
 import { initialBusinesses } from '../data/initialData.ts';
 import type { ToastOptions } from './Toast.tsx';
 import { RadaSelect } from './RadaPickers.tsx';
+import { SPOT_CATEGORIES as CANONICAL_SPOT_CATEGORIES } from '../lib/spotCategories';
+import { SpotCategoryTile } from './SpotCategoryBadge.tsx';
 
 type VerificationStatus = 'pending' | 'approved' | 'rejected';
 type TabId = 'overview' | 'pending_spots' | 'claims' | 'verification' | 'spots' | 'cinema' | 'users' | 'subscriptions' | 'promotions' | 'payments' | 'ticket_money' | 'reports' | 'health' | 'launch';
@@ -54,20 +56,10 @@ export interface AdminDashboardProps {
   currentUserRole?: string;
 }
 
-const SPOT_CATEGORIES: { id: SpotCategory; label: string }[] = [
-  { id: 'restaurants_dining', label: 'Restaurants & Dining' },
-  { id: 'cafes_bakeries', label: 'Cafes & Bakeries' },
-  { id: 'clubs_lounges', label: 'Clubs & Lounges' },
-  { id: 'date_spots', label: 'Date Spots' },
-  { id: 'nature', label: 'Nature & Outdoors' },
-  { id: 'creative_leisure', label: 'Creative & Leisure' },
-  { id: 'tech_gaming', label: 'Tech & Gaming' },
-  { id: 'action_sports', label: 'Action & Sports' },
-  { id: 'hotels_luxury', label: 'Hotels & Luxury Stays' },
-  { id: 'vacation_escapes', label: 'Vacation Escapes' },
-  { id: 'spa_wellness', label: 'Spa & Wellness' },
-  { id: 'event_space', label: 'Event Space' },
-];
+const SPOT_CATEGORIES: { id: SpotCategory; label: string }[] = CANONICAL_SPOT_CATEGORIES.map(c => ({
+  id: c.label as SpotCategory,
+  label: c.label,
+}));
 
 const statusOf = (b: BusinessAccount): VerificationStatus =>
   b.verificationStatus || (b.verified ? 'approved' : 'pending');
@@ -77,7 +69,7 @@ const inputCls =
 const chipBase = 'px-3 py-1.5 rounded-full text-xs font-bold border transition cursor-pointer whitespace-nowrap';
 
 const emptyForm = {
-  title: '', category: 'restaurants_dining' as SpotCategory, neighborhood: '', address: '',
+  title: '', category: 'Restaurants' as SpotCategory, neighborhood: '', address: '',
   description: '', phone: '', openingHours: '', price: '', instagram: '', website: '',
   lat: '', lng: '', img: '',
 };
@@ -1207,7 +1199,11 @@ export function AdminDashboardModal({
                       ariaLabel="Spot category"
                       value={form.category}
                       onChange={(val) => setF('category', val)}
-                      options={SPOT_CATEGORIES.map((c) => ({ value: c.id, label: c.label }))}
+                      options={SPOT_CATEGORIES.map((c) => ({
+                        value: c.id,
+                        label: c.label,
+                        icon: <SpotCategoryTile category={c.id} size="xs" />,
+                      }))}
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">

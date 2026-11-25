@@ -11,9 +11,10 @@ import { resolveSpotBudget, budgetBadge, plainPriceLabel } from '../lib/spotBudg
 import type { LatLng } from '../lib/geo.ts';
 import { spotMatchesSearchWithTags } from '../utils/spotTags.ts';
 import { useActivePromotions, sortSpotsByCategoryPromotion } from '../lib/promotions.ts';
-import { isStockSpotImage } from '../lib/spotsFeed.ts';
+import { isStockSpotImage, formatOpeningHours } from '../lib/spotsFeed.ts';
 import { pickSessionTopTen, getCurrentWeekRangeLabel } from '../lib/topTen.ts';
 import { SingleSlideCarousel } from './SingleSlideCarousel.tsx';
+import { SpotCategoryBadge, SpotCategoryTile } from './SpotCategoryBadge.tsx';
 
 interface SpotsExplorerProps {
   categoryKey?: string | null;
@@ -29,9 +30,9 @@ interface SpotsExplorerProps {
   variant?: 'default' | 'picker';
 }
 
-interface PillOption { id: string; label: string; icon?: LucideIcon; color?: string }
+interface PillOption { id: string; label: string; icon?: LucideIcon; color?: string; categoryId?: string }
 
-/** Rounded dropdown that matches RADA's pills and cards (replaces the plain browser select). */
+/** Rounded dropdown that matches RADA's pills and S05 category icon tiles. */
 const PillDropdown: React.FC<{
   value: string;
   options: PillOption[];
@@ -66,7 +67,11 @@ const PillDropdown: React.FC<{
         }`}
       >
         {caption && <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">{caption}</span>}
-        {CurIcon && <CurIcon className="w-3.5 h-3.5 shrink-0" style={{ color: current.color || '#E0533C' }} />}
+        {current.categoryId ? (
+          <SpotCategoryTile category={current.categoryId} size="xs" />
+        ) : (
+          CurIcon && <CurIcon className="w-3.5 h-3.5 shrink-0" style={{ color: current.color || '#E0533C' }} />
+        )}
         <span className="truncate max-w-[9.5rem]">{current.label}</span>
         <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -89,11 +94,13 @@ const PillDropdown: React.FC<{
                   selected ? 'bg-[#E0533C]/10' : 'hover:bg-slate-100 dark:hover:bg-slate-800/70'
                 }`}
               >
-                {Icon && (
-                  <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${o.color || '#E0533C'}1F` }}>
+                {o.categoryId ? (
+                  <SpotCategoryTile category={o.categoryId} size="md" />
+                ) : Icon ? (
+                  <span className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${o.color || '#E0533C'}1F` }}>
                     <Icon className="w-3.5 h-3.5" style={{ color: o.color || '#E0533C' }} />
                   </span>
-                )}
+                ) : null}
                 <span className={`flex-1 text-[12px] truncate ${selected ? 'font-black text-[#E0533C]' : 'font-bold text-slate-700 dark:text-slate-200'}`}>{o.label}</span>
                 {selected && <Check className="w-4 h-4 text-[#E0533C] shrink-0" />}
               </button>
@@ -107,7 +114,7 @@ const PillDropdown: React.FC<{
 
 const CATEGORY_OPTIONS: PillOption[] = [
   { id: 'all', label: 'All categories', icon: LayoutGrid, color: '#E0533C' },
-  ...SPOT_CATEGORIES.map(c => ({ id: c.id, label: c.label, icon: c.icon, color: c.color })),
+  ...SPOT_CATEGORIES.map(c => ({ id: c.id, label: c.label, icon: c.icon, color: c.color, categoryId: c.id })),
 ];
 
 const BUDGET_TIERS: PillOption[] = [
@@ -126,7 +133,6 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
   savedItems = [],
   onToggleSave,
   onOpenSpot,
-  userCoords = null,
   isAdmin = false,
   onDeleteSpot,
 }) => {
@@ -138,7 +144,6 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
   const showCategoryDropdown = isAllKey(categoryKey);
   const categorySlotPromos = useActivePromotions('spots_category');
 
-  // Accent for the whole screen (only when a single category is open)
   const screenAccent = isAllKey(categoryKey) ? getSpotCategoryAccent(null) : getSpotCategoryAccent(categoryKey);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
@@ -151,42 +156,36 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
 
   const effectiveCat = showCategoryDropdown ? pickedCat : (categoryKey || '').toLowerCase().trim();
 
-  const filteredSpots = useMemo(() => {
-    let result = spots.filter(s => {
+  // Top 10 reflects category + search (independent of budget filter placed below Top 10)
+  const categoryMatchedSpots = useMemo(() => {
+    const result = spots.filter(s => {
       if (isStockSpotImage(s.img)) return false;
-      // Category match
       if (effectiveCat && !isAllKey(effectiveCat) && effectiveCat !== 'spots') {
         if (!spotInCategory(s, effectiveCat)) return false;
       }
-
-      // Budget filter
-      if (selectedBudget !== 'all') {
-        const b = resolveSpotBudget(s);
-        if (b !== selectedBudget) return false;
-      }
-
-      // Natural query search with automatic hidden in-app tags
       if (query.trim()) {
         if (!spotMatchesSearchWithTags(s, query)) return false;
       }
-
       return true;
     });
-
-    // Default "Featured": premium / high-end first; paid category slots (no labels) go first in admin order
     const featured = rankSpots(result);
     if (effectiveCat && !isAllKey(effectiveCat) && effectiveCat !== 'spots') {
       return sortSpotsByCategoryPromotion(featured, effectiveCat, categorySlotPromos);
     }
     return featured;
-  }, [spots, categorySlotPromos, effectiveCat, selectedBudget, query]);
+  }, [spots, categorySlotPromos, effectiveCat, query]);
+
+  const filteredSpots = useMemo(() => {
+    if (selectedBudget === 'all') return categoryMatchedSpots;
+    return categoryMatchedSpots.filter(s => resolveSpotBudget(s) === selectedBudget);
+  }, [categoryMatchedSpots, selectedBudget]);
 
   const weekLabel = useMemo(() => getCurrentWeekRangeLabel(), []);
   const topTenSpots = useMemo(() => {
-    if (forDate || filteredSpots.length === 0) return [];
+    if (forDate || categoryMatchedSpots.length === 0) return [];
     const scopeKey = effectiveCat && !isAllKey(effectiveCat) ? effectiveCat : 'all';
-    return pickSessionTopTen(`spots-cat-${scopeKey}`, filteredSpots, (s) => String(s.id), 10);
-  }, [forDate, effectiveCat, filteredSpots]);
+    return pickSessionTopTen(`spots-cat-${scopeKey}`, categoryMatchedSpots, (s) => String(s.id), 10);
+  }, [forDate, effectiveCat, categoryMatchedSpots]);
 
   return (
     <div className="space-y-4">
@@ -217,52 +216,31 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
         )}
       </div>
 
-      {/* Filters: compact pill dropdowns */}
-      <div className="flex items-center gap-2 flex-wrap text-xs">
-        {showCategoryDropdown && (
-          <PillDropdown value={pickedCat} options={CATEGORY_OPTIONS} onChange={setPickedCat} menuWidthClass="w-64" />
-        )}
-        <PillDropdown
-          value={selectedBudget}
-          options={BUDGET_TIERS}
-          onChange={setSelectedBudget}
-          caption="Budget"
-          menuWidthClass="w-48"
-        />
-
-        {(selectedBudget !== 'all' || query || (showCategoryDropdown && pickedCat !== 'all')) && (
-          <button
-            type="button"
-            onClick={() => {
-              setQuery('');
-              setSelectedBudget('all');
-              if (showCategoryDropdown) setPickedCat('all');
-            }}
-            className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer ml-auto"
-          >
-            Reset
-          </button>
-        )}
-      </div>
-
-      {/* RADA TOP 10 weekly single-card swipe carousel */}
+      {/* RADA TOP 10 Banner + Single-Card Swipe Carousel */}
       {!forDate && topTenSpots.length > 0 && (
         <section className="space-y-2.5" aria-label="RADA Top 10 this week">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <img
-                src="/rada-mark.png"
-                alt="RADA"
-                className="w-6 h-6 rounded-lg object-contain shrink-0"
-              />
-              <span className="text-xs font-black tracking-tight text-slate-900 dark:text-slate-100 whitespace-nowrap">
-                RADA
-              </span>
-              <span className="text-xs font-black tracking-wide uppercase text-[#E0533C] whitespace-nowrap">
-                TOP 10
-              </span>
+          {/* Clear RADA Logo Banner */}
+          <div className="rounded-2xl px-3.5 py-2.5 bg-gradient-to-r from-[#E05328] via-[#E0533C] to-[#EE8A47] text-white shadow-sm flex items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="bg-white/95 rounded-xl px-2.5 py-1 shadow-xs shrink-0 flex items-center">
+                <img
+                  src="/rada-mark.png"
+                  alt="RADA"
+                  className="h-5 w-auto object-contain"
+                />
+              </div>
+              <div className="min-w-0 leading-tight">
+                <span className="block text-xs font-black tracking-wider uppercase whitespace-nowrap">
+                  TOP 10
+                </span>
+                {effectiveCat && !isAllKey(effectiveCat) && (
+                  <span className="block text-[10px] font-bold text-white/85 truncate">
+                    {screenAccent.label}
+                  </span>
+                )}
+              </div>
             </div>
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 tabular-nums truncate">
+            <span className="px-2.5 py-1 rounded-xl bg-black/20 backdrop-blur-xs text-[10px] font-extrabold tracking-tight text-white tabular-nums whitespace-nowrap shrink-0">
               {weekLabel}
             </span>
           </div>
@@ -273,12 +251,19 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
               const saved = isSaved(spot.id);
               const coverImg = (spot.images && spot.images[0]) || spot.img;
               const catIds = getSpotCategoryIds(spot);
-              const primary = getSpotCategoryAccent(catIds[0] || spot.category);
+              const primaryCatId = catIds[0] || spot.category;
+              const primary = getSpotCategoryAccent(primaryCatId);
               const locationLine =
                 [spot.neighborhood, spot.address?.split(',')[0]].filter(Boolean).join(' · ') || 'Nairobi';
               const shortDesc =
-                spot.description?.trim() || `${primary.label} spot in ${spot.neighborhood || 'Nairobi'}.`;
+                spot.description?.trim() || spot.exactLocationTag || `${primary.label} spot in ${spot.neighborhood || 'Nairobi'}.`;
               const dist = (spot as any).distanceKm as number | undefined;
+              const budgetText = budgetBadge(resolveSpotBudget(spot)) || plainPriceLabel(spot.price);
+              const reviewCount = spot.reviews?.length ?? (spot.reviewCount || 0);
+              const hasRating = Boolean(spot.rating) && reviewCount > 0;
+              const hoursText = typeof spot.openingHours === 'string'
+                ? spot.openingHours
+                : formatOpeningHours(spot.openingHours as any);
 
               return (
                 <article
@@ -303,7 +288,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
                         <Compass className="w-10 h-10 text-[#E0533C]/50" />
                       </div>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-black/20 pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-black/20 pointer-events-none" />
 
                     {/* Ranking badge #1 through #10 */}
                     <span className="absolute top-3 left-3 px-2.5 py-1 rounded-xl bg-[#E0533C] text-white text-xs font-black shadow-md tabular-nums">
@@ -331,32 +316,58 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
                     )}
                   </div>
 
-                  {/* Card details */}
-                  <div className="p-4 space-y-2">
+                  {/* Small relevant info + compact Visit button on bottom right */}
+                  <div className="p-3.5 space-y-2.5">
                     <div className="space-y-1">
-                      <h4 className="font-black text-base leading-snug text-slate-900 dark:text-slate-100 truncate group-hover:text-[#E0533C] transition">
-                        {spot.title}
-                      </h4>
-                      <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1 truncate">
-                        <MapPin className="w-3.5 h-3.5 shrink-0 text-[#E0533C]" />
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="font-black text-[15px] leading-snug text-slate-900 dark:text-slate-100 truncate group-hover:text-[#E0533C] transition">
+                          {spot.title}
+                        </h4>
+                        {hasRating && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-black bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded-lg shrink-0">
+                            <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
+                            <span>{spot.rating}</span>
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1 truncate">
+                        <MapPin className="w-3 h-3 shrink-0 text-[#E0533C]" />
                         <span className="truncate">{locationLine}</span>
+                        {hoursText && (
+                          <span className="text-slate-400 dark:text-slate-500 font-medium shrink-0">
+                            · {hoursText}
+                          </span>
+                        )}
                       </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
                         {shortDesc}
                       </p>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenSpot(spot);
-                      }}
-                      className="w-full py-2.5 px-4 rounded-2xl bg-[#E0533C] hover:bg-orange-700 text-white text-xs font-black transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
-                    >
-                      <span>Visit</span>
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/70 dark:border-slate-800/80">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <SpotCategoryBadge category={primaryCatId} size="xs" />
+                        {budgetText && (
+                          <span className="px-2 py-0.5 rounded-lg bg-slate-200/70 dark:bg-slate-800 text-[10px] font-extrabold text-slate-700 dark:text-slate-300 shrink-0">
+                            {budgetText}
+                          </span>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenSpot(spot);
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-[#E0533C] hover:bg-orange-700 text-white text-[11px] font-black transition inline-flex items-center gap-1 shrink-0 shadow-xs cursor-pointer"
+                      >
+                        <span>Visit</span>
+                        <ArrowUpRight className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
                 </article>
               );
@@ -365,7 +376,35 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
         </section>
       )}
 
-      {/* Spots Grid (existing 2-column layout preserved) */}
+      {/* Budget Filter placed AFTER RADA TOP 10 */}
+      <div className="flex items-center gap-2 flex-wrap text-xs pt-0.5">
+        {showCategoryDropdown && (
+          <PillDropdown value={pickedCat} options={CATEGORY_OPTIONS} onChange={setPickedCat} menuWidthClass="w-64" />
+        )}
+        <PillDropdown
+          value={selectedBudget}
+          options={BUDGET_TIERS}
+          onChange={setSelectedBudget}
+          caption="Budget"
+          menuWidthClass="w-48"
+        />
+
+        {(selectedBudget !== 'all' || query || (showCategoryDropdown && pickedCat !== 'all')) && (
+          <button
+            type="button"
+            onClick={() => {
+              setQuery('');
+              setSelectedBudget('all');
+              if (showCategoryDropdown) setPickedCat('all');
+            }}
+            className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer ml-auto"
+          >
+            Reset
+          </button>
+        )}
+      </div>
+
+      {/* 2-Column Spots Catalogue with small relevant info */}
       {filteredSpots.length === 0 ? (
         <div className="bg-[#F8F8F6] dark:bg-[#1C1A1E] border border-dashed border-slate-300 dark:border-slate-800 rounded-3xl p-8 text-center space-y-3">
           <Compass className="w-8 h-8 mx-auto" style={{ color: screenAccent.color }} />
@@ -393,8 +432,10 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
             const hasReviews = reviewCount > 0 && Boolean(spot.rating);
             const budgetText = budgetBadge(resolveSpotBudget(spot)) || plainPriceLabel(spot.price);
             const catIds = getSpotCategoryIds(spot);
-            const primary = getSpotCategoryAccent(catIds[0] || spot.category);
+            const primaryCatId = catIds[0] || spot.category;
+            const primary = getSpotCategoryAccent(primaryCatId);
             const dist = (spot as any).distanceKm as number | undefined;
+            const snippet = spot.exactLocationTag || spot.description?.trim() || '';
 
             return (
               <div
@@ -418,7 +459,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
                           e.stopPropagation();
                           onDeleteSpot?.(spot);
                         }}
-                        className="absolute top-2.5 right-11 w-7 h-7 rounded-full bg-red-600/90 hover:bg-red-700 text-white flex items-center justify-center transition shadow-xs z-10 cursor-pointer"
+                        className="absolute top-2 right-10 w-7 h-7 rounded-full bg-red-600/90 hover:bg-red-700 text-white flex items-center justify-center transition shadow-xs z-10 cursor-pointer"
                         title="Delete Spot (Admin)"
                         aria-label={`Delete ${spot.title}`}
                       >
@@ -432,7 +473,7 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
                         e.stopPropagation();
                         onToggleSave?.(spot, 'spot');
                       }}
-                      className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs z-10 ${
+                      className={`absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer shadow-xs z-10 ${
                         saved ? 'bg-[#E0533C] text-white' : 'bg-black/60 text-white hover:bg-black/80'
                       }`}
                       title={saved ? 'Remove from saved' : 'Save experience'}
@@ -441,19 +482,19 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
                     </button>
 
                     {dist != null && (
-                      <span className="absolute bottom-2.5 left-2.5 bg-[#2D6A4F]/95 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                      <span className="absolute bottom-2 left-2 bg-[#2D6A4F]/95 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
                         <Navigation className="w-2.5 h-2.5" /> {formatKm(dist)}
                       </span>
                     )}
 
                     {budgetText && (
-                      <span className="absolute bottom-2.5 right-2.5 bg-black/70 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-md">
+                      <span className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-md">
                         {budgetText}
                       </span>
                     )}
                   </div>
 
-                  <div className="flex items-start justify-between gap-1.5">
+                  <div className="flex items-start justify-between gap-1">
                     <h4 className="font-extrabold text-slate-900 dark:text-slate-100 truncate transition max-w-full text-[13px] group-hover:text-[#E0533C]">
                       {spot.title}
                     </h4>
@@ -465,10 +506,20 @@ export const SpotsExplorer: React.FC<SpotsExplorerProps> = ({
                     )}
                   </div>
 
-                  <p className="text-[11px] text-[#475569] dark:text-slate-300 mt-0.5 flex items-center gap-1 truncate font-medium">
+                  <div className="mt-1">
+                    <SpotCategoryBadge category={primaryCatId} size="xs" />
+                  </div>
+
+                  <p className="text-[11px] text-[#475569] dark:text-slate-300 mt-1 flex items-center gap-1 truncate font-medium">
                     <MapPin className="w-3 h-3 shrink-0 text-[color:var(--accent-text)] dark:text-[color:var(--accent-ink)]" />
-                    <span className="truncate">{spot.address || spot.neighborhood || 'Nairobi'}</span>
+                    <span className="truncate">{spot.neighborhood || spot.address || 'Nairobi'}</span>
                   </p>
+
+                  {snippet && (
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2 leading-snug">
+                      {snippet}
+                    </p>
+                  )}
                 </div>
 
                 <div className="border-t border-slate-200 dark:border-slate-800/80 mt-2 pt-2 flex flex-col gap-1.5">

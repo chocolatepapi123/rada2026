@@ -74,6 +74,7 @@ import { getSourceLabel, isOnlineEvent } from '../utils/eventUtils.ts';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 import { AdminConfirmModal } from './AdminConfirmModal.tsx';
 import { ClaimOfferButton, ReviewReplyBlock } from './RetentionBits';
+import { SpotCategoryBadge } from './SpotCategoryBadge.tsx';
 
 interface OverlaysProps {
   // Overlays state
@@ -554,9 +555,7 @@ export const Overlays: React.FC<OverlaysProps> = ({
                       Proof Under Review
                     </span>
                   ) : null}
-                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-red-100 dark:bg-red-950/60 text-[#E0533C]">
-                    {selectedSpot.category}
-                  </span>
+                  <SpotCategoryBadge category={selectedSpot.category} size="sm" />
                 </div>
               </div>
               <p className="text-xs text-slate-500 flex items-center gap-1">

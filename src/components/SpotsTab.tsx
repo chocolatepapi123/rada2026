@@ -35,6 +35,7 @@ import { useActivePromotions, sortSpotsByCategoryPromotion } from '../lib/promot
 import { useProgressiveCount } from '../lib/useProgressive.ts';
 import { logPlatformEvent } from '../lib/platformAnalytics';
 import { recordInterest, categoriesForQuery } from '../lib/interests.ts';
+import { SpotCategoryTile } from './SpotCategoryBadge.tsx';
 
 interface SpotsTabProps {
   spots: SpotItem[];
@@ -755,12 +756,17 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         {(selectedCategory !== 'all' || selectedNeighborhood !== 'all' || selectedPriceTier !== 'all' || selectedRating !== 'all' || onlySpecialOffers || near.active) && (
           <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pt-0.5">
             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider shrink-0">Active:</span>
-            {selectedCategory !== 'all' && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold shrink-0" style={accentPillStyle(getSpotCategoryAccent(selectedCategory), true)}>
-                <span>{getSpotCategoryAccent(selectedCategory).label}</span>
-                <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedCategory('all')} />
-              </span>
-            )}
+            {selectedCategory !== 'all' && (() => {
+              const catAcc = getSpotCategoryAccent(selectedCategory);
+              const CatIcon = catAcc.Icon;
+              return (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold shrink-0" style={accentPillStyle(catAcc, true)}>
+                  <CatIcon className="w-3 h-3 shrink-0" />
+                  <span>{catAcc.label}</span>
+                  <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedCategory('all')} />
+                </span>
+              );
+            })()}
             {near.active && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#2D6A4F] text-white shrink-0">
                 <Navigation className="w-3 h-3" />
@@ -857,12 +863,23 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                         key={cat.id}
                         type="button"
                         onClick={() => setSelectedCategory(cat.id)}
-                        className={`p-2 rounded-xl font-bold transition text-left cursor-pointer truncate text-[11px] border ${
+                        className={`p-1.5 rounded-xl font-bold transition text-left cursor-pointer text-[11px] border flex items-center gap-2 ${
                           acc ? '' : isSel ? 'bg-[#E0533C] text-white border-[#E0533C]' : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800'
                         }`}
                         style={acc ? accentPillStyle(acc, isSel) : undefined}
                       >
-                        {cat.label}
+                        {cat.id === 'all' ? (
+                          <span className={`w-5 h-5 rounded-md inline-flex items-center justify-center shrink-0 ${isSel ? 'bg-white/20 text-white' : 'bg-[#E0533C]/12 text-[#E0533C]'}`}>
+                            <Compass className="w-3 h-3" />
+                          </span>
+                        ) : (
+                          <SpotCategoryTile
+                            category={cat.id}
+                            size="xs"
+                            className={isSel ? 'bg-white/90' : ''}
+                          />
+                        )}
+                        <span className="truncate">{cat.label}</span>
                       </button>
                     );
                   })}
@@ -974,10 +991,9 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
         {/* Near You (device geolocation) */}
         <NearYouControl />
 
-        {/* Category icon buttons: no fill. Icon + selected outline carry the category accent */}
+        {/* S05 Category icon cards */}
         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
           {[{ id: 'all', label: 'All Categories', icon: Compass }, ...SPOT_CATEGORIES].map((cat) => {
-            const Icon = cat.icon;
             const isSelected = selectedCategory === cat.id;
             const acc = cat.id === 'all' ? null : getSpotCategoryAccent(cat.id);
             return (
@@ -986,7 +1002,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                 type="button"
                 onClick={() => setSelectedCategory(cat.id)}
                 style={acc ? accentVars(acc) : undefined}
-                className={`px-3 py-1.5 rounded-full text-xs shrink-0 transition-all flex items-center gap-1.5 border bg-transparent cursor-pointer ${
+                className={`pl-1.5 pr-3 py-1.5 rounded-2xl text-xs shrink-0 transition-all flex items-center gap-2 border bg-white dark:bg-[#1C1A1E] cursor-pointer shadow-2xs ${
                   acc
                     ? isSelected
                       ? 'font-black border-[color:var(--accent)] dark:border-[color:var(--accent-line)] ring-1 ring-[color:var(--accent)] dark:ring-[color:var(--accent-line)] text-[color:var(--accent-text)] dark:text-[color:var(--accent-ink)]'
@@ -996,7 +1012,13 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
                       : 'font-semibold border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300'
                 }`}
               >
-                <Icon className={`w-3 h-3 ${acc ? 'text-[color:var(--accent-text)] dark:text-[color:var(--accent-ink)]' : ''}`} />
+                {cat.id === 'all' ? (
+                  <span className="w-6 h-6 rounded-lg inline-flex items-center justify-center shrink-0 bg-[#E0533C]/12 text-[#E0533C]">
+                    <Compass className="w-3.5 h-3.5" />
+                  </span>
+                ) : (
+                  <SpotCategoryTile category={cat.id} size="sm" />
+                )}
                 <span>{cat.label}</span>
               </button>
             );
@@ -1063,7 +1085,7 @@ export const SpotsTab: React.FC<SpotsTabProps> = ({
             <div key={def.id} className="space-y-2.5">
               <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
                 <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: acc.color }} />
+                  <SpotCategoryTile category={def.id} size="sm" />
                   <span>{def.label}</span>
                 </h3>
                 <button

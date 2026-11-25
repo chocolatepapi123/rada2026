@@ -12,6 +12,7 @@ import { TonightSection } from './TonightSection.tsx';
 import { pickTrendingSpots, isHomeSpot } from '../lib/trendingSpots.ts';
 import { CinemaMovieSheet } from './CinemaExplorer.tsx';
 import { localPosterFor } from '../lib/localPosters.ts';
+import { SpotCategoryTile } from './SpotCategoryBadge.tsx';
 import React, { useState, useMemo, useEffect } from 'react';
 import { getStoredLanguage, translations, type AppLanguage } from '../utils/i18n.ts';
 import { supabase } from '../lib/supabase';
@@ -759,12 +760,17 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedHomeSection('all')} />
               </span>
             )}
-            {selectedHomeCategory !== 'all' && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#E0533C] text-white shrink-0">
-                <span>{getSpotCategoryAccent(selectedHomeCategory).label}</span>
-                <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedHomeCategory('all')} />
-              </span>
-            )}
+            {selectedHomeCategory !== 'all' && (() => {
+              const catAcc = getSpotCategoryAccent(selectedHomeCategory);
+              const CatIcon = catAcc.Icon;
+              return (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold shrink-0" style={accentPillStyle(catAcc, true)}>
+                  <CatIcon className="w-3 h-3 shrink-0" />
+                  <span>{catAcc.label}</span>
+                  <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedHomeCategory('all')} />
+                </span>
+              );
+            })()}
             {selectedHomeDate !== 'all' && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shrink-0">
                 <span>{selectedHomeDate}</span>
@@ -884,12 +890,23 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         key={cat.id}
                         type="button"
                         onClick={() => setSelectedHomeCategory(cat.id)}
-                        className={`p-2 rounded-xl font-bold transition text-left cursor-pointer truncate text-[11px] border ${
+                        className={`p-1.5 rounded-xl font-bold transition text-left cursor-pointer text-[11px] border flex items-center gap-2 ${
                           acc ? '' : isSel ? 'bg-[#E0533C] text-white border-[#E0533C]' : 'bg-[#F8F8F6] dark:bg-[#121113] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800'
                         }`}
                         style={acc ? accentPillStyle(acc, isSel) : undefined}
                       >
-                        {cat.label}
+                        {cat.id === 'all' ? (
+                          <span className={`w-5 h-5 rounded-md inline-flex items-center justify-center shrink-0 ${isSel ? 'bg-white/20 text-white' : 'bg-[#E0533C]/12 text-[#E0533C]'}`}>
+                            <Compass className="w-3 h-3" />
+                          </span>
+                        ) : (
+                          <SpotCategoryTile
+                            category={cat.id}
+                            size="xs"
+                            className={isSel ? 'bg-white/90' : ''}
+                          />
+                        )}
+                        <span className="truncate">{cat.label}</span>
                       </button>
                     );
                   })}
@@ -1923,9 +1940,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             <div key={key} className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center shadow-xs text-[color:var(--accent-text)] dark:text-[color:var(--accent-ink)]" style={{ ...accentVars({ color: accentColor }), backgroundColor: `${accentColor}20` }}>
-                    <IconComp className="w-3.5 h-3.5" />
-                  </div>
+                  <SpotCategoryTile category={catKey} size="sm" />
                   <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100">
                     {title}
                   </h2>

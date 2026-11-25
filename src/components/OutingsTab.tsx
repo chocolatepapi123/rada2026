@@ -45,6 +45,8 @@ import { resolveLocationTextCoords } from '../lib/geo.ts';
 import { formatKm, hasRealCoords, haversineKm, useNearYou } from '../lib/spotRanking.ts';
 import { VerifiedBadge } from './VerifiedBadge.tsx';
 import { RadaAreaCombobox, RadaDatePicker, RadaSelect, RadaTimePicker } from './RadaPickers.tsx';
+import { SPOT_CATEGORIES, spotInCategory, resolveSpotCategory } from '../lib/spotCategories.ts';
+import { SpotCategoryTile } from './SpotCategoryBadge.tsx';
 import { fetchMySavedOutingIds, toggleOutingSave, fetchOutingSaveCounts } from '../lib/outingSaves';
 import {
   attendeeCeiling,
@@ -71,16 +73,7 @@ export const NAIROBI_KEY_LOCATIONS = [
 
 export const RADA_10_CATEGORIES = [
   { id: 'all', label: 'All Categories' },
-  { id: 'restaurants_dining', label: 'Restaurants / Dining' },
-  { id: 'tech_gaming', label: 'Tech / Gaming' },
-  { id: 'clubs_lounges', label: 'Clubs / Lounges' },
-  { id: 'nature', label: 'Nature' },
-  { id: 'action_sports', label: 'Action / Sports' },
-  { id: 'cafes_bakeries', label: 'Cafes / Bakeries' },
-  { id: 'date_spots', label: 'Date Spots' },
-  { id: 'creative_leisure', label: 'Creative / Leisure' },
-  { id: 'hotels_luxury', label: 'Hotels & Luxury' },
-  { id: 'vacation_escapes', label: 'Vacation Escapes' }
+  ...SPOT_CATEGORIES.map(c => ({ id: c.id, label: c.label })),
 ] as const;
 
 function matchOutingCategory(plan: OutingPlan, categoryId: string, spot?: SpotItem): boolean {
@@ -196,34 +189,43 @@ function matchOutingCategory(plan: OutingPlan, categoryId: string, spot?: SpotIt
         spotCat.includes('escape') ||
         spotCat.includes('resort')
       );
-    default:
+    default: {
+      if (spot && spotInCategory(spot, categoryId)) return true;
+      const canonical = resolveSpotCategory(categoryId);
+      if (canonical && (resolveSpotCategory(planCat) === canonical || resolveSpotCategory(spotCat) === canonical)) return true;
       return planCat.includes(categoryId.toLowerCase()) || spotCat.includes(categoryId.toLowerCase());
+    }
   }
 }
 
 export function getCategoryFallbackImage(category: string): string {
-  switch (category) {
-    case 'restaurants_dining':
+  switch (resolveSpotCategory(category) || category) {
     case 'restaurants':
+    case 'nyama_choma':
+    case 'fast_food':
       return 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop';
-    case 'tech_gaming':
+    case 'gaming_arcades':
       return 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=800&auto=format&fit=crop';
     case 'clubs_lounges':
+    case 'bars_chill':
+    case 'rooftops':
       return 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop';
-    case 'nature':
-    case 'nature_outdoors':
+    case 'outdoors_nature':
+    case 'garden_hangouts':
       return 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&auto=format&fit=crop';
-    case 'action_sports':
+    case 'sports_adventure':
       return 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=800&auto=format&fit=crop';
     case 'cafes_bakeries':
+    case 'desserts':
       return 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800&auto=format&fit=crop';
     case 'date_spots':
       return 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=800&auto=format&fit=crop';
-    case 'creative_leisure':
+    case 'arts_culture':
+    case 'hangouts_leisure':
       return 'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=800&auto=format&fit=crop';
-    case 'hotels_luxury':
+    case 'hotels_stays':
       return 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&auto=format&fit=crop';
-    case 'vacation_escapes':
+    case 'getaways_resorts':
       return 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop';
     default:
       return 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop';
@@ -512,7 +514,7 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
   const [spotSearchQuery, setSpotSearchQuery] = useState('');
   const [customSpotTitle, setCustomSpotTitle] = useState('');
   const [customSpotAddress, setCustomSpotAddress] = useState('');
-  const [customSpotCategory, setCustomSpotCategory] = useState('restaurants_dining');
+  const [customSpotCategory, setCustomSpotCategory] = useState('restaurants');
   const [customSpotImage, setCustomSpotImage] = useState('');
   const [coverUploading, setCoverUploading] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
@@ -968,10 +970,14 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
             options={dynamicLocations}
           />
 
-          {/* Category Filter Dropdown (10 RADA Categories) */}
+          {/* Category Filter Dropdown (17 RADA S05 Categories) */}
           <div className="relative" ref={catRef}>
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-              <Filter className="w-3.5 h-3.5 text-[#E0533C]" />
+            <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+              {selectedCategory !== 'all' ? (
+                <SpotCategoryTile category={selectedCategory} size="xs" />
+              ) : (
+                <Filter className="w-3.5 h-3.5 text-[#E0533C]" />
+              )}
             </div>
             <button
               type="button"
@@ -997,9 +1003,18 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                       <button
                         type="button"
                         onClick={() => { setSelectedCategory(cat.id); setCatOpen(false); }}
-                        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs text-left cursor-pointer transition ${active ? 'bg-[#E0533C]/10 text-[#E0533C] font-extrabold' : 'font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.06]'}`}
+                        className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl text-xs text-left cursor-pointer transition ${active ? 'bg-[#E0533C]/10 text-[#E0533C] font-extrabold' : 'font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.06]'}`}
                       >
-                        <span className="truncate">{cat.label}</span>
+                        <span className="flex items-center gap-2 min-w-0 flex-1">
+                          {cat.id === 'all' ? (
+                            <span className="w-5 h-5 rounded-md inline-flex items-center justify-center shrink-0 bg-[#E0533C]/12 text-[#E0533C]">
+                              <Compass className="w-3 h-3" />
+                            </span>
+                          ) : (
+                            <SpotCategoryTile category={cat.id} size="xs" />
+                          )}
+                          <span className="truncate">{cat.label}</span>
+                        </span>
                         {active && <Check className="w-3.5 h-3.5 shrink-0" />}
                       </button>
                     </li>
@@ -1436,9 +1451,10 @@ export const OutingsTab: React.FC<OutingsTabProps> = ({
                           ariaLabel="Spot category"
                           value={customSpotCategory}
                           onChange={setCustomSpotCategory}
-                          options={RADA_10_CATEGORIES.filter((c) => c.id !== 'all').map((cat) => ({
+                          options={SPOT_CATEGORIES.map((cat) => ({
                             value: cat.id,
                             label: cat.label,
+                            icon: <SpotCategoryTile category={cat.id} size="xs" />,
                           }))}
                           buttonClassName="bg-white dark:bg-[#1C1A1E] border-slate-200 dark:border-white/10 py-3 text-[14px] font-semibold"
                         />
