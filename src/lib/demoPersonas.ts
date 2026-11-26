@@ -58,18 +58,19 @@ export function demoMerchantBusinesses(ownerId: string): BusinessAccount[] {
 }
 
 export function demoMerchantOffers(): BusinessOffer[] {
-  const o = (n: number, b: string, bn: string, cat: BusinessOffer['businessCategory'], title: string, description: string, category: BusinessOffer['category'], discount: string, img: string, ends: number): BusinessOffer => ({
+  const o = (n: number, b: string, bn: string, cat: BusinessOffer['businessCategory'], title: string, description: string, category: BusinessOffer['category'], discount: string, img: string, ends: number, location: string, validUntil: string): BusinessOffer => ({
     id: `demo-offer-${n}`, businessId: b, businessName: bn, businessCategory: cat, title, description, category, discount, posterUrl: img,
-    validUntil: ymdAgo(-ends), endsAt: ymdAgo(-ends), claimCode: `RADA${100 + n}`, createdAt: daysAgo(10 + n), maxRedemptions: 100,
-    terms: 'One use per person. Show the code at the door.',
+    validUntil, endsAt: ymdAgo(-ends), createdAt: daysAgo(10 + n),
+    venue: bn, location,
+    terms: 'Available for walk-ins and table reservations during listed hours.',
   });
   return [
-    o(1, 'demo-biz-1', 'Skyline Rooftop Lounge', 'hospitality', 'Happy Hour: 2 for 1 cocktails', 'Every weekday from 5pm to 8pm.', 'Drinks', '2 for 1', IMG.cocktail, 20),
-    o(2, 'demo-biz-1', 'Skyline Rooftop Lounge', 'hospitality', 'Sundowner Platter', 'Grill platter for four with a bottle of house wine.', 'Food', '20% off', IMG.rooftop, 30),
-    o(3, 'demo-biz-2', 'Mama Pima Kitchen', 'hospitality', 'Lunch Combo', 'Nyama choma, ugali and kachumbari with a soda.', 'Food', 'KES 700', IMG.restaurant, 14),
-    o(4, 'demo-biz-2', 'Mama Pima Kitchen', 'hospitality', 'Family Sunday Feast', 'Feeds five. Book ahead.', 'Special Deals', '15% off', IMG.burger, 45),
-    o(5, 'demo-biz-3', 'Pulse Nights Events', 'event_organizer', 'Early Bird: Amapiano Rooftop', 'First 100 spots only.', 'Special Deals', 'KES 1,000', IMG.crowd, 12),
-    o(6, 'demo-biz-3', 'Pulse Nights Events', 'event_organizer', 'Group of 5 Deal', 'Bring four friends, the fifth enters free.', 'Special Deals', '1 free', IMG.concert, 25),
+    o(1, 'demo-biz-1', 'Skyline Rooftop Lounge', 'hospitality', 'Happy Hour: 2 for 1 cocktails', 'Signature sundowner cocktails and house infusions every weekday evening.', 'Drinks', '2 for 1', IMG.cocktail, 20, 'Westlands, Nairobi', 'Mon – Fri · 5:00 PM – 8:00 PM'),
+    o(2, 'demo-biz-1', 'Skyline Rooftop Lounge', 'hospitality', 'Sundowner Platter', 'Grill platter for four with a bottle of house wine.', 'Food', '20% off', IMG.rooftop, 30, 'Westlands, Nairobi', 'Fri – Sun · 4:00 PM – 8:00 PM'),
+    o(3, 'demo-biz-2', 'Mama Pima Kitchen', 'hospitality', 'Lunch Combo', 'Nyama choma, ugali and kachumbari with a cold soda.', 'Food', 'KES 700', IMG.restaurant, 14, 'Kilimani, Nairobi', 'Daily · 12:00 PM – 3:30 PM'),
+    o(4, 'demo-biz-2', 'Mama Pima Kitchen', 'hospitality', 'Family Sunday Feast', 'Slow-roasted choma platter that feeds five comfortably.', 'Special Deals', '15% off', IMG.burger, 45, 'Kilimani, Nairobi', 'Sundays · 1:00 PM – 9:00 PM'),
+    o(5, 'demo-biz-3', 'Pulse Nights Events', 'event_organizer', 'Early Bird: Amapiano Rooftop', 'First 100 advance passes with sunset welcome drink.', 'Special Deals', 'KES 1,000', IMG.crowd, 12, 'Westlands, Nairobi', 'Saturdays · Doors 6:00 PM'),
+    o(6, 'demo-biz-3', 'Pulse Nights Events', 'event_organizer', 'Group of 5 Deal', 'Bring four friends and the fifth guest enters free.', 'Special Deals', '1 free', IMG.concert, 25, 'Nairobi CBD', 'Fridays · 8:00 PM onwards'),
   ];
 }
 

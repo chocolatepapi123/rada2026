@@ -6,6 +6,8 @@ import {
   CloudRequest,
   OutgoingMessage,
   createGroupChat,
+  deleteMessagesForEveryoneRows,
+  editMessageRow,
   fetchMessages,
   fetchSnapshot,
   isCloudReady,
@@ -16,6 +18,7 @@ import {
   subscribeSocials,
   unlockOutingChat,
 } from './socialsCloud';
+import { canDeleteAllForEveryone, canEditMessage } from './chatActions';
 import { isDemoMode } from './demoMode';
 import { syncUnreadChats } from './unreadChats';
 import { fetchBlockedIds, getCachedBlockedIds, onBlockedChanged } from './safety';
@@ -86,7 +89,7 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
   }, [conversations, blockedIds]);
   // feeds the unread badge on the Socials tab
   useEffect(() => {
-    syncUnreadChats(demo ? undefined : userId, visibleConversations, loaded);
+    syncUnreadChats(demo ? `demo-${userId || 'guest'}` : userId, visibleConversations, loaded);
   }, [demo, userId, visibleConversations, loaded]);
   const visibleRequests = useMemo(() => {
     if (!blockedIds.length) return requests;
@@ -169,6 +172,37 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
         // message in a chat we don't know yet (just added to a group): pull the full list
         if (!known) scheduleRefresh();
       },
+      onMessageUpdate: row => {
+        const myId = uidRef.current;
+        if (!myId || !row?.id) return;
+        setConversations(prev =>
+          prev.map(conv => {
+            if (conv.id !== row.conversation_id) return conv;
+            const mapped = rowToMessage(row, myId);
+            const nextMsgs = conv.messages.map(m => (m.id === row.id ? mapped : m));
+            const last = nextMsgs[nextMsgs.length - 1];
+            return {
+              ...conv,
+              messages: nextMsgs,
+              lastMessage: last ? last.text || conv.lastMessage : conv.lastMessage,
+            };
+          })
+        );
+      },
+      onMessageDelete: oldRow => {
+        if (!oldRow?.id) return;
+        setConversations(prev =>
+          prev.map(conv => {
+            if (!conv.messages.some(m => m.id === oldRow.id)) return conv;
+            const nextMsgs = conv.messages.filter(m => m.id !== oldRow.id);
+            const last = nextMsgs[nextMsgs.length - 1];
+            const lastPreview = last
+              ? last.text || (last.audioUrl ? 'Voice note' : last.videoNoteUrl ? 'Video note' : last.videoUrl ? 'Video' : last.photos?.length ? 'Photo' : '')
+              : '';
+            return { ...conv, messages: nextMsgs, lastMessage: lastPreview };
+          })
+        );
+      },
     });
 
     const onVisible = () => {
@@ -228,11 +262,13 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
     if (!uid) return 'Sign in to send messages.';
     const clientId = msg.clientId || `c-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const mediaUrl = msg.media?.url as string | undefined;
+    const nowIso = new Date().toISOString();
     const optimistic: ChatMessage & { pending?: boolean; clientId?: string } = {
       id: `tmp-${clientId}`,
       sender: 'me',
       text: msg.content || '',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      time: new Date(nowIso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      createdAt: nowIso,
       replyTo: msg.replyTo || undefined,
       pending: true,
       clientId,
@@ -250,7 +286,7 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
         if (idx < 0) return prev;
         const conv = prev[idx];
         const updated = { ...conv, messages: [...conv.messages, sent], lastMessage: previewOf(msg) || conv.lastMessage };
-        (updated as any).lastMessageAt = new Date().toISOString();
+        (updated as any).lastMessageAt = nowIso;
         return [updated, ...prev.filter((_, i) => i !== idx)];
       });
       // scripted reply so the chat feels alive on camera
@@ -261,15 +297,17 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
           const conv = prev[idx];
           const reply = demoReplyFor(conv, handleRef.current);
           if (!reply) return prev;
+          const replyIso = new Date().toISOString();
           const incoming: ChatMessage = {
             id: `demo-reply-${Date.now()}`,
             sender: 'them',
             text: reply.text,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            time: new Date(replyIso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            createdAt: replyIso,
           };
           if (reply.senderHandle) (incoming as any).senderHandle = reply.senderHandle;
           const updated = { ...conv, messages: [...conv.messages, incoming], lastMessage: reply.text };
-          (updated as any).lastMessageAt = new Date().toISOString();
+          (updated as any).lastMessageAt = replyIso;
           return [updated, ...prev.filter((_, i) => i !== idx)];
         });
       }, 1500);
@@ -417,6 +455,98 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
     [demo, refresh]
   );
 
+  const editMessage = useCallback(
+    async (conversationId: string, messageId: string, newText: string): Promise<string | null> => {
+      const uid = uidRef.current;
+      const trimmed = newText.trim();
+      if (!uid || !trimmed) return 'Message cannot be empty.';
+      const conv = conversations.find(c => c.id === conversationId);
+      const target = conv?.messages.find(m => m.id === messageId);
+      if (!canEditMessage(target)) {
+        return 'This message can no longer be edited.';
+      }
+      const editedAt = new Date().toISOString();
+      const prevMessages = conv!.messages;
+      setConversations(prev =>
+        prev.map(c => {
+          if (c.id !== conversationId) return c;
+          const nextMsgs = c.messages.map(m =>
+            m.id === messageId ? { ...m, text: trimmed, editedAt } : m
+          );
+          const isLast = nextMsgs[nextMsgs.length - 1]?.id === messageId;
+          return {
+            ...c,
+            messages: nextMsgs,
+            lastMessage: isLast ? trimmed : c.lastMessage,
+          };
+        })
+      );
+      if (demo || String(messageId).startsWith('tmp-') || String(messageId).startsWith('demo-')) {
+        return null;
+      }
+      const { row, error } = await editMessageRow(messageId, uid, trimmed, target?.media);
+      if (error) {
+        setConversations(prev =>
+          prev.map(c => (c.id === conversationId ? { ...c, messages: prevMessages } : c))
+        );
+        return error;
+      }
+      if (row) {
+        const mapped = rowToMessage(row, uid);
+        setConversations(prev =>
+          prev.map(c =>
+            c.id === conversationId
+              ? { ...c, messages: c.messages.map(m => (m.id === messageId ? mapped : m)) }
+              : c
+          )
+        );
+      }
+      return null;
+    },
+    [conversations, demo]
+  );
+
+  const deleteMessagesForEveryone = useCallback(
+    async (conversationId: string, messageIds: string[]): Promise<string | null> => {
+      const uid = uidRef.current;
+      if (!uid || messageIds.length === 0) return null;
+      const conv = conversations.find(c => c.id === conversationId);
+      if (!conv) return null;
+      const idSet = new Set(messageIds);
+      const targets = conv.messages.filter(m => idSet.has(m.id));
+      if (!canDeleteAllForEveryone(targets)) {
+        return 'Unable to delete selected messages for everyone.';
+      }
+      const prevMessages = conv.messages;
+      const prevLast = conv.lastMessage;
+      const nextMsgs = conv.messages.filter(m => !idSet.has(m.id));
+      const last = nextMsgs[nextMsgs.length - 1];
+      const nextLast = last
+        ? last.text || (last.audioUrl ? 'Voice note' : last.videoNoteUrl ? 'Video note' : last.videoUrl ? 'Video' : last.photos?.length ? 'Photo' : '')
+        : '';
+      setConversations(prev =>
+        prev.map(c =>
+          c.id === conversationId ? { ...c, messages: nextMsgs, lastMessage: nextLast } : c
+        )
+      );
+      if (demo) return null;
+      const cloudIds = messageIds.filter(id => !String(id).startsWith('tmp-') && !String(id).startsWith('demo-'));
+      if (cloudIds.length > 0) {
+        const { error } = await deleteMessagesForEveryoneRows(cloudIds, uid);
+        if (error) {
+          setConversations(prev =>
+            prev.map(c =>
+              c.id === conversationId ? { ...c, messages: prevMessages, lastMessage: prevLast } : c
+            )
+          );
+          return error;
+        }
+      }
+      return null;
+    },
+    [conversations, demo]
+  );
+
   return {
     conversations: visibleConversations,
     requests: visibleRequests,
@@ -425,6 +555,8 @@ export function useSocialsCloud(userId: string | undefined, myHandle: string) {
     refresh,
     loadHistory,
     sendMessage,
+    editMessage,
+    deleteMessagesForEveryone,
     openDirectChat,
     sendRequest,
     respondRequest,

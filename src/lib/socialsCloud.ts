@@ -69,7 +69,9 @@ export function rowToMessage(row: any, myId: string): ChatMessage {
     text: row.content || '',
     time: timeLabel(row.created_at),
   };
-  if (row.created_at) (msg as any).createdAt = row.created_at;
+  if (row.created_at) msg.createdAt = row.created_at;
+  if (media.editedAt || row.edited_at) msg.editedAt = media.editedAt || row.edited_at;
+  if (row.media && typeof row.media === 'object') msg.media = row.media;
   if (row.client_id) (msg as any).clientId = row.client_id;
   if (row.sender_id !== myId && row.sender_handle) (msg as any).senderHandle = row.sender_handle;
   if (row.sender_id) (msg as any).senderId = row.sender_id;
@@ -240,6 +242,42 @@ export async function sendMessage(
   return { row: data, error: null };
 }
 
+export async function editMessageRow(
+  messageId: string,
+  myId: string,
+  newContent: string,
+  existingMedia?: Record<string, any>
+): Promise<{ row: any | null; error: string | null }> {
+  if (!isCloudReady()) return { row: null, error: 'You are offline.' };
+  const editedAt = new Date().toISOString();
+  const nextMedia = { ...(existingMedia || {}), editedAt };
+  const { data, error } = await supabase
+    .from('messages')
+    .update({ content: newContent, media: nextMedia })
+    .eq('id', messageId)
+    .eq('sender_id', myId)
+    .select('*')
+    .single();
+  if (error) return { row: null, error: error.message };
+  return { row: data, error: null };
+}
+
+export async function deleteMessagesForEveryoneRows(
+  messageIds: string[],
+  myId: string
+): Promise<{ error: string | null }> {
+  if (!isCloudReady()) return { error: 'You are offline.' };
+  const ids = messageIds.filter(Boolean);
+  if (ids.length === 0) return { error: null };
+  const { error } = await supabase
+    .from('messages')
+    .delete()
+    .in('id', ids)
+    .eq('sender_id', myId);
+  if (error) return { error: error.message };
+  return { error: null };
+}
+
 /** Upload a recorded/picked file (photo, voice note, video) to the chat-media bucket and return its public URL. */
 export async function uploadChatMedia(
   myId: string,
@@ -366,6 +404,8 @@ export function subscribeSocials(
   myId: string,
   handlers: {
     onMessage: (row: any) => void;
+    onMessageUpdate?: (row: any) => void;
+    onMessageDelete?: (oldRow: any) => void;
     onStructure: () => void;
   }
 ): () => void {
@@ -374,6 +414,12 @@ export function subscribeSocials(
     .channel(`socials-${myId}`)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload =>
       handlers.onMessage(payload.new)
+    )
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, payload =>
+      handlers.onMessageUpdate?.(payload.new)
+    )
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, payload =>
+      handlers.onMessageDelete?.(payload.old)
     )
     .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => handlers.onStructure())
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'conversation_members' }, () =>

@@ -134,7 +134,7 @@ function makeConv(
   const ordered = [...drafts].sort((a, b) => b.ago - a.ago); // oldest first
   const messages: ChatMessage[] = ordered.map((d, i) => {
     const at = agoIso(d.ago);
-    const m: ChatMessage = { id: `${base.id}-m${i}`, sender: d.who, text: d.text, time: clock(at), ...(d.extra || {}) };
+    const m: ChatMessage = { id: `${base.id}-m${i}`, sender: d.who, text: d.text, time: clock(at), createdAt: at, ...(d.extra || {}) };
     if (d.by) (m as any).senderHandle = d.by;
     return m;
   });
@@ -270,7 +270,7 @@ export function buildDemoConversations(myId: string, myHandle: string): ChatConv
         ago: 22,
         extra: { dateInvite: { spotTitle: 'The Alchemist Bar', address: 'Parklands Rd, Westlands', date: ymd(5), time: '6:30 PM', accepted: false } },
       },
-      { who: 'me', text: 'Sent! Let me know if 6:30 works or if we push to 7 🍸', ago: 21 },
+      { who: 'me', text: 'Sent! Let me know if 6:30 works or if we push to 7 🍸', ago: 4 },
     ],
     wanjiru.id
   );

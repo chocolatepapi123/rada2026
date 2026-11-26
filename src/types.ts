@@ -509,6 +509,9 @@ export interface ChatMessage {
   sender: 'me' | 'them' | 'system';
   text: string;
   time: string;
+  createdAt?: string;
+  editedAt?: string;
+  media?: Record<string, any>;
   replyTo?: {
     id: string;
     sender: string;

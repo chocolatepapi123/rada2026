@@ -72,7 +72,7 @@ import { pickTrendingSpots } from '../lib/trendingSpots.ts';
 import { getSourceLabel, isOnlineEvent } from '../utils/eventUtils.ts';
 import { deduplicateAndLimitPhotos, readFilesAsDataUrls } from '../utils/mediaUtils.ts';
 import { AdminConfirmModal } from './AdminConfirmModal.tsx';
-import { ClaimOfferButton, ReviewReplyBlock } from './RetentionBits';
+import { ReviewReplyBlock } from './RetentionBits';
 import { SpotCategoryBadge } from './SpotCategoryBadge.tsx';
 
 interface OverlaysProps {
@@ -2285,48 +2285,60 @@ export const Overlays: React.FC<OverlaysProps> = ({
                           </span>
                         </div>
                         <div>
-                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{offer.businessName}</p>
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">{offer.businessName}</p>
                           <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 line-clamp-1">{offer.title}</h4>
                           <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">{offer.description}</p>
+                          {(offer.venue || offer.location) && (
+                            <p className="text-[10px] text-slate-600 dark:text-slate-300 mt-1 flex items-center gap-1 truncate font-medium">
+                              <MapPin className="w-3 h-3 text-[#E0533C] shrink-0" />
+                              <span className="truncate">{offer.venue || offer.location}</span>
+                            </p>
+                          )}
+                          {offer.terms && (
+                            <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-1 line-clamp-1">
+                              {offer.terms}
+                            </p>
+                          )}
                         </div>
                       </div>
 
-                      {offer.claimCode && (
-                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
-                        <ClaimOfferButton offerId={offer.id} onMessage={showToast} />
-                      </div>
-                      )}
-                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
-                        {offer.claimCode ? (
-                        <span className="text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-700 dark:text-slate-300">
-                          {offer.claimCode}
-                        </span>
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-1.5">
+                        {offer.contactPhone ? (
+                          <a
+                            href={`tel:${offer.contactPhone.replace(/\s+/g, '')}`}
+                            className="inline-flex items-center gap-1 px-2 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition shrink-0"
+                            title={`Call ${offer.businessName}`}
+                          >
+                            <Phone className="w-3 h-3" />
+                            <span>Call</span>
+                          </a>
                         ) : (
-                        <span className="text-[10px] font-bold text-slate-500 truncate">{offer.venue || offer.location || offer.businessName}</span>
+                          <span className="text-[10px] font-bold text-slate-500 truncate">{offer.location || offer.businessName}</span>
                         )}
                         <button
                           type="button"
                           onClick={() => {
-                            if (offer.claimCode) {
-                              navigator.clipboard?.writeText?.(offer.claimCode);
-                              showToast(`Copied promo code: "${offer.claimCode}"!`);
-                            }
                             const offerBiz = (offer.businessName || '').toLowerCase().trim();
-                            const matched = spots.find(
-                              s => {
-                                const spotTitle = (s.title || '').toLowerCase().trim();
-                                return (s.businessId && s.businessId === offer.businessId) ||
-                                  (spotTitle && offerBiz && (spotTitle === offerBiz || offerBiz.includes(spotTitle) || spotTitle.includes(offerBiz)));
-                              }
-                            );
+                            const matched = spots.find(s => {
+                              const spotTitle = (s.title || '').toLowerCase().trim();
+                              return (s.businessId && s.businessId === offer.businessId) ||
+                                (spotTitle && offerBiz && (spotTitle === offerBiz || offerBiz.includes(spotTitle) || spotTitle.includes(offerBiz)));
+                            });
                             if (matched) {
                               onCloseViewAll();
                               onOpenSpotDetails(matched);
+                              return;
                             }
+                            if (offer.bookingUrl) {
+                              window.open(offer.bookingUrl, '_blank', 'noopener,noreferrer');
+                              return;
+                            }
+                            const q = encodeURIComponent(`${offer.businessName || ''} ${offer.location || offer.venue || 'Nairobi'}`);
+                            window.open(`https://www.google.com/maps/search/?api=1&query=${q}`, '_blank', 'noopener,noreferrer');
                           }}
-                          className="px-3 py-1.5 bg-[#E0533C] text-white rounded-lg text-[10px] font-bold hover:bg-orange-700 transition"
+                          className="px-3 py-1.5 bg-[#E0533C] text-white rounded-lg text-[10px] font-bold hover:bg-orange-700 transition shrink-0"
                         >
-                          {offer.claimCode ? 'Claim / View Spot' : 'View Spot'}
+                          View Spot
                         </button>
                       </div>
                     </div>

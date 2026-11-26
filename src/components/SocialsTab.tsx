@@ -1,5 +1,14 @@
-import React, { useState, useRef, useLayoutEffect } from 'react';
-import { markChatRead, isChatUnread, useUnreadChatCount } from '../lib/unreadChats.ts';
+import React, { useState, useRef, useLayoutEffect, useEffect, useMemo } from 'react';
+import { markChatRead, markChatsRead, markChatsUnread, isChatUnread, useUnreadChatCount } from '../lib/unreadChats.ts';
+import {
+  canEditMessage,
+  canDeleteAllForEveryone,
+  formatMessagesForCopy,
+  loadChatLocalPrefs,
+  saveChatLocalPrefs,
+  isChatHiddenLocally,
+  type ChatLocalPrefs,
+} from '../lib/chatActions.ts';
 import { 
   X, 
   Users, 
@@ -16,7 +25,18 @@ import {
   Paperclip,
   Camera,
   Plus,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Copy,
+  Pencil,
+  Forward,
+  Trash2,
+  Pin,
+  PinOff,
+  BellOff,
+  Bell,
+  Mail,
+  MailOpen,
+  CheckSquare
 } from 'lucide-react';
 import { DatingProfile, ChatConversation, ChatMessage, UserProfile } from '../types.ts';
 import { EmojiPicker } from './EmojiPicker.tsx';
@@ -51,6 +71,8 @@ interface SocialsTabProps {
   onSendMatchRequest?: (toUserId: string) => Promise<{ status: 'sent' | 'already_sent' | 'matched' | 'error'; conversationId?: string; error?: string }>;
   onRespondRequest?: (requestId: string, accept: boolean) => Promise<{ conversationId: string | null; error: string | null }>;
   onSendMessage: (conversationId: string, msg: OutgoingMessage) => Promise<string | null>;
+  onEditMessage?: (conversationId: string, messageId: string, newText: string) => Promise<string | null>;
+  onDeleteMessagesForEveryone?: (conversationId: string, messageIds: string[]) => Promise<string | null>;
   onLoadHistory: (conversationId: string) => Promise<void>;
   onRefreshSocials: () => Promise<void>;
   onOpenPlanDateModal: (chatId?: string) => void;
@@ -70,6 +92,8 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   currentUserProfile,
   myUserId,
   onSendMessage,
+  onEditMessage,
+  onDeleteMessagesForEveryone,
   onLoadHistory,
   onRefreshSocials,
   onOpenPlanDateModal,
@@ -83,6 +107,23 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
 }) => {
   const [subtab, setSubtab] = useState<'chats' | 'groups' | 'asks' | 'search'>('asks');
 
+  // Local per-user preferences for pinned/muted/deleted chats and "Delete for me" messages
+  const prefsUid = myUserId || 'guest';
+  const [chatPrefs, setChatPrefs] = useState<ChatLocalPrefs>(() => loadChatLocalPrefs(prefsUid));
+  useEffect(() => {
+    setChatPrefs(loadChatLocalPrefs(prefsUid));
+  }, [prefsUid]);
+  const updateChatPrefs = (updater: (prev: ChatLocalPrefs) => ChatLocalPrefs) => {
+    setChatPrefs(prev => {
+      const next = updater(prev);
+      saveChatLocalPrefs(prefsUid, next);
+      return next;
+    });
+  };
+  const pinnedSet = useMemo(() => new Set(chatPrefs.pinnedIds), [chatPrefs.pinnedIds]);
+  const mutedSet = useMemo(() => new Set(chatPrefs.mutedIds), [chatPrefs.mutedIds]);
+  const hiddenMsgSet = useMemo(() => new Set(chatPrefs.hiddenMessageIds), [chatPrefs.hiddenMessageIds]);
+
   // Active Chat Screen State
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   useUnreadChatCount(); // re-render the chat list when a chat becomes read or unread
@@ -91,14 +132,25 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
     [activeChatId, conversations]
   );
   const setActiveChat = (c: ChatConversation | null) => setActiveChatId(c ? c.id : null);
+
+  const visibleConversations = useMemo(() => {
+    const visible = conversations.filter(c => !isChatHiddenLocally(c, chatPrefs.deletedChatsAfter));
+    return [...visible].sort((a, b) => {
+      const pa = pinnedSet.has(a.id) ? 1 : 0;
+      const pb = pinnedSet.has(b.id) ? 1 : 0;
+      if (pa !== pb) return pb - pa;
+      return 0;
+    });
+  }, [conversations, chatPrefs.deletedChatsAfter, pinnedSet]);
+
   // Demo Mode: plain group chats live in the Groups tab; Chats keeps DMs and outing chats
   const demoGroupChats = React.useMemo(
-    () => (isDemoMode() ? conversations.filter((c) => c.type === 'group' && !c.isTemporary) : []),
-    [conversations]
+    () => (isDemoMode() ? visibleConversations.filter((c) => c.type === 'group' && !c.isTemporary) : []),
+    [visibleConversations]
   );
   const chatListItems = React.useMemo(
-    () => (isDemoMode() ? conversations.filter((c) => !(c.type === 'group' && !c.isTemporary)) : conversations),
-    [conversations]
+    () => (isDemoMode() ? visibleConversations.filter((c) => !(c.type === 'group' && !c.isTemporary)) : visibleConversations),
+    [visibleConversations]
   );
   // load the full history whenever a chat is opened
   React.useEffect(() => {
@@ -127,6 +179,81 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   // Swipe-to-reply state
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [flashId, setFlashId] = useState<string | number | null>(null);
+
+  // Long-press & Multi-Select State (Messages & Chats)
+  const [selectedMsgIds, setSelectedMsgIds] = useState<string[]>([]);
+  const [actionSheetMsg, setActionSheetMsg] = useState<ChatMessage | null>(null);
+  const [editingMsg, setEditingMsg] = useState<ChatMessage | null>(null);
+  const [deleteMsgsDialog, setDeleteMsgsDialog] = useState<ChatMessage[] | null>(null);
+  const [forwardMsgs, setForwardMsgs] = useState<ChatMessage[] | null>(null);
+  const [forwardTargetIds, setForwardTargetIds] = useState<string[]>([]);
+
+  const [selectedChatIds, setSelectedChatIds] = useState<string[]>([]);
+  const [deleteChatsDialog, setDeleteChatsDialog] = useState<ChatConversation[] | null>(null);
+
+  const longPressTimerRef = useRef<any>(null);
+  const longPressStartRef = useRef<{ x: number; y: number } | null>(null);
+  const longPressTriggeredRef = useRef(false);
+
+  const clearLongPressTimer = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    longPressStartRef.current = null;
+  };
+
+  const makeLongPressHandlers = (onLongPress: () => void) => ({
+    onPointerDown: (e: React.PointerEvent) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      clearLongPressTimer();
+      longPressTriggeredRef.current = false;
+      longPressStartRef.current = { x: e.clientX, y: e.clientY };
+      longPressTimerRef.current = setTimeout(() => {
+        longPressTriggeredRef.current = true;
+        longPressTimerRef.current = null;
+        try { navigator.vibrate?.(14); } catch {}
+        onLongPress();
+      }, 430);
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      const start = longPressStartRef.current;
+      if (!start) return;
+      if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > 10) {
+        clearLongPressTimer();
+      }
+    },
+    onPointerUp: () => clearLongPressTimer(),
+    onPointerCancel: () => clearLongPressTimer(),
+    onPointerLeave: () => clearLongPressTimer(),
+    onContextMenu: (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      clearLongPressTimer();
+      onLongPress();
+    },
+    onClickCapture: (e: React.MouseEvent) => {
+      if (longPressTriggeredRef.current) {
+        e.preventDefault();
+        e.stopPropagation();
+        longPressTriggeredRef.current = false;
+      }
+    },
+  });
+
+  useEffect(() => {
+    setSelectedMsgIds([]);
+    setActionSheetMsg(null);
+    setEditingMsg(null);
+    setDeleteMsgsDialog(null);
+    setForwardMsgs(null);
+    setForwardTargetIds([]);
+  }, [activeChatId]);
+
+  useEffect(() => {
+    setSelectedChatIds([]);
+    setDeleteChatsDialog(null);
+  }, [subtab]);
 
   // Open chats land on the latest message, and follow new ones
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -307,7 +434,119 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
   const friendlySendError = (err: string) =>
     /sign in/i.test(err) ? err : "Couldn't send that. Please check your connection and try again.";
 
+  const startEdit = (msg: ChatMessage) => {
+    if (!canEditMessage(msg)) return;
+    setReplyingTo(null);
+    setAttachedPhotos([]);
+    setEditingMsg(msg);
+    setChatInputText(msg.text || '');
+    setTimeout(() => chatTextareaRef.current?.focus(), 20);
+  };
+
+  const copyMessagesToClipboard = async (targetMsgs: ChatMessage[]) => {
+    const formatted = formatMessagesForCopy(targetMsgs, activeChat?.name);
+    if (!formatted) {
+      showToast('Nothing to copy');
+      return;
+    }
+    try {
+      await navigator.clipboard?.writeText?.(formatted);
+      showToast(targetMsgs.length > 1 ? `Copied ${targetMsgs.length} messages` : 'Copied to clipboard');
+    } catch {
+      showToast('Could not copy to clipboard', { type: 'error' });
+    }
+  };
+
+  const handleConfirmDeleteMessages = async (mode: 'me' | 'everyone') => {
+    if (!activeChat || !deleteMsgsDialog || deleteMsgsDialog.length === 0) return;
+    const targets = deleteMsgsDialog;
+    const ids = targets.map(m => m.id);
+    setDeleteMsgsDialog(null);
+    setSelectedMsgIds([]);
+    if (mode === 'me') {
+      updateChatPrefs(prev => ({
+        ...prev,
+        hiddenMessageIds: Array.from(new Set([...prev.hiddenMessageIds, ...ids])),
+      }));
+      showToast(targets.length > 1 ? `Deleted ${targets.length} messages for you` : 'Deleted for you');
+      return;
+    }
+    if (!canDeleteAllForEveryone(targets)) return;
+    if (onDeleteMessagesForEveryone) {
+      const err = await onDeleteMessagesForEveryone(activeChat.id, ids);
+      if (err) {
+        showToast(err, { type: 'error' });
+        return;
+      }
+      showToast(targets.length > 1 ? `Deleted ${targets.length} messages for everyone` : 'Deleted for everyone');
+    }
+  };
+
+  const handleConfirmForward = async () => {
+    if (!forwardMsgs || forwardMsgs.length === 0 || forwardTargetIds.length === 0) return;
+    const msgsToSend = [...forwardMsgs];
+    const targetIds = [...forwardTargetIds];
+    setForwardMsgs(null);
+    setForwardTargetIds([]);
+    setSelectedMsgIds([]);
+
+    let sentCount = 0;
+    for (const chatId of targetIds) {
+      for (const m of msgsToSend) {
+        if (m.photos && m.photos.length > 0) {
+          const err = await onSendMessage(chatId, {
+            kind: 'photo',
+            content: m.text || '',
+            media: { photos: m.photos },
+          });
+          if (!err) sentCount += 1;
+        } else if (m.audioUrl) {
+          const err = await onSendMessage(chatId, {
+            kind: 'voice',
+            content: m.text || 'Voice note',
+            media: { url: m.audioUrl, duration: m.audioDuration || 0 },
+          });
+          if (!err) sentCount += 1;
+        } else if (m.videoUrl || m.videoNoteUrl) {
+          const err = await onSendMessage(chatId, {
+            kind: m.videoNoteUrl ? 'video_note' : 'video',
+            content: m.text || 'Video',
+            media: { url: m.videoNoteUrl || m.videoUrl, duration: m.videoDuration || 0 },
+          });
+          if (!err) sentCount += 1;
+        } else {
+          const body = m.text || (m.dateInvite ? `Date invitation: ${m.dateInvite.spotTitle} (${m.dateInvite.date} at ${m.dateInvite.time})` : '');
+          if (!body) continue;
+          const err = await onSendMessage(chatId, { kind: 'text', content: body });
+          if (!err) sentCount += 1;
+        }
+      }
+    }
+    if (sentCount > 0) {
+      showToast(`Forwarded to ${targetIds.length} chat${targetIds.length > 1 ? 's' : ''}`);
+    }
+  };
+
   const handleSendMessage = async () => {
+    if (editingMsg && activeChat) {
+      const trimmed = chatInputText.trim();
+      if (!trimmed || isSending) return;
+      if (!canEditMessage(editingMsg)) {
+        setEditingMsg(null);
+        setChatInputText('');
+        return;
+      }
+      const targetId = editingMsg.id;
+      setEditingMsg(null);
+      setChatInputText('');
+      setShowEmojiPicker(false);
+      if (onEditMessage) {
+        const err = await onEditMessage(activeChat.id, targetId, trimmed);
+        if (err) showToast(err, { type: 'error' });
+      }
+      return;
+    }
+
     if ((!chatInputText.trim() && attachedPhotos.length === 0) || !activeChat || !myUserId || isSending) return;
     const chatId = activeChat.id;
     const text = chatInputText.trim();
@@ -649,10 +888,117 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
 
   // If in chat room
   if (activeChat) {
-    const msgs = activeChat.messages;
+    const msgs = activeChat.messages.filter(m => !hiddenMsgSet.has(m.id));
+    const selectableMsgs = msgs.filter(m => m.sender !== 'system');
+    const isMsgSelectMode = selectedMsgIds.length > 0;
+    const selectedMsgSet = new Set(selectedMsgIds);
+    const selectedMsgs = selectableMsgs.filter(m => selectedMsgSet.has(m.id));
+    const toggleMsgSelection = (msgId: string) => {
+      setSelectedMsgIds(prev => (prev.includes(msgId) ? prev.filter(id => id !== msgId) : [...prev, msgId]));
+    };
+
+    const singleSelectedMsg = selectedMsgs.length === 1 ? selectedMsgs[0] : null;
+    const canCopySelected = selectedMsgs.some(m => Boolean(m.text?.trim() || m.dateInvite));
+    const canEditSingleSelected = Boolean(singleSelectedMsg && canEditMessage(singleSelectedMsg));
+
     return (
       <div className={`fixed inset-0 z-50 flex flex-col ${chatStyles.bg} transition-colors duration-200`}>
-        {/* Chat Room Header */}
+        {/* Chat Room Header (or Multi-Select Action Bar) */}
+        {isMsgSelectMode ? (
+          <div
+            className={`sticky top-0 z-10 backdrop-blur-xl px-3 pb-2.5 border-b border-slate-200/70 dark:border-white/10 flex items-center justify-between gap-2 ${chatStyles.header}`}
+            style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.625rem)' }}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <button
+                type="button"
+                onClick={() => setSelectedMsgIds([])}
+                className="w-9 h-9 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-700 dark:text-slate-200 active:scale-95 transition cursor-pointer shrink-0"
+                aria-label="Cancel selection"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <span className="font-extrabold text-sm text-slate-900 dark:text-slate-100 truncate">
+                {selectedMsgs.length} selected
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedMsgIds(
+                    selectedMsgs.length === selectableMsgs.length ? [] : selectableMsgs.map(m => m.id)
+                  )
+                }
+                className="px-2.5 py-1.5 rounded-full text-[11px] font-bold text-[#E0533C] hover:bg-[#E0533C]/10 transition cursor-pointer"
+                title="Select all messages"
+              >
+                {selectedMsgs.length === selectableMsgs.length ? 'None' : 'All'}
+              </button>
+              {singleSelectedMsg && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    startReply(singleSelectedMsg);
+                    setSelectedMsgIds([]);
+                  }}
+                  className="w-9 h-9 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 flex items-center justify-center text-slate-700 dark:text-slate-200 cursor-pointer"
+                  aria-label="Reply"
+                  title="Reply"
+                >
+                  <Reply className="w-4 h-4" />
+                </button>
+              )}
+              {canEditSingleSelected && singleSelectedMsg && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    startEdit(singleSelectedMsg);
+                    setSelectedMsgIds([]);
+                  }}
+                  className="w-9 h-9 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 flex items-center justify-center text-slate-700 dark:text-slate-200 cursor-pointer"
+                  aria-label="Edit"
+                  title="Edit"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+              )}
+              {canCopySelected && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void copyMessagesToClipboard(selectedMsgs);
+                    setSelectedMsgIds([]);
+                  }}
+                  className="w-9 h-9 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 flex items-center justify-center text-slate-700 dark:text-slate-200 cursor-pointer"
+                  aria-label="Copy"
+                  title="Copy"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setForwardMsgs(selectedMsgs)}
+                className="w-9 h-9 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 flex items-center justify-center text-slate-700 dark:text-slate-200 cursor-pointer"
+                aria-label="Forward"
+                title="Forward"
+              >
+                <Forward className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeleteMsgsDialog(selectedMsgs)}
+                className="w-9 h-9 rounded-full hover:bg-red-50 dark:hover:bg-red-950/40 flex items-center justify-center text-red-600 dark:text-red-400 cursor-pointer"
+                aria-label="Delete"
+                title="Delete"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        ) : (
         <div
           className={`sticky top-0 z-10 backdrop-blur-xl px-3 pb-2.5 border-b border-slate-200/70 dark:border-white/10 flex items-center gap-2.5 ${chatStyles.header}`}
           style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.625rem)' }}
@@ -681,7 +1027,10 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
           </div>
 
           <div className="min-w-0 flex-1">
-            <h4 className="font-extrabold text-sm leading-tight truncate text-slate-900 dark:text-slate-100">{activeChat.name}</h4>
+            <h4 className="font-extrabold text-sm leading-tight truncate text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+              <span className="truncate">{activeChat.name}</span>
+              {mutedSet.has(activeChat.id) && <BellOff className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
+            </h4>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
               {activeChat.isTemporary ? 'Outing group chat' : activeChat.type === 'group' ? 'Group chat' : 'Tap to view profile'}
               {activeChat.members ? ` · ${activeChat.members.length} members` : ''}
@@ -697,6 +1046,7 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             <span className="hidden min-[380px]:inline">Plan a Date</span>
           </button>
         </div>
+        )}
 
         {/* Messages Stream */}
         <div className="flex-1 overflow-y-auto overscroll-contain">
@@ -757,27 +1107,63 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
               const tail = sameAsNext ? '' : mine ? 'rounded-br-md' : 'rounded-bl-md';
               const flash = flashId !== null && String(flashId) === String(msg.id);
               const dateAccepted = !msg.dateInvite ? parseDateAccepted(msg.text) : null;
+              const isSelected = selectedMsgSet.has(msg.id);
+              const msgLongPress = makeLongPressHandlers(() => {
+                if (isMsgSelectMode) {
+                  toggleMsgSelection(msg.id);
+                } else {
+                  setActionSheetMsg(msg);
+                }
+              });
 
-              const replyBtn = (
+              const replyBtn = !isMsgSelectMode ? (
                 <button
                   type="button"
-                  onClick={() => startReply(msg)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startReply(msg);
+                  }}
                   title="Reply"
                   aria-label="Reply"
                   className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-[#E0533C] hover:bg-slate-100 dark:hover:bg-white/10 transition shrink-0 cursor-pointer"
                 >
                   <Reply className="w-3.5 h-3.5" />
                 </button>
-              );
+              ) : null;
 
               return (
-                <SwipeToReply key={msg.id} onReply={() => startReply(msg)} className={sameAsPrev ? 'mt-0.5' : 'mt-2.5'}>
-                  <div id={`msg-${msg.id}`} className={`flex flex-col group ${mine ? 'items-end' : 'items-start'}`}>
+                <SwipeToReply
+                  key={msg.id}
+                  onReply={() => startReply(msg)}
+                  disabled={isMsgSelectMode}
+                  className={sameAsPrev ? 'mt-0.5' : 'mt-2.5'}
+                >
+                  <div
+                    id={`msg-${msg.id}`}
+                    {...msgLongPress}
+                    onClick={() => {
+                      if (isMsgSelectMode) toggleMsgSelection(msg.id);
+                    }}
+                    className={`flex flex-col group select-none rounded-2xl transition-colors ${
+                      mine ? 'items-end' : 'items-start'
+                    } ${isSelected ? 'bg-[#E0533C]/12 dark:bg-[#E0533C]/20 px-1.5 py-1' : ''}`}
+                  >
                     {!mine && activeChat.type === 'group' && handle && !sameAsPrev && (
                       <span className="text-[11px] font-bold text-[#E0533C] mb-0.5 px-2">{handle}</span>
                     )}
 
-                    <div className="flex items-end gap-1 max-w-[88%]">
+                    <div className="flex items-end gap-1.5 max-w-[88%]">
+                      {isMsgSelectMode && (
+                        <span
+                          className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 self-center border transition ${
+                            isSelected
+                              ? 'bg-[#E0533C] border-[#E0533C] text-white'
+                              : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-[#1C1A1E]'
+                          }`}
+                        >
+                          {isSelected && <Check className="w-3 h-3" strokeWidth={3} />}
+                        </span>
+                      )}
                       {mine && replyBtn}
 
                       {msg.dateInvite ? (
@@ -873,14 +1259,25 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                           {msg.photos && msg.photos.length > 0 && (
                             <div className={`grid gap-1.5 mb-1.5 ${msg.photos.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
                               {msg.photos.map((photoUrl, pIdx) => (
-                                <div key={pIdx} onClick={() => setViewerPhoto(photoUrl)} className="rounded-2xl overflow-hidden max-h-52 bg-black/10 cursor-pointer">
+                                <div
+                                  key={pIdx}
+                                  onClick={(e) => {
+                                    if (isMsgSelectMode) return;
+                                    e.stopPropagation();
+                                    setViewerPhoto(photoUrl);
+                                  }}
+                                  className="rounded-2xl overflow-hidden max-h-52 bg-black/10 cursor-pointer"
+                                >
                                   <img src={photoUrl} alt={`Attachment ${pIdx + 1}`} className="w-full h-full object-cover" />
                                 </div>
                               ))}
                             </div>
                           )}
                           {msg.text && <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{msg.text}</p>}
-                          <span className="text-[10px] opacity-70 block text-right mt-0.5">{msg.time}</span>
+                          <span className="text-[10px] opacity-70 block text-right mt-0.5">
+                            {msg.editedAt ? 'Edited · ' : ''}
+                            {msg.time}
+                          </span>
                         </div>
                       )}
 
@@ -893,6 +1290,29 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             <div ref={messagesEndRef} className="h-1" />
           </div>
         </div>
+
+        {/* Editing preview banner */}
+        {editingMsg && (
+          <div className="max-w-lg mx-auto w-full px-3 pt-2">
+            <div className="bg-slate-100 dark:bg-white/[0.06] border-l-4 border-[#E0533C] pl-3 pr-1.5 py-2 rounded-2xl flex items-center gap-2 animate-in slide-in-from-bottom-1 duration-150">
+              <Pencil className="w-4 h-4 text-[#E0533C] shrink-0" />
+              <div className="min-w-0 flex-1">
+                <span className="font-extrabold text-[11px] text-[#E0533C] block">Editing message</span>
+                <p className="text-[12px] text-slate-600 dark:text-slate-300 truncate">{editingMsg.text}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setEditingMsg(null);
+                  setChatInputText('');
+                }}
+                className="w-7 h-7 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 flex items-center justify-center text-slate-400 shrink-0 cursor-pointer"
+                aria-label="Cancel edit"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Reply preview */}
         {replyingTo && (
@@ -1150,6 +1570,256 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             <img loading="lazy" decoding="async" src={viewerPhoto} alt="Photo" onClick={(e) => e.stopPropagation()} className="max-w-full max-h-full object-contain" />
           </div>
         )}
+
+        {/* Long-press Message Action Sheet */}
+        {actionSheetMsg && (
+          <div
+            className="fixed inset-0 z-[260] bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4"
+            onClick={() => setActionSheetMsg(null)}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div
+              className="w-full sm:max-w-sm bg-white dark:bg-[#1C1A1E] rounded-t-3xl sm:rounded-3xl border border-slate-200 dark:border-white/10 p-4 space-y-2 shadow-2xl"
+              style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-white/10">
+                <p className="text-xs font-bold text-slate-500 dark:text-slate-400 truncate pr-3">
+                  {actionSheetMsg.text || (actionSheetMsg.photos?.length ? 'Photo message' : 'Media message')}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setActionSheetMsg(null)}
+                  className="w-7 h-7 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-500 cursor-pointer shrink-0"
+                  aria-label="Close options"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-1 text-sm font-bold">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const m = actionSheetMsg;
+                    setActionSheetMsg(null);
+                    startReply(m);
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/10 transition cursor-pointer"
+                >
+                  <Reply className="w-4 h-4 text-[#E0533C]" />
+                  <span>Reply</span>
+                </button>
+
+                {(actionSheetMsg.text || actionSheetMsg.dateInvite) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const m = actionSheetMsg;
+                      setActionSheetMsg(null);
+                      void copyMessagesToClipboard([m]);
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/10 transition cursor-pointer"
+                  >
+                    <Copy className="w-4 h-4 text-slate-500" />
+                    <span>Copy</span>
+                  </button>
+                )}
+
+                {canEditMessage(actionSheetMsg) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const m = actionSheetMsg;
+                      setActionSheetMsg(null);
+                      startEdit(m);
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/10 transition cursor-pointer"
+                  >
+                    <Pencil className="w-4 h-4 text-[#E0533C]" />
+                    <span>Edit</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const m = actionSheetMsg;
+                    setActionSheetMsg(null);
+                    setForwardMsgs([m]);
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/10 transition cursor-pointer"
+                >
+                  <Forward className="w-4 h-4 text-slate-500" />
+                  <span>Forward</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const m = actionSheetMsg;
+                    setActionSheetMsg(null);
+                    setSelectedMsgIds([m.id]);
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/10 transition cursor-pointer"
+                >
+                  <CheckSquare className="w-4 h-4 text-slate-500" />
+                  <span>Select multiple</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const m = actionSheetMsg;
+                    setActionSheetMsg(null);
+                    setDeleteMsgsDialog([m]);
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Messages Confirmation Modal */}
+        {deleteMsgsDialog && (
+          <div
+            className="fixed inset-0 z-[270] bg-black/55 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4"
+            onClick={() => setDeleteMsgsDialog(null)}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div
+              className="w-full sm:max-w-sm bg-white dark:bg-[#1C1A1E] rounded-t-3xl sm:rounded-3xl border border-slate-200 dark:border-white/10 p-5 space-y-3 shadow-2xl"
+              style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="font-black text-base text-slate-900 dark:text-slate-100">
+                {deleteMsgsDialog.length > 1
+                  ? `Delete ${deleteMsgsDialog.length} messages?`
+                  : 'Delete message?'}
+              </h3>
+              <div className="space-y-2 pt-1">
+                {canDeleteAllForEveryone(deleteMsgsDialog) && (
+                  <button
+                    type="button"
+                    onClick={() => void handleConfirmDeleteMessages('everyone')}
+                    className="w-full py-3 rounded-2xl bg-red-600 hover:bg-red-700 text-white text-sm font-extrabold transition cursor-pointer"
+                  >
+                    Delete for everyone
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => void handleConfirmDeleteMessages('me')}
+                  className="w-full py-3 rounded-2xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/15 text-slate-900 dark:text-slate-100 text-sm font-extrabold transition cursor-pointer"
+                >
+                  Delete for me
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteMsgsDialog(null)}
+                  className="w-full py-2.5 rounded-2xl text-slate-500 dark:text-slate-400 text-sm font-bold hover:bg-slate-50 dark:hover:bg-white/5 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Forward Messages Modal */}
+        {forwardMsgs && (
+          <div
+            className="fixed inset-0 z-[270] bg-black/55 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4"
+            onClick={() => {
+              setForwardMsgs(null);
+              setForwardTargetIds([]);
+            }}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div
+              className="w-full sm:max-w-md bg-white dark:bg-[#1C1A1E] rounded-t-3xl sm:rounded-3xl border border-slate-200 dark:border-white/10 p-4 space-y-3 shadow-2xl max-h-[80vh] flex flex-col"
+              style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="font-black text-base text-slate-900 dark:text-slate-100">
+                  Forward {forwardMsgs.length > 1 ? `${forwardMsgs.length} messages` : 'message'}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForwardMsgs(null);
+                    setForwardTargetIds([]);
+                  }}
+                  className="w-8 h-8 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-500 cursor-pointer"
+                  aria-label="Close forward"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto space-y-1.5 pr-0.5">
+                {visibleConversations.filter(c => c.id !== activeChat.id).map((conv) => {
+                  const picked = forwardTargetIds.includes(conv.id);
+                  return (
+                    <button
+                      key={conv.id}
+                      type="button"
+                      onClick={() =>
+                        setForwardTargetIds(prev =>
+                          prev.includes(conv.id) ? prev.filter(id => id !== conv.id) : [...prev, conv.id]
+                        )
+                      }
+                      className={`w-full p-2.5 rounded-2xl flex items-center justify-between gap-3 border transition cursor-pointer ${
+                        picked
+                          ? 'bg-[#E0533C]/10 border-[#E0533C]'
+                          : 'bg-slate-50 dark:bg-white/5 border-transparent hover:border-slate-200 dark:hover:border-white/10'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                          className="w-10 h-10 rounded-full bg-cover bg-center shrink-0"
+                          style={{ backgroundImage: `url('${conv.avatar}')` }}
+                        />
+                        <span className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">{conv.name}</span>
+                      </div>
+                      <span
+                        className={`w-5 h-5 rounded-full flex items-center justify-center border shrink-0 ${
+                          picked
+                            ? 'bg-[#E0533C] border-[#E0533C] text-white'
+                            : 'border-slate-300 dark:border-slate-600'
+                        }`}
+                      >
+                        {picked && <Check className="w-3 h-3" strokeWidth={3} />}
+                      </span>
+                    </button>
+                  );
+                })}
+                {visibleConversations.filter(c => c.id !== activeChat.id).length === 0 && (
+                  <p className="text-xs text-slate-400 text-center py-6">No other chats available to forward to.</p>
+                )}
+              </div>
+
+              <button
+                type="button"
+                disabled={forwardTargetIds.length === 0}
+                onClick={() => void handleConfirmForward()}
+                className="w-full py-3 rounded-2xl bg-[#E0533C] disabled:opacity-40 text-white text-sm font-extrabold transition cursor-pointer"
+              >
+                {forwardTargetIds.length > 0
+                  ? `Send to ${forwardTargetIds.length} chat${forwardTargetIds.length > 1 ? 's' : ''}`
+                  : 'Select a chat'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -1189,59 +1859,300 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
       {subtab === 'groups' && !isDemoMode() && (
         <GroupsSection signedIn={Boolean(myUserId)} showToast={showToast} />
       )}
-      {subtab === 'groups' && isDemoMode() && (
+      {subtab === 'groups' && isDemoMode() && (() => {
+        const isGroupSelectMode = selectedChatIds.length > 0;
+        const selectedGroupConvs = demoGroupChats.filter(c => selectedChatIds.includes(c.id));
+        const allGroupsPinned = selectedGroupConvs.length > 0 && selectedGroupConvs.every(c => pinnedSet.has(c.id));
+        const allGroupsMuted = selectedGroupConvs.length > 0 && selectedGroupConvs.every(c => mutedSet.has(c.id));
+        const anyGroupUnread = selectedGroupConvs.some(c => isChatUnread(c));
+
+        return (
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className={HEADING}>My groups ({demoGroupChats.length})</h3>
-            <button
-              onClick={onOpenCreateGroupModal}
-              className="px-3 py-1.5 rounded-full bg-[#E0533C]/10 text-[#E0533C] font-extrabold text-xs flex items-center gap-1.5 active:scale-95 transition cursor-pointer"
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span>New group</span>
-            </button>
-          </div>
+          {isGroupSelectMode ? (
+            <div className="p-2.5 bg-white dark:bg-[#1C1A1E] border border-[#E0533C]/40 rounded-2xl flex items-center justify-between gap-2 shadow-sm">
+              <div className="flex items-center gap-2 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setSelectedChatIds([])}
+                  className="w-8 h-8 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-700 dark:text-slate-200 cursor-pointer shrink-0"
+                  aria-label="Cancel selection"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <span className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">
+                  {selectedGroupConvs.length} selected
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedChatIds(
+                      selectedGroupConvs.length === demoGroupChats.length ? [] : demoGroupChats.map(c => c.id)
+                    )
+                  }
+                  className="text-[11px] font-bold text-[#E0533C] px-2 py-1 rounded-full hover:bg-[#E0533C]/10 cursor-pointer shrink-0"
+                >
+                  {selectedGroupConvs.length === demoGroupChats.length ? 'None' : 'All'}
+                </button>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ids = selectedGroupConvs.map(c => c.id);
+                    updateChatPrefs(prev => ({
+                      ...prev,
+                      pinnedIds: allGroupsPinned
+                        ? prev.pinnedIds.filter(id => !ids.includes(id))
+                        : Array.from(new Set([...prev.pinnedIds, ...ids])),
+                    }));
+                    showToast(allGroupsPinned ? 'Unpinned' : 'Pinned to top');
+                    setSelectedChatIds([]);
+                  }}
+                  className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 flex items-center justify-center text-slate-700 dark:text-slate-200 cursor-pointer"
+                  title={allGroupsPinned ? 'Unpin' : 'Pin'}
+                  aria-label={allGroupsPinned ? 'Unpin' : 'Pin'}
+                >
+                  {allGroupsPinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ids = selectedGroupConvs.map(c => c.id);
+                    updateChatPrefs(prev => ({
+                      ...prev,
+                      mutedIds: allGroupsMuted
+                        ? prev.mutedIds.filter(id => !ids.includes(id))
+                        : Array.from(new Set([...prev.mutedIds, ...ids])),
+                    }));
+                    showToast(allGroupsMuted ? 'Unmuted' : 'Muted');
+                    setSelectedChatIds([]);
+                  }}
+                  className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 flex items-center justify-center text-slate-700 dark:text-slate-200 cursor-pointer"
+                  title={allGroupsMuted ? 'Unmute' : 'Mute'}
+                  aria-label={allGroupsMuted ? 'Unmute' : 'Mute'}
+                >
+                  {allGroupsMuted ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (anyGroupUnread) {
+                      markChatsRead(selectedGroupConvs);
+                      showToast('Marked as read');
+                    } else {
+                      markChatsUnread(selectedGroupConvs);
+                      showToast('Marked as unread');
+                    }
+                    setSelectedChatIds([]);
+                  }}
+                  className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 flex items-center justify-center text-slate-700 dark:text-slate-200 cursor-pointer"
+                  title={anyGroupUnread ? 'Mark as read' : 'Mark as unread'}
+                  aria-label={anyGroupUnread ? 'Mark as read' : 'Mark as unread'}
+                >
+                  {anyGroupUnread ? <MailOpen className="w-4 h-4" /> : <Mail className="w-4 h-4" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteChatsDialog(selectedGroupConvs)}
+                  className="w-8 h-8 rounded-full hover:bg-red-50 dark:hover:bg-red-950/40 flex items-center justify-center text-red-600 dark:text-red-400 cursor-pointer"
+                  title="Delete"
+                  aria-label="Delete"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <h3 className={HEADING}>My groups ({demoGroupChats.length})</h3>
+              <button
+                onClick={onOpenCreateGroupModal}
+                className="px-3 py-1.5 rounded-full bg-[#E0533C]/10 text-[#E0533C] font-extrabold text-xs flex items-center gap-1.5 active:scale-95 transition cursor-pointer"
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>New group</span>
+              </button>
+            </div>
+          )}
           <div className="space-y-2">
             {demoGroupChats.length === 0 && (
               <div className={`${CARD} border-dashed rounded-3xl py-8 px-5 text-center space-y-2`}>
                 <p className="text-[13px] text-slate-500 dark:text-slate-400">No groups yet. Start one with the New group button.</p>
               </div>
             )}
-            {demoGroupChats.map((conv) => (
+            {demoGroupChats.map((conv) => {
+              const isSelected = selectedChatIds.includes(conv.id);
+              const unread = isChatUnread(conv);
+              const isPinned = pinnedSet.has(conv.id);
+              const isMuted = mutedSet.has(conv.id);
+              const lp = makeLongPressHandlers(() => {
+                setSelectedChatIds(prev => (prev.includes(conv.id) ? prev : [...prev, conv.id]));
+              });
+              return (
               <div
                 key={conv.id}
-                onClick={() => setActiveChat(conv)}
-                className={`p-3 ${CARD} rounded-2xl flex items-center justify-between gap-3 shadow-xs hover:border-[#E0533C]/50 active:scale-[0.99] transition cursor-pointer`}
+                {...lp}
+                onClick={() => {
+                  if (isGroupSelectMode) {
+                    setSelectedChatIds(prev => (prev.includes(conv.id) ? prev.filter(id => id !== conv.id) : [...prev, conv.id]));
+                  } else {
+                    setActiveChat(conv);
+                  }
+                }}
+                className={`p-3 ${CARD} rounded-2xl flex items-center justify-between gap-3 shadow-xs transition cursor-pointer select-none ${
+                  isSelected ? 'border-[#E0533C] bg-[#E0533C]/5 dark:bg-[#E0533C]/15' : 'hover:border-[#E0533C]/50 active:scale-[0.99]'
+                }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
+                  {isGroupSelectMode && (
+                    <span
+                      className={`w-5 h-5 rounded-full flex items-center justify-center border shrink-0 ${
+                        isSelected ? 'bg-[#E0533C] border-[#E0533C] text-white' : 'border-slate-300 dark:border-slate-600'
+                      }`}
+                    >
+                      {isSelected && <Check className="w-3 h-3" strokeWidth={3} />}
+                    </span>
+                  )}
                   <div className={avatarRing}>
                     <div className="w-12 h-12 rounded-full bg-cover bg-center border-2 border-white dark:border-[#1C1A1E]" style={{ backgroundImage: `url('${conv.avatar}')` }} />
                   </div>
                   <div className="min-w-0">
-                    <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 truncate">{conv.name}</h4>
-                    <p className="text-xs truncate mt-0.5 text-slate-500 dark:text-slate-400">{conv.lastMessage}</p>
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 truncate">{conv.name}</h4>
+                      {isPinned && <Pin className="w-3 h-3 text-[#E0533C] shrink-0" />}
+                      {isMuted && <BellOff className="w-3 h-3 text-slate-400 shrink-0" />}
+                    </div>
+                    <p className={`text-xs truncate mt-0.5 ${unread ? 'font-bold text-slate-900 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400'}`}>{conv.lastMessage}</p>
                     <p className="text-[11px] font-bold text-slate-400 mt-0.5">{(conv.members || []).length} members</p>
                   </div>
                 </div>
-                <span className="text-[11px] text-slate-400 shrink-0">{formatChatTime((conv as any).lastMessageAt)}</span>
+                <div className="text-right shrink-0">
+                  <span className="text-[11px] text-slate-400 block">{formatChatTime((conv as any).lastMessageAt)}</span>
+                  {unread && <span className="w-2 h-2 rounded-full bg-[#E0533C] inline-block mt-1.5" aria-label="Unread" />}
+                </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
-      )}
+        );
+      })()}
 
-      {subtab === 'chats' && (
+      {subtab === 'chats' && (() => {
+        const isChatSelectMode = selectedChatIds.length > 0;
+        const selectedConvs = chatListItems.filter(c => selectedChatIds.includes(c.id));
+        const allChatsPinned = selectedConvs.length > 0 && selectedConvs.every(c => pinnedSet.has(c.id));
+        const allChatsMuted = selectedConvs.length > 0 && selectedConvs.every(c => mutedSet.has(c.id));
+        const anyChatUnread = selectedConvs.some(c => isChatUnread(c));
+
+        return (
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className={HEADING}>Conversations ({chatListItems.length})</h3>
-            <button
-              onClick={onOpenCreateGroupModal}
-              className="px-3 py-1.5 rounded-full bg-[#E0533C]/10 text-[#E0533C] font-extrabold text-xs flex items-center gap-1.5 active:scale-95 transition cursor-pointer"
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span>New group</span>
-            </button>
-          </div>
+          {isChatSelectMode ? (
+            <div className="p-2.5 bg-white dark:bg-[#1C1A1E] border border-[#E0533C]/40 rounded-2xl flex items-center justify-between gap-2 shadow-sm">
+              <div className="flex items-center gap-2 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setSelectedChatIds([])}
+                  className="w-8 h-8 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-700 dark:text-slate-200 cursor-pointer shrink-0"
+                  aria-label="Cancel selection"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <span className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">
+                  {selectedConvs.length} selected
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedChatIds(
+                      selectedConvs.length === chatListItems.length ? [] : chatListItems.map(c => c.id)
+                    )
+                  }
+                  className="text-[11px] font-bold text-[#E0533C] px-2 py-1 rounded-full hover:bg-[#E0533C]/10 cursor-pointer shrink-0"
+                >
+                  {selectedConvs.length === chatListItems.length ? 'None' : 'All'}
+                </button>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ids = selectedConvs.map(c => c.id);
+                    updateChatPrefs(prev => ({
+                      ...prev,
+                      pinnedIds: allChatsPinned
+                        ? prev.pinnedIds.filter(id => !ids.includes(id))
+                        : Array.from(new Set([...prev.pinnedIds, ...ids])),
+                    }));
+                    showToast(allChatsPinned ? 'Unpinned' : 'Pinned to top');
+                    setSelectedChatIds([]);
+                  }}
+                  className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 flex items-center justify-center text-slate-700 dark:text-slate-200 cursor-pointer"
+                  title={allChatsPinned ? 'Unpin' : 'Pin'}
+                  aria-label={allChatsPinned ? 'Unpin' : 'Pin'}
+                >
+                  {allChatsPinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ids = selectedConvs.map(c => c.id);
+                    updateChatPrefs(prev => ({
+                      ...prev,
+                      mutedIds: allChatsMuted
+                        ? prev.mutedIds.filter(id => !ids.includes(id))
+                        : Array.from(new Set([...prev.mutedIds, ...ids])),
+                    }));
+                    showToast(allChatsMuted ? 'Unmuted' : 'Muted');
+                    setSelectedChatIds([]);
+                  }}
+                  className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 flex items-center justify-center text-slate-700 dark:text-slate-200 cursor-pointer"
+                  title={allChatsMuted ? 'Unmute' : 'Mute'}
+                  aria-label={allChatsMuted ? 'Unmute' : 'Mute'}
+                >
+                  {allChatsMuted ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (anyChatUnread) {
+                      markChatsRead(selectedConvs);
+                      showToast('Marked as read');
+                    } else {
+                      markChatsUnread(selectedConvs);
+                      showToast('Marked as unread');
+                    }
+                    setSelectedChatIds([]);
+                  }}
+                  className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 flex items-center justify-center text-slate-700 dark:text-slate-200 cursor-pointer"
+                  title={anyChatUnread ? 'Mark as read' : 'Mark as unread'}
+                  aria-label={anyChatUnread ? 'Mark as read' : 'Mark as unread'}
+                >
+                  {anyChatUnread ? <MailOpen className="w-4 h-4" /> : <Mail className="w-4 h-4" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteChatsDialog(selectedConvs)}
+                  className="w-8 h-8 rounded-full hover:bg-red-50 dark:hover:bg-red-950/40 flex items-center justify-center text-red-600 dark:text-red-400 cursor-pointer"
+                  title="Delete"
+                  aria-label="Delete"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <h3 className={HEADING}>Conversations ({chatListItems.length})</h3>
+              <button
+                onClick={onOpenCreateGroupModal}
+                className="px-3 py-1.5 rounded-full bg-[#E0533C]/10 text-[#E0533C] font-extrabold text-xs flex items-center gap-1.5 active:scale-95 transition cursor-pointer"
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>New group</span>
+              </button>
+            </div>
+          )}
 
           <div className="space-y-2">
             {chatListItems.length === 0 && (
@@ -1256,16 +2167,41 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             )}
             {chatListItems.map((conv) => {
               const unread = isChatUnread(conv);
+              const isSelected = selectedChatIds.includes(conv.id);
+              const isPinned = pinnedSet.has(conv.id);
+              const isMuted = mutedSet.has(conv.id);
+              const lp = makeLongPressHandlers(() => {
+                setSelectedChatIds(prev => (prev.includes(conv.id) ? prev : [...prev, conv.id]));
+              });
               return (
               <div
                 key={conv.id}
-                onClick={() => setActiveChat(conv)}
-                className={`p-3 ${CARD} rounded-2xl flex items-center justify-between gap-3 shadow-xs hover:border-[#E0533C]/50 active:scale-[0.99] transition cursor-pointer`}
+                {...lp}
+                onClick={() => {
+                  if (isChatSelectMode) {
+                    setSelectedChatIds(prev => (prev.includes(conv.id) ? prev.filter(id => id !== conv.id) : [...prev, conv.id]));
+                  } else {
+                    setActiveChat(conv);
+                  }
+                }}
+                className={`p-3 ${CARD} rounded-2xl flex items-center justify-between gap-3 shadow-xs transition cursor-pointer select-none ${
+                  isSelected ? 'border-[#E0533C] bg-[#E0533C]/5 dark:bg-[#E0533C]/15' : 'hover:border-[#E0533C]/50 active:scale-[0.99]'
+                }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
+                  {isChatSelectMode && (
+                    <span
+                      className={`w-5 h-5 rounded-full flex items-center justify-center border shrink-0 ${
+                        isSelected ? 'bg-[#E0533C] border-[#E0533C] text-white' : 'border-slate-300 dark:border-slate-600'
+                      }`}
+                    >
+                      {isSelected && <Check className="w-3 h-3" strokeWidth={3} />}
+                    </span>
+                  )}
                   <div
                     className="relative shrink-0"
                     onClick={(e) => {
+                      if (isChatSelectMode) return;
                       if (conv.type === 'direct' && (conv as any).otherUserId) {
                         e.stopPropagation();
                         openChatProfile(conv);
@@ -1282,6 +2218,8 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 truncate">{conv.name}</h4>
+                      {isPinned && <Pin className="w-3 h-3 text-[#E0533C] shrink-0" />}
+                      {isMuted && <BellOff className="w-3 h-3 text-slate-400 shrink-0" />}
                       {conv.isTemporary && (
                         <span className="px-2 py-0.5 rounded-full bg-[#E0533C]/10 text-[#E0533C] text-[9px] font-black uppercase tracking-wider shrink-0">
                           Outing
@@ -1304,7 +2242,8 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             })}
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* SEARCH MEMBERS */}
       {subtab === 'search' && (
@@ -1375,6 +2314,65 @@ export const SocialsTab: React.FC<SocialsTabProps> = ({
             <X className="w-5 h-5" />
           </button>
           <img loading="lazy" decoding="async" src={viewerPhoto} alt="Photo" onClick={(e) => e.stopPropagation()} className="max-w-full max-h-full object-contain" />
+        </div>
+      )}
+
+      {/* Delete Selected Chats Confirmation Modal */}
+      {deleteChatsDialog && (
+        <div
+          className="fixed inset-0 z-[270] bg-black/55 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4"
+          onClick={() => setDeleteChatsDialog(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="w-full sm:max-w-sm bg-white dark:bg-[#1C1A1E] rounded-t-3xl sm:rounded-3xl border border-slate-200 dark:border-white/10 p-5 space-y-3 shadow-2xl"
+            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-black text-base text-slate-900 dark:text-slate-100">
+              {deleteChatsDialog.length > 1
+                ? `Delete ${deleteChatsDialog.length} chats?`
+                : `Delete chat with ${deleteChatsDialog[0]?.name || 'member'}?`}
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Selected conversations will be removed from your chat list.
+            </p>
+            <div className="space-y-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  const now = Date.now();
+                  const nextMap = { ...chatPrefs.deletedChatsAfter };
+                  for (const c of deleteChatsDialog) {
+                    nextMap[c.id] = now;
+                  }
+                  const deletedIds = new Set(deleteChatsDialog.map(c => c.id));
+                  markChatsRead(deleteChatsDialog);
+                  updateChatPrefs(prev => ({
+                    ...prev,
+                    pinnedIds: prev.pinnedIds.filter(id => !deletedIds.has(id)),
+                    deletedChatsAfter: nextMap,
+                  }));
+                  showToast(
+                    deleteChatsDialog.length > 1 ? `Removed ${deleteChatsDialog.length} chats` : 'Chat removed'
+                  );
+                  setDeleteChatsDialog(null);
+                  setSelectedChatIds([]);
+                }}
+                className="w-full py-3 rounded-2xl bg-red-600 hover:bg-red-700 text-white text-sm font-extrabold transition cursor-pointer"
+              >
+                Delete
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeleteChatsDialog(null)}
+                className="w-full py-2.5 rounded-2xl text-slate-500 dark:text-slate-400 text-sm font-bold hover:bg-slate-50 dark:hover:bg-white/5 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </section>

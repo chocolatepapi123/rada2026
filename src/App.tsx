@@ -204,6 +204,7 @@ const OverlayFallback: React.FC<{ onClose?: () => void }> = ({ onClose }) => (
 import {
   initialBusinesses,
   initialOffers,
+  LEGACY_OFFER_IDS,
   initialSpots,
   LEGACY_MOCK_SPOT_TITLES,
   initialEvents,
@@ -855,14 +856,33 @@ export default function App() {
       .filter(c => !LEGACY_SAMPLE_CONTACT_IDS.includes(String(c?.id)));
   });
 
-  // Independent Offers & Promotions State (12 items)
+  // Independent Offers & Promotions State
   const [offers, setOffers] = useState<BusinessOffer[]>(() => {
+    const LEGACY_BIZ_NAMES = new Set([
+      'VibeCraft Events KE',
+      'Nairobi Raves Syndicate',
+      'Ink & Drink Bar & Lounge',
+      'MadMax Karting & Two Rivers Grand Prix',
+      'Pins & Strikes Luxury Bowling Alley',
+      'Diamond Plaza Street Food Bazaar',
+      'Rainbow Ruiru Resort & Choma Terrace',
+      'Paint & Sip Nairobi Studio',
+    ]);
     const saved = localStorage.getItem('rada_offers');
     if (saved) {
       try {
-        const parsed = (JSON.parse(saved) as any[]).filter(o => o?.businessCategory !== 'thrift_store');
-        const hasLegacyMock = parsed.some((o: any) => o?.businessName === 'VibeCraft Events KE' || o?.businessName === 'Nairobi Raves Syndicate');
-        if (!hasLegacyMock && Array.isArray(parsed) && parsed.length >= initialOffers.length) return parsed;
+        const raw = JSON.parse(saved);
+        if (Array.isArray(raw)) {
+          const parsed = raw.filter(
+            (o: any) =>
+              o &&
+              o.businessCategory !== 'thrift_store' &&
+              !LEGACY_OFFER_IDS.includes(String(o.id)) &&
+              !LEGACY_BIZ_NAMES.has(String(o.businessName || '')) &&
+              !o.claimCode
+          );
+          if (parsed.length >= initialOffers.length) return parsed;
+        }
       } catch (e) {}
     }
     return initialOffers;
@@ -2043,7 +2063,11 @@ export default function App() {
           await cloud.upsertListing(kind, item, item.businessId, uid as string);
         }
         const seeds = initial
-          .map(sd => local.find(l => String(l.id) === String(sd.id)) || sd)
+          .map(sd => {
+            const matched = local.find(l => String(l.id) === String(sd.id));
+            if (kind === 'offer') return matched ? { ...matched, ...sd } : sd;
+            return matched || sd;
+          })
           .filter(sd => !remoteIds.has(String(sd.id)));
         return [...remote, ...toMigrate, ...seeds];
       };
@@ -2083,7 +2107,9 @@ export default function App() {
             return { ...base, goingCount: baseCount + (remoteGoing.counts[String(ev.id)] || 0) };
           })
         : mergedEventsRaw;
-      const mergedOffers = await mergeKind('offer', initialOffers, L.offers, safeListings.offer);
+      const cleanLocalOffers = (L.offers || []).filter((o: any) => !LEGACY_OFFER_IDS.includes(String(o?.id)) && !o?.claimCode);
+      const cleanRemoteOffers = (safeListings.offer || []).filter((o: any) => !LEGACY_OFFER_IDS.includes(String(o?.id)));
+      const mergedOffers = await mergeKind('offer', initialOffers, cleanLocalOffers, cleanRemoteOffers);
 
       // If the user changed something while we were syncing, don't overwrite it
       if (mutationRef.current !== startVersion || pendingRef.current > 0) return;
@@ -2856,6 +2882,8 @@ export default function App() {
                 currentUserProfile={currentUserProfile}
                 myUserId={demoAwareUserId(session?.user?.id && !isGuestMode ? session.user.id : undefined)}
                 onSendMessage={socials.sendMessage}
+                onEditMessage={socials.editMessage}
+                onDeleteMessagesForEveryone={socials.deleteMessagesForEveryone}
                 onLoadHistory={socials.loadHistory}
                 onRefreshSocials={socials.refresh}
                 onOpenPlanDateModal={(chatId) => requireAuth('send messages', () => { setPlanDateChatId(chatId || null); setIsPlanDateModalOpen(true); })}

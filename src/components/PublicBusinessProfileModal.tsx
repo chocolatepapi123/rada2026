@@ -8,8 +8,6 @@ import {
   Store, 
   Ticket, 
   Percent, 
-  Copy, 
-  Check, 
   Share2 
 } from 'lucide-react';
 import { 
@@ -26,7 +24,6 @@ import { track } from '../lib/tracking';
 import { shareContent } from '../utils/shareUtils.ts';
 import { getSpotCategoryAccent } from '../lib/spotAccents.ts';
 import { getSpotCategoryIds } from '../lib/spotCategories.ts';
-import { ClaimOfferButton } from './RetentionBits';
 import { sortPremium } from '../lib/spotRanking.ts';
 import type { ToastOptions } from './Toast.tsx';
 
@@ -51,7 +48,6 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
   onOpenEventDetails,
   showToast
 }) => {
- const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
   // Public tier of the business owner (Business / Golden Featured). Hook runs before the early return.
   const ownerTiers = usePublicTiers([business?.ownerId]);
   // One 'view' per business per session (de-duplicated inside track()).
@@ -66,31 +62,6 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
   // Filter spots and events for this business
   const businessSpots = spots.filter(s => s.businessId === business.id);
   const businessEvents = events.filter(e => e.businessId === business.id);
-
-  const handleCopyCode = async (offerId: string, code?: string) => {
-    if (!code) return;
-    let copied = false;
-    try {
-      await navigator.clipboard.writeText(code);
-      copied = true;
-    } catch {
-      // older phones / blocked clipboard: try the classic way
-      try {
-        const ta = document.createElement('textarea');
-        ta.value = code;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        copied = document.execCommand('copy');
-        document.body.removeChild(ta);
-      } catch { /* give up quietly */ }
-    }
-    if (!copied) return;
-    if (business) track('offer_redeem', 'business', business.id);
-    setCopiedCodeId(offerId);
-    setTimeout(() => setCopiedCodeId(null), 2500);
-  };
 
   const handleShareProfile = () => {
     shareContent({
@@ -262,51 +233,26 @@ export const PublicBusinessProfileModal: React.FC<PublicBusinessProfileModalProp
                         {offer.description}
                       </p>
 
-                      {offer.claimCode ? (
-                      <div className="flex items-center justify-between pt-1">
-                          <span className="text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg text-slate-700 dark:text-slate-300">
-                            Code: {offer.claimCode || 'RADADEAL'}
-                          </span>
-
-                          <button
-                            onClick={() => handleCopyCode(offer.id, offer.claimCode || 'RADADEAL')}
-                            className="px-3 py-1 bg-[#E0533C] dark:bg-[#A94F3E] hover:bg-[#c9432d] dark:hover:bg-[#8F4334] text-white text-xs font-bold rounded-lg flex items-center gap-1 transition"
-                          >
-                            {copiedCodeId === offer.id ? (
-                              <>
-                                <Check className="w-3 h-3" />
-                                <span>Copied!</span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="w-3 h-3" />
-                                <span>Claim Code</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-                                              ) : (
-                        <div className="space-y-1.5 pt-1">
-                          {(offer.venue || offer.location) && (
-                            <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
-                              {[offer.venue, offer.location].filter(Boolean).join(' · ')}
-                            </p>
+                      <div className="space-y-1.5 pt-1">
+                        {(offer.venue || offer.location) && (
+                          <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1">
+                            <MapPin className="w-3 h-3 text-[#E0533C] shrink-0" />
+                            <span>{[offer.venue, offer.location].filter(Boolean).join(' · ')}</span>
+                          </p>
+                        )}
+                        {offer.audience && offer.audience !== 'Everyone' && (
+                          <p className="text-[10px] font-bold text-slate-500">For: {offer.audience}</p>
+                        )}
+                        <div className="flex items-center gap-2">
+                          {offer.contactPhone && (
+                            <a href={`tel:${offer.contactPhone.replace(/\s+/g, '')}`} className="px-3 py-1.5 bg-[#E0533C] dark:bg-[#A94F3E] text-white text-xs font-bold rounded-lg">Call</a>
                           )}
-                          {offer.audience && offer.audience !== 'Everyone' && (
-                            <p className="text-[10px] font-bold text-slate-500">For: {offer.audience}</p>
+                          {(offer.bookingUrl || offer.actionUrl) && (
+                            <a href={offer.bookingUrl || offer.actionUrl} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs font-bold rounded-lg">Book / more info</a>
                           )}
-                          <div className="flex items-center gap-2">
-                            {offer.contactPhone && (
-                              <a href={`tel:${offer.contactPhone.replace(/\s+/g, '')}`} className="px-3 py-1.5 bg-[#E0533C] dark:bg-[#A94F3E] text-white text-xs font-bold rounded-lg">Call</a>
-                            )}
-                            {(offer.bookingUrl || offer.actionUrl) && (
-                              <a href={offer.bookingUrl || offer.actionUrl} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs font-bold rounded-lg">Book / more info</a>
-                            )}
-                          </div>
                         </div>
-                      )}
+                      </div>
                       {offer.terms && <p className="text-[10px] text-slate-400 pt-1">{offer.terms}</p>}
-                      {offer.claimCode && <div className="pt-2"><ClaimOfferButton offerId={offer.id} /></div>}
                     </div>
                   </div>
                 ))}

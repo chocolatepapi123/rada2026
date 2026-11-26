@@ -35,7 +35,10 @@ import {
   Crown,
   Users,
   ShieldAlert,
-  Globe
+  Globe,
+  Ticket,
+  Phone,
+  ExternalLink
 } from 'lucide-react';
 import { EventItem, OutingPlan, CinemaMovie, StatusPost, UserProfile, BusinessOffer, OfferCategory, SpotItem, SavedItem, BusinessAccount, isOfficialAdmin } from '../types.ts';
 import { BusinessBadge } from './BusinessBadge.tsx';
@@ -138,6 +141,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   const [selectedGenre, setSelectedGenre] = useState('all');
   const [selectedCinemaLoc, setSelectedCinemaLoc] = useState('all');
   const [sheetMovie, setSheetMovie] = useState<CinemaMovie | null>(null);
+  const [sheetOffer, setSheetOffer] = useState<BusinessOffer | null>(null);
 
   // Comprehensive Home Tab Modal Filters
   const [isHomeFilterModalOpen, setIsHomeFilterModalOpen] = useState(false);
@@ -502,14 +506,19 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       return;
     }
 
-    // 2. Open merchant storefront profile (shows physical address, bus stop/directions, contact & catalog)
+    // 2. Show full place & promotion details sheet (or business storefront)
+    if (offer.location || offer.venue || offer.terms || offer.contactPhone || offer.bookingUrl) {
+      setSheetOffer(offer);
+      return;
+    }
+
     if (onOpenBusinessProfile && offer.businessId) {
       onOpenBusinessProfile(offer.businessId);
       showToast(`Viewing venue details for ${offer.businessName || 'this venue'}`);
       return;
     }
 
-    showToast(`Viewing details for ${offer.businessName || 'this offer'}`);
+    setSheetOffer(offer);
   };
 
   // Daytime arrangement: 7:00 AM to 8:00 PM (7 <= hour < 20)
@@ -1334,7 +1343,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             {filteredOffers.slice(0, offersShown).map(offer => (
               <div
                 key={offer.id}
-                className="w-72 sm:w-80 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shrink-0 shadow-sm flex flex-col justify-between hover:border-rose-400/60 transition group"
+                onClick={() => setSheetOffer(offer)}
+                className="w-72 sm:w-80 bg-white dark:bg-[#1C1A1E] border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shrink-0 shadow-sm flex flex-col justify-between hover:border-rose-400/60 transition group cursor-pointer"
               >
                 {/* Poster Banner */}
                 <div className="h-36 w-full relative bg-slate-900 overflow-hidden">
@@ -1371,7 +1381,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   </button>
 
                   <div className="absolute bottom-2.5 left-2.5 right-2.5">
-                    <p className="text-[10px] text-amber-300 font-bold">{offer.validUntil}</p>
+                    <p className="text-[10px] text-amber-300 font-bold truncate">{offer.validUntil}</p>
                     <h3 className="text-sm font-black text-white line-clamp-1 mt-0.5">{offer.title}</h3>
                   </div>
                 </div>
@@ -1381,14 +1391,24 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   <div className="space-y-1.5">
                     {/* Merchant Attribution with Tailored Verification Badge */}
                     <div 
-                      onClick={() => onOpenBusinessProfile && onOpenBusinessProfile(offer.businessId)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenBusinessProfile && onOpenBusinessProfile(offer.businessId);
+                      }}
                       className="flex items-center justify-between cursor-pointer group/biz"
                     >
-                      <span className="text-xs font-black text-slate-900 dark:text-slate-100 group-hover/biz:text-[#E0533C] transition truncate max-w-[150px]">
+                      <span className="text-xs font-black text-slate-900 dark:text-slate-100 group-hover/biz:text-[#E0533C] transition truncate max-w-[175px]">
                         {offer.businessName}
                       </span>
                       <BusinessBadge businessId={offer.businessId} category={offer.businessCategory} size="xs" />
                     </div>
+
+                    {(offer.venue || offer.location) && (
+                      <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1 truncate">
+                        <MapPin className="w-3 h-3 text-[#E0533C] shrink-0" />
+                        <span className="truncate">{offer.venue || offer.location}</span>
+                      </p>
+                    )}
 
                     <p className="text-[11px] text-[#475569] dark:text-slate-300 line-clamp-2 leading-relaxed font-medium">
                       {offer.description}
@@ -1404,16 +1424,17 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         return (
                           <button
                             type="button"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               const matchingEvent = events.find(
-                                e => e.businessId === offer.businessId || 
-                                     e.title.toLowerCase().includes(offer.title.toLowerCase()) ||
-                                     offer.title.toLowerCase().includes(e.title.toLowerCase())
+                                ev => ev.businessId === offer.businessId || 
+                                     ev.title.toLowerCase().includes(offer.title.toLowerCase()) ||
+                                     offer.title.toLowerCase().includes(ev.title.toLowerCase())
                               );
                               if (matchingEvent) {
                                 onOpenEventDetails(matchingEvent);
                               } else {
-                                onOpenDedicatedViewAll('Featured Trending Events', 'events');
+                                onOpenDedicatedViewAll('Upcoming Events', 'events');
                               }
                             }}
                             className="flex-1 py-2 px-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98]"
@@ -1429,7 +1450,10 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                       return (
                         <button
                           type="button"
-                          onClick={() => handleVisitSpot(offer)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleVisitSpot(offer);
+                          }}
                           className="flex-1 py-2 px-3 bg-[#E0533C] hover:bg-orange-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98]"
                           title={`Visit Spot: ${offer.businessName}`}
                         >
@@ -1441,7 +1465,10 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     })()}
 
                     <button
-                      onClick={() => onOpenBusinessProfile && onOpenBusinessProfile(offer.businessId)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenBusinessProfile && onOpenBusinessProfile(offer.businessId);
+                      }}
                       className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-800 transition shrink-0"
                       title="View Merchant Profile"
                     >
@@ -1471,13 +1498,13 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         </div>
       )}
 
-      {/* Featured Trending Events Section with Category Filter */}
+      {/* Upcoming Events Section with Category Filter */}
       {(selectedHomeSection === 'all' || selectedHomeSection === 'events') && (selectedVibe === 'all' || selectedVibe === 'concerts' || selectedVibe === 'nightlife' || selectedVibe === 'art') && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#E0533C]"></span>
-              <span>Featured Trending Events</span>
+              <Ticket className="w-4 h-4 text-[#E0533C]" />
+              <span>Upcoming Events</span>
             </h2>
             <div className="flex items-center gap-2">
               {selectedEventCategory !== 'all' && (
@@ -1491,7 +1518,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               )}
               <button
                 type="button"
-                onClick={() => onOpenDedicatedViewAll('Featured Trending Events', 'events')}
+                onClick={() => onOpenDedicatedViewAll('Upcoming Events', 'events')}
                 className="text-[11px] font-bold text-[#E0533C] hover:underline cursor-pointer"
               >
                 View More
@@ -1660,7 +1687,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               {sortedEvents.length > 12 && (
                 <button
                   type="button"
-                  onClick={() => onOpenDedicatedViewAll('Featured Trending Events', 'events')}
+                  onClick={() => onOpenDedicatedViewAll('Upcoming Events', 'events')}
                   className="flex flex-col items-center justify-center gap-2 w-40 shrink-0 rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 bg-[#F8F8F6] dark:bg-[#1C1A1E] text-[#E0533C] font-black text-xs cursor-pointer hover:border-[#E0533C] transition"
                 >
                   <span className="text-2xl leading-none">→</span>
@@ -2067,6 +2094,113 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           onBookMovie={onBookCinema}
           onClose={() => setSheetMovie(null)}
         />
+      )}
+
+      {sheetOffer && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4"
+          onClick={() => setSheetOffer(null)}
+        >
+          <div
+            className="w-full sm:max-w-md bg-white dark:bg-[#1C1A1E] rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[88vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="relative h-48 w-full bg-slate-900 shrink-0">
+              <img
+                src={sheetOffer.posterUrl || 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&auto=format&fit=crop'}
+                alt={sheetOffer.title}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+              <button
+                type="button"
+                onClick={() => setSheetOffer(null)}
+                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 transition cursor-pointer"
+                aria-label="Close offer details"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                <span className="bg-[#E0533C] text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wide">
+                  {sheetOffer.discount}
+                </span>
+                <span className="bg-black/60 text-white text-[10px] font-bold px-2.5 py-1 rounded-full border border-white/20">
+                  {sheetOffer.category}
+                </span>
+              </div>
+              <div className="absolute bottom-3 left-4 right-4">
+                <p className="text-[11px] font-bold text-amber-300">{sheetOffer.businessName}</p>
+                <h3 className="text-base font-black text-white leading-snug">{sheetOffer.title}</h3>
+              </div>
+            </div>
+
+            <div className="p-4 space-y-3 overflow-y-auto text-xs">
+              <p className="text-slate-700 dark:text-slate-200 leading-relaxed font-medium">
+                {sheetOffer.description}
+              </p>
+
+              <div className="space-y-2 bg-[#F8F8F6] dark:bg-[#141316] rounded-2xl p-3 border border-slate-200/70 dark:border-slate-800">
+                {(sheetOffer.venue || sheetOffer.location) && (
+                  <div className="flex items-start gap-2 text-slate-700 dark:text-slate-200">
+                    <MapPin className="w-3.5 h-3.5 text-[#E0533C] mt-0.5 shrink-0" />
+                    <span className="font-semibold">{sheetOffer.venue || sheetOffer.location}</span>
+                  </div>
+                )}
+                {sheetOffer.validUntil && (
+                  <div className="flex items-start gap-2 text-slate-600 dark:text-slate-300">
+                    <Clock className="w-3.5 h-3.5 text-[#E0533C] mt-0.5 shrink-0" />
+                    <span>{sheetOffer.validUntil}</span>
+                  </div>
+                )}
+                {sheetOffer.audience && (
+                  <div className="flex items-start gap-2 text-slate-600 dark:text-slate-300">
+                    <Users className="w-3.5 h-3.5 text-[#E0533C] mt-0.5 shrink-0" />
+                    <span>For {sheetOffer.audience}</span>
+                  </div>
+                )}
+                {sheetOffer.terms && (
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-200/70 dark:border-slate-800">
+                    {sheetOffer.terms}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {sheetOffer.contactPhone && (
+                  <a
+                    href={`tel:${sheetOffer.contactPhone.replace(/\s+/g, '')}`}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    <span>{sheetOffer.contactPhone}</span>
+                  </a>
+                )}
+                {sheetOffer.bookingUrl && (
+                  <a
+                    href={sheetOffer.bookingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#E0533C] text-white font-bold hover:bg-orange-700 transition"
+                  >
+                    <span>Visit Website</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const q = encodeURIComponent(`${sheetOffer.businessName || ''} ${sheetOffer.location || sheetOffer.venue || 'Nairobi'}`);
+                    window.open(`https://www.google.com/maps/search/?api=1&query=${q}`, '_blank', 'noopener,noreferrer');
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold hover:border-[#E0533C] transition cursor-pointer"
+                >
+                  <MapPin className="w-3.5 h-3.5 text-[#E0533C]" />
+                  <span>Open in Maps</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </section>
   );
