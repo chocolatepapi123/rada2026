@@ -192,6 +192,11 @@ def now_iso():
     return datetime.now(timezone.utc).isoformat()
 
 
+def ts_url(dt):
+    """Timestamp safe to put in a URL query (no '+', which PostgREST reads as a space)."""
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def haversine(lat1, lng1, lat2, lng2):
     r = 6371000.0
     p1, p2 = math.radians(lat1), math.radians(lat2)
@@ -523,7 +528,7 @@ def load_institutions():
 
 
 def reset_stale():
-    cutoff = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+    cutoff = ts_url(datetime.now(timezone.utc) - timedelta(hours=2))
     sb("PATCH", f"seed_anchors?seed_status=eq.running&updated_at=lt.{cutoff}",
        json={"seed_status": "pending", "updated_at": now_iso()}, prefer="return=minimal")
 
@@ -833,7 +838,7 @@ def main():
     code = 0
     chain = False
     try:
-        since = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+        since = ts_url(datetime.now(timezone.utc) - timedelta(hours=24))
         for r in sb("GET", f"seed_runs?started_at=gte.{since}&select=searches,photos_downloaded"):
             DAY_USED["places"] += r.get("searches") or 0   # column `searches` stores places scraped
             DAY_USED["photos"] += r.get("photos_downloaded") or 0
