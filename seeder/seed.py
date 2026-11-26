@@ -1,35 +1,45 @@
 #!/usr/bin/env python3
 """
-RADA campus-area spot seeder.
+RADA campus-area spot seeder (free: no Google API key, no paid scraper).
 
 Seeds student-area hangout spots (cafes, restaurants, bars, parks, ...) into
 `unclaimedspots`. institutions.csv holds campuses AND "zones" (student areas such as
 Juja Town, Kahawa Sukari, Kahawa Wendani), each with its own search radius.
-Places are found with Nearby Search by exact primary type, sweeping each area with
-adaptive sub-circles so dense areas are not capped at 20 results.
+
+Data sources (all free)
+  - Coordinates of each campus/zone: OpenStreetMap Nominatim.
+  - Places + photo URLs: the open-source gosom/google-maps-scraper, run in Docker on the
+    GitHub runner. It reads Google Maps pages directly (no API key). Google can block or
+    change this at any time; the seeder stops (does not loop) when results dry up.
+  - Photos are downloaded, checked for faces, converted to WebP and stored on Cloudflare R2.
+  - Menus/prices come later from the existing spot-details-extract cron (uses each spot's website).
 
 Per run:
   1. kill switch check            (feature_switches.seeder_enabled)
   2. load institutions.csv        -> seed_anchors (idempotent)
-  3. resolve names to coordinates (Places Text Search; unmatched = 'unresolved')
+  3. resolve names to coordinates (Nominatim; unmatched = 'unresolved')
   4. cluster anchors              (campuses inside a bigger area share its search)
-  5. seed spots around pending anchors until TIME_BUDGET_MIN is used
-  6. write chain=true/false to $GITHUB_OUTPUT; the workflow re-dispatches
-     itself while chain=true. Flip the switch off (or run action=stop) to end.
+  5. scrape + seed spots around pending anchors until TIME_BUDGET_MIN is used
+  6. write chain=true/false to $GITHUB_OUTPUT; the workflow re-dispatches itself while
+     chain=true. Flip the switch off (or run action=stop) to end.
 
-Images: only photos with NO detected face are kept (YuNet + Haar, either
-detector rejecting is enough). A spot needs MIN_CLEAN_PHOTOS clean photos or it
-is skipped (and remembered in seed_skipped so it is never re-downloaded).
+Images: only photos with NO detected face are kept (YuNet + Haar, either detector
+rejecting is enough). A spot needs MIN_CLEAN_PHOTOS clean photos or it is skipped
+(and remembered in seed_skipped so it is never re-downloaded).
 
 Usage:  python seeder/seed.py [--enable | --stop]
 """
 import argparse
 import csv
 import io
+import json
 import math
 import os
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -48,7 +58,6 @@ def _env(name, default=None, cast=str):
 
 SUPABASE_URL = (_env("SUPABASE_URL", "") or "").rstrip("/")
 SERVICE_KEY = _env("SUPABASE_SERVICE_ROLE_KEY", "")
-GKEY = _env("GOOGLE_MAPS_API_KEY", "")
 R2_ACCOUNT_ID = _env("R2_ACCOUNT_ID", "")
 R2_KEY_ID = _env("R2_ACCESS_KEY_ID", "")
 R2_SECRET = _env("R2_SECRET_ACCESS_KEY", "")
@@ -59,8 +68,11 @@ R2_PUBLIC_BASE = (_env("R2_PUBLIC_BASE", "") or "").rstrip("/")
 MIN_RATING = _env("MIN_RATING", 0.0, float)         # 0 = no rating filter
 MIN_REVIEWS = _env("MIN_REVIEWS", 0, int)           # 0 = no review filter
 GROUPS = [g.strip() for g in (_env("GROUPS", "eat,cafes,nightlife,outdoors,fun,sports") or "").split(",") if g.strip()]
-MAX_DEPTH = _env("MAX_DEPTH", 3, int)               # adaptive sub-circle depth for dense areas
-NEARBY_CALL_CAP = _env("NEARBY_CALL_CAP", 120, int)  # max Nearby calls per type group per anchor
+GMAPS_IMAGE = _env("GMAPS_IMAGE", "gosom/google-maps-scraper:latest")
+GMAPS_DEPTH = _env("GMAPS_DEPTH", 2, int)           # scroll depth per search term (more = more places, slower)
+GMAPS_CONCURRENCY = _env("GMAPS_CONCURRENCY", 3, int)
+GMAPS_TIMEOUT_MIN = _env("GMAPS_TIMEOUT_MIN", 25, float)
+MAX_EMPTY_ANCHORS = _env("MAX_EMPTY_ANCHORS", 3, int)  # this many empty scrapes in a row = assume blocked
 MAX_PHOTOS = _env("MAX_PHOTOS", 4, int)             # kept per spot
 MIN_CLEAN_PHOTOS = _env("MIN_CLEAN_PHOTOS", 2, int)  # spot skipped below this
 MAX_PHOTO_CANDIDATES = _env("MAX_PHOTO_CANDIDATES", 8, int)  # downloaded per spot at most
@@ -68,127 +80,104 @@ TOTAL_SPOT_CAP = _env("TOTAL_SPOT_CAP", 5000, int)  # all seeder spots together;
 MAX_SPOTS_PER_ANCHOR = _env("MAX_SPOTS_PER_ANCHOR", 200, int)  # spots added per place/area
 FACE_SCORE = _env("FACE_SCORE", 0.5, float)         # lower = stricter (more rejects)
 TIME_BUDGET_MIN = _env("TIME_BUDGET_MIN", 45, float)
-RESOLVE_PER_RUN = _env("RESOLVE_PER_RUN", 70, int)
-DAILY_SEARCH_CAP = _env("DAILY_SEARCH_CAP", 3000, int)   # rolling 24h, across runs
-DAILY_PHOTO_CAP = _env("DAILY_PHOTO_CAP", 3000, int)     # rolling 24h, across runs
+RESOLVE_PER_RUN = _env("RESOLVE_PER_RUN", 200, int)
+DAILY_PLACE_CAP = _env("DAILY_PLACE_CAP", 4000, int)    # places scraped, rolling 24h (keeps volume polite to Google)
+DAILY_PHOTO_CAP = _env("DAILY_PHOTO_CAP", 3000, int)    # photo downloads, rolling 24h
 
 # Greater Nairobi / Kiambu / Thika / Juja bounding box (sanity check for resolved anchors)
 BBOX = (-1.50, -0.85, 36.50, 37.30)  # lat_min, lat_max, lng_min, lng_max
+
+NOMINATIM_UA = "rada-seeder/1.0 (https://github.com/chocolatepapi123/rada2026)"
 
 YUNET_URL = (
     "https://github.com/opencv/opencv_zoo/raw/main/models/"
     "face_detection_yunet/face_detection_yunet_2023mar.onnx"
 )
 
-# Exact primary types per group (Nearby Search includedPrimaryTypes). Any type Google
-# rejects is detected at run time and dropped automatically.
-TYPE_GROUPS = {
-    "eat": ["restaurant", "african_restaurant", "indian_restaurant", "chinese_restaurant",
-            "italian_restaurant", "japanese_restaurant", "seafood_restaurant", "vegetarian_restaurant",
-            "brunch_restaurant", "breakfast_restaurant", "thai_restaurant", "american_restaurant",
-            "middle_eastern_restaurant", "mediterranean_restaurant", "fast_food_restaurant",
-            "hamburger_restaurant", "pizza_restaurant", "sandwich_shop", "steak_house",
-            "barbecue_restaurant", "meal_takeaway", "food_court"],
-    "cafes": ["cafe", "coffee_shop", "bakery", "tea_house", "ice_cream_shop", "dessert_shop",
-              "dessert_restaurant", "confectionery"],
-    "nightlife": ["bar", "pub", "wine_bar", "bar_and_grill", "night_club"],
-    "outdoors": ["park", "garden", "botanical_garden", "hiking_area", "picnic_ground",
-                 "national_park", "state_park"],
-    "fun": ["amusement_center", "video_arcade", "bowling_alley", "amusement_park", "museum",
-            "art_gallery", "cultural_center", "performing_arts_theater", "tourist_attraction"],
-    "sports": ["gym", "fitness_center", "sports_complex", "stadium", "swimming_pool", "sports_club",
-               "golf_course", "adventure_sports_center"],
-    "stays": ["hotel", "lodging", "guest_house", "hostel", "bed_and_breakfast", "resort_hotel", "motel"],
+# Google Maps search terms per group.
+TERMS = {
+    "eat": ["restaurant", "fast food", "nyama choma", "pizza"],
+    "cafes": ["cafe", "coffee shop", "bakery", "ice cream"],
+    "nightlife": ["bar", "pub", "night club", "lounge"],
+    "outdoors": ["park", "garden"],
+    "fun": ["arcade", "gaming zone", "bowling", "museum", "art gallery"],
+    "sports": ["gym", "sports club", "swimming pool"],
+    "stays": ["hotel", "hostel", "guest house"],
 }
-
-SEARCH_FIELDS = ",".join(
-    "places." + f
-    for f in (
-        "id", "displayName", "formattedAddress", "location", "types", "primaryType",
-        "rating", "userRatingCount", "businessStatus", "photos", "websiteUri",
-        "nationalPhoneNumber", "regularOpeningHours", "addressComponents",
-    )
-)
 
 # --------------------------------------------------------------------------- categories
 
-# Order matters: first match on primaryType wins as the main category.
-_RESTAURANT_TYPES = {
-    "restaurant", "african_restaurant", "indian_restaurant", "chinese_restaurant",
-    "italian_restaurant", "japanese_restaurant", "seafood_restaurant",
-    "vegetarian_restaurant", "brunch_restaurant", "breakfast_restaurant",
-    "thai_restaurant", "american_restaurant", "middle_eastern_restaurant",
-    "mediterranean_restaurant", "food_court",
-}
-TYPE_RULES = [
-    ({"night_club"}, "Clubs & Lounges"),
-    ({"bar", "pub", "wine_bar", "cocktail_bar", "bar_and_grill", "lounge_bar"}, "Bars & Chill Spots"),
-    ({"ice_cream_shop", "dessert_shop", "dessert_restaurant", "confectionery", "candy_store"}, "Desserts & Ice Cream"),
-    ({"cafe", "coffee_shop", "bakery", "tea_house", "cafeteria"}, "Cafes & Bakeries"),
-    ({"fast_food_restaurant", "hamburger_restaurant", "pizza_restaurant", "sandwich_shop",
-      "chicken_restaurant", "meal_takeaway"}, "Fast Food"),
-    ({"steak_house", "barbecue_restaurant"}, "Nyama Choma & Grills"),
-    ({"hotel", "lodging", "guest_house", "hostel", "bed_and_breakfast", "motel", "extended_stay_hotel"}, "Hotels & Stays"),
-    ({"resort_hotel", "campground", "cottage"}, "Getaways & Resorts"),
-    ({"garden", "botanical_garden"}, "Garden Hangouts"),
-    ({"park", "hiking_area", "national_park", "nature_preserve", "picnic_ground", "state_park"}, "Outdoors & Nature"),
-    ({"amusement_center", "video_arcade", "bowling_alley", "amusement_park"}, "Gaming & Arcades"),
-    ({"museum", "art_gallery", "cultural_center", "performing_arts_theater", "art_studio"}, "Arts & Culture"),
-    ({"gym", "sports_complex", "stadium", "swimming_pool", "golf_course", "sports_club", "fitness_center",
-      "adventure_sports_center"}, "Sports & Adventure"),
-    (_RESTAURANT_TYPES, "Restaurants"),
-    ({"tourist_attraction", "event_venue", "community_center", "karaoke"}, "Hangouts & Leisure"),
+# First match on the place's PRIMARY Google category name wins (exact-category rule).
+CATEGORY_RULES = [
+    (r"night ?club|disco|karaoke|\blounge\b|hookah", "Clubs & Lounges"),
+    (r"\b(bar|pub|tavern|brewery|beer|cocktail|wine|sports bar|taproom)\b", "Bars & Chill Spots"),
+    (r"ice cream|gelato|frozen yogurt|dessert|candy|chocolate|donut|doughnut|waffle|crepe", "Desserts & Ice Cream"),
+    (r"\bcaf[eé]\b|coffee|bakery|patisserie|tea (house|room)|cake|bagel|pastry", "Cafes & Bakeries"),
+    (r"fast food|burger|pizza|sandwich|chicken|fried|takeaway|take out|hot dog|kebab|shawarma|fries|snack", "Fast Food"),
+    (r"barbecue|bbq|grill|steak|nyama|butcher", "Nyama Choma & Grills"),
+    (r"restaurant|eatery|diner|canteen|food court|buffet|brasserie|bistro|kitchen|dhaba", "Restaurants"),
+    (r"resort|campground|camping|safari lodge|eco ?lodge", "Getaways & Resorts"),
+    (r"hotel|lodge|guest ?house|hostel|motel|inn\b|bed (&|and) breakfast|apartment", "Hotels & Stays"),
+    (r"garden", "Garden Hangouts"),
+    (r"\bpark\b|nature|forest|trail|reserve|picnic|botanical|recreation area|lake|hiking", "Outdoors & Nature"),
+    (r"arcade|amusement|bowling|video game|gaming|billiard|pool hall|escape room|go.?kart|laser|snooker", "Gaming & Arcades"),
+    (r"museum|art gallery|gallery|cultural|theat(er|re)|performing arts|auditorium", "Arts & Culture"),
+    (r"gym|fitness|sports|stadium|swimming|golf|yoga|football|tennis|basketball|martial|climbing|adventure|athletic|racket", "Sports & Adventure"),
+    (r"tourist attraction|event venue|entertainment|recreation|community center|club\b", "Hangouts & Leisure"),
 ]
-
-EXCLUDED_TYPES = {
-    "school", "primary_school", "secondary_school", "university", "hospital", "doctor", "dentist",
-    "pharmacy", "atm", "bank", "gas_station", "car_repair", "car_wash", "car_dealer",
-    "real_estate_agency", "lawyer", "accounting", "insurance_agency", "funeral_home", "cemetery",
-    "church", "mosque", "hindu_temple", "place_of_worship", "local_government_office", "police",
-    "post_office", "courthouse", "embassy", "storage", "moving_company", "laundry",
-    "convenience_store", "grocery_store", "supermarket",
+CATEGORY_GROUP = {
+    "Restaurants": "eat", "Fast Food": "eat", "Nyama Choma & Grills": "eat",
+    "Cafes & Bakeries": "cafes", "Desserts & Ice Cream": "cafes",
+    "Bars & Chill Spots": "nightlife", "Clubs & Lounges": "nightlife", "Rooftops": "nightlife",
+    "Outdoors & Nature": "outdoors", "Garden Hangouts": "outdoors",
+    "Gaming & Arcades": "fun", "Arts & Culture": "fun", "Hangouts & Leisure": "fun",
+    "Sports & Adventure": "sports", "Hotels & Stays": "stays", "Getaways & Resorts": "stays",
 }
+EXCLUDE_RE = re.compile(
+    r"school|universit|college|institute|academy|church|mosque|temple|hospital|clinic|pharmac|chemist|"
+    r"\bbank\b|\batm\b|insurance|gas station|petrol|fuel|supermarket|grocery|convenience|mini ?market|wholesale|"
+    r"salon|barber|beauty|massage|car wash|car repair|car dealer|garage|real estate|lawyer|advocate|accountant|"
+    r"cyber|internet|printing|stationery|book ?(shop|store)|laundry|dry clean|hardware|electronics|"
+    r"cell ?phone|mobile|tailor|boutique|clothing|shoe|furniture|cemetery|funeral|police|post office|"
+    r"government|embassy|office|sacco|studio apartment|\bngo\b|foundation",
+    re.I,
+)
+_COMPILED_RULES = [(re.compile(p, re.I), c) for p, c in CATEGORY_RULES]
 
 
-def categorize(name, types, primary):
-    """Return an ordered list of RADA categories (main first). Empty = not a fit."""
+def categorize(name, category_name):
+    """Ordered list of RADA categories (main first), from the place's primary category name."""
+    cn = (category_name or "").strip()
+    if not cn or EXCLUDE_RE.search(cn):
+        return []
+    main = next((c for rx, c in _COMPILED_RULES if rx.search(cn)), None)
+    if not main:
+        return []
     n = (name or "").lower()
-    types = set(types or [])
-    cats = []
-
-    def add(c):
-        if c not in cats:
-            cats.append(c)
-
-    for tset, cat in TYPE_RULES:
-        if primary in tset:
-            add(cat)
-            break
-    if re.search(r"nyama|choma|\bgrill|bbq|barbecue|butchery", n):
-        add("Nyama Choma & Grills")
-    if re.search(r"rooftop|roof top|sky ?bar|skyline|\bsky\b", n):
-        add("Rooftops")
-    if "garden" in n:
-        add("Garden Hangouts")
-    for tset, cat in TYPE_RULES:
-        if types & tset:
-            add(cat)
+    cats = [main]
+    if re.search(r"nyama|choma", n) and main in ("Restaurants", "Fast Food", "Bars & Chill Spots"):
+        cats = ["Nyama Choma & Grills"] + [c for c in cats if c != "Nyama Choma & Grills"]
+    if re.search(r"rooftop|roof top|sky ?bar|skyline", n) and "Rooftops" not in cats:
+        cats.append("Rooftops")
+    if "garden" in n and "Garden Hangouts" not in cats:
+        cats.append("Garden Hangouts")
     return cats
 
 
 # --------------------------------------------------------------------------- small helpers
 
 STATS = {
-    "searches": 0, "photos_downloaded": 0, "photos_face": 0, "photos_other": 0,
-    "spots_added": 0, "spots_skipped_photos": 0, "anchors_done": 0, "nearby_calls": 0,
+    "places": 0, "photos_downloaded": 0, "photos_face": 0, "photos_other": 0,
+    "spots_added": 0, "spots_skipped_photos": 0, "anchors_done": 0, "scrapes": 0,
 }
-DAY_USED = {"searches": 0, "photos": 0}
+DAY_USED = {"places": 0, "photos": 0}
 SEEDED_BASE = {"n": 0}  # spots the seeder had added before this run started
+EMPTY = {"n": 0, "ids": []}  # consecutive anchors where the scraper returned nothing
 T0 = time.time()
 
 
 class Fatal(Exception):
-    """Stop the whole run and do not chain (bad key, quota, billing, bad config)."""
+    """Stop the whole run and do not chain (bad token, no credit, bad config)."""
 
 
 class StopRun(Exception):
@@ -219,11 +208,16 @@ def time_ok():
     return time.time() - T0 < TIME_BUDGET_MIN * 60
 
 
+def places_left():
+    return DAILY_PLACE_CAP - DAY_USED["places"] - STATS["places"]
+
+
+def photos_left():
+    return DAILY_PHOTO_CAP - DAY_USED["photos"] - STATS["photos_downloaded"]
+
+
 def caps_ok():
-    return (
-        DAY_USED["searches"] + STATS["searches"] < DAILY_SEARCH_CAP
-        and DAY_USED["photos"] + STATS["photos_downloaded"] < DAILY_PHOTO_CAP
-    )
+    return places_left() > 0 and photos_left() > 0
 
 
 def total_cap_reached():
@@ -285,120 +279,122 @@ def set_switch(value):
     )
 
 
-# --------------------------------------------------------------------------- google places
+# --------------------------------------------------------------------------- google maps scraper
 
 
-def places_text_search(query, center=None, radius=50000.0, page_size=20, fields=SEARCH_FIELDS):
-    body = {"textQuery": query, "regionCode": "KE", "pageSize": page_size}
-    if center:
-        body["locationBias"] = {"circle": {
-            "center": {"latitude": center[0], "longitude": center[1]},
-            "radius": min(float(radius), 50000.0),
-        }}
-    headers = {"X-Goog-Api-Key": GKEY, "X-Goog-FieldMask": fields, "Content-Type": "application/json"}
-    for attempt in range(3):
-        r = requests.post("https://places.googleapis.com/v1/places:searchText",
-                          headers=headers, json=body, timeout=30)
-        STATS["searches"] += 1
-        if r.status_code == 200:
-            return r.json().get("places", [])
-        if r.status_code in (429, 500, 502, 503):
-            time.sleep(2 ** (attempt + 1))
+def gmaps_zoom(radius_m):
+    if radius_m <= 1500:
+        return 15
+    if radius_m <= 3000:
+        return 14
+    if radius_m <= 5000:
+        return 13
+    return 12
+
+
+def parse_results(path):
+    """gosom writes one JSON object per line (or a JSON array). Accept both."""
+    if not os.path.exists(path):
+        return []
+    text = open(path, encoding="utf-8", errors="replace").read().strip()
+    if not text:
+        return []
+    if text.startswith("["):
+        try:
+            return json.loads(text)
+        except ValueError:
+            pass
+    out = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
             continue
-        if r.status_code in (400, 401, 403):
-            raise Fatal(f"Places API {r.status_code}: {r.text[:300]}")
-        raise RuntimeError(f"Places API {r.status_code}: {r.text[:300]}")
-    raise RuntimeError("Places API failed after retries")
+        try:
+            out.append(json.loads(line))
+        except ValueError:
+            continue
+    return out
 
 
-NEARBY_URL = "https://places.googleapis.com/v1/places:searchNearby"
-INVALID_TYPES = set()
-VALID_TYPES = set()
+def gmaps_scrape(queries, lat, lng, radius_m):
+    """Run gosom/google-maps-scraper in Docker for these search terms around a point."""
+    work = tempfile.mkdtemp(prefix="gmaps_")
+    try:
+        with open(os.path.join(work, "queries.txt"), "w", encoding="utf-8") as f:
+            f.write("\n".join(queries) + "\n")
+        cmd = [
+            "docker", "run", "--rm", "--shm-size=1g", "-v", f"{work}:/work", GMAPS_IMAGE,
+            "-input", "/work/queries.txt", "-results", "/work/results.json", "-json",
+            "-depth", str(GMAPS_DEPTH), "-c", str(GMAPS_CONCURRENCY), "-lang", "en",
+            "-geo", f"{lat},{lng}", "-zoom", str(gmaps_zoom(radius_m)), "-radius", str(int(radius_m)),
+            "-exit-on-inactivity", "3m",
+        ]
+        STATS["scrapes"] += 1
+        try:
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=GMAPS_TIMEOUT_MIN * 60)
+        except FileNotFoundError:
+            raise Fatal("docker is not available on this runner")
+        except subprocess.TimeoutExpired:
+            raise RuntimeError(f"scraper exceeded {GMAPS_TIMEOUT_MIN} min")
+        items = parse_results(os.path.join(work, "results.json"))
+        if r.returncode != 0 and not items:
+            tail = "\n".join((r.stderr or r.stdout or "").strip().splitlines()[-12:])
+            if "Unable to find image" in tail or "pull access denied" in tail or "invalid reference" in tail:
+                raise Fatal("could not pull the scraper image: " + tail[-300:])
+            raise RuntimeError(f"scraper exit {r.returncode}: {tail[-300:]}")
+        return items
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
 
 
-def _nearby_raw(center, radius, types, count=20):
-    body = {
-        "includedPrimaryTypes": types, "maxResultCount": count, "rankPreference": "POPULARITY",
-        "regionCode": "KE",
-        "locationRestriction": {"circle": {
-            "center": {"latitude": center[0], "longitude": center[1]}, "radius": float(radius)}},
+def normalize(raw):
+    """gosom place record -> the field names the rest of the seeder uses."""
+    gps = raw.get("gps_coordinates") or {}
+    lat = raw.get("latitude", gps.get("latitude"))
+    lng = raw.get("longitude", gps.get("longitude"))
+    imgs = []
+    for im in raw.get("images") or []:
+        u = im.get("image") if isinstance(im, dict) else im
+        if isinstance(u, str) and u.startswith("http") and u not in imgs:
+            imgs.append(u)
+    th = raw.get("thumbnail")
+    if isinstance(th, str) and th.startswith("http") and th not in imgs:
+        imgs.append(th)
+    hours = []
+    oh = raw.get("open_hours") or {}
+    if isinstance(oh, dict):
+        for day, v in oh.items():
+            hours.append({"day": day, "hours": ", ".join(v) if isinstance(v, list) else str(v)})
+    status = str(raw.get("status") or "").lower()
+    ca = raw.get("complete_address") or {}
+    pid = raw.get("place_id") or (f"cid:{raw['cid']}" if raw.get("cid") else None) or raw.get("data_id")
+
+    def num(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+
+    return {
+        "placeId": pid, "title": raw.get("title"),
+        "location": {"lat": num(lat), "lng": num(lng)},
+        "categoryName": raw.get("category"),
+        "totalScore": num(raw.get("review_rating")), "reviewsCount": int(num(raw.get("review_count")) or 0),
+        "imageUrls": imgs, "address": raw.get("address"), "openingHours": hours,
+        "phone": raw.get("phone"), "website": raw.get("website"),
+        "neighborhood": (ca.get("borough") or None) if isinstance(ca, dict) else None,
+        "permanentlyClosed": "permanent" in status, "temporarilyClosed": "temporar" in status,
     }
-    headers = {"X-Goog-Api-Key": GKEY, "X-Goog-FieldMask": SEARCH_FIELDS, "Content-Type": "application/json"}
-    r = requests.post(NEARBY_URL, headers=headers, json=body, timeout=30)
-    STATS["searches"] += 1
-    STATS["nearby_calls"] += 1
-    return r
 
 
-def _prune_invalid(center, types):
-    """A 400 usually means one of our type names is not a valid Places type. Find and drop it."""
-    for t in types:
-        if t in VALID_TYPES or t in INVALID_TYPES:
-            continue
-        r = _nearby_raw(center, 100, [t], count=1)
-        if r.status_code == 200:
-            VALID_TYPES.add(t)
-        elif r.status_code == 400:
-            INVALID_TYPES.add(t)
-            log(f"  dropping unsupported place type: {t}")
-        elif r.status_code in (401, 403):
-            raise Fatal(f"Places API {r.status_code}: {r.text[:300]}")
-
-
-def places_nearby(center, radius, types):
-    types = [t for t in types if t not in INVALID_TYPES]
-    pruned = False
-    for attempt in range(4):
-        if not types:
-            return []
-        r = _nearby_raw(center, radius, types)
-        if r.status_code == 200:
-            return r.json().get("places", [])
-        if r.status_code in (429, 500, 502, 503):
-            time.sleep(2 ** (attempt + 1))
-            continue
-        if r.status_code == 400 and not pruned:
-            pruned = True
-            _prune_invalid(center, types)
-            types = [t for t in types if t not in INVALID_TYPES]
-            continue
-        if r.status_code in (400, 401, 403):
-            raise Fatal(f"Places API {r.status_code}: {r.text[:300]}")
-        raise RuntimeError(f"Places API {r.status_code}: {r.text[:300]}")
-    raise RuntimeError("Places API failed after retries")
-
-
-def offset_point(center, north_m, east_m):
-    lat = center[0] + north_m / 111320.0
-    lng = center[1] + east_m / (111320.0 * math.cos(math.radians(center[0])))
-    return (lat, lng)
-
-
-def sweep(center, radius, types, cands, counter, depth=0):
-    """Nearby search; if the 20-result cap is hit, split into 4 overlapping sub-circles."""
-    if not time_ok() or not caps_ok():
-        raise StopRun()
-    if counter[0] >= NEARBY_CALL_CAP:
-        return
-    counter[0] += 1
-    places = places_nearby(center, radius, types)
-    for p in places:
-        cands.setdefault(p.get("id"), p)
-    time.sleep(0.05)
-    if len(places) >= 20 and depth < MAX_DEPTH and radius > 250:
-        for sy, sx in ((0.5, 0.5), (0.5, -0.5), (-0.5, 0.5), (-0.5, -0.5)):
-            sweep(offset_point(center, sy * radius, sx * radius), radius * 0.72, types, cands, counter, depth + 1)
-
-
-def fetch_photo(photo_name):
-    r = requests.get(f"https://places.googleapis.com/v1/{photo_name}/media",
-                     params={"maxWidthPx": 1200, "key": GKEY}, timeout=40)
-    STATS["photos_downloaded"] += 1
-    if r.status_code in (401, 403):
-        raise Fatal(f"Places photo {r.status_code}: {r.text[:200]}")
-    if r.status_code != 200 or not r.content:
-        return None
-    return r.content
+def scrape_area(a):
+    terms = [t for g in GROUPS for t in TERMS.get(g, [])]
+    if not terms:
+        raise Fatal("GROUPS has no known groups")
+    raw = gmaps_scrape(terms, a["lat"], a["lng"], float(a.get("radius_m") or 1500))
+    items = [normalize(r) for r in raw if isinstance(r, dict)]
+    STATS["places"] += len(items)
+    return items
 
 
 # --------------------------------------------------------------------------- face-free images
@@ -478,6 +474,25 @@ def process_image(raw):
     return data, None
 
 
+def image_url_1200(url):
+    """Google photo URLs end in =w1920-h1080-k-no style size flags; ask for 1200 wide."""
+    if "googleusercontent.com" in url or "ggpht.com" in url:
+        base = re.sub(r"=[^=/]*$", "", url)
+        return base + "=w1200"
+    return url
+
+
+def fetch_image(url):
+    STATS["photos_downloaded"] += 1
+    try:
+        r = requests.get(image_url_1200(url), timeout=40)
+    except requests.RequestException:
+        return None
+    if r.status_code != 200 or not r.content:
+        return None
+    return r.content
+
+
 # --------------------------------------------------------------------------- queue steps
 
 
@@ -514,7 +529,7 @@ def reset_stale():
 
 
 GENERIC = {"campus", "kenya", "nairobi", "the", "and", "of", "for", "in", "at", "college",
-           "university", "institute", "centre", "center"}
+           "university", "institute", "centre", "center", "town"}
 
 
 def name_matches(institution, display_name, address):
@@ -530,49 +545,53 @@ def in_bbox(lat, lng):
     return BBOX[0] <= lat <= BBOX[1] and BBOX[2] <= lng <= BBOX[3]
 
 
+def nominatim_search(q):
+    r = requests.get(
+        "https://nominatim.openstreetmap.org/search",
+        params={"q": q, "format": "jsonv2", "limit": 5, "countrycodes": "ke",
+                "viewbox": f"{BBOX[2]},{BBOX[1]},{BBOX[3]},{BBOX[0]}", "bounded": 1},
+        headers={"User-Agent": NOMINATIM_UA}, timeout=30,
+    )
+    time.sleep(1.1)  # Nominatim policy: max 1 request per second
+    if r.status_code == 429:
+        time.sleep(30)
+        return []
+    if r.status_code != 200:
+        return []
+    return r.json()
+
+
 def resolve_pending(limit):
     rows = sb("GET", f"seed_anchors?resolve_status=eq.pending&select=*&order=institution.asc&limit={limit}")
     ok = bad = 0
     for r in rows:
-        if not caps_ok():
-            break
         place_hint = r.get("area") or r.get("county") or ""
-        q = f"{r['institution']} {place_hint} Kenya".replace("  ", " ")
-        places = places_text_search(
-            q, center=(-1.2000, 36.8500), radius=50000.0, page_size=5,
-            fields="places.id,places.displayName,places.location,places.formattedAddress,places.types",
-        )
-        zone = r.get("kind") == "zone"
-        area_types = {"locality", "sublocality", "sublocality_level_1", "neighborhood",
-                      "administrative_area_level_3", "political"}
-        pick, fallback = None, None
-        for p in places:
-            loc = p.get("location") or {}
-            lat, lng = loc.get("latitude"), loc.get("longitude")
-            dn = (p.get("displayName") or {}).get("text", "")
-            if lat is None or lng is None or not in_bbox(lat, lng):
+        results = nominatim_search(f"{r['institution']}, {place_hint}, Kenya".replace(" ,", ","))
+        if not results and place_hint:
+            results = nominatim_search(f"{r['institution']}, Kenya")
+        pick = None
+        for p in results:
+            try:
+                lat, lng = float(p["lat"]), float(p["lon"])
+            except (KeyError, ValueError):
                 continue
-            if not name_matches(r["institution"], dn, p.get("formattedAddress", "")):
+            if not in_bbox(lat, lng):
                 continue
-            cand = (p, lat, lng, dn)
-            if zone and not (set(p.get("types") or []) & area_types):
-                fallback = fallback or cand  # a business inside the area still gives a usable center
-                continue
-            pick = cand
-            break
-        pick = pick or fallback
+            if name_matches(r["institution"], p.get("display_name", ""), ""):
+                pick = (p, lat, lng)
+                break
         if pick:
-            p, lat, lng, dn = pick
-            patch = {"lat": lat, "lng": lng, "place_id": p.get("id"), "resolved_name": dn,
+            p, lat, lng = pick
+            patch = {"lat": lat, "lng": lng, "place_id": f"osm:{p.get('osm_type', '')}{p.get('osm_id', '')}",
+                     "resolved_name": (p.get("display_name") or "")[:200],
                      "resolve_status": "resolved", "updated_at": now_iso()}
             ok += 1
         else:
-            top = ((places[0].get("displayName") or {}).get("text") if places else None) or "no result"
+            top = (results[0].get("display_name") if results else None) or "no result"
             patch = {"resolve_status": "unresolved", "seed_status": "done",
-                     "note": f"no confident match (top result: {top})", "updated_at": now_iso()}
+                     "note": f"no confident match (top result: {top[:120]})", "updated_at": now_iso()}
             bad += 1
         sb("PATCH", f"seed_anchors?id=eq.{r['id']}", json=patch, prefer="return=minimal")
-        time.sleep(0.1)
     log(f"resolve: {ok} resolved, {bad} unresolved")
 
 
@@ -629,45 +648,47 @@ def load_existing():
     return ex
 
 
-def neighborhood_of(p, fallback):
-    for comp in p.get("addressComponents") or []:
-        if set(comp.get("types") or []) & {"sublocality_level_1", "sublocality", "neighborhood"}:
-            return comp.get("longText") or fallback
-    return fallback
+def hours_list(item):
+    out = []
+    for h in item.get("openingHours") or []:
+        if isinstance(h, dict) and h.get("day"):
+            out.append(f"{h['day']}: {h.get('hours', '')}".strip())
+    return out
 
 
-def evaluate(p, a, ex):
-    pid = p.get("id")
+def evaluate(item, a, ex):
+    """Normalized scraped place -> candidate dict, or None if it does not qualify."""
+    pid = item.get("placeId")
     if not pid or pid in ex["pids"] or pid in ex["skipped"]:
         return None
-    if p.get("businessStatus", "OPERATIONAL") != "OPERATIONAL":
+    if item.get("permanentlyClosed") or item.get("temporarilyClosed"):
         return None
-    loc = p.get("location") or {}
-    lat, lng = loc.get("latitude"), loc.get("longitude")
-    if lat is None or lng is None or haversine(a["lat"], a["lng"], lat, lng) > float(a.get("radius_m") or 1500):
+    loc = item.get("location") or {}
+    lat, lng = loc.get("lat"), loc.get("lng")
+    if lat is None or lng is None:
         return None
-    rating, n = p.get("rating") or 0.0, p.get("userRatingCount") or 0
-    if rating < MIN_RATING or n < MIN_REVIEWS:
+    # a little slack: the scraper's search circle is approximate
+    if haversine(a["lat"], a["lng"], lat, lng) > float(a.get("radius_m") or 1500) * 1.1:
         return None
-    primary = p.get("primaryType")
-    if not primary:
+    rating = item.get("totalScore") or 0.0
+    reviews = item.get("reviewsCount") or 0
+    if rating < MIN_RATING or reviews < MIN_REVIEWS:
         return None
-    if set(p.get("types") or []) & EXCLUDED_TYPES:
-        return None
-    name = (p.get("displayName") or {}).get("text") or ""
+    name = (item.get("title") or "").strip()
     if not name:
         return None
-    cats = categorize(name, {primary}, primary)  # exact match on the place's primary type
-    if not cats:
+    cats = categorize(name, item.get("categoryName"))
+    if not cats or CATEGORY_GROUP.get(cats[0]) not in GROUPS:
         return None
     nk = norm(name)
     for k, la, ln in ex["names"]:
         if k == nk and haversine(la, ln, lat, lng) < 150:
             return None
-    if len(p.get("photos") or []) < MIN_CLEAN_PHOTOS:
+    imgs = [u for u in (item.get("imageUrls") or []) if isinstance(u, str) and u.startswith("http")]
+    if len(imgs) < MIN_CLEAN_PHOTOS:
         return None
-    return {"place": p, "pid": pid, "name": name, "lat": lat, "lng": lng, "cats": cats,
-            "score": len(p.get("photos") or []) + rating}
+    return {"item": item, "pid": pid, "name": name, "lat": lat, "lng": lng, "cats": cats,
+            "images": imgs, "score": len(imgs) + rating}
 
 
 def r2_client():
@@ -680,12 +701,12 @@ def r2_client():
 
 
 def add_spot(c, a, ex, s3):
-    p, pid = c["place"], c["pid"]
+    p, pid = c["item"], c["pid"]
     kept = []
-    for ph in (p.get("photos") or [])[:MAX_PHOTO_CANDIDATES]:
-        if len(kept) >= MAX_PHOTOS or not caps_ok():
+    for u in c["images"][:MAX_PHOTO_CANDIDATES]:
+        if len(kept) >= MAX_PHOTOS or photos_left() <= 0:
             break
-        raw = fetch_photo(ph["name"])
+        raw = fetch_image(u)
         if not raw:
             STATS["photos_other"] += 1
             continue
@@ -711,18 +732,17 @@ def add_spot(c, a, ex, s3):
         urls.append(f"{R2_PUBLIC_BASE}/{key}")
         manifest.append({
             "path": key, "spot_id": sid, "google_place_id": pid, "name": c["name"],
-            "address": p.get("formattedAddress"), "latitude": c["lat"], "longitude": c["lng"],
+            "address": p.get("address"), "latitude": c["lat"], "longitude": c["lng"],
             "gallery_pos": i, "is_thumbnail": i == 0, "size_bytes": len(data), "status": "keep",
         })
-    hours = (p.get("regularOpeningHours") or {}).get("weekdayDescriptions") or []
     row = {
         "id": sid, "name": c["name"], "category": c["cats"][0], "extra_categories": c["cats"][1:3],
-        "address": p.get("formattedAddress"), "latitude": c["lat"], "longitude": c["lng"],
-        "thumbnail": urls[0], "gallery": urls, "phone": p.get("nationalPhoneNumber"),
-        "website": p.get("websiteUri"), "rating": p.get("rating") or 0,
-        "reviews_count": p.get("userRatingCount") or 0, "is_claimed": False, "status": "unclaimed",
-        "opening_hours": hours, "social_links": {},
-        "neighborhood": neighborhood_of(p, a.get("area") or a.get("county") or "Nairobi"),
+        "address": p.get("address"), "latitude": c["lat"], "longitude": c["lng"],
+        "thumbnail": urls[0], "gallery": urls, "phone": p.get("phone") or p.get("phoneUnformatted"),
+        "website": p.get("website"), "rating": p.get("totalScore") or 0,
+        "reviews_count": p.get("reviewsCount") or 0, "is_claimed": False, "status": "unclaimed",
+        "opening_hours": hours_list(p), "social_links": {},
+        "neighborhood": p.get("neighborhood") or a.get("area") or a.get("county") or "Nairobi",
         "google_place_id": pid, "photos_mirrored_at": now_iso(),
         "photos_mirror_note": f"campus-seeder:{a['institution']}",
     }
@@ -753,30 +773,23 @@ def interleave_by_category(ranked):
 
 
 def seed_anchor(a, ex, s3):
-    """Returns (spots_added, finished). finished=False means time/caps ran out mid-way."""
-    cands, total_calls = {}, 0
-    center, radius = (a["lat"], a["lng"]), float(a.get("radius_m") or 1500)
-    try:
-        for g in GROUPS:
-            if g in TYPE_GROUPS:
-                counter = [0]  # per-group budget so one dense group cannot starve the others
-                sweep(center, radius, TYPE_GROUPS[g], cands, counter)
-                total_calls += counter[0]
-    except StopRun:
-        return 0, False
-    ranked = [e for e in (evaluate(p, a, ex) for p in cands.values()) if e]
+    """Returns (spots_added, finished, scraped). finished=False means time/caps ran out mid-way."""
+    if places_left() < 200 or not time_ok():
+        return 0, False, 0
+    items = scrape_area(a)
+    ranked = [e for e in (evaluate(i, a, ex) for i in items) if e]
     ranked.sort(key=lambda e: e["score"], reverse=True)
     ranked = interleave_by_category(ranked)
-    log(f"  radius {int(radius)} m: {total_calls} nearby calls, {len(cands)} places, {len(ranked)} new candidates")
+    log(f"  radius {int(a.get('radius_m') or 0)} m: scraped {len(items)} places, {len(ranked)} new candidates")
     added = 0
     for c in ranked:
         if added >= MAX_SPOTS_PER_ANCHOR or total_cap_reached():
             break
-        if not time_ok() or not caps_ok():
-            return added, False
+        if not time_ok() or photos_left() <= 0:
+            return added, False, len(items)
         if add_spot(c, a, ex, s3):
             added += 1
-    return added, True
+    return added, True, len(items)
 
 
 def pending_work():
@@ -795,7 +808,7 @@ def main():
 
     missing = [k for k, v in {
         "SUPABASE_URL": SUPABASE_URL, "SUPABASE_SERVICE_ROLE_KEY": SERVICE_KEY,
-        "GOOGLE_MAPS_API_KEY": GKEY, "R2_ACCOUNT_ID": R2_ACCOUNT_ID, "R2_ACCESS_KEY_ID": R2_KEY_ID,
+        "R2_ACCOUNT_ID": R2_ACCOUNT_ID, "R2_ACCESS_KEY_ID": R2_KEY_ID,
         "R2_SECRET_ACCESS_KEY": R2_SECRET, "R2_PUBLIC_BASE": R2_PUBLIC_BASE,
     }.items() if not v]
     if missing:
@@ -818,10 +831,11 @@ def main():
     run = sb("POST", "seed_runs", json=[{}], prefer="return=representation")[0]
     note = ""
     code = 0
+    chain = False
     try:
         since = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
         for r in sb("GET", f"seed_runs?started_at=gte.{since}&select=searches,photos_downloaded"):
-            DAY_USED["searches"] += r.get("searches") or 0
+            DAY_USED["places"] += r.get("searches") or 0   # column `searches` stores places scraped
             DAY_USED["photos"] += r.get("photos_downloaded") or 0
 
         SEEDED_BASE["n"] = sum(r.get("spots_added") or 0 for r in
@@ -848,7 +862,7 @@ def main():
             sb("PATCH", f"seed_anchors?id=eq.{a['id']}",
                json={"seed_status": "running", "updated_at": now_iso()}, prefer="return=minimal")
             try:
-                added, finished = seed_anchor(a, ex, s3)
+                added, finished, scraped = seed_anchor(a, ex, s3)
             except Fatal:
                 raise
             except Exception as e:  # noqa: BLE001
@@ -857,6 +871,26 @@ def main():
                    prefer="return=minimal")
                 log(f"  FAILED: {e}")
                 continue
+            if finished and scraped == 0:
+                EMPTY["n"] += 1
+                EMPTY["ids"].append(a["id"])
+                sb("PATCH", f"seed_anchors?id=eq.{a['id']}",
+                   json={"seed_status": "failed", "note": "scraper returned no places (blocked or nothing there)",
+                         "updated_at": now_iso()}, prefer="return=minimal")
+                log("  scraper returned nothing")
+                if EMPTY["n"] >= MAX_EMPTY_ANCHORS:
+                    for aid in EMPTY["ids"]:  # put them back so a later run retries them
+                        sb("PATCH", f"seed_anchors?id=eq.{aid}",
+                           json={"seed_status": "pending", "note": "retry: scraper was blocked",
+                                 "updated_at": now_iso()}, prefer="return=minimal")
+                    raise Fatal(f"scraper returned nothing {EMPTY['n']} anchors in a row; Google is probably "
+                                "blocking this runner. Stopping instead of looping; the cron will try again "
+                                "later, or run the workflow again.")
+                time.sleep(20)
+                continue
+            if scraped:
+                EMPTY["n"] = 0
+                EMPTY["ids"] = []
             total = (a.get("spots_added") or 0) + added
             sb("PATCH", f"seed_anchors?id=eq.{a['id']}",
                json={"seed_status": "done" if finished else "pending", "spots_added": total,
@@ -864,6 +898,9 @@ def main():
             if finished:
                 STATS["anchors_done"] += 1
             log(f"  +{added} spots ({'done' if finished else 'paused, will resume'})")
+            if not finished and not caps_ok():
+                break
+            time.sleep(10)  # be gentle with Google between areas
 
         more = pending_work()
         if total_cap_reached():
@@ -883,12 +920,15 @@ def main():
         note, chain, code = f"ERROR: {e}", False, 1
         log(note)
 
-    sb("PATCH", f"seed_runs?id=eq.{run['id']}", json={
-        "finished_at": now_iso(), "anchors_done": STATS["anchors_done"], "spots_added": STATS["spots_added"],
-        "searches": STATS["searches"], "photos_downloaded": STATS["photos_downloaded"],
-        "photos_face_rejected": STATS["photos_face"], "photos_other_rejected": STATS["photos_other"],
-        "note": note[:300],
-    }, prefer="return=minimal")
+    try:
+        sb("PATCH", f"seed_runs?id=eq.{run['id']}", json={
+            "finished_at": now_iso(), "anchors_done": STATS["anchors_done"], "spots_added": STATS["spots_added"],
+            "searches": STATS["places"], "photos_downloaded": STATS["photos_downloaded"],
+            "photos_face_rejected": STATS["photos_face"], "photos_other_rejected": STATS["photos_other"],
+            "note": note[:300],
+        }, prefer="return=minimal")
+    except Exception as e:  # noqa: BLE001
+        log(f"WARN could not write run log: {e}")
     log("run summary:", STATS, note)
     write_output(chain)
     return code
