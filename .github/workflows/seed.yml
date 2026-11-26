@@ -38,12 +38,14 @@ jobs:
 
       - run: pip install -r seeder/requirements.txt
 
+      - name: Pull Google Maps scraper image
+        run: docker pull gosom/google-maps-scraper:latest
+
       - name: Run seeder
         id: run
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -55,7 +57,9 @@ jobs:
           MAX_SPOTS_PER_ANCHOR: ${{ vars.MAX_SPOTS_PER_ANCHOR }}
           MAX_PHOTOS: ${{ vars.MAX_PHOTOS }}
           GROUPS: ${{ vars.GROUPS }}
-          DAILY_SEARCH_CAP: ${{ vars.DAILY_SEARCH_CAP }}
+          GMAPS_DEPTH: ${{ vars.GMAPS_DEPTH }}
+          GMAPS_CONCURRENCY: ${{ vars.GMAPS_CONCURRENCY }}
+          DAILY_PLACE_CAP: ${{ vars.DAILY_PLACE_CAP }}
           DAILY_PHOTO_CAP: ${{ vars.DAILY_PHOTO_CAP }}
           MIN_RATING: ${{ vars.MIN_RATING }}
           MIN_REVIEWS: ${{ vars.MIN_REVIEWS }}
