@@ -367,13 +367,56 @@ export async function loadUnclaimedSpots(force = false): Promise<any[]> {
   return refreshUnclaimedSpots();
 }
 
+// ---- Fast path: one static spots.json (R2/Cloudflare) + a small "changed since" fetch ----
+// Falls back to the old paged Supabase download below if the file can't be loaded.
+const SPOTS_STATIC_URL: string =
+  ((import.meta as any).env?.VITE_SPOTS_CDN as string) || 'https://pub-5cf88b08d4e7451da444e4a3a9cf2b54.r2.dev';
+
+async function fetchRowsStatic(): Promise<any[] | null> {
+  try {
+    const res = await fetch(`${SPOTS_STATIC_URL}/spots.json`);
+    if (!res.ok) return null;
+    const d = await res.json();
+    if (!d || !Array.isArray(d.spots) || d.spots.length === 0) return null;
+    // Old lean-format file (short field names): don't use it, fall back to the database.
+    if (!('thumbnail' in d.spots[0]) || !('name' in d.spots[0])) return null;
+    const byId = new Map<string, any>();
+    for (const r of d.spots) byId.set(String(r.id), r);
+
+    // Rows edited/added since the file was built (stamp = epoch seconds * 100000 + count).
+    if (supabase && isSupabaseConfigured) {
+      try {
+        let since = Math.floor(Number(d.version || 0) / 100000);
+        for (let i = 0; i < 20; i++) {
+          const { data, error } = await supabase.rpc('spots_changed_since', { since });
+          if (error || !Array.isArray(data) || data.length === 0) break;
+          for (const r of data) {
+            const { _v, ...row } = r as any;
+            byId.set(String(row.id), row);
+            since = Math.max(since, Number(_v) || since);
+          }
+          if (data.length < 500) break;
+        }
+      } catch { /* delta is optional: the file alone is fine */ }
+    }
+    return [...byId.values()].sort(
+      (a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')),
+    );
+  } catch {
+    return null;
+  }
+}
+
 async function refreshUnclaimedSpots(): Promise<any[]> {
   if (inflight) return inflight;
   inflight = (async () => {
     const rows: any[] = [];
     let failed = false;
     try {
-      if (supabase && isSupabaseConfigured) {
+      const fromStatic = await fetchRowsStatic();
+      if (fromStatic) {
+        rows.push(...fromStatic);
+      } else if (supabase && isSupabaseConfigured) {
         // PostgREST caps a single response (usually 1000 rows), so page through the table.
         // Pages are asked for 3 at a time (not one after another), which is much faster on a phone.
         const getPage = (from: number) => supabase!
