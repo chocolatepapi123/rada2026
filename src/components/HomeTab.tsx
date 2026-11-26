@@ -345,27 +345,16 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       refetchTimer = setTimeout(fetchLiveReviewsAndSpots, 1500);
     };
 
-    // Supabase Realtime listener on spots & listings
-    let channel: any = null;
-    try {
-      if (supabase && typeof supabase.channel === 'function') {
-        channel = supabase
-          .channel('home-spots-realtime')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'rada_listings' }, () => {
-            refetchSoon();
-          })
-          .subscribe();
-      }
-    } catch (e) {
-      console.warn('Realtime subscription error on Home tab:', e);
-    }
+    // No Realtime socket here: it would keep one connection open per visitor.
+    // Refresh every 3 minutes while the app is visible instead.
+    const poll = setInterval(() => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') refetchSoon();
+    }, 180000);
 
     return () => {
       clearTimeout(firstFetch);
+      clearInterval(poll);
       if (refetchTimer) clearTimeout(refetchTimer);
-      if (channel && typeof channel.unsubscribe === 'function') {
-        channel.unsubscribe();
-      }
     };
   }, []);
 

@@ -410,28 +410,64 @@ export function subscribeSocials(
   }
 ): () => void {
   if (!isCloudReady() || !myId) return () => {};
-  const channel = supabase
-    .channel(`socials-${myId}`)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload =>
-      handlers.onMessage(payload.new)
-    )
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, payload =>
-      handlers.onMessageUpdate?.(payload.new)
-    )
-    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, payload =>
-      handlers.onMessageDelete?.(payload.old)
-    )
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => handlers.onStructure())
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'conversation_members' }, () =>
-      handlers.onStructure()
-    )
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'match_requests' }, () => handlers.onStructure())
-    .subscribe();
-  return () => {
+  let channel: any = null;
+  let stopped = false;
+  let hiddenTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const open = () => {
+    if (channel || stopped) return;
+    channel = supabase
+      .channel(`socials-${myId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload =>
+        handlers.onMessage(payload.new)
+      )
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, payload =>
+        handlers.onMessageUpdate?.(payload.new)
+      )
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, payload =>
+        handlers.onMessageDelete?.(payload.old)
+      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => handlers.onStructure())
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'conversation_members' }, () =>
+        handlers.onStructure()
+      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'match_requests' }, () => handlers.onStructure())
+      .subscribe();
+  };
+  const close = () => {
+    if (!channel) return;
     try {
       supabase.removeChannel(channel);
     } catch {
       /* ignore */
     }
+    channel = null;
+  };
+
+  // Free the Realtime connection when the app has been in the background for a minute.
+  // (Free plan allows ~200 simultaneous connections; idle phones should not hold one.)
+  const onVisibility = () => {
+    if (typeof document === 'undefined') return;
+    if (document.visibilityState === 'hidden') {
+      if (!hiddenTimer) hiddenTimer = setTimeout(close, 60_000);
+    } else {
+      if (hiddenTimer) {
+        clearTimeout(hiddenTimer);
+        hiddenTimer = null;
+      }
+      if (!channel) {
+        open();
+        handlers.onStructure(); // catch up on anything that arrived while disconnected
+      }
+    }
+  };
+
+  open();
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility);
+  return () => {
+    stopped = true;
+    if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility);
+    if (hiddenTimer) clearTimeout(hiddenTimer);
+    close();
   };
 }
